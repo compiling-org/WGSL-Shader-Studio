@@ -1,0 +1,23 @@
+[package]
+name = "resolume-isf-shaders-rust-ffgl"
+version = "0.1.0"
+edition = "2021"
+description = "FFGL plugin for Resolume with ISF (Interactive Shader Format) support"
+authors = ["Kapil"]
+license = "MIT"
+repository = "https://github.com/compiling-org/resolume-isf-shaders-rust-ffgl"
+homepage = "https://github.com/compiling-org/resolume-isf-shaders-rust-ffgl"
+keywords = ["ffgl", "isf", "shader", "resolume", "vj"]
+categories = ["multimedia", "graphics", "api-bindings"]
+
+[lib]
+name = "resolume_isf_shaders_rust_ffgl"
+crate-type = ["cdylib"]
+
+[dependencies]
+# Basic dependencies for a simple graphics library
+anyhow = "1.0"
+thiserror = "1.0"
+
+[features]
+default = []
