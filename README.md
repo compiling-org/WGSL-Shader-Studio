@@ -12,11 +12,10 @@ FFGL plugin for Resolume with ISF (Interactive Shader Format) support. Professio
 - **Shader Parameter Control**: Real-time parameter manipulation interface
 
 #### 🔄 **In Development**
-- **Neuro-Emotive Control**: EEG and gesture-based shader parameter modulation
-- **MCP Server Integration**: AI-assisted shader creation and parameter optimization
 - **Real-time Performance**: Sub-frame latency for live VJ performance
-- **Extended ISF Library**: Additional shader effects and transitions
+- **Extended ISF Library**: Additional shader effects and transitions from Sleepless Monk collection
 - **Cross-Application Support**: Compatibility with other VJ software
+- **Shader Parameter Control**: Enhanced parameter mapping and automation
 
 #### 🚧 **Known Issues**
 - **FFGL Implementation**: Plugin interface and parameter handling incomplete
@@ -27,9 +26,9 @@ FFGL plugin for Resolume with ISF (Interactive Shader Format) support. Professio
 #### 📈 **Next Development Phase**
 1. **Complete FFGL Interface**: Finish plugin parameter and rendering pipeline
 2. **Full Resolume Integration**: Verify compatibility and parameter mapping
-3. **Neuro-Emotive Shaders**: Add brainwave-controlled visual effects
-4. **Performance Benchmarking**: Ensure 60+ FPS performance
-5. **Shader Library Expansion**: Add more ISF effects and transitions
+3. **Performance Benchmarking**: Ensure 60+ FPS performance
+4. **Shader Library Expansion**: Add more ISF effects and transitions from Sleepless Monk collection
+5. **Parameter Automation**: Enhanced MIDI and OSC control integration
 
 ## Features
 
