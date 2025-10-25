@@ -1,4 +1,4 @@
-# Resolume ISF Shaders Rust FFGL
+e# Resolume ISF Shaders Rust FFGL
 
 FFGL plugin for Resolume with ISF (Interactive Shader Format) support. Professional VJ shader effects for live video performance.
 
