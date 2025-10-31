@@ -73,16 +73,16 @@ pub enum OutputType {
 
 /// Rendering parameters
 pub struct RenderParameters {
-    width: u32,
-    height: u32,
-    time: f32,
-    frame_rate: f32,
+    pub width: u32,
+    pub height: u32,
+    pub time: f32,
+    pub frame_rate: f32,
 }
 
 /// Plugin state management
 pub struct PluginState {
-    current_shader: Option<String>,
-    is_enabled: bool,
+    pub current_shader: Option<String>,
+    pub is_enabled: bool,
 }
 
 impl Default for ResolumeIsfShadersRustFfgl {
@@ -344,14 +344,24 @@ mod tests {
         let value = shader.get_parameter("param1");
         assert!(matches!(value, Some(ShaderValue::Float(1.0))));
     }
+}
+
+// Module declarations
+pub mod audio;
+pub mod gesture_control;
 pub mod shader_converter;
 pub mod shader_renderer;
+pub mod real_shader_renderer;
+pub mod wgpu_renderer;
 pub mod isf_loader;
 pub mod ffgl_plugin;
+pub mod ui;
 
 // Re-export main types for easier use
+pub use audio::*;
+pub use gesture_control::*;
 pub use shader_converter::*;
 pub use shader_renderer::*;
 pub use isf_loader::*;
 pub use ffgl_plugin::*;
-}
+pub use ui::*;

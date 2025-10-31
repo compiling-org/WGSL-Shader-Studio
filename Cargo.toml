@@ -23,9 +23,18 @@ crate-type = ["cdylib"]
 anyhow = "1.0"
 ash = "0.38.0"
 console_log = "1.0.0"
+directories = "5.0"
 eframe = { version = "0.33.0", optional = true }
 egui = { version = "0.33.0", optional = true }
+image = "0.25"
+# Note: Leap Motion and MediaPipe would require platform-specific SDKs
+# midir = "0.10.3"  # MIDI support
+# Note: Simple substitute for gesture recognition until SDKs are added
+log = "0.4"
+parking_lot = "0.12"
+tokio = { version = "1.0", features = ["full"] }
 midir = "0.10.3"
+pollster = "0.4.0"
 rfd = "0.15.4"
 rustfft = "6.4.1"
 serde = { version = "1.0.228", features = ["derive"] }
@@ -33,8 +42,9 @@ serde_json = "1.0.145"
 thiserror = "1.0"
 wgpu = "27.0.1"
 winit = "0.30.12"
+bytemuck = { version = "1.15", features = ["derive"] }
 
 [features]
-default = []
+default = ["gui"]
 gui = ["dep:eframe", "dep:egui"]
 eframe = ["dep:eframe", "dep:egui"]

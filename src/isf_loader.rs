@@ -93,6 +93,9 @@ pub fn load_isf_shader(file_path: &Path) -> Result<IsfShader, Box<dyn std::error
         .to_string_lossy()
         .to_string();
 
+    IsfShader::parse(&name, &content)
+}
+
 impl IsfShader {
     pub fn parse(name: &str, source: &str) -> Result<Self, Box<dyn std::error::Error>> {
         // Basic ISF parsing - look for JSON metadata in comments
@@ -181,8 +184,6 @@ impl IsfShader {
             outputs,
         })
     }
-}
-    IsfShader::parse(&name, &content)
 }
 
 /// Load ISF shaders from the specified Resolume directories

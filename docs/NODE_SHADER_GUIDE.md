@@ -1,250 +1,346 @@
-# Node-Based Shader Creation Guide
+# Node-Based Shader Programming Guide
 
 ## Overview
-WGSL Shader Studio's node-based editor provides a visual programming interface for creating complex shaders through drag-and-drop operations, eliminating the need for manual WGSL/GLSL coding.
+The WGSL Shader Studio includes a powerful node-based visual programming system for creating shaders without writing code. This guide covers all aspects of the node editor.
 
-## Node System Architecture
+## Getting Started
 
-### Core Components
-- **Node Graph**: Visual representation of shader operations
-- **Data Flow**: Connection-based parameter passing
-- **Code Generation**: Automatic WGSL code synthesis
-- **Real-time Preview**: Live shader updates during editing
+### Accessing the Node Editor
+1. **Enable Node Editor**: View → Show Node Editor
+2. **Create New Graph**: Shader → New → Node Graph
+3. **Switch Modes**: Toggle between Code and Node views
 
-### Node Types
+### Basic Interface
+- **Node Palette**: Left sidebar with node types
+- **Canvas**: Central area for node connections
+- **Properties Panel**: Right sidebar for node settings
+- **Toolbar**: Top controls for graph operations
 
-#### Input Nodes
-- **Uniform Input**: Time, resolution, mouse position
-- **Texture Input**: 2D textures, cube maps, arrays
-- **Parameter Input**: User-controllable float/bool/color values
-- **Constant Input**: Fixed values and vectors
+## Node Types
 
-#### Math Operation Nodes
-- **Arithmetic**: Add, subtract, multiply, divide
-- **Trigonometric**: Sin, cos, tan, atan2
-- **Vector Operations**: Dot product, cross product, length
-- **Matrix Operations**: Multiply, transpose, inverse
+### Input Nodes
+Generate or input data into the shader graph.
 
-#### Shader Function Nodes
-- **Texture Sampling**: textureSample, textureLoad
-- **Color Operations**: Mix, clamp, smoothstep
-- **Noise Functions**: Perlin, Simplex, Voronoi
-- **Fractal Operations**: Mandelbrot, Julia sets
+#### Time Node
+- **Purpose**: Provides current time for animations
+- **Properties**:
+  - Speed multiplier (0.1-10.0)
+  - Time offset
+- **Output**: Float value representing time
 
-#### Control Flow Nodes
-- **Conditional**: If/else branching
-- **Loops**: For/while iterations
-- **Switches**: Multi-way selection
+#### Resolution Node
+- **Purpose**: Provides render resolution
+- **Properties**:
+  - Width (read-only)
+  - Height (read-only)
+  - Aspect ratio
+- **Output**: Vec2 containing resolution
 
-## Basic Node Creation
+#### Position Node
+- **Purpose**: Provides pixel coordinates
+- **Properties**:
+  - Coordinate space (Screen, Normalized, UV)
+  - Flip Y axis
+- **Output**: Vec2 containing position
 
-### Creating Your First Shader
+#### Texture Node
+- **Purpose**: Load and sample textures
+- **Properties**:
+  - Texture file path
+  - Wrap mode (Repeat, Clamp, Mirror)
+  - Filter mode (Linear, Nearest)
+  - Mipmap enabled
+- **Output**: Texture sampler for color data
 
-1. **Start Node**: Begin with a Fragment Output node
-2. **Add Inputs**: Connect Uniform nodes for time/resolution
-3. **Math Operations**: Add arithmetic and trigonometric nodes
-4. **Color Output**: Connect to fragment color output
+#### Audio Node
+- **Purpose**: Audio-reactive parameter generation
+- **Properties**:
+  - Audio source (Volume, Bass, Mid, Treble)
+  - Frequency band selection
+  - Sensitivity (0.1-10.0)
+  - Smoothing factor
+- **Output**: Float value from audio analysis
 
-### Example: Simple Animated Circle
+#### MIDI Node
+- **Purpose**: Hardware controller input
+- **Properties**:
+  - Controller number (0-127)
+  - Channel (0-15)
+  - Min/Max range
+  - Curve type (Linear, Exponential)
+- **Output**: Float value from MIDI controller
 
-```
-[Time Uniform] → [Multiply by 2] → [Sin] → [Add 0.5] → [Circle Function]
-                                      ↓
-[Resolution Uniform] → [UV Coordinates] → [Circle Function] → [Fragment Output]
-```
+### Math Nodes
+Perform mathematical operations on values.
 
-## Advanced Node Techniques
+#### Arithmetic Nodes
+- **Add**: Element-wise addition
+- **Subtract**: Element-wise subtraction  
+- **Multiply**: Element-wise multiplication
+- **Divide**: Element-wise division
+- **Properties**: Two inputs, operation type
 
-### Texture Manipulation
-```
-[Texture Input] → [UV Transform] → [Color Correction] → [Blend Mode] → [Output]
-```
+#### Math Functions
+- **Sin**: Sine wave generation
+- **Cos**: Cosine wave generation
+- **Tan**: Tangent calculation
+- **Exp**: Exponential function
+- **Log**: Natural logarithm
+- **Sqrt**: Square root
+- **Pow**: Power function
+- **Properties**: Input value, frequency, phase
 
-### Fractal Generation
-```
-[UV Input] → [Scale] → [Mandelbrot] → [Color Map] → [Gamma Correction] → [Output]
-```
+#### Comparison Nodes
+- **Greater Than**: Compare values
+- **Less Than**: Compare values
+- **Equal**: Equality test
+- **Max**: Maximum of inputs
+- **Min**: Minimum of inputs
+- **Clamp**: Constrain value to range
 
-### Audio-Reactive Effects
-```
-[Audio Spectrum] → [FFT Analysis] → [Frequency Bands] → [Parameter Modulation] → [Shader Effect]
-```
+#### Vector Operations
+- **Dot Product**: Vector dot product
+- **Cross Product**: Vector cross product
+- **Length**: Vector magnitude
+- **Normalize**: Unit vector
+- **Distance**: Distance between points
+- **Mix**: Linear interpolation
 
-## Node Properties
+### Color Nodes
+Handle color operations and generation.
 
-### Node Pins
-- **Input Pins**: Left side, receive data from other nodes
-- **Output Pins**: Right side, send data to other nodes
-- **Pin Types**: Float, Vec2, Vec3, Vec4, Texture, Bool
+#### Color Generation
+- **RGB**: Red, Green, Blue components
+- **HSV**: Hue, Saturation, Value
+- **HSL**: Hue, Saturation, Lightness
+- **Gradient**: Multi-color gradient
+- **Properties**: Color picker, interpolation
 
-### Node Parameters
-- **Inline Controls**: Sliders, color pickers, dropdowns
-- **Expression Input**: Mathematical expressions
-- **Animation Curves**: Keyframe-based parameter animation
+#### Color Operations
+- **Blend**: Color blending modes
+  - Normal, Multiply, Screen
+  - Overlay, Soft Light, Hard Light
+  - Color Dodge, Color Burn
+- **Adjust**: Color correction
+  - Brightness, Contrast, Saturation
+  - Hue shift, Gamma correction
+- **Filter**: Color effects
+  - Invert, Grayscale, Sepia
+  - Threshold, Posterize
 
-## Code Generation
+#### Color Space
+- **Convert**: Color space conversion
+  - RGB ↔ HSV ↔ HSL
+  - Linear ↔ sRGB
+- **Properties**: Input/output formats
 
-### Automatic WGSL Synthesis
-```wgsl
-// Generated from node graph
-@group(0) @binding(0) var<uniform> time: f32;
-@group(0) @binding(1) var<uniform> resolution: vec2<f32>;
+### Texture Nodes
+Work with textures and patterns.
 
-@fragment
-fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-    let uv = position.xy / resolution;
-    let t = sin(time * 2.0) * 0.5 + 0.5;
-    let circle = 1.0 - smoothstep(0.1, 0.15, length(uv - vec2<f32>(0.5)));
-    return vec4<f32>(vec3<f32>(circle * t), 1.0);
-}
-```
+#### Pattern Generation
+- **Noise**: Perlin/Simplex noise
+- **Fractal**: Fractal noise patterns
+- **Cellular**: Voronoi diagrams
+- **Wave**: Sine/cosine waves
+- **Grid**: Grid patterns
+- **Properties**: Scale, detail, seed
 
-### Optimization Features
-- **Dead Code Elimination**: Remove unused node computations
-- **Constant Folding**: Pre-compute constant expressions
-- **Loop Unrolling**: Optimize small loops
-- **Texture Optimization**: Efficient texture access patterns
+#### Texture Filters
+- **Blur**: Gaussian blur
+- **Sharpen**: Unsharp mask
+- **Edge**: Edge detection
+- **Emboss**: Emboss effect
+- **Properties**: Radius, strength
 
-## Node Library
+#### UV Manipulation
+- **Transform**: Translate, rotate, scale
+- **Tiling**: Repeat textures
+- **Polar**: Convert to polar coordinates
+- **Properties**: Transformation matrix
 
-### Basic Nodes
-- **Constants**: π, e, golden ratio
-- **Vectors**: Vec2, Vec3, Vec4 constructors
-- **Colors**: RGB, HSV, HSL conversion
-- **Logic**: And, Or, Not, Compare
+### Control Nodes
+Control flow and logic operations.
 
-### Advanced Nodes
-- **Noise**: Multiple noise algorithms
-- **Filters**: Blur, sharpen, edge detection
-- **Geometry**: Distance, intersection, SDFs
-- **Animation**: Easing functions, keyframes
+#### Conditional
+- **If**: Conditional branching
+- **Switch**: Multi-way branching
+- **Step**: Step function
+- **Smoothstep**: Smooth interpolation
 
-### Custom Nodes
-- **User-Defined**: Create custom node functions
-- **Subgraphs**: Encapsulated node networks
-- **Templates**: Reusable node combinations
+#### Timing
+- **Delay**: Time delay
+- **Trigger**: One-shot trigger
+- **Oscillator**: Periodic waveforms
+- **Properties**: Frequency, duty cycle
 
-## Visual Interface
+#### Logic
+- **AND**: Logical AND
+- **OR**: Logical OR
+- **NOT**: Logical NOT
+- **XOR**: Exclusive OR
 
-### Navigation
-- **Pan**: Middle mouse drag
-- **Zoom**: Mouse wheel
-- **Frame Selection**: F key
-- **Minimap**: Overview navigation
+## Node Connections
 
-### Selection & Editing
-- **Single Select**: Left click nodes
-- **Multi-Select**: Shift+click or drag selection
-- **Move Nodes**: Drag selected nodes
-- **Delete**: Delete key or right-click menu
+### Connection Types
+- **Float**: Single float value (0.0-1.0)
+- **Vec2**: Two-component vector (x, y)
+- **Vec3**: Three-component vector (r, g, b)
+- **Vec4**: Four-component vector (r, g, b, a)
+- **Texture**: Texture sampler
+- **Sampler**: Texture sampling configuration
 
-### Connection Management
-- **Create Connections**: Drag from output to input pin
-- **Break Connections**: Alt+click connection
-- **Reroute**: Drag connection points
-- **Connection Types**: Automatic type conversion
+### Connecting Nodes
+1. **Start Connection**: Drag from output pin
+2. **End Connection**: Drop on input pin
+3. **Auto-Connect**: Compatible types connect automatically
+4. **Disconnect**: Click connection and press Delete
 
-## Integration with Code Editor
-
-### Bidirectional Editing
-- **Node → Code**: Generate WGSL from node graph
-- **Code → Node**: Parse WGSL into node graph
-- **Hybrid Editing**: Mix visual and text editing
-
-### Live Synchronization
-- **Real-time Updates**: Changes in one view reflect in others
-- **Error Highlighting**: Invalid connections highlighted
-- **Performance Feedback**: Node execution cost visualization
-
-## Performance Optimization
-
-### Node-Based Optimizations
-- **Parallel Execution**: Identify independent node branches
-- **Memory Layout**: Optimize uniform buffer layouts
-- **Texture Usage**: Minimize texture sampling
-- **Precision Selection**: Choose appropriate numeric precision
-
-### Profiling Tools
-- **Node Timing**: Individual node execution time
-- **Memory Usage**: Buffer and texture memory tracking
-- **Draw Calls**: Minimize render pass count
-- **Shader Complexity**: Operation count analysis
-
-## Export & Deployment
-
-### Code Export
-- **WGSL Export**: Native WebGPU format
-- **GLSL Export**: OpenGL compatibility
-- **HLSL Export**: DirectX compatibility
-- **SPIR-V Export**: Vulkan intermediate format
-
-### Project Management
-- **Save Node Graphs**: JSON-based graph serialization
-- **Version Control**: Git-friendly text format
-- **Sharing**: Export/import node presets
-- **Templates**: Create reusable node combinations
+### Connection Rules
+- **Single Input**: Each input pin accepts one connection
+- **Multiple Outputs**: Output pins can connect to multiple inputs
+- **Type Matching**: Compatible data types only
+- **No Cycles**: No circular dependencies allowed
 
 ## Advanced Features
 
-### Procedural Generation
-- **Node Factories**: Programmatically create node networks
-- **Genetic Algorithms**: Evolve shader parameters
-- **Machine Learning**: AI-assisted shader creation
+### Sub-graphs
+Create reusable node groups:
+1. **Group Selection**: Select nodes to group
+2. **Create Sub-graph**: Shader → Group Nodes
+3. **Expose Inputs**: Select which pins are external
+4. **Use Sub-graph**: Drag from node palette
 
-### Multi-Pass Rendering
-- **Render Targets**: Intermediate texture buffers
-- **Post-Processing**: Bloom, DOF, color grading
-- **Deferred Rendering**: G-buffer operations
+### Custom Nodes
+Define your own node types:
+1. **Code Interface**: Provide WGSL shader code
+2. **Parameter Interface**: Define input/output pins
+3. **Compilation**: Node compiles to WGSL
+4. **Library**: Save to node library
 
-### Cross-Platform Compatibility
-- **Platform Detection**: Automatic platform-specific optimizations
-- **Fallback Systems**: Graceful degradation for unsupported features
-- **Validation**: Cross-platform compatibility checking
+### Animation Keyframes
+Keyframe support for time-based animation:
+1. **Add Keyframe**: Right-click parameter
+2. **Edit Curves**: Bezier curve editor
+3. **Playback**: Scrub through timeline
+4. **Export**: Bake to WGSL uniforms
+
+### GPU Performance
+Optimized for real-time performance:
+- **Parallel Execution**: Nodes execute in parallel
+- **Memory Efficiency**: Minimal GPU memory usage
+- **LOD System**: Level-of-detail for complex graphs
+- **Profiling**: Node execution timing
+
+## Example Graphs
+
+### Basic Color Gradient
+```
+Time Node → Sin Node → Color Node
+  ↓
+Add Node → Output Node
+  ↑
+Position Node → Normalize Node
+```
+
+### Audio-Visualizer
+```
+Audio Node → Amplitude Node → Color Node → Output
+                    ↓
+Frequency Node → Blend Node → Color Node
+  ↓
+Time Node → Oscillator Node
+```
+
+### Fractal Pattern
+```
+Position Node → Fractal Node → Color Map → Output
+  ↓
+Time Node → Transform Node
+  ↓
+Noise Node → Scale Node
+```
+
+### Texture Blend
+```
+Texture Node A ──┐
+                 ├── Blend Node → Output
+Texture Node B ──┘
+  ↓
+Transform Node
+```
 
 ## Best Practices
 
-### Node Graph Organization
-1. **Logical Flow**: Left-to-right data flow
-2. **Grouping**: Related nodes in clusters
-3. **Naming**: Descriptive node and pin names
-4. **Documentation**: Comments on complex sections
+### Performance
+1. **Minimize Nodes**: Use efficient node combinations
+2. **Texture Caching**: Reuse texture nodes
+3. **LOD Control**: Reduce detail for distant objects
+4. **Batch Operations**: Combine similar operations
 
-### Performance Guidelines
-1. **Minimize Texture Samples**: Cache texture reads
-2. **Use Appropriate Precision**: f32 vs f16 selection
-3. **Avoid Branching**: Prefer smooth functions
-4. **Profile Regularly**: Monitor performance impact
+### Organization
+1. **Group Related Nodes**: Use sub-graphs
+2. **Clear Labels**: Name nodes descriptively
+3. **Color Coding**: Use consistent colors
+4. **Documentation**: Add comments for complex graphs
 
-### Maintenance Tips
-1. **Version Control**: Commit node graphs regularly
-2. **Documentation**: Comment complex node networks
-3. **Modular Design**: Create reusable subgraphs
-4. **Testing**: Validate shaders across platforms
+### Debugging
+1. **Test Individually**: Test nodes in isolation
+2. **Intermediate Outputs**: Break graphs to debug
+3. **Performance Profiler**: Check execution time
+4. **Memory Monitor**: Track GPU memory usage
+
+### Code Generation
+1. **Optimization**: Generated code is optimized
+2. **Validation**: Graphs validated before compilation
+3. **Export**: Can export generated WGSL code
+4. **Debug Info**: Source maps for debugging
+
+## Integration with Audio/MIDI
+
+### Audio-Reactive Graphs
+```mermaid
+Audio Spectrum → Frequency Band → Color Mapping → Output
+      ↓
+Time Oscillator → Phase Modulation
+```
+
+### MIDI-Controlled Graphs
+```mermaid
+MIDI CC1 → Parameter A → Blend Amount
+      ↓
+MIDI CC2 → Parameter B → Transform Scale
+      ↓
+Mix Nodes → Final Output
+```
+
+## Workflow Integration
+
+### From Code to Nodes
+1. **Import WGSL**: Parse existing shaders
+2. **Extract Functions**: Convert to node sub-graphs
+3. **Parameter Mapping**: Create input nodes for uniforms
+4. **Visual Editor**: Edit via node interface
+
+### From Nodes to Code
+1. **Generate WGSL**: Compile graph to shader code
+2. **Optimize**: Apply shader optimizations
+3. **Validate**: Check for errors
+4. **Export**: Save as standalone shader
 
 ## Troubleshooting
 
 ### Common Issues
-- **Type Mismatches**: Check pin type compatibility
-- **Infinite Loops**: Avoid circular node connections
-- **Performance Issues**: Profile and optimize slow nodes
-- **Code Generation**: Validate generated WGSL syntax
+- **Slow Performance**: Reduce node complexity
+- **Memory Errors**: Check texture usage
+- **Connection Errors**: Verify type compatibility
+- **Compilation Errors**: Check for cycles
 
 ### Debug Tools
-- **Node Inspector**: Examine node input/output values
-- **Graph Validation**: Check for connection errors
-- **Performance Monitor**: Real-time performance metrics
-- **Error Console**: Detailed error messages and fixes
+- **Node Inspector**: View node properties
+- **Execution Order**: See evaluation order
+- **Performance Metrics**: GPU timing
+- **Memory Usage**: VRAM monitoring
 
-## Future Enhancements
+---
 
-### Planned Features
-- **3D Node Graphs**: Multi-layer node editing
-- **Collaborative Editing**: Multi-user node graph editing
-- **VR Interface**: 3D node manipulation
-- **AI Assistance**: Intelligent node suggestions
-
-### Integration Points
-- **Version Control**: Git integration for node graphs
-- **Asset Management**: Texture and model libraries
-- **Plugin System**: Third-party node extensions
-- **Cloud Sync**: Cross-device shader synchronization
+**WGSL Shader Studio** - Professional node-based shader programming environment with real-time audio/MIDI integration.

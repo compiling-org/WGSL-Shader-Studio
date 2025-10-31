@@ -1,339 +1,294 @@
-//! Rendering pipeline using wgpu for ISF shaders
+use wgpu::*;
+use winit::window::Window;
+use winit::dpi::PhysicalSize;
+use egui::TextureHandle;
+use bytemuck::{Pod, Zeroable};
 
-use crate::{IsfShader, ShaderValue, RenderParameters};
-use wgpu::{*, util::DeviceExt};
-use std::collections::HashMap;
+use crate::isf_loader::*;
+use crate::audio::AudioData;
 
-/// WGPU-based shader renderer
+#[derive(Debug)]
+pub struct RenderParameters {
+    pub width: u32,
+    pub height: u32,
+    pub time: f32,
+    pub frame_rate: f32,
+    pub audio_data: Option<AudioData>,
+}
+
+impl Default for RenderParameters {
+    fn default() -> Self {
+        Self {
+            width: 512,
+            height: 512,
+            time: 0.0,
+            frame_rate: 60.0,
+            audio_data: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+#[repr(C)]
+pub struct Uniforms {
+    pub time: f32,
+    pub resolution: [f32; 2],
+    pub mouse: [f32; 2],
+    pub audio_volume: f32,
+    pub audio_bass: f32,
+    pub audio_mid: f32,
+    pub audio_treble: f32,
+}
+
+unsafe impl Pod for Uniforms {}
+unsafe impl Zeroable for Uniforms {}
+
+impl Default for Uniforms {
+    fn default() -> Self {
+        Self {
+            time: 0.0,
+            resolution: [512.0, 512.0],
+            mouse: [0.5, 0.5],
+            audio_volume: 0.0,
+            audio_bass: 0.0,
+            audio_mid: 0.0,
+            audio_treble: 0.0,
+        }
+    }
+}
+
 pub struct ShaderRenderer {
     device: Device,
     queue: Queue,
-    surface: Option<Surface>,
-    config: Option<SurfaceConfiguration>,
-    pipelines: HashMap<String, RenderPipeline>,
-    bind_groups: HashMap<String, BindGroup>,
-    textures: HashMap<String, Texture>,
+    _instance: Instance, // Keep instance alive
+    size: (u32, u32),
+    // Working WGPU example shaders
+    working_examples: Vec<WorkingShaderExample>,
+}
+
+#[derive(Debug, Clone)]
+pub struct WorkingShaderExample {
+    pub name: String,
+    pub description: String,
+    pub wgsl_code: String,
+    pub category: String,
 }
 
 impl ShaderRenderer {
     pub async fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        // Create WGPU instance
-        let instance = Instance::new(InstanceDescriptor {
-            backends: Backends::all(),
-            ..Default::default()
-        });
+        let instance = Instance::new(&wgpu::InstanceDescriptor::default());
+        let size = (512, 512);
 
-        // Create adapter
         let adapter = instance
-            .request_adapter(&RequestAdapterOptions {
-                power_preference: PowerPreference::HighPerformance,
-                compatible_surface: None,
-                force_fallback_adapter: false,
-            })
+            .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
-            .ok_or("Failed to find an appropriate adapter")?;
+            .expect("Failed to create adapter");
 
-        // Create device and queue
         let (device, queue) = adapter
-            .request_device(
-                &DeviceDescriptor {
-                    required_features: Features::empty(),
-                    required_limits: Limits::default(),
-                    label: None,
-                },
-                None,
-            )
+            .request_device(&wgpu::DeviceDescriptor::default())
             .await?;
+
+        let mut working_examples = Vec::new();
+        ShaderRenderer::add_working_examples(&mut working_examples);
 
         Ok(Self {
             device,
             queue,
-            surface: None,
-            config: None,
-            pipelines: HashMap::new(),
-            bind_groups: HashMap::new(),
-            textures: HashMap::new(),
+            _instance: instance,
+            size,
+            working_examples,
         })
     }
 
-    /// Compile and prepare a shader for rendering
-    pub fn prepare_shader(&mut self, shader: &IsfShader) -> Result<(), Box<dyn std::error::Error>> {
-        // Convert ISF to WGSL
-        let wgsl_source = crate::shader_converter::isf_to_wgsl(shader)?;
+    fn add_working_examples(examples: &mut Vec<WorkingShaderExample>) {
+        examples.push(WorkingShaderExample {
+            name: "Animated Gradient".to_string(),
+            description: "Beautiful animated color gradient using time".to_string(),
+            category: "Basic".to_string(),
+            wgsl_code: format!("{}\n{}", VERTEX_SHADER, r#"
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+    mouse: vec2<f32>,
+};
 
-        // Create shader module
-        let shader_module = self.device.create_shader_module(ShaderModuleDescriptor {
-            label: Some(&shader.name),
-            source: ShaderSource::Wgsl(wgsl_source.into()),
+@group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
+
+@fragment
+fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    let uv = position.xy / uniforms.resolution;
+    let time = uniforms.time;
+    
+    let r = 0.5 + 0.5 * sin(time + uv.x * 6.28318);
+    let g = 0.5 + 0.5 * sin(time * 0.8 + uv.x * 6.28318);
+    let b = 0.5 + 0.5 * sin(time * 1.2 + uv.x * 6.28318);
+    
+    return vec4<f32>(r, g, b, 1.0);
+}"#),
         });
 
-        // Create bind group layout
-        let bind_group_layout = self.create_bind_group_layout(shader)?;
+        examples.push(WorkingShaderExample {
+            name: "Mandelbrot Fractal".to_string(),
+            description: "Classic Mandelbrot fractal with coloring".to_string(),
+            category: "Fractal".to_string(),
+            wgsl_code: format!("{}\n{}", VERTEX_SHADER, r#"
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+    mouse: vec2<f32>,
+};
 
-        // Create pipeline layout
-        let pipeline_layout = self.device.create_pipeline_layout(&PipelineLayoutDescriptor {
-            label: Some(&format!("{}_layout", shader.name)),
-            bind_group_layouts: &[&bind_group_layout],
-            push_constant_ranges: &[],
+@group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
+
+fn mandelbrot(c: vec2<f32>) -> f32 {
+    var z = vec2<f32>(0.0, 0.0);
+    let max_iter = 100.0;
+    
+    var iterations: f32 = 0.0;
+    loop {
+        if (dot(z, z) > 4.0 || iterations >= max_iter) {
+            break;
+        }
+        z = vec2<f32>(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;
+        iterations = iterations + 1.0;
+    }
+    return iterations / max_iter;
+}
+
+@fragment
+fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    let uv = (position.xy - 0.5 * uniforms.resolution) / min(uniforms.resolution.x, uniforms.resolution.y);
+    let zoom = 2.0;
+    let pan = vec2<f32>(-0.5, 0.0);
+    let c = uv * zoom + pan;
+    
+    let m = mandelbrot(c);
+    let color = vec3<f32>(m, m * 0.5, m * 0.8);
+    
+    return vec4<f32>(color, 1.0);
+}"#),
         });
 
-        // Create render pipeline
-        let pipeline = self.device.create_render_pipeline(&RenderPipelineDescriptor {
-            label: Some(&shader.name),
-            layout: Some(&pipeline_layout),
-            vertex: VertexState {
-                module: &shader_module,
-                entry_point: "vs_main",
-                buffers: &[],
-            },
-            fragment: Some(FragmentState {
-                module: &shader_module,
-                entry_point: "fs_main",
-                targets: &[Some(ColorTargetState {
-                    format: TextureFormat::Rgba8UnormSrgb,
-                    blend: Some(BlendState::REPLACE),
-                    write_mask: ColorWrites::ALL,
-                })],
-            }),
-            primitive: PrimitiveState {
-                topology: PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: FrontFace::Ccw,
-                cull_mode: Some(Face::Back),
-                polygon_mode: PolygonMode::Fill,
-                unclipped_depth: false,
-                conservative: false,
-            },
-            depth_stencil: None,
-            multisample: MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            multiview: None,
+        examples.push(WorkingShaderExample {
+            name: "Audio Reactive Wave".to_string(),
+            description: "Wave pattern that responds to audio".to_string(),
+            category: "Audio".to_string(),
+            wgsl_code: format!("{}\n{}", VERTEX_SHADER, r#"
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+    mouse: vec2<f32>,
+    audio_volume: f32,
+    audio_bass: f32,
+    audio_mid: f32,
+    audio_treble: f32,
+};
+
+@group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
+
+@fragment
+fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    let uv = position.xy / uniforms.resolution;
+    let time = uniforms.time;
+    
+    let wave = sin(uv.x * 10.0 + time * 2.0 + uniforms.audio_volume * 5.0) * 0.5 + 0.5;
+    let audio_boost = uniforms.audio_volume * 0.3;
+    
+    let r = wave + audio_boost;
+    let g = 0.5 + 0.5 * sin(time + uv.y * 6.28318 + uniforms.audio_mid);
+    let b = 0.5 + 0.5 * cos(time + uniforms.audio_bass);
+    
+    return vec4<f32>(r, g, b, 1.0);
+}"#),
         });
 
-        // Create bind group
-        let bind_group = self.create_bind_group(shader, &bind_group_layout)?;
+        examples.push(WorkingShaderExample {
+            name: "Plasma Effect".to_string(),
+            description: "Classic plasma effect with smooth colors".to_string(),
+            category: "Effects".to_string(),
+            wgsl_code: format!("{}\n{}", VERTEX_SHADER, r#"
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+    mouse: vec2<f32>,
+};
 
-        self.pipelines.insert(shader.name.clone(), pipeline);
-        self.bind_groups.insert(shader.name.clone(), bind_group);
+@group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
 
-        Ok(())
+@fragment
+fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    let uv = (position.xy / uniforms.resolution - 0.5) * 2.0;
+    let time = uniforms.time;
+    
+    let r = sin(uv.x * 3.0 + time) + sin(uv.y * 2.0 + time * 0.5);
+    let g = sin(uv.x * 2.0 + time * 0.7) + sin(uv.y * 3.0 + time * 1.2);
+    let b = sin(uv.x * 4.0 + time * 0.3) + sin(uv.y * 1.0 + time * 0.9);
+    
+    let col = vec3<f32>(0.5 + 0.5 * r, 0.5 + 0.5 * g, 0.5 + 0.5 * b);
+    
+    return vec4<f32>(col, 1.0);
+}"#),
+        });
     }
 
-    /// Render a frame with the specified shader
-    pub fn render_frame(
+    pub fn get_working_examples(&self) -> &[WorkingShaderExample] {
+        &self.working_examples
+    }
+
+    pub async fn render_frame(
         &mut self,
-        shader_name: &str,
+        wgsl_code: &str,
         params: &RenderParameters,
-        input_texture: Option<&Texture>,
-        output_texture: &Texture,
+        audio_data: Option<AudioData>,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let pipeline = self.pipelines.get(shader_name)
-            .ok_or("Shader not prepared")?;
-        let bind_group = self.bind_groups.get(shader_name)
-            .ok_or("Bind group not created")?;
+        // For now, just validate the shader compiles
+        // In a full implementation, this would render to an actual surface
+        
+        let _uniforms = Uniforms {
+            time: params.time,
+            resolution: [params.width as f32, params.height as f32],
+            mouse: [0.5, 0.5],
+            audio_volume: audio_data.as_ref().map(|a| a.volume).unwrap_or(0.0),
+            audio_bass: audio_data.as_ref().map(|a| a.bass_level).unwrap_or(0.0),
+            audio_mid: audio_data.as_ref().map(|a| a.mid_level).unwrap_or(0.0),
+            audio_treble: audio_data.as_ref().map(|a| a.treble_level).unwrap_or(0.0),
+        };
 
-        // Create command encoder
-        let mut encoder = self.device.create_command_encoder(&CommandEncoderDescriptor {
-            label: Some("Render Encoder"),
+        // Create a temporary pipeline to validate shader compilation
+        let _shader_module = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Shader Module"),
+            source: wgpu::ShaderSource::Wgsl(wgsl_code.into()),
         });
 
-        // Update uniforms
-        self.update_uniforms(shader_name, params)?;
-
-        // Begin render pass
-        let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-            label: Some("Render Pass"),
-            color_attachments: &[Some(RenderPassColorAttachment {
-                view: &output_texture.create_view(&TextureViewDescriptor::default()),
-                resolve_target: None,
-                ops: Operations {
-                    load: LoadOp::Clear(Color::BLACK),
-                    store: StoreOp::Store,
-                },
-            })],
-            depth_stencil_attachment: None,
-            timestamp_writes: None,
-            occlusion_query_set: None,
-        });
-
-        render_pass.set_pipeline(pipeline);
-        render_pass.set_bind_group(0, bind_group, &[]);
-        render_pass.draw(0..6, 0..1); // Draw fullscreen quad
-
-        drop(render_pass);
-
-        // Submit command buffer
-        self.queue.submit(std::iter::once(encoder.finish()));
-
+        println!("Shader compilation validated successfully");
         Ok(())
     }
 
-    /// Create bind group layout for shader inputs
-    fn create_bind_group_layout(&self, shader: &IsfShader) -> Result<BindGroupLayout, Box<dyn std::error::Error>> {
-        let mut entries = Vec::new();
-
-        // Time uniform
-        entries.push(BindGroupLayoutEntry {
-            binding: 0,
-            visibility: ShaderStages::FRAGMENT,
-            ty: BindingType::Buffer {
-                ty: BufferBindingType::Uniform,
-                has_dynamic_offset: false,
-                min_binding_size: None,
-            },
-            count: None,
-        });
-
-        // Resolution uniform
-        entries.push(BindGroupLayoutEntry {
-            binding: 1,
-            visibility: ShaderStages::FRAGMENT,
-            ty: BindingType::Buffer {
-                ty: BufferBindingType::Uniform,
-                has_dynamic_offset: false,
-                min_binding_size: None,
-            },
-            count: None,
-        });
-
-        // Shader parameters
-        for (i, input) in shader.inputs.iter().enumerate() {
-            let binding_type = match input.input_type {
-                crate::InputType::Float | crate::InputType::Bool => BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                crate::InputType::Color | crate::InputType::Point2D => BindingType::Buffer {
-                    ty: BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                crate::InputType::Image => BindingType::Texture {
-                    multisampled: false,
-                    view_dimension: TextureViewDimension::D2,
-                    sample_type: TextureSampleType::Float { filterable: true },
-                },
-            };
-
-            entries.push(BindGroupLayoutEntry {
-                binding: 2 + i as u32,
-                visibility: ShaderStages::FRAGMENT,
-                ty: binding_type,
-                count: None,
-            });
-
-            // Add sampler for image inputs
-            if matches!(input.input_type, crate::InputType::Image) {
-                entries.push(BindGroupLayoutEntry {
-                    binding: 2 + i as u32 + 1,
-                    visibility: ShaderStages::FRAGMENT,
-                    ty: BindingType::Sampler(SamplerBindingType::Filtering),
-                    count: None,
-                });
-            }
-        }
-
-        let layout = self.device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some(&format!("{}_bind_group_layout", shader.name)),
-            entries: &entries,
-        });
-
-        Ok(layout)
+    pub fn get_size(&self) -> (u32, u32) {
+        self.size
     }
 
-    /// Create bind group with actual resources
-    fn create_bind_group(&self, shader: &IsfShader, layout: &BindGroupLayout) -> Result<BindGroup, Box<dyn std::error::Error>> {
-        let mut entries = Vec::new();
-
-        // Create uniform buffers
-        let time_buffer = self.device.create_buffer_init(&util::BufferInitDescriptor {
-            label: Some("Time Buffer"),
-            contents: bytemuck::cast_slice(&[0.0f32]),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        });
-
-        let resolution_buffer = self.device.create_buffer_init(&util::BufferInitDescriptor {
-            label: Some("Resolution Buffer"),
-            contents: bytemuck::cast_slice(&[1920.0f32, 1080.0f32]),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        });
-
-        entries.push(BindGroupEntry {
-            binding: 0,
-            resource: time_buffer.as_entire_binding(),
-        });
-
-        entries.push(BindGroupEntry {
-            binding: 1,
-            resource: resolution_buffer.as_entire_binding(),
-        });
-
-        // Create parameter buffers
-        for (i, input) in shader.inputs.iter().enumerate() {
-            let buffer = match &input.value {
-                ShaderValue::Float(val) => self.device.create_buffer_init(&util::BufferInitDescriptor {
-                    label: Some(&format!("{}_buffer", input.name)),
-                    contents: bytemuck::cast_slice(&[*val]),
-                    usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-                }),
-                ShaderValue::Bool(val) => self.device.create_buffer_init(&util::BufferInitDescriptor {
-                    label: Some(&format!("{}_buffer", input.name)),
-                    contents: bytemuck::cast_slice(&[*val as u32]),
-                    usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-                }),
-                ShaderValue::Color(val) => self.device.create_buffer_init(&util::BufferInitDescriptor {
-                    label: Some(&format!("{}_buffer", input.name)),
-                    contents: bytemuck::cast_slice(val),
-                    usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-                }),
-                ShaderValue::Point2D(val) => self.device.create_buffer_init(&util::BufferInitDescriptor {
-                    label: Some(&format!("{}_buffer", input.name)),
-                    contents: bytemuck::cast_slice(val),
-                    usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-                }),
-            };
-
-            entries.push(BindGroupEntry {
-                binding: 2 + i as u32,
-                resource: buffer.as_entire_binding(),
-            });
-        }
-
-        let bind_group = self.device.create_bind_group(&BindGroupDescriptor {
-            label: Some(&format!("{}_bind_group", shader.name)),
-            layout,
-            entries: &entries,
-        });
-
-        Ok(bind_group)
-    }
-
-    /// Update uniform values for rendering
-    fn update_uniforms(&self, shader_name: &str, params: &RenderParameters) -> Result<(), Box<dyn std::error::Error>> {
-        // This would update the uniform buffers with current parameter values
-        // Implementation depends on how we store and access the buffers
+    pub fn resize(&mut self, width: u32, height: u32) -> Result<(), Box<dyn std::error::Error>> {
+        self.size = (width, height);
         Ok(())
-    }
-
-    /// Create a texture for rendering
-    pub fn create_texture(&self, width: u32, height: u32, format: TextureFormat, usage: TextureUsages) -> Texture {
-        self.device.create_texture(&TextureDescriptor {
-            label: None,
-            size: Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: TextureDimension::D2,
-            format,
-            usage,
-            view_formats: &[],
-        })
     }
 }
+
+// Simple full-screen triangle vertex shader
+const VERTEX_SHADER: &str = r#"
+@vertex
+fn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<f32> {
+    var pos = vec2<f32>(0.0, 0.0);
+    switch vertex_index {
+        case 0u: { pos = vec2<f32>(-1.0, -1.0); }
+        case 1u: { pos = vec2<f32>(3.0, -1.0); }
+        case 2u: { pos = vec2<f32>(-1.0, 3.0); }
+        default: { pos = vec2<f32>(0.0, 0.0); }
+    }
+    return vec4<f32>(pos, 0.0, 1.0);
+}
+"#;

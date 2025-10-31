@@ -3,7 +3,7 @@
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use rustfft::{FftPlanner, num_complex::Complex};
-use midir::{MidiInput, MidiInputConnection, Ignore};
+use midir::{MidiInput, MidiInputConnection};
 
 /// Audio analysis data structure
 #[derive(Debug, Clone)]
@@ -70,32 +70,37 @@ impl AudioAnalyzer {
 
     /// Process audio samples and update analysis data
     pub fn process_samples(&mut self, samples: &[f32]) {
+        // Compute all analysis data outside the lock to avoid borrow conflicts
+        let mut spectrum = vec![0.0; 256];
+        self.compute_fft(samples, &mut spectrum);
+
+        let bass_level = self.compute_frequency_band(&spectrum, 0, 64);
+        let mid_level = self.compute_frequency_band(&spectrum, 64, 128);
+        let treble_level = self.compute_frequency_band(&spectrum, 128, 256);
+        let centroid = self.compute_spectral_centroid(&spectrum);
+        let rolloff = self.compute_spectral_rolloff(&spectrum, 0.85);
+        let volume = (samples.iter().map(|x| x * x).sum::<f32>() / samples.len() as f32).sqrt();
+        let beat = self.detect_beat(&spectrum);
+
+        // Update previous spectrum for next iteration
+        self.previous_spectrum.copy_from_slice(&spectrum);
+
+        // Update data with locking
         let mut data = self.current_data.lock().unwrap();
 
         // Update waveform
         data.waveform.clear();
         data.waveform.extend_from_slice(&samples[..samples.len().min(1024)]);
 
-        // Compute FFT
-        self.compute_fft(samples, &mut data.spectrum);
-
-        // Compute frequency bands
-        data.bass_level = self.compute_frequency_band(&data.spectrum, 0, 64);
-        data.mid_level = self.compute_frequency_band(&data.spectrum, 64, 128);
-        data.treble_level = self.compute_frequency_band(&data.spectrum, 128, 256);
-
-        // Compute spectral centroid and rolloff
-        data.centroid = self.compute_spectral_centroid(&data.spectrum);
-        data.rolloff = self.compute_spectral_rolloff(&data.spectrum, 0.85);
-
-        // Compute overall volume (RMS)
-        data.volume = (samples.iter().map(|x| x * x).sum::<f32>() / samples.len() as f32).sqrt();
-
-        // Beat detection using spectral flux
-        data.beat = self.detect_beat(&data.spectrum);
-
-        // Store previous spectrum for next iteration
-        self.previous_spectrum.copy_from_slice(&data.spectrum);
+        // Update computed values
+        data.spectrum.copy_from_slice(&spectrum);
+        data.bass_level = bass_level;
+        data.mid_level = mid_level;
+        data.treble_level = treble_level;
+        data.centroid = centroid;
+        data.rolloff = rolloff;
+        data.volume = volume;
+        data.beat = beat;
     }
 
     /// Compute FFT with proper windowing

@@ -47,7 +47,7 @@ pub enum OutputType {
     Image,
     Float,
 }
-use std::collections::HashMap;
+// Unused import removed
 
 /// Convert ISF shader to WGSL
 pub fn isf_to_wgsl(shader: &IsfShader) -> Result<String, Box<dyn std::error::Error>> {

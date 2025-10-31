@@ -2,6 +2,8 @@
 
 #[cfg(feature = "gui")]
 mod gui;
+#[cfg(feature = "gui")]
+mod audio;
 
 // Direct module imports for the binary
 mod isf_loader;
@@ -17,11 +19,14 @@ fn main() {
     // Check if we should run the GUI or CLI
     let args: Vec<String> = env::args().collect();
 
-    // If --gui flag, run the GUI
-    if args.contains(&"--gui".to_string()) {
+    // If --cli flag or specific commands, run CLI
+    if args.len() > 1 && !args.contains(&"--gui".to_string()) && !args.contains(&"--help".to_string()) {
+        run_cli(args);
+    } else {
+        // Default to GUI mode
         #[cfg(feature = "gui")]
         {
-            println!("Starting ISF Shader Studio GUI...");
+            println!("Starting WGSL Shader Studio GUI...");
             gui::run_gui();
         }
         #[cfg(not(feature = "gui"))]
@@ -30,8 +35,6 @@ fn main() {
             println!("Falling back to CLI mode...");
             run_cli(args);
         }
-    } else {
-        run_cli(args);
     }
 }
 
@@ -198,26 +201,38 @@ fn run_cli(args: Vec<String>) {
 
 fn print_usage() {
     let exe_name = env::args().next().unwrap_or_else(|| "wgsl-shader-studio".to_string());
+    println!("WGSL Shader Studio - GUI-first Development Environment");
+    println!("=====================================================");
     println!("Usage:");
-    println!("  {} [options] <command> [args...]", exe_name);
-    println!("  {} --gui                    Start GUI application", exe_name);
+    println!("  {} [options]                Start GUI application (default)", exe_name);
+    println!("  {} [options] --cli <command> [args...]", exe_name);
     println!();
     println!("Options:");
-    println!("  --gui                       Start graphical interface (default if no args)");
+    println!("  --gui                       Start graphical interface (default)");
+    println!("  --cli                        Enable CLI mode for developer commands");
+    println!("  --help                       Show this help message");
     println!();
-    println!("Commands:");
+    println!("GUI Features:");
+    println!("  - Professional WGPU shader development environment");
+    println!("  - Live preview with real-time rendering");
+    println!("  - Node-based visual programming (32 node types)");
+    println!("  - WGSL syntax highlighting and error detection");
+    println!("  - Audio/MIDI reactive shader parameters");
+    println!("  - ISF shader import/export and conversion");
+    println!("  - Template library with tutorials");
+    println!();
+    println!("CLI Commands (Developer Mode):");
     println!("  list                        List all available ISF shaders");
     println!("  validate <file>             Validate an ISF shader file");
     println!("  convert <input> <output>    Convert ISF shader to WGSL");
     println!("  info                        Show application information");
     println!();
     println!("Examples:");
-    println!("  {} --gui", exe_name);
-    println!("  {} list", exe_name);
-    println!("  {} validate shader.fs", exe_name);
-    println!("  {} convert input.fs output.wgsl", exe_name);
+    println!("  {}                           # Start GUI (default)", exe_name);
+    println!("  {} --cli list", exe_name);
+    println!("  {} --cli validate shader.fs", exe_name);
+    println!("  {} --cli convert input.fs output.wgsl", exe_name);
     println!();
-    println!("GUI Mode:");
-    println!("  Build with: cargo build --release --features gui");
-    println!("  Run GUI with: cargo run --features gui -- --gui");
+    println!("For more information, see the documentation at:");
+    println!("  https://github.com/compiling-org/WGSL-Shader-Studio");
 }

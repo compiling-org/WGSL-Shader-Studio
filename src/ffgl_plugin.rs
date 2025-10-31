@@ -1,9 +1,7 @@
 //! FFGL plugin interface implementation
 
-// Audio and MIDI integration for FFGL plugin
-mod audio;
-
 use crate::{ResolumeIsfShadersRustFfgl, IsfShader, ShaderValue, RenderParameters};
+use crate::audio::AudioMidiSystem;
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_void, c_int, c_uint, c_float};
 use std::ptr;
@@ -14,7 +12,7 @@ use std::collections::HashMap;
 pub struct FfglPlugin {
     plugin: ResolumeIsfShadersRustFfgl,
     current_shader: Option<String>,
-    audio_midi_system: Arc<audio::AudioMidiSystem>,
+    audio_midi_system: Arc<AudioMidiSystem>,
     parameter_cache: HashMap<String, f32>,
 }
 
@@ -71,7 +69,7 @@ impl FfglPlugin {
         Self {
             plugin: ResolumeIsfShadersRustFfgl::new(),
             current_shader: None,
-            audio_midi_system: Arc::new(audio::AudioMidiSystem::new()),
+            audio_midi_system: Arc::new(AudioMidiSystem::new()),
             parameter_cache: HashMap::new(),
         }
     }
@@ -102,14 +100,15 @@ impl FfglPlugin {
     pub fn set_parameter(&mut self, param_index: usize, value: f32) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(shader_name) = &self.current_shader {
             // Map parameter index to shader parameter name
-            if let Some(shader) = self.plugin.shaders.get(shader_name) {
+            if let Some(shader) = self.plugin.shaders.get_mut(shader_name) {
                 if let Some(input) = shader.inputs.get(param_index) {
                     let shader_value = match input.input_type {
                         crate::InputType::Float => ShaderValue::Float(value),
                         crate::InputType::Bool => ShaderValue::Bool(value > 0.0),
                         _ => ShaderValue::Float(value), // Default to float for now
                     };
-                    self.plugin.set_parameter(shader_name, &input.name, shader_value)?;
+                    let input_name = input.name.clone();
+                    shader.set_parameter(&input_name, shader_value)?;
                 }
             }
         }
