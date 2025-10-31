@@ -4,6 +4,7 @@
 //! Professional VJ shader effects for live video performance.
 
 use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
 
 /// Main FFGL ISF shader plugin structure
 pub struct ResolumeIsfShadersRustFfgl {
@@ -18,27 +19,34 @@ pub struct ResolumeIsfShadersRustFfgl {
 }
 
 /// ISF shader representation
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IsfShader {
-    name: String,
-    source: String,
-    inputs: Vec<ShaderInput>,
-    outputs: Vec<ShaderOutput>,
+    pub name: String,
+    pub source: String,
+    pub inputs: Vec<ShaderInput>,
+    pub outputs: Vec<ShaderOutput>,
 }
 
 /// Shader input parameter
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShaderInput {
-    name: String,
-    input_type: InputType,
-    value: ShaderValue,
+    pub name: String,
+    pub input_type: InputType,
+    pub value: ShaderValue,
+    pub min: Option<f32>,
+    pub max: Option<f32>,
+    pub default: Option<f32>,
 }
 
 /// Shader output
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShaderOutput {
-    name: String,
-    output_type: OutputType,
+    pub name: String,
+    pub output_type: OutputType,
 }
 
 /// Input parameter types
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum InputType {
     Float,
     Bool,
@@ -48,6 +56,7 @@ pub enum InputType {
 }
 
 /// Shader value types
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ShaderValue {
     Float(f32),
     Bool(bool),
@@ -56,6 +65,7 @@ pub enum ShaderValue {
 }
 
 /// Output types
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum OutputType {
     Image,
     Float,
@@ -148,12 +158,90 @@ impl ResolumeIsfShadersRustFfgl {
 
 impl IsfShader {
     pub fn parse(name: &str, source: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        // Placeholder for ISF parsing logic
+        // Basic ISF parsing - look for JSON metadata in comments
+        let mut inputs = Vec::new();
+        let mut outputs = Vec::new();
+
+        // Parse JSON metadata from comments
+        if let Some(json_start) = source.find("/*{") {
+            if let Some(json_end) = source[json_start..].find("}*/") {
+                let json_str = &source[json_start + 2..json_start + json_end + 1];
+                if let Ok(metadata) = serde_json::from_str::<serde_json::Value>(json_str) {
+                    // Parse inputs
+                    if let Some(inputs_json) = metadata.get("INPUTS") {
+                        if let Some(inputs_array) = inputs_json.as_array() {
+                            for input_json in inputs_array {
+                                if let Some(name) = input_json.get("NAME").and_then(|n| n.as_str()) {
+                                    let input_type = match input_json.get("TYPE").and_then(|t| t.as_str()) {
+                                        Some("float") => InputType::Float,
+                                        Some("bool") => InputType::Bool,
+                                        Some("color") => InputType::Color,
+                                        Some("point2D") => InputType::Point2D,
+                                        Some("image") => InputType::Image,
+                                        _ => InputType::Float,
+                                    };
+
+                                    let default = input_json.get("DEFAULT")
+                                        .and_then(|d| d.as_f64())
+                                        .map(|d| d as f32);
+
+                                    let min = input_json.get("MIN")
+                                        .and_then(|m| m.as_f64())
+                                        .map(|m| m as f32);
+
+                                    let max = input_json.get("MAX")
+                                        .and_then(|m| m.as_f64())
+                                        .map(|m| m as f32);
+
+                                    let value = match input_type {
+                                        InputType::Float => ShaderValue::Float(default.unwrap_or(0.0)),
+                                        InputType::Bool => ShaderValue::Bool(default.map(|d| d > 0.0).unwrap_or(false)),
+                                        InputType::Color => ShaderValue::Color([1.0, 1.0, 1.0, 1.0]),
+                                        InputType::Point2D => ShaderValue::Point2D([0.0, 0.0]),
+                                        InputType::Image => ShaderValue::Float(0.0), // Placeholder
+                                    };
+
+                                    inputs.push(ShaderInput {
+                                        name: name.to_string(),
+                                        input_type,
+                                        value,
+                                        min,
+                                        max,
+                                        default,
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    // Parse outputs
+                    if let Some(outputs_json) = metadata.get("OUTPUTS") {
+                        if let Some(outputs_array) = outputs_json.as_array() {
+                            for output_json in outputs_array {
+                                if let Some(name) = output_json.get("NAME").and_then(|n| n.as_str()) {
+                                    let output_type = match output_json.get("TYPE").and_then(|t| t.as_str()) {
+                                        Some("image") => OutputType::Image,
+                                        Some("float") => OutputType::Float,
+                                        _ => OutputType::Image,
+                                    };
+
+                                    outputs.push(ShaderOutput {
+                                        name: name.to_string(),
+                                        output_type,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         Ok(Self {
             name: name.to_string(),
             source: source.to_string(),
-            inputs: Vec::new(),
-            outputs: Vec::new(),
+            inputs,
+            outputs,
         })
     }
 
@@ -256,4 +344,14 @@ mod tests {
         let value = shader.get_parameter("param1");
         assert!(matches!(value, Some(ShaderValue::Float(1.0))));
     }
+pub mod shader_converter;
+pub mod shader_renderer;
+pub mod isf_loader;
+pub mod ffgl_plugin;
+
+// Re-export main types for easier use
+pub use shader_converter::*;
+pub use shader_renderer::*;
+pub use isf_loader::*;
+pub use ffgl_plugin::*;
 }

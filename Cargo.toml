@@ -1,14 +1,18 @@
 [package]
-name = "resolume-isf-shaders-rust-ffgl"
+name = "wgsl-shader-studio"
 version = "0.1.0"
 edition = "2021"
-description = "FFGL plugin for Resolume with ISF (Interactive Shader Format) support"
+description = "Professional WGPU shader studio with ISF support and real-time audio/MIDI integration"
 authors = ["Kapil"]
 license = "MIT"
-repository = "https://github.com/compiling-org/resolume-isf-shaders-rust-ffgl"
-homepage = "https://github.com/compiling-org/resolume-isf-shaders-rust-ffgl"
-keywords = ["ffgl", "isf", "shader", "resolume", "vj"]
-categories = ["multimedia", "graphics", "api-bindings"]
+repository = "https://github.com/compiling-org/WGSL-Shader-Studio"
+homepage = "https://github.com/compiling-org/WGSL-Shader-Studio"
+keywords = ["wgpu", "webgpu", "shader", "wgsl", "isf", "vj", "audio", "midi"]
+categories = ["multimedia", "graphics", "gui"]
+
+[[bin]]
+name = "isf-shaders"
+path = "src/main.rs"
 
 [lib]
 name = "resolume_isf_shaders_rust_ffgl"
@@ -17,7 +21,20 @@ crate-type = ["cdylib"]
 [dependencies]
 # Basic dependencies for a simple graphics library
 anyhow = "1.0"
+ash = "0.38.0"
+console_log = "1.0.0"
+eframe = { version = "0.33.0", optional = true }
+egui = { version = "0.33.0", optional = true }
+midir = "0.10.3"
+rfd = "0.15.4"
+rustfft = "6.4.1"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
 thiserror = "1.0"
+wgpu = "27.0.1"
+winit = "0.30.12"
 
 [features]
 default = []
+gui = ["dep:eframe", "dep:egui"]
+eframe = ["dep:eframe", "dep:egui"]
