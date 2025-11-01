@@ -20,15 +20,18 @@ use pollster;
 #[cfg(feature = "gui")]
 use crate::isf_loader::*;
 #[cfg(feature = "gui")]
+// Use AudioMidiSystem from local audio module
 use crate::audio::AudioMidiSystem;
+// Use AudioData from the shader renderer library
+use resolume_isf_shaders_rust_ffgl::audio::AudioData;
 // use crate::gesture_control::{GestureControlSystem, GestureType, GestureMapping};
 
 #[cfg(feature = "gui")]
 use egui::TextureHandle;
 
-// Use the working shader renderer
+// Use the working shader renderer from the library crate
 #[cfg(feature = "gui")]
-use crate::shader_renderer::{ShaderRenderer, RenderParameters, WorkingShaderExample};
+use resolume_isf_shaders_rust_ffgl::shader_renderer::{ShaderRenderer, RenderParameters, WorkingShaderExample};
 
 #[cfg(feature = "gui")]
 pub struct ShaderGui {
@@ -289,10 +292,10 @@ impl ShaderGui {
 
         // Initialize WGPU renderer
         let renderer = std::sync::Arc::new(std::sync::Mutex::new(
-            pollster::block_on(ShaderRenderer::new((512, 512))).unwrap_or_else(|e| {
+            pollster::block_on(ShaderRenderer::new()).unwrap_or_else(|e| {
                 eprintln!("Failed to initialize WGPU renderer: {}", e);
                 // Create a minimal fallback renderer
-                pollster::block_on(ShaderRenderer::new((256, 256))).unwrap()
+                pollster::block_on(ShaderRenderer::new()).unwrap()
             })
         ));
 
@@ -2328,16 +2331,21 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             egui::ComboBox::from_label("")
                 .selected_text("Select Shader")
                 .show_ui(ui, |ui| {
+                    let mut selected_example: Option<String> = None;
                     if let Some(renderer) = &self.renderer {
                         if let Ok(renderer) = renderer.lock() {
                             for example in renderer.get_working_examples() {
                                 if ui.selectable_label(false, &example.name).clicked() {
-                                    // Load the example shader
-                                    self.current_wgsl_code = example.wgsl_code.clone();
-                                    self.compile_wgsl_shader();
+                                    selected_example = Some(example.wgsl_code.clone());
+                                    break;
                                 }
                             }
                         }
+                    }
+
+                    if let Some(wgsl_code) = selected_example {
+                        self.current_wgsl_code = wgsl_code;
+                        self.compile_wgsl_shader();
                     }
                 });
 
@@ -2450,7 +2458,18 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         // Get audio data if available
         let audio_data = if let Some(audio_sys) = &self.audio_system {
             if let Ok(audio) = audio_sys.lock() {
-                Some(audio.get_audio_data())
+                let local_data = audio.get_audio_data();
+                Some(AudioData {
+                    volume: local_data.volume,
+                    bass_level: local_data.bass_level,
+                    mid_level: local_data.mid_level,
+                    treble_level: local_data.treble_level,
+                    beat: local_data.beat,
+                    centroid: local_data.centroid,
+                    rolloff: local_data.rolloff,
+                    spectrum: local_data.spectrum.clone(),
+                    waveform: local_data.waveform.clone(),
+                })
             } else {
                 None
             }
@@ -2458,49 +2477,99 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             None
         };
 
-        // Update WGPU renderer with current shader
-        if let Some(renderer) = &self.renderer {
-            if let Ok(mut renderer) = renderer.lock() {
-                let params = RenderParameters {
-                    width: self.preview_size.0,
-                    height: self.preview_size.1,
-                    time: self.last_render_time.elapsed().as_secs_f32(),
-                    frame_rate: self.render_fps,
-                    audio_data: audio_data.clone(),
+        // Check if we have a renderer available
+        if self.renderer.is_none() {
+            self.render_fallback_animation(ui, rect, preview_size);
+            return;
+        }
+
+        // Try to render with the current shader
+        let params = RenderParameters {
+            width: self.preview_size.0,
+            height: self.preview_size.1,
+            time: self.last_render_time.elapsed().as_secs_f32(),
+            frame_rate: self.render_fps,
+            audio_data: audio_data.clone(),
+        };
+
+        let wgsl_code = self.current_wgsl_code.clone();
+
+        // Try to render the user's current shader first
+        let render_result = if let Ok(mut renderer) = self.renderer.as_ref().unwrap().lock() {
+            renderer.render_frame(&wgsl_code, &params, audio_data.clone())
+        } else {
+            Err("Failed to lock renderer".into())
+        };
+
+        match render_result {
+            Ok(pixel_data) => {
+                // Successfully rendered shader - create egui texture from pixel data
+                let texture_id = format!("shader_output_{}_{}", self.preview_size.0, self.preview_size.1);
+                let color_image = egui::ColorImage::from_rgba_unmultiplied(
+                    [self.preview_size.0 as usize, self.preview_size.1 as usize],
+                    &pixel_data
+                );
+
+                let texture_handle = ui.ctx().load_texture(
+                    texture_id,
+                    color_image,
+                    egui::TextureOptions::default()
+                );
+
+                // Display the rendered texture
+                let image = egui::Image::new(&texture_handle)
+                    .fit_to_exact_size(preview_size);
+                ui.add(image);
+            }
+            Err(e) => {
+                // Shader compilation/rendering failed - try working examples
+                eprintln!("User shader rendering error: {}", e);
+
+                // Get working examples first
+                let working_examples: Vec<WorkingShaderExample> = if let Ok(renderer) = self.renderer.as_ref().unwrap().lock() {
+                    renderer.get_working_examples().to_vec()
+                } else {
+                    Vec::new()
                 };
 
-                // Render the actual shader using WGPU
-                let wgsl_code = &self.current_wgsl_code;
-                
-                // For now, render the first working example as demonstration
-                // In a full implementation, this would render the user's shader
-                if let Some(example) = renderer.get_working_examples().first() {
-                    let render_result = pollster::block_on(renderer.render_frame(
-                        &example.wgsl_code,
-                        &params,
-                        audio_data
-                    ));
+                if let Some(example) = working_examples.first() {
+                    // Try to render the example
+                    let example_result = if let Ok(mut renderer) = self.renderer.as_ref().unwrap().lock() {
+                        renderer.render_frame(&example.wgsl_code, &params, audio_data)
+                    } else {
+                        Err("Failed to lock renderer for example".into())
+                    };
 
-                    match render_result {
-                        Ok(_) => {
-                            // Successfully compiled and would render the shader
-                            // For demonstration, show a high-quality shader-like preview
-                            self.render_shader_animation(ui, rect, preview_size, &example.category);
+                    match example_result {
+                        Ok(pixel_data) => {
+                            // Successfully rendered example shader
+                            let texture_id = format!("example_output_{}_{}", self.preview_size.0, self.preview_size.1);
+                            let color_image = egui::ColorImage::from_rgba_unmultiplied(
+                                [self.preview_size.0 as usize, self.preview_size.1 as usize],
+                                &pixel_data
+                            );
+
+                            let texture_handle = ui.ctx().load_texture(
+                                texture_id,
+                                color_image,
+                                egui::TextureOptions::default()
+                            );
+
+                            // Display the rendered texture
+                            let image = egui::Image::new(&texture_handle)
+                                .fit_to_exact_size(preview_size);
+                            ui.add(image);
                         }
-                        Err(e) => {
-                            // Fallback to basic animation if shader compilation fails
-                            eprintln!("Shader rendering error: {}", e);
+                        Err(example_e) => {
+                            // Even example failed - fallback to animation
+                            eprintln!("Example shader rendering error: {}", example_e);
                             self.render_fallback_animation(ui, rect, preview_size);
                         }
                     }
                 } else {
                     self.render_fallback_animation(ui, rect, preview_size);
                 }
-            } else {
-                self.render_fallback_animation(ui, rect, preview_size);
             }
-        } else {
-            self.render_fallback_animation(ui, rect, preview_size);
         }
     }
 

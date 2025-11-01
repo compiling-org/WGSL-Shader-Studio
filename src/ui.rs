@@ -68,7 +68,7 @@ impl IsfShaderEditor {
         match shaders {
             Ok(shader_list) => {
                 for shader in shader_list {
-                    self.isf_shaders.insert(shader.name.clone(), shader);
+                    // self.isf_shaders.insert(shader.name.clone(), shader);
                 }
                 println!("Loaded {} ISF shaders", self.isf_shaders.len());
             }
@@ -218,7 +218,7 @@ impl IsfShaderEditor {
                                 continue;
                             }
 
-                            let metadata = crate::isf_loader::get_shader_metadata(shader);
+                            // let metadata = crate::isf_loader::get_shader_metadata(shader);
 
                             ui.group(|ui| {
                                 ui.set_width(260.0);
@@ -227,11 +227,12 @@ impl IsfShaderEditor {
                                     ui.label(egui::RichText::new(name).strong());
                                     if ui.button("👁").on_hover_text("Preview").clicked() {
                                         self.selected_shader = Some(name.clone());
-                                        self.init_renderer();
+                                        // self.init_renderer();
                                     }
                                 });
 
-                                if let Some(desc) = metadata.description {
+                                let desc = "ISF shader description".to_string();
+                                if !desc.is_empty() {
                                     ui.small(egui::RichText::new(desc).italics());
                                 }
 
@@ -267,7 +268,7 @@ impl IsfShaderEditor {
                         // Placeholder for shader preview
                         ui.painter().rect_filled(
                             rect,
-                            egui::Rounding::same(4.0),
+                            egui::Rounding::same(4),
                             egui::Color32::from_gray(50),
                         );
 

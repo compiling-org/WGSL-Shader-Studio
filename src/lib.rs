@@ -12,7 +12,7 @@ pub struct ResolumeIsfShadersRustFfgl {
     shaders: HashMap<String, IsfShader>,
 
     // Rendering parameters
-    render_params: RenderParameters,
+    render_params: crate::shader_renderer::RenderParameters,
 
     // FFGL plugin state
     plugin_state: PluginState,
@@ -71,14 +71,6 @@ pub enum OutputType {
     Float,
 }
 
-/// Rendering parameters
-pub struct RenderParameters {
-    pub width: u32,
-    pub height: u32,
-    pub time: f32,
-    pub frame_rate: f32,
-}
-
 /// Plugin state management
 pub struct PluginState {
     pub current_shader: Option<String>,
@@ -87,21 +79,11 @@ pub struct PluginState {
 
 impl Default for ResolumeIsfShadersRustFfgl {
     fn default() -> Self {
+        let default_render_params = crate::shader_renderer::RenderParameters::default();
         Self {
             shaders: HashMap::new(),
-            render_params: RenderParameters::default(),
+            render_params: default_render_params,
             plugin_state: PluginState::default(),
-        }
-    }
-}
-
-impl Default for RenderParameters {
-    fn default() -> Self {
-        Self {
-            width: 1920,
-            height: 1080,
-            time: 0.0,
-            frame_rate: 30.0,
         }
     }
 }
@@ -351,8 +333,8 @@ pub mod audio;
 pub mod gesture_control;
 pub mod shader_converter;
 pub mod shader_renderer;
-pub mod real_shader_renderer;
-pub mod wgpu_renderer;
+// pub mod real_shader_renderer;
+// pub mod wgpu_renderer;
 pub mod isf_loader;
 pub mod ffgl_plugin;
 pub mod ui;

@@ -16,7 +16,7 @@ path = "src/main.rs"
 
 [lib]
 name = "resolume_isf_shaders_rust_ffgl"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # Basic dependencies for a simple graphics library

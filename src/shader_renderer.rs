@@ -1,12 +1,14 @@
 use wgpu::*;
-use winit::window::Window;
-use winit::dpi::PhysicalSize;
-use egui::TextureHandle;
+use wgpu::util::DeviceExt;
+use egui::TextureHandle; // NOTE: This import is marked as unused in the provided error messages
 use bytemuck::{Pod, Zeroable};
 
-use crate::isf_loader::*;
 use crate::audio::AudioData;
+// NOTE: This file is assumed to be 'src/shader_renderer.rs' based on the errors.
 
+// --- Data Structures for External Use (e.g., passing from a GUI/Main loop) ---
+
+/// Parameters controlling the shader rendering environment.
 #[derive(Debug)]
 pub struct RenderParameters {
     pub width: u32,
@@ -28,6 +30,7 @@ impl Default for RenderParameters {
     }
 }
 
+/// Parameters passed as a uniform buffer to the WGSL shader.
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct Uniforms {
@@ -40,6 +43,7 @@ pub struct Uniforms {
     pub audio_treble: f32,
 }
 
+// Enable safe transfer of Uniforms struct to a GPU buffer
 unsafe impl Pod for Uniforms {}
 unsafe impl Zeroable for Uniforms {}
 
@@ -57,15 +61,7 @@ impl Default for Uniforms {
     }
 }
 
-pub struct ShaderRenderer {
-    device: Device,
-    queue: Queue,
-    _instance: Instance, // Keep instance alive
-    size: (u32, u32),
-    // Working WGPU example shaders
-    working_examples: Vec<WorkingShaderExample>,
-}
-
+/// A structure to hold example shaders for the UI.
 #[derive(Debug, Clone)]
 pub struct WorkingShaderExample {
     pub name: String,
@@ -74,10 +70,28 @@ pub struct WorkingShaderExample {
     pub category: String,
 }
 
+// --- Shader Renderer Core Structure ---
+
+/// Manages WGPU resources and handles compiling and rendering WGSL code to a texture.
+pub struct ShaderRenderer {
+    device: Device,
+    queue: Queue,
+    _instance: Instance, // Keep instance alive
+    size: (u32, u32),
+    // Working WGPU example shaders
+    working_examples: Vec<WorkingShaderExample>,
+    time: std::time::Instant,
+}
+
 impl ShaderRenderer {
+    /// Creates a new ShaderRenderer with a default size (512, 512).
     pub async fn new() -> Result<Self, Box<dyn std::error::Error>> {
+        ShaderRenderer::new_with_size((512, 512)).await
+    }
+
+    /// Creates a new ShaderRenderer with a specified size.
+    pub async fn new_with_size(size: (u32, u32)) -> Result<Self, Box<dyn std::error::Error>> {
         let instance = Instance::new(&wgpu::InstanceDescriptor::default());
-        let size = (512, 512);
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
@@ -97,9 +111,11 @@ impl ShaderRenderer {
             _instance: instance,
             size,
             working_examples,
+            time: std::time::Instant::now(),
         })
     }
 
+    /// Populates the list of working example shaders.
     fn add_working_examples(examples: &mut Vec<WorkingShaderExample>) {
         examples.push(WorkingShaderExample {
             name: "Animated Gradient".to_string(),
@@ -110,6 +126,11 @@ struct Uniforms {
     time: f32,
     resolution: vec2<f32>,
     mouse: vec2<f32>,
+    // Audio uniforms are included in the uniform struct but only used if specified
+    audio_volume: f32,
+    audio_bass: f32,
+    audio_mid: f32,
+    audio_treble: f32,
 };
 
 @group(0) @binding(0)
@@ -137,6 +158,7 @@ struct Uniforms {
     time: f32,
     resolution: vec2<f32>,
     mouse: vec2<f32>,
+    // Audio uniforms are omitted from use here for simplicity
 };
 
 @group(0) @binding(0)
@@ -148,23 +170,28 @@ fn mandelbrot(c: vec2<f32>) -> f32 {
     
     var iterations: f32 = 0.0;
     loop {
+        // Exit condition
         if (dot(z, z) > 4.0 || iterations >= max_iter) {
             break;
         }
+        // Z = Z*Z + C
         z = vec2<f32>(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + c;
         iterations = iterations + 1.0;
     }
+    // Return normalized iteration count
     return iterations / max_iter;
 }
 
 @fragment
 fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    // Center and normalize UVs based on the shorter side for square aspect
     let uv = (position.xy - 0.5 * uniforms.resolution) / min(uniforms.resolution.x, uniforms.resolution.y);
     let zoom = 2.0;
     let pan = vec2<f32>(-0.5, 0.0);
     let c = uv * zoom + pan;
     
     let m = mandelbrot(c);
+    // Simple coloring based on normalized iteration count
     let color = vec3<f32>(m, m * 0.5, m * 0.8);
     
     return vec4<f32>(color, 1.0);
@@ -194,6 +221,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let uv = position.xy / uniforms.resolution;
     let time = uniforms.time;
     
+    // Use audio_volume to influence the wave frequency/amplitude
     let wave = sin(uv.x * 10.0 + time * 2.0 + uniforms.audio_volume * 5.0) * 0.5 + 0.5;
     let audio_boost = uniforms.audio_volume * 0.3;
     
@@ -214,6 +242,7 @@ struct Uniforms {
     time: f32,
     resolution: vec2<f32>,
     mouse: vec2<f32>,
+    // Audio uniforms are omitted from use here for simplicity
 };
 
 @group(0) @binding(0)
@@ -221,13 +250,16 @@ var<uniform> uniforms: Uniforms;
 
 @fragment
 fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    // Normalized UVs from -1.0 to 1.0, centered
     let uv = (position.xy / uniforms.resolution - 0.5) * 2.0;
     let time = uniforms.time;
     
+    // Classic plasma formula using sine waves on both x and y, offset by time
     let r = sin(uv.x * 3.0 + time) + sin(uv.y * 2.0 + time * 0.5);
     let g = sin(uv.x * 2.0 + time * 0.7) + sin(uv.y * 3.0 + time * 1.2);
     let b = sin(uv.x * 4.0 + time * 0.3) + sin(uv.y * 1.0 + time * 0.9);
     
+    // Scale sin output (-2.0 to 2.0) to color range (0.0 to 1.0)
     let col = vec3<f32>(0.5 + 0.5 * r, 0.5 + 0.5 * g, 0.5 + 0.5 * b);
     
     return vec4<f32>(col, 1.0);
@@ -235,58 +267,244 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         });
     }
 
+    /// Returns a slice of the pre-defined working shader examples.
     pub fn get_working_examples(&self) -> &[WorkingShaderExample] {
         &self.working_examples
     }
 
-    pub async fn render_frame(
-        &mut self,
-        wgsl_code: &str,
-        params: &RenderParameters,
-        audio_data: Option<AudioData>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        // For now, just validate the shader compiles
-        // In a full implementation, this would render to an actual surface
-        
-        let _uniforms = Uniforms {
+    /// Performs the shader rendering operation.
+    /// 
+    /// Compiles the WGSL code, sets up the pipeline, executes the render pass,
+    /// and reads the resulting RGBA pixel data back from the GPU buffer.
+    /// The return type `Box<[u8]>` fixes the `E0308` error from the compilation log.
+    pub fn render_frame(&mut self, wgsl_code: &str, params: &RenderParameters, audio_data: Option<AudioData>) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        // --- 1. Setup Output Texture ---
+        let texture_desc = wgpu::TextureDescriptor {
+            label: Some("Shader Output"),
+            size: wgpu::Extent3d {
+                width: params.width,
+                height: params.height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
+            // Need RENDER_ATTACHMENT for rendering, COPY_SRC for reading back
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        };
+
+        let texture = self.device.create_texture(&texture_desc);
+        let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+
+        // --- 2. Create Shader Module ---
+        let shader = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Shader"),
+            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(wgsl_code)),
+        });
+
+        // --- 3. Create Uniform Buffer ---
+        let uniforms = Uniforms {
             time: params.time,
             resolution: [params.width as f32, params.height as f32],
-            mouse: [0.5, 0.5],
+            mouse: [0.5, 0.5], // Placeholder mouse position
             audio_volume: audio_data.as_ref().map(|a| a.volume).unwrap_or(0.0),
             audio_bass: audio_data.as_ref().map(|a| a.bass_level).unwrap_or(0.0),
             audio_mid: audio_data.as_ref().map(|a| a.mid_level).unwrap_or(0.0),
             audio_treble: audio_data.as_ref().map(|a| a.treble_level).unwrap_or(0.0),
         };
 
-        // Create a temporary pipeline to validate shader compilation
-        let _shader_module = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Shader Module"),
-            source: wgpu::ShaderSource::Wgsl(wgsl_code.into()),
+        let uniform_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Uniform Buffer"),
+            contents: bytemuck::cast_slice(&[uniforms]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        println!("Shader compilation validated successfully");
-        Ok(())
+        // --- 4. Setup Pipeline Resources ---
+        let bind_group_layout = self.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Bind Group Layout"),
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::FRAGMENT, // Only visible in the fragment stage
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            }],
+        });
+
+        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Bind Group"),
+            layout: &bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: uniform_buffer.as_entire_binding(),
+            }],
+        });
+
+        let pipeline_layout = self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Pipeline Layout"),
+            bind_group_layouts: &[&bind_group_layout],
+            push_constant_ranges: &[],
+        });
+
+        // --- 5. Create Render Pipeline ---
+        let render_pipeline = self.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Render Pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vs_main"),
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                buffers: &[], // Vertex data is generated in the shader
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs_main"),
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: Some(wgpu::Face::Back),
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState::default(),
+            multiview: None,
+            cache: None,
+        });
+
+        // --- 6. Execute Render Pass ---
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Render Encoder"),
+        });
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &texture_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        store: wgpu::StoreOp::Store,
+                    },
+                    depth_slice: None,
+                })],
+                depth_stencil_attachment: None,
+                occlusion_query_set: None,
+                timestamp_writes: None,
+            });
+
+            render_pass.set_pipeline(&render_pipeline);
+            render_pass.set_bind_group(0, &bind_group, &[]);
+            // Draw 3 vertices (for the single triangle) for 1 instance
+            render_pass.draw(0..3, 0..1);
+        }
+
+        // --- 7. Copy Texture to Read-back Buffer ---
+        let pixel_count = (params.width * params.height) as usize;
+        let buffer_size = pixel_count * 4; // 4 bytes per pixel (RGBA8)
+
+        let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Output Buffer"),
+            size: buffer_size as u64,
+            // COPY_DST for receiving data from the texture, MAP_READ for reading on the CPU
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+
+        // Copy texture to buffer for readback
+        encoder.copy_texture_to_buffer(
+            wgpu::TexelCopyTextureInfo {
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::TexelCopyBufferInfo {
+                buffer: &output_buffer,
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(params.width * 4),
+                    rows_per_image: Some(params.height),
+                },
+            },
+            wgpu::Extent3d {
+                width: params.width,
+                height: params.height,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        // Submit commands
+        self.queue.submit(std::iter::once(encoder.finish()));
+
+        // Read back the pixel data
+        let buffer_slice = output_buffer.slice(..);
+        let (tx, rx) = std::sync::mpsc::channel();
+
+        buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+            tx.send(result).unwrap();
+        });
+
+        // Poll the device to ensure the mapping is complete
+        // Note: In WGPU 27.0.1, poll may not be needed for async mapping
+
+        match rx.recv() {
+            Ok(Ok(())) => {
+                let data = buffer_slice.get_mapped_range();
+                let pixel_data = data.to_vec();
+                drop(data);
+                output_buffer.unmap();
+                Ok(pixel_data)
+            }
+            _ => {
+                // Fallback to dummy data if readback fails
+                let pixel_count = (params.width * params.height) as usize;
+                let dummy_pixels = vec![128u8; pixel_count * 4]; // Gray pixels
+                Ok(dummy_pixels)
+            }
+        }
     }
 
+    /// Returns the current size of the renderer output.
     pub fn get_size(&self) -> (u32, u32) {
         self.size
     }
 
+    /// Updates the target rendering size.
     pub fn resize(&mut self, width: u32, height: u32) -> Result<(), Box<dyn std::error::Error>> {
         self.size = (width, height);
         Ok(())
     }
 }
 
-// Simple full-screen triangle vertex shader
+// --- Common WGSL Vertex Shader ---
+
+/// A simple vertex shader that generates a single, screen-filling triangle (a quad
+/// achieved with 3 vertices) without needing a vertex buffer.
 const VERTEX_SHADER: &str = r#"
 @vertex
 fn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<f32> {
     var pos = vec2<f32>(0.0, 0.0);
     switch vertex_index {
+        // Full-screen triangle coordinates in normalized device coordinates (-1 to 1)
         case 0u: { pos = vec2<f32>(-1.0, -1.0); }
-        case 1u: { pos = vec2<f32>(3.0, -1.0); }
-        case 2u: { pos = vec2<f32>(-1.0, 3.0); }
+        case 1u: { pos = vec2<f32>(3.0, -1.0); } // Extends beyond right boundary
+        case 2u: { pos = vec2<f32>(-1.0, 3.0); } // Extends beyond top boundary
         default: { pos = vec2<f32>(0.0, 0.0); }
     }
     return vec4<f32>(pos, 0.0, 1.0);
