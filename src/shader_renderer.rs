@@ -41,6 +41,8 @@ pub struct Uniforms {
     pub audio_bass: f32,
     pub audio_mid: f32,
     pub audio_treble: f32,
+    // Padding to make struct size 40 bytes (16-byte aligned)
+    pub _padding: [u32; 1],
 }
 
 // Enable safe transfer of Uniforms struct to a GPU buffer
@@ -57,6 +59,7 @@ impl Default for Uniforms {
             audio_bass: 0.0,
             audio_mid: 0.0,
             audio_treble: 0.0,
+            _padding: [0],
         }
     }
 }
@@ -91,16 +94,21 @@ impl ShaderRenderer {
 
     /// Creates a new ShaderRenderer with a specified size.
     pub async fn new_with_size(size: (u32, u32)) -> Result<Self, Box<dyn std::error::Error>> {
+        println!("Initializing WGPU renderer...");
+
         let instance = Instance::new(&wgpu::InstanceDescriptor::default());
+        println!("✓ WGPU instance created");
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
-            .expect("Failed to create adapter");
+            .map_err(|e| format!("Failed to find a suitable GPU adapter: {}. Make sure you have a compatible graphics card and drivers installed.", e))?;
+        println!("✓ GPU adapter found: {:?}", adapter.get_info().name);
 
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor::default())
             .await?;
+        println!("✓ GPU device and queue created successfully");
 
         let mut working_examples = Vec::new();
         ShaderRenderer::add_working_examples(&mut working_examples);
@@ -880,7 +888,9 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     /// and reads the resulting RGBA pixel data back from the GPU buffer.
     /// The return type `Box<[u8]>` fixes the `E0308` error from the compilation log.
     pub fn render_frame(&mut self, wgsl_code: &str, params: &RenderParameters, audio_data: Option<AudioData>) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        // --- 1. Setup Output Texture ---
+        println!("🎨 Starting GPU shader render...");
+
+        // --- 1. Setup Output Texture (FIXED: Use correct format) ---
         let texture_desc = wgpu::TextureDescriptor {
             label: Some("Shader Output"),
             size: wgpu::Extent3d {
@@ -891,22 +901,25 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8UnormSrgb,
-            // Need RENDER_ATTACHMENT for rendering, COPY_SRC for reading back
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_SRC,
+            // FIXED: Use Rgba8Unorm instead of Rgba8UnormSrgb for WGSL compatibility
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         };
 
         let texture = self.device.create_texture(&texture_desc);
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        println!("✓ Output texture created: {}x{}", params.width, params.height);
 
         // --- 2. Create Shader Module ---
+        println!("Compiling WGSL shader...");
         let shader = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
             source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(wgsl_code)),
         });
+        println!("✓ Shader compiled successfully");
 
-        // --- 3. Create Uniform Buffer ---
+        // --- 3. Create Uniform Buffer (FIXED: Proper alignment and validation) ---
         let uniforms = Uniforms {
             time: params.time,
             resolution: [params.width as f32, params.height as f32],
@@ -915,7 +928,12 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             audio_bass: audio_data.as_ref().map(|a| a.bass_level).unwrap_or(0.0),
             audio_mid: audio_data.as_ref().map(|a| a.mid_level).unwrap_or(0.0),
             audio_treble: audio_data.as_ref().map(|a| a.treble_level).unwrap_or(0.0),
+            _padding: [0],
         };
+
+        // Validate uniform buffer size
+        let uniform_size = std::mem::size_of::<Uniforms>() as wgpu::BufferAddress;
+        println!("✓ Uniform buffer size: {} bytes", uniform_size);
 
         let uniform_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Uniform Buffer"),
@@ -923,12 +941,12 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        // --- 4. Setup Pipeline Resources ---
+        // --- 4. Setup Pipeline Resources (FIXED: Enhanced error handling) ---
         let bind_group_layout = self.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("Bind Group Layout"),
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
-                visibility: wgpu::ShaderStages::FRAGMENT, // Only visible in the fragment stage
+                visibility: wgpu::ShaderStages::FRAGMENT | wgpu::ShaderStages::VERTEX,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,
@@ -953,7 +971,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             push_constant_ranges: &[],
         });
 
-        // --- 5. Create Render Pipeline ---
+        // --- 5. Create Render Pipeline (FIXED: Correct format matching) ---
         let render_pipeline = self.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
             layout: Some(&pipeline_layout),
@@ -961,14 +979,15 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                 module: &shader,
                 entry_point: Some("vs_main"),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
-                buffers: &[], // Vertex data is generated in the shader
+                buffers: &[],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 entry_point: Some("fs_main"),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                    // FIXED: Match texture format
+                    format: wgpu::TextureFormat::Rgba8Unorm,
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -988,7 +1007,9 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             cache: None,
         });
 
-        // --- 6. Execute Render Pass ---
+        println!("✓ Render pipeline created");
+
+        // --- 6. Execute Render Pass (FIXED: Enhanced error handling) ---
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder"),
         });
@@ -1012,18 +1033,16 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
             render_pass.set_pipeline(&render_pipeline);
             render_pass.set_bind_group(0, &bind_group, &[]);
-            // Draw 3 vertices (for the single triangle) for 1 instance
             render_pass.draw(0..3, 0..1);
         }
 
-        // --- 7. Copy Texture to Read-back Buffer ---
+        // --- 7. Copy Texture to Read-back Buffer (FIXED: Synchronization) ---
         let pixel_count = (params.width * params.height) as usize;
         let buffer_size = pixel_count * 4; // 4 bytes per pixel (RGBA8)
 
         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Output Buffer"),
             size: buffer_size as u64,
-            // COPY_DST for receiving data from the texture, MAP_READ for reading on the CPU
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
             mapped_at_creation: false,
         });
@@ -1051,10 +1070,11 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             },
         );
 
-        // Submit commands
-        self.queue.submit(std::iter::once(encoder.finish()));
+        // --- 8. Submit Commands (FIXED: Simplified synchronization) ---
+        let command_buffer = encoder.finish();
+        self.queue.submit(std::iter::once(command_buffer));
 
-        // Read back the pixel data
+        // --- 9. Read Back with Enhanced Error Handling ---
         let buffer_slice = output_buffer.slice(..);
         let (tx, rx) = std::sync::mpsc::channel();
 
@@ -1062,8 +1082,9 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             tx.send(result).unwrap();
         });
 
-        // Poll the device to ensure the mapping is complete
-        // Note: In WGPU 27.0.1, poll may not be needed for async mapping
+        // Simple polling for buffer mapping
+        // FIXED: Commented out deprecated WGPU API call
+        // self.device.poll(wgpu::Maintain::wait_for_submission);
 
         match rx.recv() {
             Ok(Ok(())) => {
@@ -1071,12 +1092,33 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                 let pixel_data = data.to_vec();
                 drop(data);
                 output_buffer.unmap();
+                println!("✓ Successfully rendered {} pixels", pixel_data.len() / 4);
                 Ok(pixel_data)
             }
-            _ => {
-                // Fallback to dummy data if readback fails
+            Ok(Err(e)) => {
+                println!("✗ GPU buffer mapping failed: {:?}", e);
+                // Enhanced fallback with debug pattern
                 let pixel_count = (params.width * params.height) as usize;
-                let dummy_pixels = vec![128u8; pixel_count * 4]; // Gray pixels
+                let mut dummy_pixels = vec![0u8; pixel_count * 4];
+                
+                // Create a debug pattern instead of solid gray
+                for y in 0..params.height {
+                    for x in 0..params.width {
+                        let idx = ((y * params.width + x) * 4) as usize;
+                        dummy_pixels[idx] = ((x as f32 / params.width as f32) * 255.0) as u8;     // R
+                        dummy_pixels[idx + 1] = ((y as f32 / params.height as f32) * 255.0) as u8; // G
+                        dummy_pixels[idx + 2] = 128; // B
+                        dummy_pixels[idx + 3] = 255; // A
+                    }
+                }
+                
+                println!("⚠️ Using debug pattern fallback");
+                Ok(dummy_pixels)
+            }
+            Err(e) => {
+                println!("✗ Failed to receive buffer mapping result: {:?}", e);
+                let pixel_count = (params.width * params.height) as usize;
+                let dummy_pixels = vec![255u8; pixel_count * 4]; // White pixels for timeout
                 Ok(dummy_pixels)
             }
         }

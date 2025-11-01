@@ -94,6 +94,19 @@ pub struct ShaderGui {
     // Error handling
     shader_errors: Vec<String>,
     compilation_status: ShaderCompilationStatus,
+
+    // Theme and appearance
+    current_theme: String,
+    custom_theme_colors: HashMap<String, egui::Color32>,
+    brightness: f32,
+    contrast: f32,
+    font_size: f32,
+
+    // Info screens/dialogs
+    show_about_dialog: bool,
+    show_documentation_dialog: bool,
+    show_shortcuts_dialog: bool,
+    show_theme_editor: bool,
 }
 
 #[cfg(feature = "gui")]
@@ -280,6 +293,15 @@ impl Default for ShaderGui {
             grid_size: 20.0,
             pan_offset: egui::Vec2::ZERO,
             zoom: 1.0,
+            current_theme: "professional_dark".to_string(),
+            custom_theme_colors: HashMap::new(),
+            brightness: 0.0,
+            contrast: 1.0,
+            font_size: 14.0,
+            show_about_dialog: false,
+            show_documentation_dialog: false,
+            show_shortcuts_dialog: false,
+            show_theme_editor: false,
         }
     }
 }
@@ -291,28 +313,87 @@ impl ShaderGui {
         let shaders = load_resolume_isf_shaders().unwrap_or_default();
 
         // Initialize WGPU renderer
+        println!("Initializing shader renderer in GUI...");
         let renderer = std::sync::Arc::new(std::sync::Mutex::new(
             pollster::block_on(ShaderRenderer::new()).unwrap_or_else(|e| {
                 eprintln!("Failed to initialize WGPU renderer: {}", e);
                 // Create a minimal fallback renderer
+                println!("Attempting fallback renderer creation...");
                 pollster::block_on(ShaderRenderer::new()).unwrap()
             })
         ));
+        println!("✓ Shader renderer initialized successfully");
 
         let mut gui = Self {
             shaders,
+            current_shader: None,
+            parameter_values: HashMap::new(),
+            current_wgsl_code: Self::default_wgsl_shader(),
+            shader_templates: Self::create_shader_templates(),
+            expanded_template_library: Self::create_expanded_template_library(),
+            show_audio_panel: true,
+            show_midi_panel: false,
+            show_code_editor: true,
+            show_preview: true,
+            show_converter: false,
+            show_file_browser: false,
+            show_node_editor: false,
+            selected_template: None,
+            selected_template_category: "All".to_string(),
+            nodes: Vec::new(),
+            connections: Vec::new(),
+            selected_node: None,
+            dragged_node: None,
+            drag_offset: egui::Vec2::ZERO,
+            pending_connection: None,
+            grid_size: 20.0,
+            pan_offset: egui::Vec2::ZERO,
+            zoom: 1.0,
+            current_file: None,
+            recent_files: Vec::new(),
+            audio_system: None,
+            gesture_control: None,
+            show_gesture_panel: false,
+            selected_gesture: None,
+            from_format: "WGSL".to_string(),
+            to_format: "GLSL".to_string(),
             renderer: Some(renderer),
-            ..Default::default()
+            preview_texture: None,
+            preview_size: (512, 512),
+            last_render_time: Instant::now(),
+            render_fps: 0.0,
+            fps_counter: 0.0,
+            frame_count: 0,
+            last_fps_update: Instant::now(),
+            shader_errors: Vec::new(),
+            compilation_status: ShaderCompilationStatus::NotCompiled,
+            current_theme: "professional_dark".to_string(),
+            custom_theme_colors: HashMap::new(),
+            brightness: 0.0,
+            contrast: 1.0,
+            font_size: 14.0,
+            show_about_dialog: false,
+            show_documentation_dialog: false,
+            show_shortcuts_dialog: false,
+            show_theme_editor: false,
         };
 
         // Load recent files on startup
         gui.load_recent_files();
+
+        // Load theme settings on startup
+        gui.load_theme_settings();
 
         // Initialize gesture control system
         gui.gesture_control = Some(Arc::new(std::sync::Mutex::new(GestureControlSystem::new())));
 
         // Apply professional theme
         gui.apply_professional_theme(_cc);
+
+        // Auto-compile and start rendering the default shader immediately
+        println!("🚀 Auto-starting shader compilation and rendering...");
+        gui.compile_wgsl_shader();
+        gui.start_preview_rendering();
 
         Box::new(gui)
     }
@@ -363,40 +444,215 @@ impl ShaderGui {
         cc.egui_ctx.set_visuals(visuals);
     }
 
-    fn apply_theme(&mut self, theme_name: &str) {
-        // Dynamic theme switching functionality
-        match theme_name {
+    fn apply_theme(&mut self, theme_name: &str, ctx: &egui::Context) {
+        self.current_theme = theme_name.to_string();
+
+        let mut visuals = match theme_name {
             "professional_dark" => {
-                // Already applied by default
+                let mut v = egui::Visuals::dark();
+                // Deep charcoal/navy blue color scheme for professional look
+                v.override_text_color = Some(egui::Color32::from_rgb(230, 230, 230));
+                v.panel_fill = egui::Color32::from_rgb(35, 35, 38); // Deep charcoal panels
+                v.window_fill = egui::Color32::from_rgb(28, 28, 31); // Navy blue windows
+                v.faint_bg_color = egui::Color32::from_rgb(42, 42, 45);
+                v.hyperlink_color = egui::Color32::from_rgb(120, 180, 255); // Bright blue links
+                v.warn_fg_color = egui::Color32::from_rgb(255, 200, 50); // Golden yellow warnings
+                v.error_fg_color = egui::Color32::from_rgb(255, 80, 80); // Bright red errors
+                v.selection.bg_fill = egui::Color32::from_rgb(80, 140, 220);
+                v.selection.stroke = egui::Stroke::new(2.0, egui::Color32::from_rgb(120, 180, 255));
+                v.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(45, 45, 48);
+                v.widgets.inactive.bg_fill = egui::Color32::from_rgb(55, 55, 58);
+                v.widgets.hovered.bg_fill = egui::Color32::from_rgb(65, 65, 68);
+                v.widgets.active.bg_fill = egui::Color32::from_rgb(75, 75, 78);
+                v.widgets.open.bg_fill = egui::Color32::from_rgb(50, 50, 53);
+                v.widgets.inactive.fg_stroke = egui::Stroke::new(1.2, egui::Color32::from_rgb(190, 190, 200));
+                v.widgets.hovered.fg_stroke = egui::Stroke::new(1.2, egui::Color32::from_rgb(210, 210, 220));
+                v.widgets.active.fg_stroke = egui::Stroke::new(1.2, egui::Color32::from_rgb(230, 230, 240));
+                v.window_shadow = egui::epaint::Shadow {
+                    offset: [0, 12],
+                    blur: 32,
+                    spread: 2,
+                    color: egui::Color32::from_black_alpha(150),
+                };
+                v
             }
             "professional_light" => {
-                // Light theme implementation
+                let mut v = egui::Visuals::light();
+                v.override_text_color = Some(egui::Color32::from_rgb(30, 30, 30));
+                v.panel_fill = egui::Color32::from_rgb(250, 250, 252);
+                v.window_fill = egui::Color32::from_rgb(255, 255, 255);
+                v.faint_bg_color = egui::Color32::from_rgb(245, 245, 247);
+                v.hyperlink_color = egui::Color32::from_rgb(0, 100, 200);
+                v.warn_fg_color = egui::Color32::from_rgb(200, 150, 0);
+                v.error_fg_color = egui::Color32::from_rgb(200, 50, 50);
+                v.selection.bg_fill = egui::Color32::from_rgb(200, 220, 255);
+                v.selection.stroke = egui::Stroke::new(2.0, egui::Color32::from_rgb(100, 150, 255));
+                v.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(240, 240, 242);
+                v.widgets.inactive.bg_fill = egui::Color32::from_rgb(230, 230, 232);
+                v.widgets.hovered.bg_fill = egui::Color32::from_rgb(220, 220, 222);
+                v.widgets.active.bg_fill = egui::Color32::from_rgb(210, 210, 212);
+                v.widgets.open.bg_fill = egui::Color32::from_rgb(235, 235, 237);
+                v
             }
             "midnight_blue" => {
-                // Blue theme
+                let mut v = egui::Visuals::dark();
+                v.override_text_color = Some(egui::Color32::from_rgb(220, 220, 240));
+                v.panel_fill = egui::Color32::from_rgb(15, 15, 35);
+                v.window_fill = egui::Color32::from_rgb(10, 10, 25);
+                v.faint_bg_color = egui::Color32::from_rgb(20, 20, 45);
+                v.hyperlink_color = egui::Color32::from_rgb(100, 150, 255);
+                v.warn_fg_color = egui::Color32::from_rgb(255, 200, 100);
+                v.error_fg_color = egui::Color32::from_rgb(255, 100, 100);
+                v.selection.bg_fill = egui::Color32::from_rgb(50, 100, 200);
+                v.selection.stroke = egui::Stroke::new(2.0, egui::Color32::from_rgb(100, 150, 255));
+                v.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(25, 25, 50);
+                v.widgets.inactive.bg_fill = egui::Color32::from_rgb(35, 35, 60);
+                v.widgets.hovered.bg_fill = egui::Color32::from_rgb(45, 45, 70);
+                v.widgets.active.bg_fill = egui::Color32::from_rgb(55, 55, 80);
+                v.widgets.open.bg_fill = egui::Color32::from_rgb(30, 30, 55);
+                v
             }
             "sunrise_orange" => {
-                // Orange theme
+                let mut v = egui::Visuals::dark();
+                v.override_text_color = Some(egui::Color32::from_rgb(250, 240, 220));
+                v.panel_fill = egui::Color32::from_rgb(45, 25, 15);
+                v.window_fill = egui::Color32::from_rgb(35, 20, 10);
+                v.faint_bg_color = egui::Color32::from_rgb(55, 35, 25);
+                v.hyperlink_color = egui::Color32::from_rgb(255, 150, 50);
+                v.warn_fg_color = egui::Color32::from_rgb(255, 220, 100);
+                v.error_fg_color = egui::Color32::from_rgb(255, 100, 100);
+                v.selection.bg_fill = egui::Color32::from_rgb(200, 120, 50);
+                v.selection.stroke = egui::Stroke::new(2.0, egui::Color32::from_rgb(255, 150, 50));
+                v.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(60, 35, 20);
+                v.widgets.inactive.bg_fill = egui::Color32::from_rgb(70, 45, 30);
+                v.widgets.hovered.bg_fill = egui::Color32::from_rgb(80, 55, 40);
+                v.widgets.active.bg_fill = egui::Color32::from_rgb(90, 65, 50);
+                v.widgets.open.bg_fill = egui::Color32::from_rgb(65, 40, 25);
+                v
             }
             "forest_green" => {
-                // Green theme
+                let mut v = egui::Visuals::dark();
+                v.override_text_color = Some(egui::Color32::from_rgb(220, 240, 220));
+                v.panel_fill = egui::Color32::from_rgb(15, 35, 15);
+                v.window_fill = egui::Color32::from_rgb(10, 25, 10);
+                v.faint_bg_color = egui::Color32::from_rgb(20, 45, 20);
+                v.hyperlink_color = egui::Color32::from_rgb(100, 200, 100);
+                v.warn_fg_color = egui::Color32::from_rgb(255, 220, 100);
+                v.error_fg_color = egui::Color32::from_rgb(255, 100, 100);
+                v.selection.bg_fill = egui::Color32::from_rgb(50, 150, 50);
+                v.selection.stroke = egui::Stroke::new(2.0, egui::Color32::from_rgb(100, 200, 100));
+                v.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(25, 50, 25);
+                v.widgets.inactive.bg_fill = egui::Color32::from_rgb(35, 60, 35);
+                v.widgets.hovered.bg_fill = egui::Color32::from_rgb(45, 70, 45);
+                v.widgets.active.bg_fill = egui::Color32::from_rgb(55, 80, 55);
+                v.widgets.open.bg_fill = egui::Color32::from_rgb(30, 55, 30);
+                v
             }
             "purple_haze" => {
-                // Purple theme
+                let mut v = egui::Visuals::dark();
+                v.override_text_color = Some(egui::Color32::from_rgb(240, 220, 250));
+                v.panel_fill = egui::Color32::from_rgb(35, 15, 45);
+                v.window_fill = egui::Color32::from_rgb(25, 10, 35);
+                v.faint_bg_color = egui::Color32::from_rgb(45, 25, 55);
+                v.hyperlink_color = egui::Color32::from_rgb(200, 100, 255);
+                v.warn_fg_color = egui::Color32::from_rgb(255, 220, 100);
+                v.error_fg_color = egui::Color32::from_rgb(255, 100, 100);
+                v.selection.bg_fill = egui::Color32::from_rgb(150, 50, 200);
+                v.selection.stroke = egui::Stroke::new(2.0, egui::Color32::from_rgb(200, 100, 255));
+                v.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(50, 25, 60);
+                v.widgets.inactive.bg_fill = egui::Color32::from_rgb(60, 35, 70);
+                v.widgets.hovered.bg_fill = egui::Color32::from_rgb(70, 45, 80);
+                v.widgets.active.bg_fill = egui::Color32::from_rgb(80, 55, 90);
+                v.widgets.open.bg_fill = egui::Color32::from_rgb(55, 30, 65);
+                v
             }
-            _ => {}
+            "custom" => {
+                // Use custom colors from the hashmap
+                let mut v = egui::Visuals::dark();
+                if let Some(bg_color) = self.custom_theme_colors.get("background") {
+                    v.panel_fill = *bg_color;
+                }
+                if let Some(window_color) = self.custom_theme_colors.get("window") {
+                    v.window_fill = *window_color;
+                }
+                if let Some(text_color) = self.custom_theme_colors.get("text") {
+                    v.override_text_color = Some(*text_color);
+                }
+                v
+            }
+            _ => egui::Visuals::dark(),
+        };
+
+        // Apply brightness/contrast adjustments
+        let brightness_factor = self.brightness;
+        let contrast_factor = self.contrast;
+
+        fn adjust_color(color: egui::Color32, brightness: f32, contrast: f32) -> egui::Color32 {
+            let [r, g, b, a] = color.to_srgba_unmultiplied();
+            let rf = r as f32 / 255.0;
+            let gf = g as f32 / 255.0;
+            let bf = b as f32 / 255.0;
+
+            // Apply contrast first, then brightness
+            let cr = ((rf - 0.5) * contrast + 0.5 + brightness).clamp(0.0, 1.0);
+            let cg = ((gf - 0.5) * contrast + 0.5 + brightness).clamp(0.0, 1.0);
+            let cb = ((bf - 0.5) * contrast + 0.5 + brightness).clamp(0.0, 1.0);
+
+            egui::Color32::from_rgba_premultiplied(
+                (cr * 255.0) as u8,
+                (cg * 255.0) as u8,
+                (cb * 255.0) as u8,
+                a,
+            )
         }
+
+        // Adjust all color fields
+        visuals.panel_fill = adjust_color(visuals.panel_fill, brightness_factor, contrast_factor);
+        visuals.window_fill = adjust_color(visuals.window_fill, brightness_factor, contrast_factor);
+        visuals.faint_bg_color = adjust_color(visuals.faint_bg_color, brightness_factor, contrast_factor);
+        visuals.widgets.noninteractive.bg_fill = adjust_color(visuals.widgets.noninteractive.bg_fill, brightness_factor, contrast_factor);
+        visuals.widgets.inactive.bg_fill = adjust_color(visuals.widgets.inactive.bg_fill, brightness_factor, contrast_factor);
+        visuals.widgets.hovered.bg_fill = adjust_color(visuals.widgets.hovered.bg_fill, brightness_factor, contrast_factor);
+        visuals.widgets.active.bg_fill = adjust_color(visuals.widgets.active.bg_fill, brightness_factor, contrast_factor);
+        visuals.widgets.open.bg_fill = adjust_color(visuals.widgets.open.bg_fill, brightness_factor, contrast_factor);
+
+        ctx.set_visuals(visuals);
+        
+        // Save theme settings whenever theme is applied
+        self.save_theme_settings();
     }
     fn default_wgsl_shader() -> String {
-        r#"// Default WGSL Shader
-@group(0) @binding(0) var<uniform> time: f32;
-@group(0) @binding(1) var<uniform> resolution: vec2<f32>;
-@group(0) @binding(2) var<uniform> mouse: vec2<f32>;
+        r#"// Minimal Working WGSL Shader
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+    mouse: vec2<f32>,
+    audio_volume: f32,
+    audio_bass: f32,
+    audio_mid: f32,
+    audio_treble: f32,
+};
+
+@group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
+
+@vertex
+fn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<f32> {
+    var pos = vec2<f32>(0.0, 0.0);
+    switch vertex_index {
+        case 0u: { pos = vec2<f32>(-1.0, -1.0); }
+        case 1u: { pos = vec2<f32>(3.0, -1.0); }
+        case 2u: { pos = vec2<f32>(-1.0, 3.0); }
+        default: { pos = vec2<f32>(0.0, 0.0); }
+    }
+    return vec4<f32>(pos, 0.0, 1.0);
+}
 
 @fragment
 fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-    let uv = position.xy / resolution;
-    let col = 0.5 + 0.5 * cos(time + uv.xyx + vec3<f32>(0.0, 2.0, 4.0));
+    // Convert from clip space (-1 to 1) to UV coordinates (0 to 1)
+    let uv = (position.xy + vec2<f32>(1.0, 1.0)) * 0.5;
+    let col = 0.5 + 0.5 * cos(uniforms.time + uv.xyx + vec3<f32>(0.0, 2.0, 4.0));
     return vec4<f32>(col, 1.0);
 }"#.to_string()
     }
@@ -736,14 +992,100 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                     return;
                 }
             }
-            
+
             let files_to_save: Vec<String> = self.recent_files
                 .iter()
                 .map(|p| p.to_string_lossy().to_string())
                 .collect();
-            
+
             if let Err(e) = std::fs::write(&recent_files_path, serde_json::to_string_pretty(&files_to_save).unwrap_or_default()) {
                 eprintln!("Failed to save recent files: {}", e);
+            }
+        }
+    }
+
+    fn load_theme_settings(&mut self) {
+        // Load theme settings from config
+        if let Some(config_dir) = directories::ProjectDirs::from("com", "WGSLShaderStudio", "ShaderStudio") {
+            let theme_settings_path = config_dir.config_dir().join("theme_settings.json");
+            if theme_settings_path.exists() {
+                match std::fs::read_to_string(&theme_settings_path) {
+                    Ok(content) => {
+                        if let Ok(settings) = serde_json::from_str::<serde_json::Value>(&content) {
+                            // Load current theme
+                            if let Some(theme) = settings.get("current_theme").and_then(|v| v.as_str()) {
+                                self.current_theme = theme.to_string();
+                            }
+
+                            // Load brightness/contrast/font_size
+                            if let Some(brightness) = settings.get("brightness").and_then(|v| v.as_f64()) {
+                                self.brightness = brightness as f32;
+                            }
+                            if let Some(contrast) = settings.get("contrast").and_then(|v| v.as_f64()) {
+                                self.contrast = contrast as f32;
+                            }
+                            if let Some(font_size) = settings.get("font_size").and_then(|v| v.as_f64()) {
+                                self.font_size = font_size as f32;
+                            }
+
+                            // Load custom theme colors
+                            if let Some(colors) = settings.get("custom_theme_colors").and_then(|v| v.as_object()) {
+                                for (key, value) in colors {
+                                    if let Some(arr) = value.as_array() {
+                                        if arr.len() == 4 {
+                                            let r = arr[0].as_u64().unwrap_or(0) as u8;
+                                            let g = arr[1].as_u64().unwrap_or(0) as u8;
+                                            let b = arr[2].as_u64().unwrap_or(0) as u8;
+                                            let a = arr[3].as_u64().unwrap_or(255) as u8;
+                                            self.custom_theme_colors.insert(key.clone(), egui::Color32::from_rgba_unmultiplied(r, g, b, a));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to load theme settings: {}", e);
+                    }
+                }
+            }
+        }
+    }
+
+    fn save_theme_settings(&self) {
+        // Save theme settings to config
+        if let Some(config_dir) = directories::ProjectDirs::from("com", "WGSLShaderStudio", "ShaderStudio") {
+            let theme_settings_path = config_dir.config_dir().join("theme_settings.json");
+            if let Some(parent) = theme_settings_path.parent() {
+                if let Err(e) = std::fs::create_dir_all(parent) {
+                    eprintln!("Failed to create config directory: {}", e);
+                    return;
+                }
+            }
+
+            // Create settings object
+            let mut settings = serde_json::Map::new();
+            settings.insert("current_theme".to_string(), serde_json::Value::String(self.current_theme.clone()));
+            settings.insert("brightness".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(self.brightness as f64).unwrap()));
+            settings.insert("contrast".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(self.contrast as f64).unwrap()));
+            settings.insert("font_size".to_string(), serde_json::Value::Number(serde_json::Number::from_f64(self.font_size as f64).unwrap()));
+
+            // Save custom theme colors
+            let mut colors = serde_json::Map::new();
+            for (key, color) in &self.custom_theme_colors {
+                let [r, g, b, a] = color.to_srgba_unmultiplied();
+                let color_array = serde_json::Value::Array(vec![
+                    serde_json::Value::Number(serde_json::Number::from(r)),
+                    serde_json::Value::Number(serde_json::Number::from(g)),
+                    serde_json::Value::Number(serde_json::Number::from(b)),
+                    serde_json::Value::Number(serde_json::Number::from(a)),
+                ]);
+                colors.insert(key.clone(), color_array);
+            }
+            settings.insert("custom_theme_colors".to_string(), serde_json::Value::Object(colors));
+
+            if let Err(e) = std::fs::write(&theme_settings_path, serde_json::to_string_pretty(&serde_json::Value::Object(settings)).unwrap_or_default()) {
+                eprintln!("Failed to save theme settings: {}", e);
             }
         }
     }
@@ -921,22 +1263,22 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             egui::MenuBar::new().ui(ui, |ui| {
                 // File menu - TouchDesigner style
                 ui.menu_button("File", |ui| {
-                    if ui.button("New Shader").clicked() {
+                    if ui.button("New Shader").clicked() || ui.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::N)) {
                         self.new_shader();
                         ui.close_kind(egui::UiKind::Menu);
                     }
-                    if ui.button("Open...").clicked() {
+                    if ui.button("Open...").clicked() || ui.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::O)) {
                         self.open_file();
                         ui.close_kind(egui::UiKind::Menu);
                     }
                     ui.separator();
-                    if ui.button("Save").clicked() {
+                    if ui.button("Save").clicked() || ui.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::S)) {
                         if let Some(path) = self.current_file.clone() {
                             self.save_file(&path);
                         }
                         ui.close_kind(egui::UiKind::Menu);
                     }
-                    if ui.button("Save As...").clicked() {
+                    if ui.button("Save As...").clicked() || ui.input(|i| i.modifiers.ctrl && i.modifiers.shift && i.key_pressed(egui::Key::S)) {
                         let task = rfd::AsyncFileDialog::new()
                             .add_filter("WGSL Shaders", &["wgsl"])
                             .add_filter("GLSL Shaders", &["glsl", "frag", "vert"])
@@ -1014,7 +1356,69 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                     ui.checkbox(&mut self.show_midi_panel, "MIDI Panel");
                     ui.checkbox(&mut self.show_gesture_panel, "Gesture Control");
                     ui.separator();
-                    if ui.button("Reset Layout").clicked() {
+                    ui.menu_button("Themes", |ui| {
+                        if ui.button("🎨 Professional Dark").clicked() {
+                            self.apply_theme("professional_dark", ctx);
+                            self.save_theme_settings();
+                            ui.close_kind(egui::UiKind::Menu);
+                        }
+                        if ui.button("☀️ Professional Light").clicked() {
+                            self.apply_theme("professional_light", ctx);
+                            self.save_theme_settings();
+                            ui.close_kind(egui::UiKind::Menu);
+                        }
+                        if ui.button("🌙 Midnight Blue").clicked() {
+                            self.apply_theme("midnight_blue", ctx);
+                            self.save_theme_settings();
+                            ui.close_kind(egui::UiKind::Menu);
+                        }
+                        if ui.button("🌅 Sunrise Orange").clicked() {
+                            self.apply_theme("sunrise_orange", ctx);
+                            self.save_theme_settings();
+                            ui.close_kind(egui::UiKind::Menu);
+                        }
+                        if ui.button("🌲 Forest Green").clicked() {
+                            self.apply_theme("forest_green", ctx);
+                            self.save_theme_settings();
+                            ui.close_kind(egui::UiKind::Menu);
+                        }
+                        if ui.button("💜 Purple Haze").clicked() {
+                            self.apply_theme("purple_haze", ctx);
+                            self.save_theme_settings();
+                            ui.close_kind(egui::UiKind::Menu);
+                        }
+                        ui.separator();
+                        if ui.button("🎨 Custom Theme Editor").clicked() {
+                            self.show_theme_editor = true;
+                            self.save_theme_settings();
+                            ui.close_kind(egui::UiKind::Menu);
+                        }
+                    });
+                    ui.separator();
+                    ui.menu_button("Appearance", |ui| {
+                        ui.label("Brightness:");
+                        ui.add(egui::Slider::new(&mut self.brightness, -0.5..=0.5).text(""));
+                        ui.label("Contrast:");
+                        ui.add(egui::Slider::new(&mut self.contrast, 0.5..=2.0).text(""));
+                        ui.label("Font Size:");
+                        ui.add(egui::Slider::new(&mut self.font_size, 10.0..=24.0).text(""));
+                        ui.separator();
+                        if ui.button("Apply Changes").clicked() {
+                            self.apply_theme(&self.current_theme.clone(), ctx);
+                            self.save_theme_settings();
+                            ui.close_kind(egui::UiKind::Menu);
+                        }
+                        if ui.button("Reset to Defaults").clicked() {
+                            self.brightness = 0.0;
+                            self.contrast = 1.0;
+                            self.font_size = 14.0;
+                            self.apply_theme(&self.current_theme.clone(), ctx);
+                            self.save_theme_settings();
+                            ui.close_kind(egui::UiKind::Menu);
+                        }
+                    });
+                    ui.separator();
+                    if ui.button("Reset Layout").clicked() || ui.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::R)) {
                         self.reset_layout();
                         ui.close_kind(egui::UiKind::Menu);
                     }
@@ -1047,17 +1451,17 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
                 // Help menu
                 ui.menu_button("Help", |ui| {
-                    if ui.button("Documentation").clicked() {
-                        // Open documentation
+                    if ui.button("📚 Documentation").clicked() {
+                        self.show_documentation_dialog = true;
                         ui.close_kind(egui::UiKind::Menu);
                     }
-                    if ui.button("Keyboard Shortcuts").clicked() {
-                        // Show shortcuts
+                    if ui.button("⌨️ Keyboard Shortcuts").clicked() {
+                        self.show_shortcuts_dialog = true;
                         ui.close_kind(egui::UiKind::Menu);
                     }
                     ui.separator();
-                    if ui.button("About WGSL Shader Studio").clicked() {
-                        // Show about dialog
+                    if ui.button("ℹ️ About WGSL Shader Studio").clicked() {
+                        self.show_about_dialog = true;
                         ui.close_kind(egui::UiKind::Menu);
                     }
                 });
@@ -1069,7 +1473,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         ui.collapsing("WGSL Code Editor", |ui| {
             // Professional toolbar with functional buttons
             ui.horizontal(|ui| {
-                if ui.button("Compile").clicked() {
+                if ui.button("Compile").clicked() || ui.input(|i| i.key_pressed(egui::Key::F5)) {
                     self.compile_wgsl_shader();
                 }
 
@@ -1096,7 +1500,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                 ui.separator();
 
                 // Functional editing features
-                if ui.button("🔧 Format").clicked() {
+                if ui.button("🔧 Format").clicked() || ui.input(|i| i.modifiers.ctrl && i.key_pressed(egui::Key::F)) {
                     self.format_wgsl_code();
                 }
                 if ui.button("Find").clicked() {
@@ -2310,7 +2714,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             ui.separator();
 
             // Prominent render controls
-            if ui.button("▶️ Play").clicked() {
+            if ui.button("▶️ Play").clicked() || ui.input(|i| i.key_pressed(egui::Key::Space)) {
                 self.start_preview_rendering();
                 self.compile_wgsl_shader();
             }
@@ -2320,8 +2724,31 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             if ui.button("⏹️ Stop").clicked() {
                 self.stop_preview_rendering();
             }
-            if ui.button("📸 Screenshot").clicked() {
+            if ui.button("📸 Screenshot").clicked() || ui.input(|i| i.key_pressed(egui::Key::F12)) {
                 self.take_screenshot();
+            }
+
+            ui.separator();
+
+            // Force continuous rendering
+            if ui.button("🔄 Render Now").clicked() {
+                println!("🔄 Manual render trigger");
+                // Force compilation first, then render
+                self.compile_wgsl_shader();
+                
+                // Then try to render
+                if let Some(renderer) = &self.renderer {
+                    if let Ok(mut renderer) = renderer.lock() {
+                        let params = RenderParameters {
+                            width: self.preview_size.0,
+                            height: self.preview_size.1,
+                            time: self.last_render_time.elapsed().as_secs_f32(),
+                            frame_rate: self.render_fps,
+                            audio_data: None,
+                        };
+                        let _ = renderer.render_frame(&self.current_wgsl_code, &params, None);
+                    }
+                }
             }
 
             ui.separator();
@@ -2371,55 +2798,10 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             egui::StrokeKind::Middle,
         );
 
-        // Real WGPU shader rendering based on compilation status
-        match &self.compilation_status {
-            ShaderCompilationStatus::Success => {
-                // Use actual WGPU renderer for real shader output
-                self.render_actual_shader_preview(ui, rect, preview_size);
-            }
-            ShaderCompilationStatus::Compiling => {
-                ui.painter().rect_filled(
-                    rect,
-                    egui::CornerRadius::same(4),
-                    egui::Color32::from_rgb(255, 200, 0),
-                );
-                ui.painter().text(
-                    rect.center(),
-                    egui::Align2::CENTER_CENTER,
-                    "🟡 Compiling Shader...",
-                    egui::FontId::proportional(18.0),
-                    egui::Color32::BLACK,
-                );
-            }
-            ShaderCompilationStatus::Error(_) => {
-                ui.painter().rect_filled(
-                    rect,
-                    egui::CornerRadius::same(4),
-                    egui::Color32::from_rgb(200, 50, 50),
-                );
-                ui.painter().text(
-                    rect.center(),
-                    egui::Align2::CENTER_CENTER,
-                    "🔴 Compilation Error\nCheck code and try again",
-                    egui::FontId::proportional(16.0),
-                    egui::Color32::WHITE,
-                );
-            }
-            ShaderCompilationStatus::NotCompiled => {
-                ui.painter().rect_filled(
-                    rect,
-                    egui::CornerRadius::same(4),
-                    egui::Color32::from_rgb(80, 80, 80),
-                );
-                ui.painter().text(
-                    rect.center(),
-                    egui::Align2::CENTER_CENTER,
-                    "⚪ Ready to Compile\nClick '▶️ Play' to start",
-                    egui::FontId::proportional(16.0),
-                    egui::Color32::WHITE,
-                );
-            }
-        }
+        // 🔥 CRITICAL FIX: Force GPU rendering regardless of compilation status
+        println!("🔥 GUI render loop: Attempting to render shader...");
+        self.render_actual_shader_preview(ui, rect, preview_size);
+        println!("🔥 GUI render loop: Render attempt completed");
 
         // Performance overlay in top-right corner (subtle but visible)
         let overlay_rect = egui::Rect::from_min_size(
@@ -2495,20 +2877,27 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         let wgsl_code = self.current_wgsl_code.clone();
 
         // Try to render the user's current shader first
+        println!("Attempting to render shader...");
         let render_result = if let Ok(mut renderer) = self.renderer.as_ref().unwrap().lock() {
-            renderer.render_frame(&wgsl_code, &params, audio_data.clone())
+            println!("✓ Renderer locked, calling render_frame...");
+            let result = renderer.render_frame(&wgsl_code, &params, audio_data.clone());
+            println!("✓ render_frame completed");
+            result
         } else {
+            println!("✗ Failed to lock renderer");
             Err("Failed to lock renderer".into())
         };
 
         match render_result {
             Ok(pixel_data) => {
+                println!("✓ Shader rendered successfully, pixel data size: {}", pixel_data.len());
                 // Successfully rendered shader - create egui texture from pixel data
                 let texture_id = format!("shader_output_{}_{}", self.preview_size.0, self.preview_size.1);
 
                 // Ensure pixel data is the correct size
                 let expected_size = (self.preview_size.0 * self.preview_size.1 * 4) as usize;
                 if pixel_data.len() == expected_size {
+                    println!("✓ Pixel data size matches expected: {} bytes", expected_size);
                     let color_image = egui::ColorImage::from_rgba_unmultiplied(
                         [self.preview_size.0 as usize, self.preview_size.1 as usize],
                         &pixel_data
@@ -2529,6 +2918,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                     ui.add(image);
                 } else {
                     // Pixel data size mismatch - show error
+                    println!("✗ Pixel data size mismatch! Expected: {}, Got: {}", expected_size, pixel_data.len());
                     ui.painter().rect_filled(
                         rect,
                         egui::CornerRadius::same(4),
@@ -2545,7 +2935,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             }
             Err(e) => {
                 // Shader compilation/rendering failed - try working examples
-                eprintln!("User shader rendering error: {}", e);
+                println!("✗ User shader rendering error: {}", e);
 
                 // Get working examples first
                 let working_examples: Vec<WorkingShaderExample> = if let Ok(renderer) = self.renderer.as_ref().unwrap().lock() {
@@ -2717,8 +3107,11 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     }
 
     fn start_preview_rendering(&mut self) {
-        // Placeholder for preview rendering start
-        println!("Preview rendering started (placeholder)");
+        // Start the preview rendering by triggering a re-render
+        println!("🎬 Starting preview rendering...");
+        self.last_render_time = std::time::Instant::now();
+        self.render_fps = 60.0; // Default FPS
+        println!("✓ Preview rendering initialized");
     }
 
 
@@ -3521,6 +3914,368 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         self.shader_errors.push("Install MediaPipe and rebuild to enable".to_string());
     }
 
+    fn show_info_dialogs(&mut self, ctx: &egui::Context) {
+        // About dialog
+        if self.show_about_dialog {
+            let mut open = true;
+            egui::Window::new("About WGSL Shader Studio")
+                .open(&mut open)
+                .resizable(false)
+                .default_size([400.0, 300.0])
+                .show(ctx, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(10.0);
+                        ui.heading("🎨 WGSL Shader Studio");
+                        ui.add_space(5.0);
+                        ui.label("Version 1.0.0");
+                        ui.add_space(15.0);
+
+                        ui.label("A professional WebGPU shader development environment");
+                        ui.add_space(10.0);
+
+                        ui.separator();
+                        ui.add_space(10.0);
+
+                        ui.label("🚀 Features:");
+                        ui.add_space(5.0);
+                        ui.label("• Real-time WGSL shader compilation and rendering");
+                        ui.label("• Live preview with GPU acceleration");
+                        ui.label("• Node-based visual shader editor");
+                        ui.label("• Audio-reactive shader support");
+                        ui.label("• MIDI parameter control");
+                        ui.label("• Gesture control integration");
+                        ui.label("• Shader format conversion (WGSL ↔ GLSL ↔ HLSL)");
+                        ui.label("• ISF shader compatibility");
+                        ui.label("• Professional UI with multiple themes");
+
+                        ui.add_space(15.0);
+                        ui.separator();
+                        ui.add_space(10.0);
+
+                        ui.label("💻 Built with:");
+                        ui.add_space(5.0);
+                        ui.horizontal(|ui| {
+                            ui.label("• Rust");
+                            ui.label("• WebGPU (wgpu)");
+                            ui.label("• egui");
+                        });
+
+                        ui.add_space(15.0);
+                        ui.separator();
+                        ui.add_space(10.0);
+
+                        ui.label("📄 License: MIT");
+                        ui.add_space(5.0);
+                        ui.label("© 2024 WGSL Shader Studio Team");
+
+                        ui.add_space(20.0);
+                        ui.horizontal(|ui| {
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if ui.button("Close").clicked() {
+                                    self.show_about_dialog = false;
+                                }
+                            });
+                        });
+                    });
+                });
+            if !open {
+                self.show_about_dialog = false;
+            }
+        }
+
+        // Documentation dialog
+        if self.show_documentation_dialog {
+            let mut open = true;
+            egui::Window::new("Documentation")
+                .open(&mut open)
+                .default_size([600.0, 400.0])
+                .show(ctx, |ui| {
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        ui.heading("📚 WGSL Shader Studio Documentation");
+
+                        ui.add_space(10.0);
+                        ui.label("Welcome to WGSL Shader Studio! This guide will help you get started with creating stunning GPU-accelerated shaders.");
+
+                        ui.add_space(20.0);
+                        ui.heading("🎯 Getting Started");
+                        ui.add_space(5.0);
+                        ui.label("1. **Code Editor**: Write your WGSL shaders in the code editor panel");
+                        ui.label("2. **Live Preview**: See your shaders render in real-time in the preview panel");
+                        ui.label("3. **Templates**: Use pre-built shader templates to get started quickly");
+                        ui.label("4. **Node Editor**: Create shaders visually using the node-based editor");
+
+                        ui.add_space(20.0);
+                        ui.heading("🔧 WGSL Basics");
+                        ui.add_space(5.0);
+                        ui.label("WGSL (WebGPU Shading Language) is the shader language for WebGPU. Key concepts:");
+                        ui.add_space(5.0);
+                        ui.label("• **@vertex**: Defines vertex shader entry point");
+                        ui.label("• **@fragment**: Defines fragment shader entry point");
+                        ui.label("• **@group/@binding**: Specifies uniform buffer bindings");
+                        ui.label("• **@builtin**: Accesses built-in variables like position");
+                        ui.label("• **var<uniform>**: Declares uniform variables");
+
+                        ui.add_space(20.0);
+                        ui.heading("🎨 Built-in Uniforms");
+                        ui.add_space(5.0);
+                        ui.label("The following uniforms are automatically provided:");
+                        ui.add_space(5.0);
+                        ui.code("time: f32          // Current time in seconds");
+                        ui.code("resolution: vec2<f32>  // Viewport resolution");
+                        ui.code("mouse: vec2<f32>   // Mouse position (0-1)");
+                        ui.code("audio_volume: f32  // Current audio volume");
+                        ui.code("audio_bass: f32    // Bass frequency level");
+                        ui.code("audio_mid: f32     // Mid frequency level");
+                        ui.code("audio_treble: f32  // Treble frequency level");
+
+                        ui.add_space(20.0);
+                        ui.heading("🎵 Audio Integration");
+                        ui.add_space(5.0);
+                        ui.label("WGSL Shader Studio supports audio-reactive shaders:");
+                        ui.add_space(5.0);
+                        ui.label("• Enable audio analysis in the Audio panel");
+                        ui.label("• Use audio uniforms in your shaders");
+                        ui.label("• Audio data is analyzed in real-time");
+
+                        ui.add_space(20.0);
+                        ui.heading("🎛️ MIDI Control");
+                        ui.add_space(5.0);
+                        ui.label("Control shader parameters with MIDI:");
+                        ui.add_space(5.0);
+                        ui.label("• Map MIDI CC messages to shader parameters");
+                        ui.label("• Real-time parameter modulation");
+                        ui.label("• Save/load MIDI mappings");
+
+                        ui.add_space(20.0);
+                        ui.heading("🔄 Shader Conversion");
+                        ui.add_space(5.0);
+                        ui.label("Convert between shader formats:");
+                        ui.add_space(5.0);
+                        ui.label("• WGSL ↔ GLSL");
+                        ui.label("• WGSL ↔ HLSL");
+                        ui.label("• WGSL ↔ ISF");
+                        ui.label("• Automatic syntax conversion");
+
+                        ui.add_space(20.0);
+                        ui.heading("⌨️ Keyboard Shortcuts");
+                        ui.add_space(5.0);
+                        ui.label("• **Ctrl+N**: New shader");
+                        ui.label("• **Ctrl+O**: Open shader");
+                        ui.label("• **Ctrl+S**: Save shader");
+                        ui.label("• **Ctrl+Shift+S**: Save shader as");
+                        ui.label("• **F5**: Compile shader");
+                        ui.label("• **F11**: Toggle fullscreen");
+
+                        ui.add_space(30.0);
+                        ui.horizontal(|ui| {
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if ui.button("Close").clicked() {
+                                    self.show_documentation_dialog = false;
+                                }
+                            });
+                        });
+                    });
+                });
+            if !open {
+                self.show_documentation_dialog = false;
+            }
+        }
+
+        // Keyboard shortcuts dialog
+        if self.show_shortcuts_dialog {
+            let mut open = true;
+            egui::Window::new("Keyboard Shortcuts")
+                .open(&mut open)
+                .resizable(false)
+                .default_size([400.0, 300.0])
+                .show(ctx, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(10.0);
+                        ui.heading("⌨️ Keyboard Shortcuts");
+                        ui.add_space(15.0);
+
+                        ui.label("📝 File Operations:");
+                        ui.add_space(5.0);
+                        ui.horizontal(|ui| {
+                            ui.label("• New Shader:");
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                ui.code("Ctrl+N");
+                            });
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("• Open Shader:");
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                ui.code("Ctrl+O");
+                            });
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("• Save Shader:");
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                ui.code("Ctrl+S");
+                            });
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("• Save As:");
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                ui.code("Ctrl+Shift+S");
+                            });
+                        });
+
+                        ui.add_space(15.0);
+                        ui.label("🔧 Development:");
+                        ui.add_space(5.0);
+                        ui.horizontal(|ui| {
+                            ui.label("• Compile Shader:");
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                ui.code("F5");
+                            });
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("• Format Code:");
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                ui.code("Ctrl+Shift+F");
+                            });
+                        });
+
+                        ui.add_space(15.0);
+                        ui.label("🎬 Preview:");
+                        ui.add_space(5.0);
+                        ui.horizontal(|ui| {
+                            ui.label("• Play/Pause:");
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                ui.code("Space");
+                            });
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("• Screenshot:");
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                ui.code("F12");
+                            });
+                        });
+
+                        ui.add_space(15.0);
+                        ui.label("🎨 Interface:");
+                        ui.add_space(5.0);
+                        ui.horizontal(|ui| {
+                            ui.label("• Toggle Fullscreen:");
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                ui.code("F11");
+                            });
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("• Reset Layout:");
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                ui.code("Ctrl+R");
+                            });
+                        });
+
+                        ui.add_space(20.0);
+                        ui.horizontal(|ui| {
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if ui.button("Close").clicked() {
+                                    self.show_shortcuts_dialog = false;
+                                }
+                            });
+                        });
+                    });
+                });
+            if !open {
+                self.show_shortcuts_dialog = false;
+            }
+        }
+
+        // Theme editor dialog
+        if self.show_theme_editor {
+            let mut open = true;
+            egui::Window::new("🎨 Custom Theme Editor")
+                .open(&mut open)
+                .default_size([400.0, 500.0])
+                .show(ctx, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(10.0);
+                        ui.heading("Custom Theme Editor");
+                        ui.add_space(10.0);
+
+                        ui.label("Customize your own color scheme:");
+
+                        ui.add_space(15.0);
+                        ui.label("🎨 Primary Colors:");
+
+                        // Background color picker
+                        ui.horizontal(|ui| {
+                            ui.label("Background:");
+                            let mut bg_color = self.custom_theme_colors.get("background").copied().unwrap_or(egui::Color32::from_rgb(35, 35, 38));
+                            if egui::color_picker::color_edit_button_srgba(ui, &mut bg_color, egui::color_picker::Alpha::Opaque).changed() {
+                                self.custom_theme_colors.insert("background".to_string(), bg_color);
+                            }
+                        });
+
+                        // Window color picker
+                        ui.horizontal(|ui| {
+                            ui.label("Window:");
+                            let mut window_color = self.custom_theme_colors.get("window").copied().unwrap_or(egui::Color32::from_rgb(28, 28, 31));
+                            if egui::color_picker::color_edit_button_srgba(ui, &mut window_color, egui::color_picker::Alpha::Opaque).changed() {
+                                self.custom_theme_colors.insert("window".to_string(), window_color);
+                            }
+                        });
+
+                        // Text color picker
+                        ui.horizontal(|ui| {
+                            ui.label("Text:");
+                            let mut text_color = self.custom_theme_colors.get("text").copied().unwrap_or(egui::Color32::from_rgb(230, 230, 230));
+                            if egui::color_picker::color_edit_button_srgba(ui, &mut text_color, egui::color_picker::Alpha::Opaque).changed() {
+                                self.custom_theme_colors.insert("text".to_string(), text_color);
+                            }
+                        });
+
+                        ui.add_space(15.0);
+                        ui.label("🎯 Accent Colors:");
+
+                        // Selection color picker
+                        ui.horizontal(|ui| {
+                            ui.label("Selection:");
+                            let mut selection_color = self.custom_theme_colors.get("selection").copied().unwrap_or(egui::Color32::from_rgb(80, 140, 220));
+                            if egui::color_picker::color_edit_button_srgba(ui, &mut selection_color, egui::color_picker::Alpha::Opaque).changed() {
+                                self.custom_theme_colors.insert("selection".to_string(), selection_color);
+                            }
+                        });
+
+                        // Hyperlink color picker
+                        ui.horizontal(|ui| {
+                            ui.label("Links:");
+                            let mut link_color = self.custom_theme_colors.get("link").copied().unwrap_or(egui::Color32::from_rgb(120, 180, 255));
+                            if egui::color_picker::color_edit_button_srgba(ui, &mut link_color, egui::color_picker::Alpha::Opaque).changed() {
+                                self.custom_theme_colors.insert("link".to_string(), link_color);
+                            }
+                        });
+
+                        ui.add_space(20.0);
+                        ui.separator();
+                        ui.add_space(10.0);
+
+                        ui.horizontal(|ui| {
+                            if ui.button("🎨 Apply Custom Theme").clicked() {
+                                self.apply_theme("custom", ctx);
+                                self.save_theme_settings();
+                            }
+                            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                if ui.button("Reset").clicked() {
+                                    self.custom_theme_colors.clear();
+                                    self.save_theme_settings();
+                                }
+                                if ui.button("Close").clicked() {
+                                    self.show_theme_editor = false;
+                                }
+                            });
+                        });
+                    });
+                });
+            if !open {
+                self.show_theme_editor = false;
+            }
+        }
+    }
+
 }
 
 
@@ -3529,6 +4284,24 @@ impl eframe::App for ShaderGui {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Request repaint for smooth animation
         ctx.request_repaint();
+
+        // 🔥 CRITICAL: ALWAYS render continuously in main loop, regardless of compilation status
+        println!("🔥 Main loop: Always rendering...");
+        if let Some(renderer) = &self.renderer {
+            if let Ok(mut renderer) = renderer.lock() {
+                let params = RenderParameters {
+                    width: self.preview_size.0,
+                    height: self.preview_size.1,
+                    time: self.last_render_time.elapsed().as_secs_f32(),
+                    frame_rate: self.render_fps,
+                    audio_data: None,
+                };
+                let _ = renderer.render_frame(&self.current_wgsl_code, &params, None);
+            }
+        }
+
+        // Show dialogs/windows that overlay the UI
+        self.show_info_dialogs(ctx);
 
         // Menu bar
         self.render_menu_bar(ctx);
@@ -3662,6 +4435,8 @@ impl eframe::App for ShaderGui {
 
 #[cfg(feature = "gui")]
 pub fn run_gui() {
+    println!("Starting WGSL Shader Studio GUI...");
+
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1200.0, 800.0])

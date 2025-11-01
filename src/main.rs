@@ -19,11 +19,14 @@ fn main() {
     // Check if we should run the GUI or CLI
     let args: Vec<String> = env::args().collect();
 
-    // If --cli flag or specific commands, run CLI
-    if args.len() > 1 && !args.contains(&"--gui".to_string()) && !args.contains(&"--help".to_string()) {
+    // Check for explicit CLI flag first
+    let has_cli_flag = args.contains(&"--cli".to_string());
+    
+    // If --cli flag is present, always run CLI
+    if has_cli_flag {
         run_cli(args);
     } else {
-        // Default to GUI mode
+        // Default to GUI mode when no explicit CLI flag
         #[cfg(feature = "gui")]
         {
             println!("Starting WGSL Shader Studio GUI...");
