@@ -265,6 +265,608 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     return vec4<f32>(col, 1.0);
 }"#),
         });
+
+        // Add many more WGSL examples
+        examples.push(WorkingShaderExample {
+            name: "Raymarched Sphere".to_string(),
+            description: "3D sphere rendered with raymarching".to_string(),
+            category: "3D".to_string(),
+            wgsl_code: format!("{}\n{}", VERTEX_SHADER, r#"
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+    mouse: vec2<f32>,
+};
+
+@group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
+
+fn sphere_sdf(p: vec3<f32>, r: f32) -> f32 {
+    return length(p) - r;
+}
+
+fn scene_sdf(p: vec3<f32>) -> f32 {
+    return sphere_sdf(p - vec3<f32>(0.0, 0.0, 2.0), 0.5);
+}
+
+fn raymarch(ro: vec3<f32>, rd: vec3<f32>) -> f32 {
+    var t = 0.0;
+    for (var i = 0; i < 64; i = i + 1) {
+        let p = ro + rd * t;
+        let d = scene_sdf(p);
+        if (d < 0.001) {
+            break;
+        }
+        t = t + d;
+        if (t > 100.0) {
+            break;
+        }
+    }
+    return t;
+}
+
+@fragment
+fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    let uv = (position.xy / uniforms.resolution - 0.5) * 2.0;
+    let aspect = uniforms.resolution.x / uniforms.resolution.y;
+    let uv_corrected = vec2<f32>(uv.x * aspect, uv.y);
+
+    let ro = vec3<f32>(0.0, 0.0, 0.0);
+    let rd = normalize(vec3<f32>(uv_corrected, 1.0));
+
+    let t = raymarch(ro, rd);
+
+    if (t < 100.0) {
+        let p = ro + rd * t;
+        let n = normalize(p - vec3<f32>(0.0, 0.0, 2.0));
+        let light = normalize(vec3<f32>(1.0, 1.0, 1.0));
+        let diff = max(dot(n, light), 0.0);
+        let col = vec3<f32>(0.8, 0.6, 0.4) * diff;
+        return vec4<f32>(col, 1.0);
+    } else {
+        return vec4<f32>(0.1, 0.1, 0.2, 1.0);
+    }
+}"#),
+        });
+
+        examples.push(WorkingShaderExample {
+            name: "Voronoi Noise".to_string(),
+            description: "Procedural Voronoi noise pattern".to_string(),
+            category: "Noise".to_string(),
+            wgsl_code: format!("{}\n{}", VERTEX_SHADER, r#"
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+    mouse: vec2<f32>,
+};
+
+@group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
+
+fn hash2(p: vec2<f32>) -> vec2<f32> {
+    let h = vec2<f32>(dot(p, vec2<f32>(12.9898, 78.233)), dot(p, vec2<f32>(45.164, 94.673)));
+    return fract(sin(h) * 43758.5453);
+}
+
+fn voronoi(p: vec2<f32>) -> f32 {
+    let ip = floor(p);
+    let fp = fract(p);
+
+    var min_dist = 1.0;
+    for (var i = -1; i <= 1; i = i + 1) {
+        for (var j = -1; j <= 1; j = j + 1) {
+            let offset = vec2<f32>(f32(i), f32(j));
+            let point = hash2(ip + offset) * 0.5 + 0.25;
+            let diff = fp - offset - point;
+            let dist = length(diff);
+            min_dist = min(min_dist, dist);
+        }
+    }
+    return min_dist;
+}
+
+@fragment
+fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    let uv = position.xy / uniforms.resolution;
+    let time = uniforms.time;
+
+    let scale = 8.0;
+    let p = uv * scale + time * 0.1;
+
+    let v = voronoi(p);
+    let col = vec3<f32>(v);
+
+    return vec4<f32>(col, 1.0);
+}"#),
+        });
+
+        examples.push(WorkingShaderExample {
+            name: "Water Caustics".to_string(),
+            description: "Realistic water caustics effect".to_string(),
+            category: "Effects".to_string(),
+            wgsl_code: format!("{}\n{}", VERTEX_SHADER, r#"
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+    mouse: vec2<f32>,
+};
+
+@group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
+
+fn noise(p: vec2<f32>) -> f32 {
+    return fract(sin(dot(p, vec2<f32>(12.9898, 78.233))) * 43758.5453);
+}
+
+fn fbm(p: vec2<f32>) -> f32 {
+    var value = 0.0;
+    var amplitude = 0.5;
+    var freq = 1.0;
+
+    for (var i = 0; i < 5; i = i + 1) {
+        value += amplitude * noise(p * freq);
+        amplitude *= 0.5;
+        freq *= 2.0;
+    }
+
+    return value;
+}
+
+@fragment
+fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    let uv = position.xy / uniforms.resolution;
+    let time = uniforms.time;
+
+    let p = uv * 10.0 + time * 0.5;
+    let n = fbm(p);
+
+    let caustic = pow(n, 3.0) * 2.0;
+    let col = vec3<f32>(caustic, caustic * 0.8, caustic * 0.6);
+
+    return vec4<f32>(col, 1.0);
+}"#),
+        });
+
+        examples.push(WorkingShaderExample {
+            name: "Metaballs".to_string(),
+            description: "Smooth organic shapes using distance fields".to_string(),
+            category: "Effects".to_string(),
+            wgsl_code: format!("{}\n{}", VERTEX_SHADER, r#"
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+    mouse: vec2<f32>,
+};
+
+@group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
+
+fn metaball(p: vec2<f32>, center: vec2<f32>, radius: f32) -> f32 {
+    return radius / length(p - center);
+}
+
+@fragment
+fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    let uv = position.xy / uniforms.resolution;
+    let time = uniforms.time;
+
+    let p = uv * 2.0 - 1.0;
+
+    // Create moving metaballs
+    let ball1 = metaball(p, vec2<f32>(sin(time), cos(time)) * 0.5, 0.3);
+    let ball2 = metaball(p, vec2<f32>(sin(time * 1.3), cos(time * 1.3)) * 0.5, 0.3);
+    let ball3 = metaball(p, vec2<f32>(sin(time * 0.7), cos(time * 0.7)) * 0.5, 0.3);
+
+    let sum = ball1 + ball2 + ball3;
+
+    let col = vec3<f32>(smoothstep(0.5, 1.5, sum));
+
+    return vec4<f32>(col, 1.0);
+}"#),
+        });
+
+        examples.push(WorkingShaderExample {
+            name: "Tunnel Effect".to_string(),
+            description: "Infinite tunnel with perspective".to_string(),
+            category: "3D".to_string(),
+            wgsl_code: format!("{}\n{}", VERTEX_SHADER, r#"
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+    mouse: vec2<f32>,
+};
+
+@group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
+
+@fragment
+fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    let uv = (position.xy / uniforms.resolution - 0.5) * 2.0;
+    let time = uniforms.time;
+
+    let angle = atan2(uv.y, uv.x);
+    let radius = length(uv);
+
+    let tunnel = 1.0 / radius;
+    let stripes = sin(angle * 8.0 + time * 2.0 + tunnel * 10.0);
+
+    let col = vec3<f32>(
+        0.5 + 0.5 * sin(tunnel + time),
+        0.5 + 0.5 * sin(tunnel + time + 2.0944),
+        0.5 + 0.5 * sin(tunnel + time + 4.18879)
+    ) * stripes;
+
+    return vec4<f32>(col, 1.0);
+}"#),
+        });
+
+        examples.push(WorkingShaderExample {
+            name: "Particle System".to_string(),
+            description: "GPU particle system simulation".to_string(),
+            category: "Simulation".to_string(),
+            wgsl_code: format!("{}\n{}", VERTEX_SHADER, r#"
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+    mouse: vec2<f32>,
+};
+
+@group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
+
+fn hash2(p: vec2<f32>) -> vec2<f32> {
+    let h = vec2<f32>(dot(p, vec2<f32>(12.9898, 78.233)), dot(p, vec2<f32>(45.164, 94.673)));
+    return fract(sin(h) * 43758.5453);
+}
+
+@fragment
+fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    let uv = position.xy / uniforms.resolution;
+    let time = uniforms.time;
+
+    var col = vec3<f32>(0.0);
+
+    // Simulate 50 particles
+    for (var i = 0; i < 50; i = i + 1) {
+        let fi = f32(i);
+        let seed = vec2<f32>(fi, fi + 1.0);
+        let pos = hash2(seed) * 2.0 - 1.0;
+        let vel = hash2(seed + 1.0) * 0.5 - 0.25;
+
+        let particle_pos = pos + vel * time;
+        let dist = length(uv - particle_pos * 0.5 + 0.5);
+
+        if (dist < 0.01) {
+            col += vec3<f32>(1.0, 0.5, 0.2) * (1.0 - dist * 100.0);
+        }
+    }
+
+    return vec4<f32>(col, 1.0);
+}"#),
+        });
+
+        examples.push(WorkingShaderExample {
+            name: "Fractal Tree".to_string(),
+            description: "Recursive fractal tree structure".to_string(),
+            category: "Fractal".to_string(),
+            wgsl_code: format!("{}\n{}", VERTEX_SHADER, r#"
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+    mouse: vec2<f32>,
+};
+
+@group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
+
+fn tree(uv: vec2<f32>, depth: i32) -> f32 {
+    if (depth >= 8) {
+        return 0.0;
+    }
+
+    let angle = sin(uniforms.time + f32(depth)) * 0.3;
+    let len = 0.3 / pow(1.5, f32(depth));
+
+    let dir = vec2<f32>(sin(angle), cos(angle));
+    let end = uv + dir * len;
+
+    let line_dist = abs(uv.x * dir.y - uv.y * dir.x) / length(dir);
+    let dist_to_end = length(uv - end);
+
+    var result = smoothstep(0.002, 0.0, line_dist);
+
+    // Recurse to branches
+    let left_uv = uv - end;
+    let left_rot = mat2x2<f32>(
+        cos(0.5), -sin(0.5),
+        sin(0.5), cos(0.5)
+    );
+    let left_branch = left_rot * left_uv;
+
+    let right_uv = uv - end;
+    let right_rot = mat2x2<f32>(
+        cos(-0.5), -sin(-0.5),
+        sin(-0.5), cos(-0.5)
+    );
+    let right_branch = right_rot * right_uv;
+
+    result += tree(left_branch, depth + 1) * 0.7;
+    result += tree(right_branch, depth + 1) * 0.7;
+
+    return result;
+}
+
+@fragment
+fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    let uv = (position.xy / uniforms.resolution - 0.5) * 2.0;
+    let p = vec2<f32>(uv.x, uv.y + 0.8);
+
+    let t = tree(p, 0);
+    let col = vec3<f32>(0.2, 0.5, 0.1) * t;
+
+    return vec4<f32>(col, 1.0);
+}"#),
+        });
+
+        examples.push(WorkingShaderExample {
+            name: "Shadertoy Classic".to_string(),
+            description: "Classic Shadertoy-style demo effect".to_string(),
+            category: "Demo".to_string(),
+            wgsl_code: format!("{}\n{}", VERTEX_SHADER, r#"
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+    mouse: vec2<f32>,
+};
+
+@group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
+
+@fragment
+fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    let uv = position.xy / uniforms.resolution;
+    let time = uniforms.time;
+
+    let p = (uv - 0.5) * 2.0;
+
+    let r = length(p);
+    let a = atan2(p.y, p.x) + time;
+
+    let col = vec3<f32>(
+        0.5 + 0.5 * sin(a * 3.0 + time),
+        0.5 + 0.5 * sin(a * 4.0 + time * 1.3),
+        0.5 + 0.5 * sin(a * 5.0 + time * 0.7)
+    ) * (1.0 - r);
+
+    return vec4<f32>(col, 1.0);
+}"#),
+        });
+
+        examples.push(WorkingShaderExample {
+            name: "Liquid Marble".to_string(),
+            description: "Flowing liquid marble effect".to_string(),
+            category: "Effects".to_string(),
+            wgsl_code: format!("{}\n{}", VERTEX_SHADER, r#"
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+    mouse: vec2<f32>,
+};
+
+@group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
+
+fn noise(p: vec2<f32>) -> f32 {
+    return fract(sin(dot(p, vec2<f32>(12.9898, 78.233))) * 43758.5453);
+}
+
+fn fbm(p: vec2<f32>) -> f32 {
+    var value = 0.0;
+    var amplitude = 0.5;
+    var freq = 1.0;
+
+    for (var i = 0; i < 4; i = i + 1) {
+        value += amplitude * noise(p * freq + uniforms.time * 0.1);
+        amplitude *= 0.5;
+        freq *= 2.0;
+    }
+
+    return value;
+}
+
+@fragment
+fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    let uv = position.xy / uniforms.resolution;
+    let time = uniforms.time;
+
+    let p = uv * 4.0;
+
+    let n1 = fbm(p);
+    let n2 = fbm(p + vec2<f32>(10.0, 10.0));
+
+    let marble = sin(p.x * 10.0 + n1 * 5.0) * cos(p.y * 8.0 + n2 * 3.0);
+
+    let col = vec3<f32>(
+        0.5 + 0.5 * sin(marble + 0.0),
+        0.5 + 0.5 * sin(marble + 2.0944),
+        0.5 + 0.5 * sin(marble + 4.18879)
+    );
+
+    return vec4<f32>(col, 1.0);
+}"#),
+        });
+
+        examples.push(WorkingShaderExample {
+            name: "CRT Monitor".to_string(),
+            description: "Retro CRT monitor effect".to_string(),
+            category: "Retro".to_string(),
+            wgsl_code: format!("{}\n{}", VERTEX_SHADER, r#"
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+    mouse: vec2<f32>,
+};
+
+@group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
+
+@fragment
+fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    let uv = position.xy / uniforms.resolution;
+    let time = uniforms.time;
+
+    // Scanlines
+    let scanline = sin(uv.y * uniforms.resolution.y * 0.5) * 0.1 + 0.9;
+
+    // RGB shift
+    let r = textureSample(uv + vec2<f32>(0.002, 0.0));
+    let g = textureSample(uv);
+    let b = textureSample(uv - vec2<f32>(0.002, 0.0));
+
+    // Vignette
+    let vignette = 1.0 - length(uv - 0.5) * 0.5;
+
+    let col = vec3<f32>(r, g, b) * scanline * vignette;
+
+    return vec4<f32>(col, 1.0);
+}
+
+fn textureSample(uv: vec2<f32>) -> f32 {
+    let p = uv * 10.0 + uniforms.time;
+    return 0.5 + 0.5 * sin(p.x) * cos(p.y);
+}"#),
+        });
+
+        examples.push(WorkingShaderExample {
+            name: "Hypnotic Spiral".to_string(),
+            description: "Mesmerizing spiral pattern".to_string(),
+            category: "Effects".to_string(),
+            wgsl_code: format!("{}\n{}", VERTEX_SHADER, r#"
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+    mouse: vec2<f32>,
+};
+
+@group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
+
+@fragment
+fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    let uv = (position.xy / uniforms.resolution - 0.5) * 2.0;
+    let time = uniforms.time;
+
+    let angle = atan2(uv.y, uv.x);
+    let radius = length(uv);
+
+    let spiral = sin(radius * 10.0 - angle * 5.0 - time * 3.0);
+
+    let col = vec3<f32>(
+        0.5 + 0.5 * sin(spiral + time),
+        0.5 + 0.5 * sin(spiral + time + 2.0944),
+        0.5 + 0.5 * sin(spiral + time + 4.18879)
+    ) * (1.0 - radius * 0.5);
+
+    return vec4<f32>(col, 1.0);
+}"#),
+        });
+
+        examples.push(WorkingShaderExample {
+            name: "Quantum Field".to_string(),
+            description: "Quantum field visualization".to_string(),
+            category: "Scientific".to_string(),
+            wgsl_code: format!("{}\n{}", VERTEX_SHADER, r#"
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+    mouse: vec2<f32>,
+};
+
+@group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
+
+fn wave_function(p: vec2<f32>, n: i32) -> f32 {
+    var result = 0.0;
+    for (var i = 1; i <= n; i = i + 1) {
+        let fi = f32(i);
+        let freq = fi * 3.14159;
+        let amplitude = 1.0 / fi;
+        result += amplitude * sin(length(p) * freq - uniforms.time * fi);
+    }
+    return result;
+}
+
+@fragment
+fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    let uv = (position.xy / uniforms.resolution - 0.5) * 4.0;
+
+    let psi = wave_function(uv, 5);
+    let prob = psi * psi;
+
+    let col = vec3<f32>(
+        prob * 2.0,
+        prob * 1.5,
+        prob * 1.0
+    );
+
+    return vec4<f32>(col, 1.0);
+}"#),
+        });
+
+        examples.push(WorkingShaderExample {
+            name: "Neural Network".to_string(),
+            description: "Visual representation of neural network".to_string(),
+            category: "AI".to_string(),
+            wgsl_code: format!("{}\n{}", VERTEX_SHADER, r#"
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+    mouse: vec2<f32>,
+};
+
+@group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
+
+fn sigmoid(x: f32) -> f32 {
+    return 1.0 / (1.0 + exp(-x));
+}
+
+fn neuron(pos: vec2<f32>, input: f32) -> f32 {
+    let dist = length(pos);
+    return sigmoid(input - dist * 2.0);
+}
+
+@fragment
+fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    let uv = position.xy / uniforms.resolution;
+    let time = uniforms.time;
+
+    var activation = 0.0;
+
+    // Input layer
+    for (var i = 0; i < 8; i = i + 1) {
+        let fi = f32(i);
+        let pos = vec2<f32>(0.2, fi / 7.0);
+        let input = sin(time + fi);
+        activation += neuron(uv - pos, input);
+    }
+
+    // Hidden layer
+    for (var i = 0; i < 5; i = i + 1) {
+        let fi = f32(i);
+        let pos = vec2<f32>(0.5, fi / 4.0);
+        activation = neuron(uv - pos, activation * 2.0 - 1.0);
+    }
+
+    // Output layer
+    let output_pos = vec2<f32>(0.8, 0.5);
+    activation = neuron(uv - output_pos, activation * 2.0 - 1.0);
+
+    let col = vec3<f32>(activation, activation * 0.7, activation * 0.4);
+
+    return vec4<f32>(col, 1.0);
+}"#),
+        });
     }
 
     /// Returns a slice of the pre-defined working shader examples.
