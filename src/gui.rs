@@ -1005,8 +1005,8 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
                 // View menu - TouchDesigner style panels
                 ui.menu_button("View", |ui| {
-                    ui.checkbox(&mut self.show_code_editor, "Code Editor");
-                    ui.checkbox(&mut self.show_preview, "Live Preview");
+                    ui.label("⚪ Code Editor (Always On)");
+                    ui.label("⚪ Live Preview (Always On)");
                     ui.checkbox(&mut self.show_node_editor, "Node Editor");
                     ui.checkbox(&mut self.show_file_browser, "File Browser");
                     ui.checkbox(&mut self.show_converter, "Shader Converter");
@@ -3104,6 +3104,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
     fn reset_layout(&mut self) {
         // Reset all panel visibility to defaults
+        // Code Editor and Live Preview are ALWAYS ON
         self.show_code_editor = true;
         self.show_preview = true;
         self.show_audio_panel = true;
