@@ -1,0 +1,47 @@
+# Rust
+target/
+Cargo.lock
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+*.dylib
+*.pdb
+
+# Debug files
+.debug/
+*.d
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Cache
+.cache/
+node_modules/
+
+# Large files and directories
+*.zip
+*.tar.gz
+*.7z
+*.rar
+
+# Temporary files
+*.tmp
+*.temp
+
+# OS specific
+*.swp
+*.swo
+~$
+
+# Git
+.git/

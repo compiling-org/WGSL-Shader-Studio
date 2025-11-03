@@ -1,0 +1,535 @@
+warning: unused imports: `Arc` and `Mutex`
+ --> src\gesture_control.rs:5:17
+  |
+5 | use std::sync::{Arc, Mutex};
+  |                 ^^^  ^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `egui::TextureHandle`
+ --> src\shader_renderer.rs:3:5
+  |
+3 | use egui::TextureHandle; // NOTE: This import is marked as unused in the provided error messages
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `IsfShader`
+ --> src\ffgl_plugin.rs:3:41
+  |
+3 | use crate::{ResolumeIsfShadersRustFfgl, IsfShader, ShaderValue};
+  |                                         ^^^^^^^^^
+
+warning: unused imports: `CStr` and `CString`
+ --> src\ffgl_plugin.rs:5:16
+  |
+5 | use std::ffi::{CStr, CString};
+  |                ^^^^  ^^^^^^^
+
+warning: use of deprecated type alias `egui::Rounding`: Renamed to CornerRadius
+   --> src\ui.rs:271:35
+    |
+271 | ...                   egui::Rounding::same(4),
+    |                             ^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: unused variable: `fft`
+  --> src\audio.rs:53:13
+   |
+53 |         let fft = fft_planner.plan_fft_forward(fft_size);
+   |             ^^^ help: if this is intentional, prefix it with an underscore: `_fft`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `i`
+   --> src\audio.rs:191:14
+    |
+191 |         for (i, (&current, &previous)) in spectrum.iter().zip(&self.previous_spectrum).enumerate() {
+    |              ^ help: if this is intentional, prefix it with an underscore: `_i`
+
+warning: unused variable: `stamp`
+   --> src\audio.rs:257:19
+    |
+257 |             move |stamp, message, _| {
+    |                   ^^^^^ help: if this is intentional, prefix it with an underscore: `_stamp`
+
+warning: unused variable: `wrist`
+   --> src\gesture_control.rs:316:13
+    |
+316 |         let wrist = hand.landmarks[0];
+    |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_wrist`
+
+warning: unused variable: `thumb_tip`
+   --> src\gesture_control.rs:317:13
+    |
+317 |         let thumb_tip = hand.landmarks[4];
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_thumb_tip`
+
+warning: unused variable: `index_tip`
+   --> src\gesture_control.rs:318:13
+    |
+318 |         let index_tip = hand.landmarks[8];
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_index_tip`
+
+warning: unused variable: `middle_tip`
+   --> src\gesture_control.rs:319:13
+    |
+319 |         let middle_tip = hand.landmarks[12];
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_middle_tip`
+
+warning: unused variable: `ring_tip`
+   --> src\gesture_control.rs:320:13
+    |
+320 |         let ring_tip = hand.landmarks[16];
+    |             ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_ring_tip`
+
+warning: unused variable: `pinky_tip`
+   --> src\gesture_control.rs:321:13
+    |
+321 |         let pinky_tip = hand.landmarks[20];
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_pinky_tip`
+
+warning: unused variable: `shader`
+  --> src\ui.rs:70:21
+   |
+70 |                 for shader in shader_list {
+   |                     ^^^^^^ help: if this is intentional, prefix it with an underscore: `_shader`
+
+warning: unused variable: `shader`
+   --> src\ui.rs:261:33
+    |
+261 |                     if let Some(shader) = self.isf_shaders.get(shader_name) {
+    |                                 ^^^^^^ help: if this is intentional, prefix it with an underscore: `_shader`
+
+warning: field `time` is never read
+  --> src\shader_renderer.rs:83:5
+   |
+76 | pub struct ShaderRenderer {
+   |            -------------- field in this struct
+...
+83 |     time: std::time::Instant,
+   |     ^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `parameter_cache` is never read
+  --> src\ffgl_plugin.rs:16:5
+   |
+12 | pub struct FfglPlugin {
+   |            ---------- field in this struct
+...
+16 |     parameter_cache: HashMap<String, f32>,
+   |     ^^^^^^^^^^^^^^^
+
+warning: method `init_renderer` is never used
+  --> src\ui.rs:82:8
+   |
+36 | impl IsfShaderEditor {
+   | -------------------- method in this implementation
+...
+82 |     fn init_renderer(&mut self) {
+   |        ^^^^^^^^^^^^^
+
+warning: creating a mutable reference to mutable static
+   --> src\ffgl_plugin.rs:227:9
+    |
+227 |         PLUGIN_INSTANCE.as_mut().unwrap() as *mut _ as *mut c_void
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^ mutable reference to mutable static
+    |
+    = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/static-mut-references.html>
+    = note: mutable references to mutable statics are dangerous; it's undefined behavior if any other pointer to the static is used or if any other reference is created for the static while the mutable reference lives
+    = note: `#[warn(static_mut_refs)]` on by default
+
+warning: `wgsl-shader-studio` (lib) generated 20 warnings (run `cargo fix --lib -p wgsl-shader-studio` to apply 4 suggestions)
+warning: unused import: `crate::audio::AudioMidiSystem`
+  --> src\gui.rs:23:5
+   |
+23 | use crate::audio::AudioMidiSystem;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `GestureMapping`
+  --> src\gui.rs:25:90
+   |
+25 | use resolume_isf_shaders_rust_ffgl::gesture_control::{GestureControlSystem, GestureType, GestureMapping};
+   |                                                                                          ^^^^^^^^^^^^^^
+
+warning: unused import: `egui::TextureHandle`
+  --> src\gui.rs:28:5
+   |
+28 | use egui::TextureHandle;
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `node_rect`
+    --> src\gui.rs:1715:29
+     |
+1715 |                         let node_rect = egui::Rect::from_min_size(node.position, node.size);
+     |                             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_node_rect`
+     |
+     = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `node_rect`
+    --> src\gui.rs:1763:33
+     |
+1763 | ...                   let node_rect = egui::Rect::from_min_size(node.position, node.size);
+     |                           ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_node_rect`
+
+warning: unused variable: `renderer`
+    --> src\gui.rs:3241:21
+     |
+3241 |         if let Some(renderer) = &mut self.renderer {
+     |                     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_renderer`
+
+warning: unused variable: `renderer`
+    --> src\gui.rs:3249:21
+     |
+3249 |         if let Some(renderer) = &mut self.renderer {
+     |                     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_renderer`
+
+warning: unused variable: `wgsl_code`
+    --> src\gui.rs:3434:35
+     |
+3434 |     fn convert_wgsl_to_isf(&self, wgsl_code: &str) -> (String, bool) {
+     |                                   ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_wgsl_code`
+
+warning: variable does not need to be mutable
+    --> src\gui.rs:4341:17
+     |
+4341 |             let mut left_panel_width = 280.0;
+     |                 ----^^^^^^^^^^^^^^^^
+     |                 |
+     |                 help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: variable does not need to be mutable
+    --> src\gui.rs:4342:17
+     |
+4342 |             let mut right_panel_width = 320.0;
+     |                 ----^^^^^^^^^^^^^^^^^
+     |                 |
+     |                 help: remove this `mut`
+
+warning: variable does not need to be mutable
+    --> src\gui.rs:4343:17
+     |
+4343 |             let mut bottom_panel_height = 200.0;
+     |                 ----^^^^^^^^^^^^^^^^^^^
+     |                 |
+     |                 help: remove this `mut`
+
+warning: unused variable: `fft`
+  --> src\audio.rs:53:13
+   |
+53 |         let fft = fft_planner.plan_fft_forward(fft_size);
+   |             ^^^ help: if this is intentional, prefix it with an underscore: `_fft`
+
+warning: fields `selected_template`, `drag_offset`, `grid_size`, `pan_offset`, `zoom`, and `selected_gesture` are never read
+  --> src\gui.rs:52:5
+   |
+35 | pub struct ShaderGui {
+   |            --------- fields in this struct
+...
+52 |     selected_template: Option<usize>,
+   |     ^^^^^^^^^^^^^^^^^
+...
+60 |     drag_offset: egui::Vec2,
+   |     ^^^^^^^^^^^
+61 |     pending_connection: Option<PendingConnection>,
+62 |     grid_size: f32,
+   |     ^^^^^^^^^
+63 |     pan_offset: egui::Vec2,
+   |     ^^^^^^^^^^
+64 |     zoom: f32,
+   |     ^^^^
+...
+76 |     selected_gesture: Option<GestureType>,
+   |     ^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `position` is never read
+   --> src\gui.rs:154:9
+    |
+150 | pub struct NodePin {
+    |            ------- field in this struct
+...
+154 |     pub position: egui::Pos2,
+    |         ^^^^^^^^
+    |
+    = note: `NodePin` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: multiple variants are never constructed
+   --> src\gui.rs:167:5
+    |
+163 | pub enum NodeType {
+    |          -------- variants in this enum
+...
+167 |     Uniform,
+    |     ^^^^^^^
+168 |     TextureInput,
+    |     ^^^^^^^^^^^^
+...
+172 |     Trigonometry,
+    |     ^^^^^^^^^^^^
+173 |     VectorMath,
+    |     ^^^^^^^^^^
+174 |     MatrixMath,
+    |     ^^^^^^^^^^
+...
+178 |     ColorAdjustment,
+    |     ^^^^^^^^^^^^^^^
+179 |     ColorMix,
+    |     ^^^^^^^^
+180 |     ColorSpace,
+    |     ^^^^^^^^^^
+...
+184 |     TextureSample,
+    |     ^^^^^^^^^^^^^
+185 |     TextureTransform,
+    |     ^^^^^^^^^^^^^^^^
+186 |     TextureBlend,
+    |     ^^^^^^^^^^^^
+...
+190 |     Geometry,
+    |     ^^^^^^^^
+191 |     Volumetric,
+    |     ^^^^^^^^^^
+192 |     PointCloud,
+    |     ^^^^^^^^^^
+...
+195 |     Lighting,
+    |     ^^^^^^^^
+196 |     Material,
+    |     ^^^^^^^^
+197 |     BRDF,
+    |     ^^^^
+198 |     RayMarching,
+    |     ^^^^^^^^^^^
+...
+201 |     NeRF,
+    |     ^^^^
+202 |     MLInference,
+    |     ^^^^^^^^^^^
+...
+205 |     AudioReactive,
+    |     ^^^^^^^^^^^^^
+206 |     Time,
+    |     ^^^^
+207 |     Oscillator,
+    |     ^^^^^^^^^^
+...
+210 |     Filter,
+    |     ^^^^^^
+211 |     Blur,
+    |     ^^^^
+212 |     Distortion,
+    |     ^^^^^^^^^^
+213 |     Effects,
+    |     ^^^^^^^
+...
+216 |     Constant,
+    |     ^^^^^^^^
+217 |     Variable,
+    |     ^^^^^^^^
+218 |     Switch,
+    |     ^^^^^^
+219 |     Loop,
+    |     ^^^^
+    |
+    = note: `NodeType` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: multiple methods are never used
+    --> src\gui.rs:1152:8
+     |
+ 310 | impl ShaderGui {
+     | -------------- methods in this implementation
+...
+1152 |     fn load_template(&mut self, template_index: usize) {
+     |        ^^^^^^^^^^^^^
+...
+1224 |     fn load_shaders(&mut self) {
+     |        ^^^^^^^^^^^^
+...
+2673 |     fn get_wgsl_syntax_color(&self, word: &str) -> egui::Color32 {
+     |        ^^^^^^^^^^^^^^^^^^^^^
+...
+3020 |     fn render_shader_animation(&mut self, ui: &mut egui::Ui, rect: egui::Rect, preview_size: egui::Vec2, category: &str) {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+3146 |     fn parse_wgsl_with_errors(&self, code: &str) -> (String, Vec<(usize, usize)>) {
+     |        ^^^^^^^^^^^^^^^^^^^^^^
+...
+3180 |     fn get_completion_suggestions(&self, prefix: &str) -> Vec<String> {
+     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+3226 |     fn get_global_position(&self, line_idx: usize, char_idx: usize) -> usize {
+     |        ^^^^^^^^^^^^^^^^^^^
+
+warning: fields `fft_size`, `sample_rate`, `fft_planner`, `fft_buffer`, `window`, and `previous_spectrum` are never read
+  --> src\audio.rs:41:9
+   |
+39 | pub struct AudioAnalyzer {
+   |            ------------- fields in this struct
+40 |     pub current_data: Arc<Mutex<AudioData>>,
+41 |     pub fft_size: usize,
+   |         ^^^^^^^^
+42 |     pub sample_rate: f32,
+   |         ^^^^^^^^^^^
+43 |     fft_planner: FftPlanner<f32>,
+   |     ^^^^^^^^^^^
+44 |     fft_buffer: Vec<Complex<f32>>,
+   |     ^^^^^^^^^^
+45 |     window: Vec<f32>,
+   |     ^^^^^^
+46 |     previous_spectrum: Vec<f32>,
+   |     ^^^^^^^^^^^^^^^^^
+
+warning: methods `process_samples`, `compute_fft`, `compute_frequency_band`, `compute_spectral_centroid`, `compute_spectral_rolloff`, and `detect_beat` are never used
+   --> src\audio.rs:72:12
+    |
+ 49 | impl AudioAnalyzer {
+    | ------------------ methods in this implementation
+...
+ 72 |     pub fn process_samples(&mut self, samples: &[f32]) {
+    |            ^^^^^^^^^^^^^^^
+...
+107 |     fn compute_fft(&mut self, samples: &[f32], spectrum: &mut Vec<f32>) {
+    |        ^^^^^^^^^^^
+...
+143 |     fn compute_frequency_band(&self, spectrum: &[f32], start: usize, end: usize) -> f32 {
+    |        ^^^^^^^^^^^^^^^^^^^^^^
+...
+154 |     fn compute_spectral_centroid(&self, spectrum: &[f32]) -> f32 {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+172 |     fn compute_spectral_rolloff(&self, spectrum: &[f32], percentile: f32) -> f32 {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^
+...
+188 |     fn detect_beat(&self, spectrum: &[f32]) -> f32 {
+    |        ^^^^^^^^^^^
+
+warning: field `smoothing` is never read
+   --> src\audio.rs:223:9
+    |
+217 | pub struct MidiMapping {
+    |            ----------- field in this struct
+...
+223 |     pub smoothing: f32, // 0.0 = no smoothing, 1.0 = heavy smoothing
+    |         ^^^^^^^^^
+    |
+    = note: `MidiMapping` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: methods `process_midi_message` and `get_parameter` are never used
+   --> src\audio.rs:302:12
+    |
+226 | impl MidiController {
+    | ------------------- methods in this implementation
+...
+302 |     pub fn process_midi_message(&mut self, channel: u8, controller: u8, value: u8) {
+    |            ^^^^^^^^^^^^^^^^^^^^
+...
+312 |     pub fn get_parameter(&self, name: &str) -> f32 {
+    |            ^^^^^^^^^^^^^
+
+warning: methods `update_audio`, `process_midi`, and `get_parameter` are never used
+   --> src\audio.rs:421:12
+    |
+404 | impl AudioMidiSystem {
+    | -------------------- methods in this implementation
+...
+421 |     pub fn update_audio(&mut self, samples: &[f32]) {
+    |            ^^^^^^^^^^^^
+...
+426 |     pub fn process_midi(&mut self, channel: u8, controller: u8, value: u8) {
+    |            ^^^^^^^^^^^^
+...
+433 |     pub fn get_parameter(&self, name: &str, base_value: f32) -> f32 {
+    |            ^^^^^^^^^^^^^
+
+warning: fields `name`, `inputs`, and `outputs` are never read
+   --> src\isf_loader.rs:326:9
+    |
+325 | pub struct ShaderMetadata {
+    |            -------------- fields in this struct
+326 |     pub name: String,
+    |         ^^^^
+...
+330 |     pub inputs: Vec<InputMetadata>,
+    |         ^^^^^^
+331 |     pub outputs: Vec<OutputMetadata>,
+    |         ^^^^^^^
+    |
+    = note: `ShaderMetadata` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `name`, `input_type`, `min`, `max`, and `default` are never read
+   --> src\isf_loader.rs:337:9
+    |
+336 | pub struct InputMetadata {
+    |            ------------- fields in this struct
+337 |     pub name: String,
+    |         ^^^^
+338 |     pub input_type: InputType,
+    |         ^^^^^^^^^^
+339 |     pub min: Option<f32>,
+    |         ^^^
+340 |     pub max: Option<f32>,
+    |         ^^^
+341 |     pub default: Option<f32>,
+    |         ^^^^^^^
+    |
+    = note: `InputMetadata` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `name` and `output_type` are never read
+   --> src\isf_loader.rs:347:9
+    |
+346 | pub struct OutputMetadata {
+    |            -------------- fields in this struct
+347 |     pub name: String,
+    |         ^^^^
+348 |     pub output_type: OutputType,
+    |         ^^^^^^^^^^^
+    |
+    = note: `OutputMetadata` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: function `wgsl_to_glsl` is never used
+   --> src\shader_converter.rs:170:8
+    |
+170 | pub fn wgsl_to_glsl(wgsl: &str) -> Result<String, Box<dyn std::error::Error>> {
+    |        ^^^^^^^^^^^^
+
+warning: function `wgsl_to_hlsl` is never used
+   --> src\shader_converter.rs:223:8
+    |
+223 | pub fn wgsl_to_hlsl(wgsl: &str) -> Result<String, Box<dyn std::error::Error>> {
+    |        ^^^^^^^^^^^^
+
+warning: function `extract_uniform_name` is never used
+   --> src\shader_converter.rs:281:4
+    |
+281 | fn extract_uniform_name(line: &str) -> &str {
+    |    ^^^^^^^^^^^^^^^^^^^^
+
+warning: function `extract_wgsl_body` is never used
+   --> src\shader_converter.rs:292:4
+    |
+292 | fn extract_wgsl_body(wgsl: &str) -> Result<String, Box<dyn std::error::Error>> {
+    |    ^^^^^^^^^^^^^^^^^
+
+warning: `wgsl-shader-studio` (bin "isf-shaders") generated 30 warnings (2 duplicates) (run `cargo fix --bin "isf-shaders"` to apply 6 suggestions)
+    Finished `release` profile [optimized] target(s) in 0.55s
+     Running `target\release\isf-shaders.exe`
+Starting WGSL Shader Studio GUI...
+Loaded 0 shaders from C:\Program Files\Magic\Modules2\ISF\fractal
+Loaded 0 shaders from C:\Program Files\Magic\Modules2\ISF\fractal 2
+Loaded 0 shaders from C:\Program Files\Magic\Modules2\ISF\final
+Total ISF shaders loaded: 61
+Initializing shader renderer in GUI...
+Initializing WGPU renderer...
+✓ WGPU instance created
+✓ GPU adapter found: "NVIDIA GeForce RTX 3070 Ti Laptop GPU"
+✓ GPU device and queue created successfully
+✓ Shader renderer initialized successfully
+🚀 Auto-starting shader compilation and rendering...
+🎬 Starting preview rendering...
+✓ Preview rendering initialized

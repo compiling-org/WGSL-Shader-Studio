@@ -1,0 +1,70 @@
+[package]
+name = "wgsl-shader-studio"
+version = "0.1.0"
+edition = "2021"
+description = "Professional WGPU shader studio with ISF support and real-time audio/MIDI integration"
+authors = ["Kapil"]
+license = "MIT"
+repository = "https://github.com/compiling-org/WGSL-Shader-Studio"
+homepage = "https://github.com/compiling-org/WGSL-Shader-Studio"
+keywords = ["wgpu", "webgpu", "shader", "wgsl", "isf", "vj", "audio", "midi"]
+categories = ["multimedia", "graphics", "gui"]
+
+[[bin]]
+name = "isf-shaders"
+path = "src/main.rs"
+
+[[bin]]
+name = "test-window"
+path = "test_window.rs"
+
+[[bin]]
+name = "simple-test"
+path = "simple_test.rs"
+
+[[bin]]
+name = "gui-test"
+path = "gui_test.rs"
+
+[[bin]]
+name = "minimal-gui-test"
+path = "minimal_gui_test.rs"
+
+[[bin]]
+name = "minimal-test"
+path = "minimal_test.rs"
+
+[lib]
+name = "resolume_isf_shaders_rust_ffgl"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Basic dependencies for a simple graphics library
+anyhow = "1.0"
+ash = "0.38.0"
+console_log = "1.0.0"
+directories = "5.0"
+eframe = { version = "0.33.0", optional = true }
+egui = { version = "0.33.0", optional = true }
+image = "0.25"
+# Note: Leap Motion and MediaPipe would require platform-specific SDKs
+# midir = "0.10.3"  # MIDI support
+# Note: Simple substitute for gesture recognition until SDKs are added
+log = "0.4"
+parking_lot = "0.12"
+tokio = { version = "1.0", features = ["full"] }
+midir = "0.10.3"
+pollster = "0.4.0"
+rfd = "0.15.4"
+rustfft = "6.4.1"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+thiserror = "1.0"
+wgpu = "27.0.1"
+winit = "0.30.12"
+bytemuck = { version = "1.15", features = ["derive"] }
+
+[features]
+default = ["gui"]
+gui = ["dep:eframe", "dep:egui"]
+eframe = ["dep:eframe", "dep:egui"]
