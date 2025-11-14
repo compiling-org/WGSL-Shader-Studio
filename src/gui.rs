@@ -28,6 +28,8 @@ use crate::audio::AudioData as ShaderAudioData;
 use crate::gesture_control::{GestureControlSystem, GestureType};
 #[cfg(feature = "gui")]
 use crate::shader_renderer::{ShaderRenderer, RenderParameters, WorkingShaderExample};
+use crate::wgsl_bindgen_integration::WgslBindgenAnalyzer;
+use crate::wgsl_diagnostics::{WgslDiagnostics, DiagnosticSeverity};
 #[cfg(feature = "gui")]
 
 
@@ -40,9 +42,12 @@ pub struct ShaderGui {
     shaders: Vec<IsfShader>,
     current_shader: Option<usize>,
     parameter_values: HashMap<String, f32>,
+    shader_parameters: HashMap<String, f32>,
     current_wgsl_code: String,
+    wgsl_code: String,
     shader_templates: Vec<ShaderTemplate>,
     expanded_template_library: Vec<ShaderTemplate>,
+    available_shaders: Vec<String>,
 
     // UI state
     show_audio_panel: bool,
@@ -54,6 +59,8 @@ pub struct ShaderGui {
     show_node_editor: bool,
     selected_template: Option<usize>,
     selected_template_category: String,
+    selected_shader: Option<usize>,
+    search_query: String,
 
     // Node-based editor state
     nodes: Vec<Node>,
@@ -88,6 +95,12 @@ pub struct ShaderGui {
     preview_size: (u32, u32),
     last_render_time: Instant,
     render_fps: f32,
+
+    // WGSL Bindgen integration
+    bindgen_analyzer: Option<WgslBindgenAnalyzer>,
+    
+    // WGSL Diagnostics
+    diagnostics_analyzer: Option<WgslDiagnostics>,
 
     // Performance
     fps_counter: f32,
@@ -263,7 +276,9 @@ impl Default for ShaderGui {
             shaders: Vec::new(),
             current_shader: None,
             parameter_values: HashMap::new(),
+            shader_parameters: HashMap::new(),
             current_wgsl_code: Self::default_wgsl_shader(),
+            wgsl_code: String::new(),
             shader_templates: Self::create_shader_templates(),
             show_audio_panel: true,
             show_midi_panel: false,
@@ -274,6 +289,8 @@ impl Default for ShaderGui {
             show_node_editor: false,
             selected_template: None,
             selected_template_category: "All".to_string(),
+            selected_shader: None,
+            search_query: String::new(),
             current_file: None,
             recent_files: Vec::new(),
             audio_system: None,
@@ -299,6 +316,7 @@ impl Default for ShaderGui {
             from_format: "WGSL".to_string(),
             to_format: "GLSL".to_string(),
             expanded_template_library: Self::create_expanded_template_library(),
+            available_shaders: Vec::new(),
             grid_size: 20.0,
             pan_offset: egui::Vec2::ZERO,
             zoom: 1.0,
@@ -315,6 +333,8 @@ impl Default for ShaderGui {
             time_slider: 0.0,
             initialized: false,
             initialization_started: false,
+            bindgen_analyzer: Some(WgslBindgenAnalyzer::new()),
+            diagnostics_analyzer: Some(WgslDiagnostics::new()),
         }
     }
 }
@@ -323,6 +343,11 @@ impl Default for ShaderGui {
 impl ShaderGui {
     pub fn new(_cc: &eframe::CreationContext<'_>) -> Box<Self> {
         let mut gui = Self::default();
+        gui.wgsl_code = gui.current_wgsl_code.clone();
+        gui.selected_shader = gui.current_shader;
+        gui.search_query = String::new();
+        gui.shader_parameters = gui.parameter_values.clone();
+        gui.available_shaders = gui.shaders.iter().map(|s| s.name.clone()).collect();
         
         // Apply professional theme
         gui.apply_professional_theme(_cc);
@@ -374,6 +399,22 @@ impl ShaderGui {
         visuals.interact_cursor = Some(egui::CursorIcon::PointingHand);
 
         cc.egui_ctx.set_visuals(visuals);
+    }
+
+    fn analyze_shader_uniforms(&mut self, shader_name: &str) {
+        if let Some(ref mut analyzer) = self.bindgen_analyzer {
+            match analyzer.analyze_shader(&self.current_wgsl_code, shader_name) {
+                Ok(layouts) => {
+                    println!("Analyzed {} uniform layouts for shader {}", layouts.len(), shader_name);
+                    for layout in &layouts {
+                        println!("  - Uniform '{}' at binding {}:{}", layout.name, layout.group, layout.binding);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Failed to analyze shader uniforms: {}", e);
+                }
+            }
+        }
     }
 
     fn apply_theme(&mut self, theme_name: &str, ctx: &egui::Context) {
@@ -850,17 +891,20 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                 description: "Learn WGSL fundamentals".to_string(),
                 category: "Tutorial".to_string(),
                 wgsl_code: r#"
-@group(0) @binding(0) var<uniform> time: f32;
-@group(0) @binding(1) var<uniform> resolution: vec2<f32>;
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+};
+
+@group(0) @binding(0) var<uniform> uniforms: Uniforms;
 
 @fragment
 fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-    let uv = position.xy / resolution;
+    let uv = position.xy / uniforms.resolution;
     
-    // Create a color based on position and time
-    let r = uv.x;                    // Red based on X
-    let g = uv.y;                    // Green based on Y
-    let b = 0.5 + 0.5 * sin(time);   // Blue oscillates with time
+    let r = uv.x;
+    let g = uv.y;
+    let b = 0.5 + 0.5 * sin(uniforms.time);
     
     return vec4<f32>(r, g, b, 1.0);
 }"#.to_string(),
@@ -871,15 +915,19 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                 description: "Basic time-based animation".to_string(),
                 category: "Tutorial".to_string(),
                 wgsl_code: r#"
-@group(0) @binding(0) var<uniform> time: f32;
-@group(0) @binding(1) var<uniform> resolution: vec2<f32>;
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+};
+
+@group(0) @binding(0) var<uniform> uniforms: Uniforms;
 
 @fragment
 fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-    let uv = (position.xy - 0.5 * resolution) / min(resolution.x, resolution.y);
-    let t = time;
+    let res = uniforms.resolution;
+    let uv = (position.xy - 0.5 * res) / min(res.x, res.y);
+    let t = uniforms.time;
     
-    // Simple circle that pulsates
     let dist = length(uv);
     let pulse = 0.3 + 0.2 * sin(t * 3.0);
     let circle = 1.0 - smoothstep(pulse, pulse + 0.05, dist);
@@ -948,14 +996,15 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                             if let Some(theme) = settings.get("current_theme").and_then(|v| v.as_str()) {
                                 self.current_theme = theme.to_string();
                             }
-
                             // Load brightness/contrast/font_size
                             if let Some(brightness) = settings.get("brightness").and_then(|v| v.as_f64()) {
                                 self.brightness = brightness as f32;
                             }
+    
                             if let Some(contrast) = settings.get("contrast").and_then(|v| v.as_f64()) {
                                 self.contrast = contrast as f32;
                             }
+    
                             if let Some(font_size) = settings.get("font_size").and_then(|v| v.as_f64()) {
                                 self.font_size = font_size as f32;
                             }
@@ -1026,58 +1075,40 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         self.compilation_status = ShaderCompilationStatus::Compiling;
         self.shader_errors.clear();
 
-        // Enhanced WGSL validation
-        let mut is_valid = true;
-        let mut errors = Vec::new();
+        // Minimal validation: ensure required WGSL entry point structure exists
+        let has_fragment = self.current_wgsl_code.contains("@fragment");
+        let has_fs_main = self.current_wgsl_code.contains("fn fs_main");
+        let has_position = self.current_wgsl_code.contains("@builtin(position)");
+        let has_location0 = self.current_wgsl_code.contains("@location(0)");
 
-        // Check for required WGSL elements
-        if !self.current_wgsl_code.contains("@fragment") {
-            is_valid = false;
-            errors.push("Missing @fragment attribute".to_string());
-        }
-
-        if !self.current_wgsl_code.contains("fn fs_main") {
-            is_valid = false;
-            errors.push("Missing fs_main function".to_string());
-        }
-
-        if !self.current_wgsl_code.contains("@builtin(position)") {
-            is_valid = false;
-            errors.push("Missing @builtin(position) parameter".to_string());
-        }
-
-        if !self.current_wgsl_code.contains("@location(0)") {
-            is_valid = false;
-            errors.push("Missing @location(0) output".to_string());
-        }
-
-        // Check for basic syntax issues
-        let lines: Vec<&str> = self.current_wgsl_code.lines().collect();
-        for (i, line) in lines.iter().enumerate() {
-            let line = line.trim();
-
-            // Check for unmatched braces
-            let open_braces = line.chars().filter(|&c| c == '{').count();
-            let close_braces = line.chars().filter(|&c| c == '}').count();
-            if open_braces != close_braces {
-                is_valid = false;
-                errors.push(format!("Line {}: Unmatched braces", i + 1));
-            }
-
-            // Check for missing semicolons (basic check)
-            if line.contains("let ") && !line.ends_with(';') && !line.contains('{') && !line.contains('}') {
-                is_valid = false;
-                errors.push(format!("Line {}: Missing semicolon after let statement", i + 1));
-            }
-        }
-
-        if is_valid {
+        if has_fragment && has_fs_main && has_position && has_location0 {
             self.compilation_status = ShaderCompilationStatus::Success;
-            self.shader_errors.push("✓ Shader compiled successfully!".to_string());
-            println!("Shader compiled successfully with enhanced validation");
+            println!("Shader compiled successfully");
         } else {
             self.compilation_status = ShaderCompilationStatus::Error("Compilation failed".to_string());
-            self.shader_errors.extend(errors);
+            if !has_fragment { self.shader_errors.push("Missing @fragment attribute".to_string()); }
+            if !has_fs_main { self.shader_errors.push("Missing fs_main function".to_string()); }
+            if !has_position { self.shader_errors.push("Missing @builtin(position) parameter".to_string()); }
+            if !has_location0 { self.shader_errors.push("Missing @location(0) output".to_string()); }
+        }
+
+        self.run_reflection_diagnostics();
+    }
+
+    fn run_reflection_diagnostics(&mut self) {
+        match naga::front::wgsl::parse_str(&self.current_wgsl_code) {
+            Ok(module) => {
+                for (_, var) in module.global_variables.iter() {
+                    if let Some(binding) = var.binding {
+                        let grp = binding.group;
+                        let bnd = binding.binding;
+                        self.shader_errors.push(format!("binding group {} binding {}", grp, bnd));
+                    }
+                }
+            }
+            Err(e) => {
+                self.shader_errors.push(format!("naga parse error: {}", e));
+            }
         }
     }
 
@@ -1181,12 +1212,21 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                 self.parameter_values.insert(input.name.clone(), default_value);
             }
 
-            // Prepare shader for rendering (disabled for GUI build)
-            // if let Some(renderer) = &mut self.renderer {
-            //     let _ = renderer.prepare_shader(shader);
-            // }
-
-            println!("Selected shader: {}", shader.name);
+            let shader_name = shader.name.clone();
+            let src = shader.source.clone();
+            let is_wgsl = src.contains("@fragment") || src.contains("var<uniform>") || src.contains("@vertex");
+            if is_wgsl {
+                self.current_wgsl_code = src;
+            } else {
+                let converted = self.convert_isf_to_wgsl(&src);
+                self.current_wgsl_code = converted;
+            }
+            self.compile_wgsl_shader();
+            self.start_preview_rendering();
+            // Analyze shader uniforms using wgsl_bindgen
+            self.analyze_shader_uniforms(&shader_name);
+            
+            println!("Selected shader: {}", shader_name);
         }
     }
 
@@ -1563,8 +1603,8 @@ fn fs_main() -> @location(0) vec4<f32> {
                         });
                     });
 
-                // Enhanced error display with better formatting
-                if !self.shader_errors.is_empty() {
+                // Show errors only when compilation failed
+                if matches!(self.compilation_status, ShaderCompilationStatus::Error(_)) && !self.shader_errors.is_empty() {
                     egui::Frame::NONE
                         .fill(egui::Color32::from_rgb(50, 20, 20))
                         .inner_margin(8.0)
@@ -2628,11 +2668,14 @@ fn fs_main() -> @location(0) vec4<f32> {
             }
         }
 
-        // Generate WGSL code with proper uniforms and variable handling
+        // Generate WGSL code with consistent uniform block
         let mut wgsl_code = String::from("// Generated from node graph\n\n");
-        wgsl_code.push_str("@group(0) @binding(0) var<uniform> time: f32;\n");
-        wgsl_code.push_str("@group(0) @binding(1) var<uniform> resolution: vec2<f32>;\n");
-        wgsl_code.push_str("@group(0) @binding(2) var<uniform> mouse: vec2<f32>;\n\n");
+        wgsl_code.push_str("struct Uniforms {\n");
+        wgsl_code.push_str("    time: f32,\n");
+        wgsl_code.push_str("    resolution: vec2<f32>,\n");
+        wgsl_code.push_str("    mouse: vec2<f32>,\n");
+        wgsl_code.push_str("};\n\n");
+        wgsl_code.push_str("@group(0) @binding(0) var<uniform> uniforms: Uniforms;\n\n");
 
         wgsl_code.push_str("@fragment\n");
         wgsl_code.push_str("fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {\n");
@@ -2858,55 +2901,20 @@ fn fs_main() -> @location(0) vec4<f32> {
 
         ui.separator();
 
-        // Main preview viewport - takes up most of the central space
-        let available_size = ui.available_size();
-        let preview_size = egui::vec2(available_size.x, available_size.y - 60.0); // Leave space for controls
+        // Render preview directly in the panel (no separate window to avoid duplication)
+        let preview_size = egui::vec2(self.preview_size.0 as f32, self.preview_size.1 as f32);
         let (rect, _) = ui.allocate_exact_size(preview_size, egui::Sense::hover());
 
-        // Enhanced viewport styling with gradient border
+        // Subtle background
         ui.painter().rect_filled(
             rect,
             egui::CornerRadius::same(4),
-            egui::Color32::from_rgb(20, 20, 25), // Dark background
-        );
-        
-        // Gradient border for professional look
-        ui.painter().rect_stroke(
-            rect,
-            egui::CornerRadius::same(4),
-            egui::Stroke::new(2.0, egui::Color32::from_rgb(80, 80, 100)),
-            egui::StrokeKind::Middle,
+            egui::Color32::from_rgb(20, 20, 25),
         );
 
-        // Render the actual shader preview
         println!("🔥 GUI render loop: Attempting to render shader...");
         self.render_actual_shader_preview(ui, rect, preview_size);
         println!("🔥 GUI render loop: Render attempt completed");
-
-        // Enhanced performance overlay with better styling
-        let overlay_rect = egui::Rect::from_min_size(
-            rect.max - egui::vec2(130.0, 60.0),
-            egui::vec2(120.0, 50.0)
-        );
-        
-        // Background with gradient
-        ui.painter().rect_filled(overlay_rect, egui::CornerRadius::same(8), egui::Color32::from_black_alpha(220));
-        ui.painter().rect_stroke(overlay_rect, egui::CornerRadius::same(8), egui::Stroke::new(1.0, egui::Color32::from_rgb(100, 100, 120)), egui::StrokeKind::Middle);
-
-        ui.painter().text(
-            overlay_rect.min + egui::vec2(8.0, 8.0),
-            egui::Align2::LEFT_TOP,
-            format!("{:.1} FPS", self.render_fps),
-            egui::FontId::proportional(13.0),
-            egui::Color32::GOLD,
-        );
-        ui.painter().text(
-            overlay_rect.min + egui::vec2(8.0, 26.0),
-            egui::Align2::LEFT_TOP,
-            format!("{}×{}", self.preview_size.0, self.preview_size.1),
-            egui::FontId::proportional(11.0),
-            egui::Color32::LIGHT_GRAY,
-        );
 
         // Update render timing for smooth FPS calculation
         let now = Instant::now();
@@ -2936,7 +2944,6 @@ fn fs_main() -> @location(0) vec4<f32> {
                         .fit_to_exact_size(preview_size);
                     ui.add(image);
                 } else {
-                    // Show placeholder
                     ui.painter().rect_filled(rect, egui::CornerRadius::same(4), egui::Color32::from_rgb(30, 30, 40));
                     ui.painter().text(
                         rect.center(),
@@ -3079,6 +3086,13 @@ fn fs_main() -> @location(0) vec4<f32> {
                 );
             }
         }
+
+        if let Ok(renderer) = self.renderer.as_ref().unwrap().lock() {
+            let errs = renderer.get_last_errors();
+            if !errs.is_empty() {
+                self.shader_errors = errs.to_vec();
+            }
+        }
     }
 
     fn render_shader_animation(&mut self, ui: &mut egui::Ui, rect: egui::Rect, preview_size: egui::Vec2, category: &str) {
@@ -3208,37 +3222,7 @@ fn fs_main() -> @location(0) vec4<f32> {
 
 
     fn parse_wgsl_with_errors(&self, code: &str) -> (String, Vec<(usize, usize)>) {
-        // Basic error detection - in a real implementation, this would use a proper WGSL parser
-        let mut error_ranges = Vec::new();
-
-        // Simple syntax error detection
-        for (line_idx, line) in code.lines().enumerate() {
-            // Check for common syntax errors
-            if line.contains("let") && !line.contains('=') && !line.contains(';') {
-                // Missing assignment or semicolon
-                let start = self.get_global_position(line_idx, 0);
-                let end = self.get_global_position(line_idx, line.len());
-                error_ranges.push((start, end));
-            }
-
-            // Check for unmatched braces
-            let open_braces = line.chars().filter(|&c| c == '{').count();
-            let close_braces = line.chars().filter(|&c| c == '}').count();
-            if open_braces != close_braces {
-                let start = self.get_global_position(line_idx, 0);
-                let end = self.get_global_position(line_idx, line.len());
-                error_ranges.push((start, end));
-            }
-
-            // Check for missing semicolons
-            if line.trim().starts_with(|c: char| c.is_alphanumeric() || c == '_' || c == '@') && !line.trim().ends_with(';') && !line.trim().ends_with('{') && !line.trim().ends_with('}') && !line.trim().starts_with("//") {
-                let start = self.get_global_position(line_idx, 0);
-                let end = self.get_global_position(line_idx, line.len());
-                error_ranges.push((start, end));
-            }
-        }
-
-        (code.to_string(), error_ranges)
+        (code.to_string(), Vec::new())
     }
 
     fn get_completion_suggestions(&self, prefix: &str) -> Vec<String> {
@@ -3342,97 +3326,24 @@ fn fs_main() -> @location(0) vec4<f32> {
     }
 
     fn convert_wgsl_to_glsl(&self, wgsl_code: &str) -> (String, bool) {
-        let mut glsl_code = wgsl_code.to_string();
-
-        // Remove WGSL-specific attributes and replace with GLSL equivalents
-        glsl_code = glsl_code.replace("@fragment", "void main()");
-        glsl_code = glsl_code.replace("@vertex", "void main()");
-        glsl_code = glsl_code.replace("@builtin(position)", "");
-        glsl_code = glsl_code.replace("@location(0)", "");
-        
-        // Replace uniform bindings
-        glsl_code = glsl_code.replace("@group(0) @binding(0)", "uniform");
-        glsl_code = glsl_code.replace("@group(0) @binding(1)", "uniform");
-        glsl_code = glsl_code.replace("@group(0) @binding(2)", "uniform");
-        
-        // Type conversions
-        glsl_code = glsl_code.replace("vec2<f32>", "vec2");
-        glsl_code = glsl_code.replace("vec3<f32>", "vec3");
-        glsl_code = glsl_code.replace("vec4<f32>", "vec4");
-        glsl_code = glsl_code.replace("f32", "float");
-        glsl_code = glsl_code.replace("i32", "int");
-        
-        // Replace variable declarations
-        glsl_code = glsl_code.replace("var<uniform> time", "float time");
-        glsl_code = glsl_code.replace("var<uniform> resolution", "vec2 resolution");
-        glsl_code = glsl_code.replace("var<uniform> mouse", "vec2 mouse");
-        
-        // Replace output
-        glsl_code = glsl_code.replace("return vec4<f32>(", "gl_FragColor = vec4(");
-        glsl_code = glsl_code.replace(") -> @location(0) vec4<f32>", ");");
-        
-        // Fix common syntax issues
-        glsl_code = glsl_code.replace("let ", "float ");
-        glsl_code = glsl_code.replace("fn ", "void ");
-        
-        (glsl_code, true)
+        match crate::shader_converter::wgsl_to_glsl(wgsl_code) {
+            Ok(code) => (code, true),
+            Err(e) => (format!("Conversion error: {}", e), false),
+        }
     }
 
     fn convert_wgsl_to_hlsl(&self, wgsl_code: &str) -> (String, bool) {
-        let mut hlsl_code = wgsl_code.to_string();
-
-        // Replace fragment shader attributes
-        hlsl_code = hlsl_code.replace("@fragment", "float4 main(");
-        hlsl_code = hlsl_code.replace("@vertex", "void main(");
-        
-        // Replace uniform bindings with HLSL registers
-        hlsl_code = hlsl_code.replace("@group(0) @binding(0)", "cbuffer CB0 : register(b0)");
-        hlsl_code = hlsl_code.replace("@group(0) @binding(1)", "cbuffer CB1 : register(b1)");
-        hlsl_code = hlsl_code.replace("@group(0) @binding(2)", "cbuffer CB2 : register(b2)");
-        
-        // Type conversions
-        hlsl_code = hlsl_code.replace("vec2<f32>", "float2");
-        hlsl_code = hlsl_code.replace("vec3<f32>", "float3");
-        hlsl_code = hlsl_code.replace("vec4<f32>", "float4");
-        hlsl_code = hlsl_code.replace("f32", "float");
-        
-        // Replace output
-        hlsl_code = hlsl_code.replace("return vec4<f32>(", "return float4(");
-        hlsl_code = hlsl_code.replace(") -> @location(0) vec4<f32>", ") : SV_Target;");
-        
-        // Fix function declarations
-        hlsl_code = hlsl_code.replace("fn ", "");
-        
-        (hlsl_code, true)
+        match crate::shader_converter::wgsl_to_hlsl(wgsl_code) {
+            Ok(code) => (code, true),
+            Err(e) => (format!("Conversion error: {}", e), false),
+        }
     }
 
     fn convert_glsl_to_wgsl(&self, glsl_code: &str) -> (String, bool) {
-        let mut wgsl_code = glsl_code.to_string();
-
-        // Replace main function
-        wgsl_code = wgsl_code.replace("void main()", "@fragment\nfn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {");
-        
-        // Add uniforms if missing
-        if !wgsl_code.contains("@group(0) @binding(0)") {
-            wgsl_code.insert_str(0, "@group(0) @binding(0) var<uniform> time: f32;\n");
-            wgsl_code.insert_str(0, "@group(0) @binding(1) var<uniform> resolution: vec2<f32>;\n");
-            wgsl_code.insert_str(0, "@group(0) @binding(2) var<uniform> mouse: vec2<f32>;\n\n");
+        match crate::shader_converter::glsl_to_wgsl(glsl_code) {
+            Ok(code) => (code, true),
+            Err(e) => (format!("Conversion error: {}", e), false),
         }
-        
-        // Replace output
-        wgsl_code = wgsl_code.replace("gl_FragColor = vec4(", "return vec4<f32>(");
-        wgsl_code = wgsl_code.replace("float", "f32");
-        wgsl_code = wgsl_code.replace("vec2", "vec2<f32>");
-        wgsl_code = wgsl_code.replace("vec3", "vec3<f32>");
-        wgsl_code = wgsl_code.replace("vec4", "vec4<f32>");
-        wgsl_code = wgsl_code.replace("int", "i32");
-        wgsl_code = wgsl_code.replace(";", ";");
-        
-        // Fix common syntax issues
-        wgsl_code = wgsl_code.replace("void ", "fn ");
-        wgsl_code = wgsl_code.replace("float ", "let ");
-        
-        (wgsl_code, true)
     }
 
     fn convert_hlsl_to_wgsl(&self, hlsl_code: &str) -> (String, bool) {
@@ -3440,25 +3351,32 @@ fn fs_main() -> @location(0) vec4<f32> {
 
         // Replace main function
         wgsl_code = wgsl_code.replace("float4 main(", "@fragment\nfn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {");
-        
-        // Add uniforms if missing
-        if !wgsl_code.contains("@group(0) @binding(0)") {
-            wgsl_code.insert_str(0, "@group(0) @binding(0) var<uniform> time: f32;\n");
-            wgsl_code.insert_str(0, "@group(0) @binding(1) var<uniform> resolution: vec2<f32>;\n");
-            wgsl_code.insert_str(0, "@group(0) @binding(2) var<uniform> mouse: vec2<f32>;\n\n");
+
+        // Insert uniform block if missing
+        if !wgsl_code.contains("var<uniform> uniforms: Uniforms") {
+            let header = r#"struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+    mouse: vec2<f32>,
+};
+
+@group(0) @binding(0) var<uniform> uniforms: Uniforms;
+
+"#;
+            wgsl_code.insert_str(0, header);
         }
-        
+
         // Replace output
         wgsl_code = wgsl_code.replace("return float4(", "return vec4<f32>(");
         wgsl_code = wgsl_code.replace(") : SV_Target;", "}");
         wgsl_code = wgsl_code.replace(") : SV_Target0;", "}");
-        
+
         // Type conversions
         wgsl_code = wgsl_code.replace("float2", "vec2<f32>");
         wgsl_code = wgsl_code.replace("float3", "vec3<f32>");
         wgsl_code = wgsl_code.replace("float4", "vec4<f32>");
         wgsl_code = wgsl_code.replace("float", "f32");
-        
+
         (wgsl_code, true)
     }
 
@@ -3501,28 +3419,36 @@ fn fs_main() -> @location(0) vec4<f32> {
     }
 
     fn convert_isf_to_wgsl(&self, isf_code: &str) -> String {
-        let mut wgsl_code = String::from("// Converted from ISF\n\n");
+        let mut header = String::from("// Converted from ISF\n\n");
+        header.push_str("struct Uniforms {\n");
+        header.push_str("    time: f32,\n");
+        header.push_str("    resolution: vec2<f32>,\n");
+        header.push_str("    mouse: vec2<f32>,\n");
+        header.push_str("};\n\n");
+        header.push_str("@group(0) @binding(0) var<uniform> uniforms: Uniforms;\n\n");
 
-        // Add standard WGSL uniforms
-        wgsl_code.push_str("@group(0) @binding(0) var<uniform> time: f32;\n");
-        wgsl_code.push_str("@group(0) @binding(1) var<uniform> resolution: vec2<f32>;\n");
-        wgsl_code.push_str("@group(0) @binding(2) var<uniform> mouse: vec2<f32>;\n\n");
+        let mut extra = String::new();
+        if isf_code.contains("sampler2D") || isf_code.contains("texture2D") || isf_code.contains("IMG") {
+            extra.push_str("@group(1) @binding(0) var input_texture: texture_2d<f32>;\n");
+            extra.push_str("@group(1) @binding(1) var input_sampler: sampler;\n\n");
+        }
 
-        // Basic ISF to WGSL conversion
-        let converted_code = isf_code
-            .replace("void main()", "@fragment\nfn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32>")
-            .replace("gl_FragCoord", "position")
-            .replace("gl_FragColor", "return vec4<f32>")
-            .replace("vec2(", "vec2<f32>(")
-            .replace("vec3(", "vec3<f32>(")
-            .replace("vec4(", "vec4<f32>(")
-            .replace("float ", "let ")
-            .replace("uniform ", "// uniform ");
+        let mut body = isf_code.to_string();
+        body = body.replace("void main()", "@fragment\nfn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32>");
+        body = body.replace("gl_FragCoord", "position");
+        body = body.replace("gl_FragColor", "return vec4<f32>");
+        body = body.replace("vec2(", "vec2<f32>(");
+        body = body.replace("vec3(", "vec3<f32>(");
+        body = body.replace("vec4(", "vec4<f32>(");
 
-        wgsl_code.push_str(&converted_code);
-        wgsl_code.push_str("\n}\n");
-
-        wgsl_code
+        let mut wgsl = String::new();
+        wgsl.push_str(&header);
+        wgsl.push_str(&extra);
+        wgsl.push_str(&body);
+        if !wgsl.trim_end().ends_with("}") {
+            wgsl.push_str("\n}\n");
+        }
+        wgsl
     }
 
     fn export_to_glsl(&mut self) {
@@ -3906,9 +3832,85 @@ fn fs_main() -> @location(0) vec4<f32> {
         });
     }
 
+    fn render_file_browser(&mut self, ui: &mut egui::Ui) {
+        let mut sources: Vec<std::path::PathBuf> = Vec::new();
+        if let Ok(root) = std::env::current_dir() {
+            sources.push(root.join("assets").join("shaders"));
+            sources.push(root.join("assets").join("isf"));
+        }
+        sources.push(std::path::PathBuf::from(r"C:\\Program Files\\Magic\\Modules2\\ISF\\fractal"));
+        sources.push(std::path::PathBuf::from(r"C:\\Program Files\\Magic\\Modules2\\ISF\\fractal 2"));
+        sources.push(std::path::PathBuf::from(r"C:\\Program Files\\Magic\\Modules2\\ISF\\final"));
+
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            for dir in sources {
+                if dir.exists() {
+                    ui.collapsing(dir.display().to_string(), |ui| {
+                        if let Ok(entries) = std::fs::read_dir(&dir) {
+                            for entry in entries.flatten() {
+                                let path = entry.path();
+                                if let Some(ext) = path.extension() {
+                                    let ext_str = ext.to_string_lossy().to_string();
+                                    if ext_str == "wgsl" || ext_str == "fs" {
+                                        ui.horizontal(|ui| {
+                                            ui.label(path.file_name().unwrap_or_default().to_string_lossy());
+                                            if ui.button("Load").clicked() {
+                                                if let Ok(content) = std::fs::read_to_string(&path) {
+                                                    if ext_str == "wgsl" {
+                                                        self.current_wgsl_code = content;
+                                                    } else {
+                                                        let conv = self.convert_isf_to_wgsl(&content);
+                                                        self.current_wgsl_code = conv;
+                                                    }
+                                                    self.current_file = Some(path.clone());
+                                                    self.add_to_recent_files(path.clone());
+                                                    self.compile_wgsl_shader();
+                                                    self.start_preview_rendering();
+                                                }
+                                            }
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        });
+    }
+
     fn render_parameter_panel(&mut self, ui: &mut egui::Ui) {
         if let Some(shader_index) = self.current_shader {
             let shader = &self.shaders[shader_index];
+
+            // Add uniform layout analysis section
+            ui.collapsing("Uniform Layout", |ui| {
+                if let Some(ref mut analyzer) = self.bindgen_analyzer {
+                    if let Ok(layouts) = analyzer.analyze_shader(&self.current_wgsl_code, &shader.name) {
+                        ui.label(format!("Found {} uniform buffers", layouts.len()));
+                        for layout in &layouts {
+                            ui.horizontal(|ui| {
+                                ui.label(format!("@group({}) @binding({})", layout.group, layout.binding));
+                                ui.label(&layout.name);
+                            });
+                            ui.label(format!("Size: {} bytes", layout.size));
+                            for field in &layout.fields {
+                                ui.horizontal(|ui| {
+                                    ui.label(&format!("  {}: {}", field.name, field.ty));
+                                    ui.label(format!("@{} bytes", field.offset));
+                                });
+                            }
+                            ui.separator();
+                        }
+                    } else {
+                        ui.label("No uniform layouts found");
+                    }
+                } else {
+                    ui.label("Uniform analysis not available");
+                }
+            });
+            
+            ui.add_space(10.0);
 
             ui.collapsing("Parameters", |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
@@ -3953,6 +3955,32 @@ fn fs_main() -> @location(0) vec4<f32> {
                         });
                     }
                 });
+            });
+
+            ui.collapsing("Errors", |ui| {
+                // Renderer validation errors
+                if let Some(renderer) = &self.renderer {
+                    if let Ok(r) = renderer.lock() {
+                        let errs = r.get_last_errors();
+                        if !errs.is_empty() {
+                            ui.label("Renderer validation errors:");
+                            for e in errs {
+                                ui.label(egui::RichText::new(e).color(egui::Color32::LIGHT_RED));
+                            }
+                            ui.separator();
+                        }
+                    }
+                }
+                // Converter/compile errors
+                if !self.shader_errors.is_empty() {
+                    ui.label("Conversion/compile messages:");
+                    for e in &self.shader_errors {
+                        ui.label(egui::RichText::new(e).color(egui::Color32::LIGHT_RED));
+                    }
+                    if ui.button("Clear").clicked() { self.shader_errors.clear(); }
+                } else {
+                    ui.label("No errors");
+                }
             });
         }
     }
@@ -4482,6 +4510,8 @@ fn fs_main() -> @location(0) vec4<f32> {
         }
     }
 
+    // Note: save_theme_settings and load_theme_settings methods already exist in the impl block
+
 }
 
 
@@ -4575,6 +4605,18 @@ impl eframe::App for ShaderGui {
         // Menu bar
         self.render_menu_bar(ctx);
 
+        // Render preview in a controlled panel to avoid duplication
+        if self.show_preview {
+            egui::TopBottomPanel::top("preview_panel")
+                .resizable(true)
+                .default_height(300.0)
+                .min_height(200.0)
+                .max_height(600.0)
+                .show(ctx, |ui| {
+                    self.render_live_preview(ui);
+                });
+        }
+
         // Status bar
         egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
             ui.horizontal(|ui| {
@@ -4598,124 +4640,124 @@ impl eframe::App for ShaderGui {
         });
 
         // Main content - Professional shader editor layout
-        egui::CentralPanel::default().show(ctx, |ui| {
-            // Use egui::SidePanel and CentralPanel for better layout control
-            let left_panel_width = 250.0;
-            let right_panel_width = 250.0;
-            let bottom_panel_height = 250.0;
+        let left_panel_width = 250.0;
+        let right_panel_width = 250.0;
+        let bottom_panel_height = 250.0;
 
-            // Left Panel - Shader templates and browser
-            egui::SidePanel::left("left_panel")
-                .resizable(true)
-                .default_width(left_panel_width)
-                .width_range(200.0..=350.0)
-                .show_inside(ui, |ui| {
-                    ui.set_min_height(400.0);
-                    
-                    // Shader templates section
-                    ui.vertical(|ui| {
-                        ui.heading("Templates");
-                        ui.separator();
-                        self.render_templates(ui);
-                    });
-                    
-                    ui.add_space(10.0);
-                    
-                    // Shader browser section
-                    ui.vertical(|ui| {
-                        ui.heading("Shaders");
-                        ui.separator();
-                        self.render_shader_browser(ui);
-                    });
-                    
-                    ui.add_space(10.0);
-                    
-                    // Converter section
-                    ui.vertical(|ui| {
-                        ui.heading("Converter");
-                        ui.separator();
-                        self.render_converter(ui);
-                    });
-                });
-
-            // Right Panel - Parameters and controls
-            egui::SidePanel::right("right_panel")
-                .resizable(true)
-                .default_width(right_panel_width)
-                .width_range(200.0..=400.0)
-                .show_inside(ui, |ui| {
-                    ui.set_min_height(400.0);
-                    
-                    // Parameters section
-                    ui.vertical(|ui| {
-                        ui.heading("Parameters");
-                        ui.separator();
-                        self.render_parameter_panel(ui);
-                    });
-                    
-                    ui.add_space(10.0);
-                    
-                    // Audio panel
-                    if self.show_audio_panel {
-                        ui.vertical(|ui| {
-                            ui.heading("Audio");
-                            ui.separator();
-                            self.render_audio_panel(ui);
-                        });
-                    }
-                    
-                    ui.add_space(10.0);
-                    
-                    // MIDI panel
-                    if self.show_midi_panel {
-                        ui.vertical(|ui| {
-                            ui.heading("MIDI");
-                            ui.separator();
-                            self.render_midi_panel(ui);
-                        });
-                    }
-                    
-                    ui.add_space(10.0);
-                    
-                    // Gesture panel
-                    if self.show_gesture_panel {
-                        ui.vertical(|ui| {
-                            ui.heading("Gestures");
-                            ui.separator();
-                            self.render_gesture_panel(ui);
-                        });
-                    }
-                    
-                    ui.add_space(10.0);
-                    
-                    // Performance panel
-                    ui.vertical(|ui| {
-                        ui.heading("Performance");
-                        ui.separator();
-                        self.render_performance_panel(ui);
-                    });
-                });
-
-            // Bottom Panel - Code editor
-            egui::TopBottomPanel::bottom("bottom_panel")
-                .resizable(true)
-                .default_height(bottom_panel_height)
-                .height_range(150.0..=500.0)
-                .show_inside(ui, |ui| {
-                    ui.vertical(|ui| {
-                        ui.heading("Code Editor");
-                        ui.separator();
-                        self.render_code_editor(ui);
-                    });
-                });
-
-            // Central Panel - Main viewport
-            egui::CentralPanel::default().show_inside(ui, |ui| {
+        // Left Panel - Shader templates and browser
+        egui::SidePanel::left("left_panel")
+            .resizable(true)
+            .default_width(left_panel_width)
+            .width_range(200.0..=350.0)
+            .show(ctx, |ui| {
                 ui.set_min_height(400.0);
-                
-                // Always show the preview - simplify the UI
-                self.render_live_preview(ui);
+                ui.vertical(|ui| {
+                    ui.heading("Templates");
+                    ui.separator();
+                    self.render_templates(ui);
+                });
+                ui.add_space(10.0);
+                ui.vertical(|ui| {
+                    ui.heading("Shaders");
+                    ui.separator();
+                    self.render_shader_browser(ui);
+                });
+                ui.add_space(10.0);
+                ui.vertical(|ui| {
+                    ui.heading("Converter");
+                    ui.separator();
+                    self.render_converter(ui);
+                });
+                if self.show_file_browser {
+                    ui.add_space(10.0);
+                    ui.vertical(|ui| {
+                        ui.heading("Files");
+                        ui.separator();
+                        self.render_file_browser(ui);
+                    });
+                }
             });
+
+        // Right Panel - Parameters and controls
+        egui::SidePanel::right("right_panel")
+            .resizable(true)
+            .default_width(right_panel_width)
+            .width_range(200.0..=400.0)
+            .show(ctx, |ui| {
+                ui.set_min_height(400.0);
+                ui.vertical(|ui| {
+                    ui.heading("Parameters");
+                    ui.separator();
+                    self.render_parameter_panel(ui);
+                });
+                ui.add_space(10.0);
+                if self.show_audio_panel {
+                    ui.vertical(|ui| {
+                        ui.heading("Audio");
+                        ui.separator();
+                        self.render_audio_panel(ui);
+                    });
+                }
+                ui.add_space(10.0);
+                if self.show_midi_panel {
+                    ui.vertical(|ui| {
+                        ui.heading("MIDI");
+                        ui.separator();
+                        self.render_midi_panel(ui);
+                    });
+                }
+                ui.add_space(10.0);
+                if self.show_gesture_panel {
+                    ui.vertical(|ui| {
+                        ui.heading("Gestures");
+                        ui.separator();
+                        self.render_gesture_panel(ui);
+                    });
+                }
+                ui.add_space(10.0);
+                ui.vertical(|ui| {
+                    ui.heading("Performance");
+                    ui.separator();
+                    self.render_performance_panel(ui);
+                });
+            });
+
+        // Bottom Panel - Code editor
+        egui::TopBottomPanel::bottom("editor_bottom")
+            .resizable(true)
+            .default_height(bottom_panel_height)
+            .height_range(150.0..=500.0)
+            .show(ctx, |ui| {
+                ui.vertical(|ui| {
+                    ui.heading("Code Editor");
+                    ui.separator();
+                    self.render_code_editor(ui);
+                });
+            });
+
+        // Timeline Panel
+        egui::TopBottomPanel::bottom("timeline_bottom")
+            .resizable(false)
+            .default_height(64.0)
+            .height_range(48.0..=96.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let mut playing = self.auto_render;
+                    if ui.toggle_value(&mut playing, "Play").changed() {
+                        self.auto_render = playing;
+                    }
+                    ui.label("Time");
+                    ui.add(egui::Slider::new(&mut self.time_slider, 0.0..=600.0));
+                    ui.label("Speed");
+                    let mut speed = self.render_fps;
+                    ui.add(egui::Slider::new(&mut speed, 1.0..=120.0));
+                    self.render_fps = speed;
+                });
+            });
+
+        // Central Panel - Main viewport (no direct preview draw to avoid duplication)
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.set_min_height(400.0);
         });
 
         // Update FPS counter centrally with moving average smoothing
@@ -4730,39 +4772,33 @@ impl eframe::App for ShaderGui {
         }
         
         // Request repaint with conditional logic to avoid hanging
-        if self.show_preview || self.show_node_editor {
-            // Only repaint frequently when preview or node editor is active
-            ctx.request_repaint_after(std::time::Duration::from_millis(50)); // 20 FPS
-        } else {
-            // Repaint less frequently when in code editing mode
-            ctx.request_repaint_after(std::time::Duration::from_millis(100)); // 10 FPS
-        }
+        ctx.request_repaint_after(std::time::Duration::from_millis(100));
     }
+
 }
 
 #[cfg(feature = "gui")]
 pub fn run_gui() {
-    println!("Starting MGLS Shader Studio GUI...");
+    println!("Starting WGSL Shader Studio GUI...");
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_inner_size([1400.0, 900.0]) // Larger window size
             .with_position([100.0, 100.0]) // Position closer to top-left corner
-            .with_title("MGLS Shader Studio") // Corrected title
+            .with_title("WGSL Shader Studio")
             .with_visible(true)
             .with_active(true)
             .with_decorations(true)
             .with_transparent(false) // Ensure window is not transparent
             .with_resizable(true), // Make window resizable
-        // Disable vsync to fix window visibility issues on Windows
-        vsync: false,
+        vsync: true,
         // Disable persistence to prevent window position issues
         persist_window: false,
         ..Default::default()
     };
 
     match eframe::run_native(
-        "MGLS Shader Studio",
+        "WGSL Shader Studio",
         options,
         Box::new(|cc| {
             println!("Creating GUI application...");
