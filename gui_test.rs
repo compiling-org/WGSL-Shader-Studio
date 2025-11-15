@@ -1,4 +1,3 @@
 fn main() {
-    println!("Starting GUI test...");
-    wgsl_shader_studio::main();
+    println!("GUI test placeholder - no entrypoint");
 }

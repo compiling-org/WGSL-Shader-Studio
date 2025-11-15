@@ -15,6 +15,10 @@ name = "isf-shaders"
 path = "src/main.rs"
 
 [[bin]]
+name = "ui-analyzer"
+path = "src/bin/ui_analyzer.rs"
+
+[[bin]]
 name = "test-window"
 path = "test_window.rs"
 
@@ -33,6 +37,10 @@ path = "minimal_gui_test.rs"
 [[bin]]
 name = "minimal-test"
 path = "minimal_test.rs"
+
+[[bin]]
+name = "isf-conversion-test-runner"
+path = "src/bin/isf_conversion_test_runner.rs"
 
 [lib]
 name = "resolume_isf_shaders_rust_ffgl"
@@ -63,6 +71,11 @@ thiserror = "1.0"
 wgpu = "27.0.1"
 winit = "0.30.12"
 bytemuck = { version = "1.15", features = ["derive"] }
+regex = "1.10"
+naga = { version = "27.0.3", features = ["wgsl-in"] }
+wgsl_bindgen = "0.14.0"
+convert_case = "0.6.0"
+chrono = { version = "0.4", features = ["serde"] }
 
 [features]
 default = ["gui"]

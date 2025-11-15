@@ -7,8 +7,6 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 // Re-export new integration modules
-pub mod wgsl_reflect_integration;
-pub mod wgslsmith_integration;
 
 /// Main FFGL ISF shader plugin structure
 pub struct ResolumeIsfShadersRustFfgl {
@@ -349,6 +347,10 @@ pub mod ui;
 pub mod gui;
 pub mod wgsl_bindgen_integration;
 pub mod wgsl_diagnostics;
+pub mod isf_auto_converter;
+pub mod isf_conversion_tester;
+pub mod wgsl_reflect_integration;
+pub mod wgslsmith_integration;
 
 // Re-export main types for easier use
 pub use audio::*;

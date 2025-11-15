@@ -184,6 +184,15 @@ impl IsfShader {
             outputs,
         })
     }
+
+    pub fn from_wgsl(name: String, source: String) -> Self {
+        Self {
+            name,
+            source,
+            inputs: Vec::new(),
+            outputs: vec![ShaderOutput { name: "image".to_string(), output_type: OutputType::Image }],
+        }
+    }
 }
 
 /// Load ISF shaders from the specified Resolume directories
@@ -205,6 +214,32 @@ pub fn load_resolume_isf_shaders() -> Result<Vec<IsfShader>, Box<dyn std::error:
             }
             Err(e) => {
                 eprintln!("Failed to load shaders from {}: {}", dir, e);
+            }
+        }
+    }
+
+    // Also load local project assets
+    let project_root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let local_isf_dir = project_root.join("assets").join("isf");
+    if local_isf_dir.exists() {
+        if let Ok(mut shaders) = load_isf_shaders_from_directory(local_isf_dir.to_str().unwrap()) {
+            println!("Loaded {} local ISF shaders from {}", shaders.len(), local_isf_dir.display());
+            all_shaders.append(&mut shaders);
+        }
+    }
+    let local_wgsl_dir = project_root.join("assets").join("shaders");
+    if local_wgsl_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&local_wgsl_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if let Some(ext) = path.extension() {
+                    if ext == "wgsl" {
+                        if let Ok(contents) = std::fs::read_to_string(&path) {
+                            let name = path.file_stem().unwrap().to_string_lossy().to_string();
+                            all_shaders.push(IsfShader::from_wgsl(name, contents));
+                        }
+                    }
+                }
             }
         }
     }

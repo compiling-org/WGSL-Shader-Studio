@@ -1,0 +1,606 @@
+    Updating crates.io index
+     Locking 7 packages to latest compatible versions
+    Updating bevy_egui v0.27.1 -> v0.38.0
+    Updating ecolor v0.27.2 -> v0.33.0
+    Updating egui v0.27.2 -> v0.33.0
+    Updating emath v0.27.2 -> v0.33.0
+    Updating epaint v0.27.2 -> v0.33.0
+      Adding epaint_default_fonts v0.33.0
+    Updating webbrowser v0.8.15 -> v1.0.6
+   Compiling smallvec v1.15.1
+   Compiling derive_more-impl v2.0.1
+   Compiling erased-serde v0.4.9
+   Compiling winapi v0.3.9
+   Compiling ahash v0.8.12
+   Compiling emath v0.33.0
+   Compiling epaint_default_fonts v0.33.0
+   Compiling parking_lot_core v0.9.12
+   Compiling exr v1.73.0
+   Compiling tracing-subscriber v0.3.20
+   Compiling rustybuzz v0.14.1
+   Compiling icu_normalizer v2.1.1
+   Compiling parking_lot v0.12.5
+   Compiling ecolor v0.33.0
+   Compiling idna_adapter v1.2.1
+   Compiling wgpu-hal v26.0.6
+   Compiling midir v0.10.3
+   Compiling tokio v1.48.0
+   Compiling idna v1.1.0
+   Compiling url v2.5.7
+   Compiling epaint v0.33.0
+   Compiling webbrowser v1.0.6
+   Compiling cosmic-text v0.14.2
+   Compiling ntapi v0.4.1
+   Compiling image v0.25.8
+   Compiling derive_more v2.0.1
+   Compiling egui v0.33.0
+   Compiling bevy_reflect v0.17.2
+   Compiling bevy_tasks v0.17.2
+   Compiling sysinfo v0.37.2
+   Compiling wgpu-core-deps-windows-linux-android v26.0.0
+   Compiling wgpu-core v26.0.1
+   Compiling arboard v3.6.1
+   Compiling bevy_ecs v0.17.2
+   Compiling bevy_math v0.17.2
+   Compiling wgpu v26.0.1
+   Compiling bevy_color v0.17.2
+   Compiling bevy_app v0.17.2
+   Compiling bevy_asset v0.17.2
+   Compiling bevy_log v0.17.2
+   Compiling bevy_input v0.17.2
+   Compiling bevy_time v0.17.2
+   Compiling bevy_a11y v0.17.2
+   Compiling bevy_state v0.17.2
+   Compiling bevy_transform v0.17.2
+   Compiling bevy_diagnostic v0.17.2
+   Compiling bevy_gilrs v0.17.2
+   Compiling bevy_image v0.17.2
+   Compiling bevy_shader v0.17.2
+   Compiling bevy_audio v0.17.2
+   Compiling bevy_mesh v0.17.2
+   Compiling bevy_window v0.17.2
+   Compiling bevy_text v0.17.2
+   Compiling bevy_camera v0.17.2
+   Compiling bevy_animation v0.17.2
+   Compiling bevy_render v0.17.2
+   Compiling bevy_picking v0.17.2
+   Compiling bevy_light v0.17.2
+   Compiling bevy_scene v0.17.2
+   Compiling bevy_sprite v0.17.2
+   Compiling bevy_input_focus v0.17.2
+   Compiling bevy_winit v0.17.2
+   Compiling bevy_ui v0.17.2
+   Compiling bevy_core_pipeline v0.17.2
+   Compiling bevy_sprite_render v0.17.2
+   Compiling bevy_pbr v0.17.2
+   Compiling bevy_post_process v0.17.2
+   Compiling bevy_anti_alias v0.17.2
+   Compiling bevy_ui_render v0.17.2
+   Compiling bevy_egui v0.38.0
+   Compiling bevy_gizmos v0.17.2
+   Compiling bevy_gltf v0.17.2
+   Compiling bevy_internal v0.17.2
+   Compiling bevy v0.17.2
+   Compiling wgsl-shader-studio v0.1.0 (C:\Users\kapil\compiling\WGSL-Shader-Studio)
+warning: unexpected `cfg` condition value: `eframe`
+   --> src\lib.rs:344:7
+    |
+344 | #[cfg(feature = "eframe")]
+    |       ^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default`
+    = help: consider adding `eframe` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+    = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unexpected `cfg` condition value: `gui`
+   --> src\lib.rs:347:7
+    |
+347 | #[cfg(feature = "gui")]
+    |       ^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default`
+    = help: consider adding `gui` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unexpected `cfg` condition value: `eframe`
+   --> src\lib.rs:358:7
+    |
+358 | #[cfg(feature = "eframe")]
+    |       ^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default`
+    = help: consider adding `eframe` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused imports: `Arc` and `Mutex`
+ --> src\gesture_control.rs:5:17
+  |
+5 | use std::sync::{Arc, Mutex};
+  |                 ^^^  ^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `PathBuf`
+ --> src\shader_renderer.rs:5:23
+  |
+5 | use std::path::{Path, PathBuf};
+  |                       ^^^^^^^
+
+warning: unused import: `IsfShader`
+ --> src\ffgl_plugin.rs:3:41
+  |
+3 | use crate::{ResolumeIsfShadersRustFfgl, IsfShader, ShaderValue};
+  |                                         ^^^^^^^^^
+
+warning: unused imports: `CStr` and `CString`
+ --> src\ffgl_plugin.rs:5:16
+  |
+5 | use std::ffi::{CStr, CString};
+  |                ^^^^  ^^^^^^^
+
+warning: unused variable: `fft`
+  --> src\audio.rs:53:13
+   |
+53 |         let fft = fft_planner.plan_fft_forward(fft_size);
+   |             ^^^ help: if this is intentional, prefix it with an underscore: `_fft`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `i`
+   --> src\audio.rs:191:14
+    |
+191 |         for (i, (&current, &previous)) in spectrum.iter().zip(&self.previous_spectrum).enumerate() {
+    |              ^ help: if this is intentional, prefix it with an underscore: `_i`
+
+warning: unused variable: `stamp`
+   --> src\audio.rs:257:19
+    |
+257 |             move |stamp, message, _| {
+    |                   ^^^^^ help: if this is intentional, prefix it with an underscore: `_stamp`
+
+warning: unused variable: `wrist`
+   --> src\gesture_control.rs:316:13
+    |
+316 |         let wrist = hand.landmarks[0];
+    |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_wrist`
+
+warning: unused variable: `thumb_tip`
+   --> src\gesture_control.rs:317:13
+    |
+317 |         let thumb_tip = hand.landmarks[4];
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_thumb_tip`
+
+warning: unused variable: `index_tip`
+   --> src\gesture_control.rs:318:13
+    |
+318 |         let index_tip = hand.landmarks[8];
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_index_tip`
+
+warning: unused variable: `middle_tip`
+   --> src\gesture_control.rs:319:13
+    |
+319 |         let middle_tip = hand.landmarks[12];
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_middle_tip`
+
+warning: unused variable: `ring_tip`
+   --> src\gesture_control.rs:320:13
+    |
+320 |         let ring_tip = hand.landmarks[16];
+    |             ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_ring_tip`
+
+warning: unused variable: `pinky_tip`
+   --> src\gesture_control.rs:321:13
+    |
+321 |         let pinky_tip = hand.landmarks[20];
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_pinky_tip`
+
+warning: field `time` is never read
+  --> src\shader_renderer.rs:87:5
+   |
+80 | pub struct ShaderRenderer {
+   |            -------------- field in this struct
+...
+87 |     time: std::time::Instant,
+   |     ^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `parameter_cache` is never read
+  --> src\ffgl_plugin.rs:16:5
+   |
+12 | pub struct FfglPlugin {
+   |            ---------- field in this struct
+...
+16 |     parameter_cache: HashMap<String, f32>,
+   |     ^^^^^^^^^^^^^^^
+
+warning: creating a mutable reference to mutable static
+   --> src\ffgl_plugin.rs:227:9
+    |
+227 |         PLUGIN_INSTANCE.as_mut().unwrap() as *mut _ as *mut c_void
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^ mutable reference to mutable static
+    |
+    = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/static-mut-references.html>
+    = note: mutable references to mutable statics are dangerous; it's undefined behavior if any other pointer to the static is used or if any other reference is created for the static while the mutable reference lives
+    = note: `#[warn(static_mut_refs)]` on by default
+
+warning: `wgsl-shader-studio` (lib) generated 19 warnings (run `cargo fix --lib -p wgsl-shader-studio` to apply 4 suggestions)
+error[E0432]: unresolved import `eframe`
+ --> minimal_gui_test.rs:1:5
+  |
+1 | use eframe::egui;
+  |     ^^^^^^ use of unresolved module or unlinked crate `eframe`
+  |
+  = help: if you wanted to use a crate named `eframe`, use `cargo add eframe` to add it to your `Cargo.toml`
+
+error[E0432]: unresolved import `eframe`
+ --> minimal_test.rs:3:5
+  |
+3 | use eframe::egui;
+  |     ^^^^^^ use of unresolved module or unlinked crate `eframe`
+  |
+  = help: if you wanted to use a crate named `eframe`, use `cargo add eframe` to add it to your `Cargo.toml`
+
+error[E0432]: unresolved import `eframe`
+ --> test_window.rs:1:5
+  |
+1 | use eframe::egui;
+  |     ^^^^^^ use of unresolved module or unlinked crate `eframe`
+  |
+  = help: if you wanted to use a crate named `eframe`, use `cargo add eframe` to add it to your `Cargo.toml`
+
+error[E0432]: unresolved import `eframe`
+ --> simple_test.rs:1:5
+  |
+1 | use eframe;
+  |     ^^^^^^ no external crate `eframe`
+
+error[E0432]: unresolved import `bevy::render::view::RenderLayers`
+ --> src\bin\bevy_wgsl_demo.rs:4:5
+  |
+4 | use bevy::render::view::RenderLayers;
+  |     ^^^^^^^^^^^^^^^^^^^^------------
+  |     |                   |
+  |     |                   help: a similar name exists in the module: `RenderAssets`
+  |     no `RenderLayers` in `view`
+
+error[E0432]: unresolved import `crate::shader_core`
+ --> src\bevy_app.rs:6:12
+  |
+6 | use crate::shader_core::ShaderEngine;
+  |            ^^^^^^^^^^^
+  |            |
+  |            unresolved import
+  |            help: a similar path exists: `resolume_isf_shaders_rust_ffgl::shader_core`
+
+error[E0432]: unresolved import `crate::audio`
+ --> src\shader_renderer.rs:7:12
+  |
+7 | use crate::audio::AudioData;
+  |            ^^^^^
+  |            |
+  |            unresolved import
+  |            help: a similar path exists: `bevy::audio`
+
+error[E0432]: unresolved imports `bevy::sprite::Material2d`, `bevy::sprite::Material2dPlugin`, `bevy::sprite::MaterialMesh2dBundle`, `bevy::sprite::Mesh2dHandle`
+ --> src\bin\bevy_wgsl_demo.rs:5:20
+  |
+5 | use bevy::sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle, Mesh2dHandle};
+  |                    ^^^^^^^^^^  ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^ no `Mesh2dHandle` in the root
+  |                    |           |                 |
+  |                    |           |                 no `MaterialMesh2dBundle` in the root
+  |                    |           no `Material2dPlugin` in the root
+  |                    no `Material2d` in the root
+
+error: cannot find derive macro `AsBindGroup` in this scope
+ --> src\bin\bevy_wgsl_demo.rs:8:27
+  |
+8 | #[derive(Asset, TypePath, AsBindGroup, Clone, Debug)]
+  |                           ^^^^^^^^^^^
+
+error: cannot find attribute `uniform` in this scope
+  --> src\bin\bevy_wgsl_demo.rs:10:7
+   |
+10 |     #[uniform(0)]
+   |       ^^^^^^^
+
+For more information about this error, try `rustc --explain E0432`.
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `egui`
+   --> src\bevy_app.rs:111:5
+    |
+111 |     egui::SidePanel::left("controls").show(ctx, |ui| {
+    |     ^^^^ use of unresolved module or unlinked crate `egui`
+    |
+    = help: if you wanted to use a crate named `egui`, use `cargo add egui` to add it to your `Cargo.toml`
+
+error: could not compile `wgsl-shader-studio` (bin "simple-test") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error[E0433]: failed to resolve: could not find `ShaderRef` in `render_resource`
+  --> src\bin\bevy_wgsl_demo.rs:16:40
+   |
+16 |         bevy::render::render_resource::ShaderRef::Path("shaders/plasma.wgsl".into())
+   |                                        ^^^^^^^^^ could not find `ShaderRef` in `render_resource`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `egui`
+   --> src\bevy_app.rs:114:16
+    |
+114 |         ui.add(egui::Slider::new(&mut state.width, 64..=2048).text("Width"));
+    |                ^^^^ use of unresolved module or unlinked crate `egui`
+    |
+    = help: if you wanted to use a crate named `egui`, use `cargo add egui` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `egui`
+   --> src\bevy_app.rs:115:16
+    |
+115 |         ui.add(egui::Slider::new(&mut state.height, 64..=2048).text("Height"));
+    |                ^^^^ use of unresolved module or unlinked crate `egui`
+    |
+    = help: if you wanted to use a crate named `egui`, use `cargo add egui` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `eframe`
+ --> minimal_test.rs:6:19
+  |
+6 |     let options = eframe::NativeOptions {
+  |                   ^^^^^^ use of unresolved module or unlinked crate `eframe`
+  |
+  = help: if you wanted to use a crate named `eframe`, use `cargo add eframe` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `eframe`
+  --> minimal_test.rs:20:5
+   |
+20 |     eframe::run_native(
+   |     ^^^^^^ use of unresolved module or unlinked crate `eframe`
+   |
+   = help: if you wanted to use a crate named `eframe`, use `cargo add eframe` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `eframe`
+  --> minimal_test.rs:39:6
+   |
+39 | impl eframe::App for MyApp {
+   |      ^^^^^^ use of unresolved module or unlinked crate `eframe`
+   |
+   = help: if you wanted to use a crate named `eframe`, use `cargo add eframe` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `eframe`
+  --> minimal_test.rs:40:60
+   |
+40 |     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+   |                                                            ^^^^^^ use of unresolved module or unlinked crate `eframe`
+   |
+   = help: if you wanted to use a crate named `eframe`, use `cargo add eframe` to add it to your `Cargo.toml`
+
+Some errors have detailed explanations: E0432, E0433.
+For more information about an error, try `rustc --explain E0432`.
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `egui`
+   --> src\bevy_app.rs:118:16
+    |
+118 |         ui.add(egui::Slider::new(&mut state.time, 0.0..=100.0));
+    |                ^^^^ use of unresolved module or unlinked crate `egui`
+    |
+    = help: if you wanted to use a crate named `egui`, use `cargo add egui` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `eframe`
+ --> minimal_gui_test.rs:4:19
+  |
+4 |     let options = eframe::NativeOptions {
+  |                   ^^^^^^ use of unresolved module or unlinked crate `eframe`
+  |
+  = help: if you wanted to use a crate named `eframe`, use `cargo add eframe` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `eframe`
+  --> minimal_gui_test.rs:14:5
+   |
+14 |     eframe::run_native(
+   |     ^^^^^^ use of unresolved module or unlinked crate `eframe`
+   |
+   = help: if you wanted to use a crate named `eframe`, use `cargo add eframe` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `eframe`
+  --> minimal_gui_test.rs:31:6
+   |
+31 | impl eframe::App for TestApp {
+   |      ^^^^^^ use of unresolved module or unlinked crate `eframe`
+   |
+   = help: if you wanted to use a crate named `eframe`, use `cargo add eframe` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `eframe`
+  --> minimal_gui_test.rs:32:60
+   |
+32 |     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+   |                                                            ^^^^^^ use of unresolved module or unlinked crate `eframe`
+   |
+   = help: if you wanted to use a crate named `eframe`, use `cargo add eframe` to add it to your `Cargo.toml`
+
+error: could not compile `wgsl-shader-studio` (bin "minimal-test") due to 5 previous errors
+error: could not compile `wgsl-shader-studio` (bin "minimal-gui-test") due to 5 previous errors
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `eframe`
+ --> test_window.rs:4:19
+  |
+4 |     let options = eframe::NativeOptions {
+  |                   ^^^^^^ use of unresolved module or unlinked crate `eframe`
+  |
+  = help: if you wanted to use a crate named `eframe`, use `cargo add eframe` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `eframe`
+  --> test_window.rs:14:5
+   |
+14 |     eframe::run_native(
+   |     ^^^^^^ use of unresolved module or unlinked crate `eframe`
+   |
+   = help: if you wanted to use a crate named `eframe`, use `cargo add eframe` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `eframe`
+  --> test_window.rs:31:6
+   |
+31 | impl eframe::App for TestApp {
+   |      ^^^^^^ use of unresolved module or unlinked crate `eframe`
+   |
+   = help: if you wanted to use a crate named `eframe`, use `cargo add eframe` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `eframe`
+  --> test_window.rs:32:60
+   |
+32 |     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+   |                                                            ^^^^^^ use of unresolved module or unlinked crate `eframe`
+   |
+   = help: if you wanted to use a crate named `eframe`, use `cargo add eframe` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `egui`
+   --> src\bevy_app.rs:128:5
+    |
+128 |     egui::CentralPanel::default().show(ctx, |ui| {
+    |     ^^^^ use of unresolved module or unlinked crate `egui`
+    |
+    = help: if you wanted to use a crate named `egui`, use `cargo add egui` to add it to your `Cargo.toml`
+
+error[E0433]: failed to resolve: could not find `RenderTarget` in `camera`
+  --> src\bin\bevy_wgsl_demo.rs:83:50
+   |
+83 |     camera.camera.target = bevy::render::camera::RenderTarget::Image(preview.image.clone());
+   |                                                  ^^^^^^^^^^^^
+   |                                                  |
+   |                                                  could not find `RenderTarget` in `camera`
+   |                                                  help: a struct with a similar name exists: `RenderTargetInfo`
+
+error: could not compile `wgsl-shader-studio` (bin "test-window") due to 5 previous errors
+error[E0412]: cannot find type `ShaderRef` in module `bevy::render::render_resource`
+  --> src\bin\bevy_wgsl_demo.rs:15:60
+   |
+15 |     fn fragment_shader() -> bevy::render::render_resource::ShaderRef {
+   |                                                            ^^^^^^^^^ not found in `bevy::render::render_resource`
+
+error[E0423]: expected value, found struct `FrameTimeDiagnosticsPlugin`
+  --> src\bin\bevy_wgsl_demo.rs:29:22
+   |
+29 |         .add_plugins(FrameTimeDiagnosticsPlugin)
+   |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^ help: use struct literal syntax instead: `FrameTimeDiagnosticsPlugin { max_history_length: val, smoothing_factor: val }`
+   |
+  ::: C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_diagnostic-0.17.2\src\frame_time_diagnostics_plugin.rs:14:1
+   |
+14 | pub struct FrameTimeDiagnosticsPlugin {
+   | ------------------------------------- `FrameTimeDiagnosticsPlugin` defined here
+
+error[E0423]: expected value, found struct `EguiPlugin`
+   --> src\bin\bevy_wgsl_demo.rs:30:22
+    |
+ 30 |         .add_plugins(EguiPlugin)
+    |                      ^^^^^^^^^^ help: use struct literal syntax instead: `EguiPlugin { enable_multipass_for_primary_context: val, ui_render_order: val, bindless_mode_array_size: val }`
+    |
+   ::: C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_egui-0.38.0\src\lib.rs:194:1
+    |
+194 | pub struct EguiPlugin {
+    | --------------------- `EguiPlugin` defined here
+
+error[E0422]: cannot find struct, variant or union type `Extent3d` in this scope
+  --> src\bin\bevy_wgsl_demo.rs:41:9
+   |
+41 |         Extent3d {
+   |         ^^^^^^^^ not found in this scope
+   |
+help: consider importing this struct
+   |
+ 1 + use wgpu::Extent3d;
+   |
+
+error[E0422]: cannot find struct, variant or union type `Extent3d` in this scope
+  --> src\bin\bevy_wgsl_demo.rs:54:15
+   |
+54 |         size: Extent3d {
+   |               ^^^^^^^^ not found in this scope
+   |
+help: consider importing this struct
+   |
+ 1 + use wgpu::Extent3d;
+   |
+
+error[E0433]: failed to resolve: could not find `Rect` in `sprite`
+  --> src\bin\bevy_wgsl_demo.rs:88:41
+   |
+88 |     let mesh = Mesh::from(bevy::sprite::Rect::new(0.0, 0.0, quad_size.x, quad_size.y));
+   |                                         ^^^^ could not find `Rect` in `sprite`
+   |
+help: consider importing one of these structs
+   |
+ 1 + use crate::egui::Rect;
+   |
+ 1 + use bevy::prelude::Rect;
+   |
+ 1 + use image::math::Rect;
+   |
+help: if you import `Rect`, refer to it directly
+   |
+88 -     let mesh = Mesh::from(bevy::sprite::Rect::new(0.0, 0.0, quad_size.x, quad_size.y));
+88 +     let mesh = Mesh::from(Rect::new(0.0, 0.0, quad_size.x, quad_size.y));
+   |
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `egui`
+  --> src\bevy_app.rs:27:24
+   |
+27 |     texture_id: Option<egui::TextureId>, // egui user texture id
+   |                        ^^^^ use of unresolved module or unlinked crate `egui`
+   |
+   = help: if you wanted to use a crate named `egui`, use `cargo add egui` to add it to your `Cargo.toml`
+help: consider importing this crate
+   |
+ 1 + use bevy_egui::egui;
+   |
+
+error[E0423]: expected value, found struct `FrameTimeDiagnosticsPlugin`
+  --> src\bevy_app.rs:56:22
+   |
+56 |         .add_plugins(FrameTimeDiagnosticsPlugin)
+   |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^ help: use struct literal syntax instead: `FrameTimeDiagnosticsPlugin { max_history_length: val, smoothing_factor: val }`
+   |
+  ::: C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_diagnostic-0.17.2\src\frame_time_diagnostics_plugin.rs:14:1
+   |
+14 | pub struct FrameTimeDiagnosticsPlugin {
+   | ------------------------------------- `FrameTimeDiagnosticsPlugin` defined here
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `egui`
+   --> src\bevy_app.rs:179:24
+    |
+179 |             let size = egui::vec2(state.width as f32, state.height as f32);
+    |                        ^^^^ use of unresolved module or unlinked crate `egui`
+    |
+    = help: if you wanted to use a crate named `egui`, use `cargo add egui` to add it to your `Cargo.toml`
+help: consider importing this crate
+    |
+  1 + use bevy_egui::egui;
+    |
+
+error[E0433]: failed to resolve: use of undeclared type `Camera2dBundle`
+  --> src\bin\bevy_wgsl_demo.rs:82:22
+   |
+82 |     let mut camera = Camera2dBundle::default();
+   |                      ^^^^^^^^^^^^^^ use of undeclared type `Camera2dBundle`
+
+Some errors have detailed explanations: E0412, E0422, E0423, E0432, E0433.
+For more information about an error, try `rustc --explain E0412`.
+error: could not compile `wgsl-shader-studio` (bin "bevy-wgsl-demo") due to 13 previous errors
+error[E0308]: arguments to this function are incorrect
+   --> src\bevy_app.rs:48:33
+    |
+ 48 |                     resolution: WindowResolution::new(1280.0, 800.0),
+    |                                 ^^^^^^^^^^^^^^^^^^^^^ ------  ----- expected `u32`, found floating-point number
+    |                                                       |
+    |                                                       expected `u32`, found floating-point number
+    |
+note: associated function defined here
+   --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_window-0.17.2\src\window.rs:912:12
+    |
+912 |     pub fn new(physical_width: u32, physical_height: u32) -> Self {
+    |            ^^^
+
+warning: unused variable: `wrist`
+   --> src\gesture_control.rs:316:13
+    |
+316 |         let wrist = hand.landmarks[0];
+    |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_wrist`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+Some errors have detailed explanations: E0308, E0423, E0432, E0433.
+For more information about an error, try `rustc --explain E0308`.
+warning: `wgsl-shader-studio` (bin "isf-shaders") generated 8 warnings (7 duplicates)
+error: could not compile `wgsl-shader-studio` (bin "isf-shaders") due to 11 previous errors; 8 warnings emitted

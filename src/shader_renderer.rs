@@ -84,6 +84,7 @@ pub struct ShaderRenderer {
     // Working WGPU example shaders
     working_examples: Vec<WorkingShaderExample>,
     time: std::time::Instant,
+    last_errors: Vec<String>,
 }
 
 impl ShaderRenderer {
@@ -120,6 +121,7 @@ impl ShaderRenderer {
             size,
             working_examples,
             time: std::time::Instant::now(),
+            last_errors: Vec::new(),
         })
     }
 
@@ -894,6 +896,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             return Ok(vec![0u8; pixel_count * 4]);
         }
         println!("🎨 Starting GPU shader render...");
+        self.last_errors.clear();
 
         // --- 1. Setup Output Texture (FIXED: Use correct format) ---
         let texture_desc = wgpu::TextureDescriptor {
@@ -918,11 +921,18 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
         // --- 2. Create Shader Module ---
         println!("Compiling WGSL shader...");
+        self.device.push_error_scope(wgpu::ErrorFilter::Validation);
         let shader = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
             source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(wgsl_code)),
         });
-        println!("✓ Shader compiled successfully");
+        if let Some(err) = pollster::block_on(self.device.pop_error_scope()) {
+            let msg = format!("WGSL validation error: {}", err);
+            println!("✗ {}", msg);
+            self.last_errors.push(msg);
+        } else {
+            println!("✓ Shader compiled successfully");
+        }
 
         // --- 3. Create Uniform Buffer (FIXED: Proper alignment and validation) ---
         let uniforms = Uniforms {
@@ -970,13 +980,120 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             }],
         });
 
+        // Optional texture input support (group 1: texture + sampler)
+        let mut extra_bind_group_layout: Option<wgpu::BindGroupLayout> = None;
+        let mut extra_bind_group: Option<wgpu::BindGroup> = None;
+
+        if wgsl_code.contains("texture_3d") {
+            let tex_layout = self.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("Texture3D Bind Group Layout"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            view_dimension: wgpu::TextureViewDimension::D3,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+            });
+
+            // Create a 1x1x1 white 3D texture and sampler
+            let tmp_tex = self.device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("Tmp Texture 3D"),
+                size: wgpu::Extent3d { width: 1, height: 1, depth_or_array_layers: 1 },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D3,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                view_formats: &[],
+            });
+            let tmp_view = tmp_tex.create_view(&wgpu::TextureViewDescriptor::default());
+            let tmp_sampler = self.device.create_sampler(&wgpu::SamplerDescriptor::default());
+
+            let tex_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("Texture3D Bind Group"),
+                layout: &tex_layout,
+                entries: &[
+                    wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&tmp_view) },
+                    wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&tmp_sampler) },
+                ],
+            });
+
+            extra_bind_group_layout = Some(tex_layout);
+            extra_bind_group = Some(tex_bind_group);
+        } else if wgsl_code.contains("texture_2d") || wgsl_code.contains("textureSample") {
+            let tex_layout = self.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("Texture Bind Group Layout"),
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+            });
+
+            // Create a 1x1 white texture and sampler
+            let tmp_tex = self.device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("Tmp Texture"),
+                size: wgpu::Extent3d { width: 1, height: 1, depth_or_array_layers: 1 },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8Unorm,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                view_formats: &[],
+            });
+            let tmp_view = tmp_tex.create_view(&wgpu::TextureViewDescriptor::default());
+            let tmp_sampler = self.device.create_sampler(&wgpu::SamplerDescriptor::default());
+
+            let tex_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("Texture Bind Group"),
+                layout: &tex_layout,
+                entries: &[
+                    wgpu::BindGroupEntry { binding: 0, resource: wgpu::BindingResource::TextureView(&tmp_view) },
+                    wgpu::BindGroupEntry { binding: 1, resource: wgpu::BindingResource::Sampler(&tmp_sampler) },
+                ],
+            });
+
+            extra_bind_group_layout = Some(tex_layout);
+            extra_bind_group = Some(tex_bind_group);
+        }
+
+        // Build pipeline layout including optional texture layout
+        let mut layouts: Vec<&wgpu::BindGroupLayout> = vec![&bind_group_layout];
+        if let Some(ref l) = extra_bind_group_layout { layouts.push(l); }
+
         let pipeline_layout = self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Pipeline Layout"),
-            bind_group_layouts: &[&bind_group_layout],
+            bind_group_layouts: &layouts,
             push_constant_ranges: &[],
         });
 
         // --- 5. Create Render Pipeline (FIXED: Correct format matching) ---
+        self.device.push_error_scope(wgpu::ErrorFilter::Validation);
         let render_pipeline = self.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
             layout: Some(&pipeline_layout),
@@ -1011,8 +1128,13 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             multiview: None,
             cache: None,
         });
-
-        println!("✓ Render pipeline created");
+        if let Some(err) = pollster::block_on(self.device.pop_error_scope()) {
+            let msg = format!("Pipeline validation error: {}", err);
+            println!("✗ {}", msg);
+            self.last_errors.push(msg);
+        } else {
+            println!("✓ Render pipeline created");
+        }
 
         // --- 6. Execute Render Pass (FIXED: Enhanced error handling) ---
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -1038,6 +1160,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
             render_pass.set_pipeline(&render_pipeline);
             render_pass.set_bind_group(0, &bind_group, &[]);
+            if let Some(ref gb) = extra_bind_group { render_pass.set_bind_group(1, gb, &[]); }
             render_pass.draw(0..3, 0..1);
         }
 
@@ -1084,7 +1207,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         let (tx, rx) = std::sync::mpsc::channel();
 
         buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
-            tx.send(result).unwrap();
+            let _ = tx.send(result);
         });
 
         // Simple polling for buffer mapping
@@ -1145,6 +1268,10 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                 Ok(dummy_pixels)
             }
         }
+    }
+
+    pub fn get_last_errors(&self) -> &[String] {
+        &self.last_errors
     }
 
     /// Returns the current size of the renderer output.

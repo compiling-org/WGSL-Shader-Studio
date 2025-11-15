@@ -1,0 +1,16 @@
+--- a/src/bevy_app.rs
++++ b/src/bevy_app.rs
+@@ -1,3 +1,4 @@
++use crate::simple_ui_auditor::{SimpleUiAuditorPlugin, SimpleUiAuditor};
+ use bevy::diagnostic::{DiagnosticsStore, FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+ use bevy::prelude::*;
+ use bevy::prelude::Camera2d;
+@@ -80,6 +81,8 @@
+         .add_plugins(EguiPlugin::default())
+         .add_plugins(FrameTimeDiagnosticsPlugin::default())
+         .add_plugins(LogDiagnosticsPlugin::default())
++        .add_plugins(SimpleUiAuditorPlugin)
++        .init_resource::<SimpleUiAuditor>()
+         .insert_resource(EditorUiState {
+             show_shader_browser: true,
+             show_parameter_panel: true,

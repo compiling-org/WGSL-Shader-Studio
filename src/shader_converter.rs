@@ -53,30 +53,28 @@ pub enum OutputType {
 pub fn isf_to_wgsl(shader: &IsfShader) -> Result<String, Box<dyn std::error::Error>> {
     let mut wgsl = String::new();
 
-    // Add WGSL header
-    wgsl.push_str("@group(0) @binding(0)\n");
-    wgsl.push_str("var<uniform> time: f32;\n");
-    wgsl.push_str("@group(0) @binding(1)\n");
-    wgsl.push_str("var<uniform> resolution: vec2<f32>;\n");
+    // Add WGSL header with uniform block
+    wgsl.push_str("struct Uniforms {\n");
+    wgsl.push_str("    time: f32,\n");
+    wgsl.push_str("    resolution: vec2<f32>,\n");
+    wgsl.push_str("    mouse: vec2<f32>,\n");
+    wgsl.push_str("};\n\n");
+    wgsl.push_str("@group(0) @binding(0) var<uniform> uniforms: Uniforms;\n\n");
 
     // Add input uniforms
     for input in &shader.inputs {
         match input.input_type {
             InputType::Float => {
-                wgsl.push_str(&format!("@group(0) @binding({})\n", 2 + shader.inputs.iter().position(|i| i.name == input.name).unwrap()));
-                wgsl.push_str(&format!("var<uniform> {}: f32;\n", input.name));
+                wgsl.push_str(&format!("// param {}: f32\n", input.name));
             }
             InputType::Bool => {
-                wgsl.push_str(&format!("@group(0) @binding({})\n", 2 + shader.inputs.iter().position(|i| i.name == input.name).unwrap()));
-                wgsl.push_str(&format!("var<uniform> {}: u32;\n", input.name));
+                wgsl.push_str(&format!("// param {}: u32\n", input.name));
             }
             InputType::Color => {
-                wgsl.push_str(&format!("@group(0) @binding({})\n", 2 + shader.inputs.iter().position(|i| i.name == input.name).unwrap()));
-                wgsl.push_str(&format!("var<uniform> {}: vec4<f32>;\n", input.name));
+                wgsl.push_str(&format!("// param {}: vec4<f32>\n", input.name));
             }
             InputType::Point2D => {
-                wgsl.push_str(&format!("@group(0) @binding({})\n", 2 + shader.inputs.iter().position(|i| i.name == input.name).unwrap()));
-                wgsl.push_str(&format!("var<uniform> {}: vec2<f32>;\n", input.name));
+                wgsl.push_str(&format!("// param {}: vec2<f32>\n", input.name));
             }
             InputType::Image => {
                 wgsl.push_str(&format!("@group(1) @binding({})\n", shader.inputs.iter().position(|i| i.name == input.name).unwrap()));
@@ -150,19 +148,80 @@ fn extract_glsl_from_isf(source: &str) -> Result<String, Box<dyn std::error::Err
 }
 
 /// Convert GLSL code to WGSL
-fn glsl_to_wgsl(glsl: &str) -> Result<String, Box<dyn std::error::Error>> {
-    // This is a basic conversion - a full implementation would need proper AST parsing
-    let mut wgsl = glsl.to_string();
+pub fn glsl_to_wgsl(glsl: &str) -> Result<String, Box<dyn std::error::Error>> {
+    // Minimal, safe GLSL → WGSL scaffold to match renderer expectations
+    let mut body = glsl.to_string();
 
-    // Replace GLSL-specific constructs
-    wgsl = wgsl.replace("gl_FragColor", "let color");
-    wgsl = wgsl.replace("texture2D", "textureSample");
+    // Normalize whitespace
+    body = body.replace("\r\n", "\n");
 
-    // Add texture write at the end if it's a fragment shader
-    if wgsl.contains("let color") {
-        wgsl.push_str("    textureStore(output_texture, coords, color);\n");
+    // Detect texture usage and prepare WGSL declarations
+    let uses_texture = body.contains("texture2D") || body.contains("texture") || body.contains("sampler2D");
+
+    // Basic syntax conversions
+    body = body
+        .replace("void main()", "@fragment\nfn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32>")
+        .replace("gl_FragCoord.xy", "position.xy")
+        .replace("gl_FragCoord", "position")
+        .replace("vec2(", "vec2<f32>(")
+        .replace("vec3(", "vec3<f32>(")
+        .replace("vec4(", "vec4<f32>(")
+        .replace("float(", "f32(")
+        .replace("int(", "i32(")
+        .replace("bool(", "bool(")
+        .replace("mix(", "mix<f32>(")
+        .replace("clamp(", "clamp<f32>(")
+        .replace("sin(", "sin<f32>(")
+        .replace("cos(", "cos<f32>(")
+        .replace("tan(", "tan<f32>(")
+        .replace("pow(", "pow<f32>(")
+        .replace("exp(", "exp<f32>(")
+        .replace("log(", "log<f32>(")
+        .replace("sqrt(", "sqrt<f32>(")
+        .replace("abs(", "abs<f32>(")
+        .replace("floor(", "floor<f32>(")
+        .replace("ceil(", "ceil<f32>(")
+        .replace("fract(", "fract<f32>(");
+
+    // Texture sampling replacement
+    body = body.replace("texture2D", "textureSample");
+
+    // Replace gl_FragColor assignment with WGSL return
+    if body.contains("gl_FragColor") {
+        body = body
+            .replace("gl_FragColor = ", "return ")
+            .replace(";", ";");
     }
 
+    // Ensure function braces
+    let mut lines = body.lines().collect::<Vec<_>>();
+    if !lines.iter().any(|l| l.trim() == "}" ) {
+        lines.push("}");
+    }
+    let body = lines.join("\n");
+
+    // Compose full WGSL
+    let mut wgsl = String::new();
+    wgsl.push_str("struct Uniforms {\n");
+    wgsl.push_str("    time: f32,\n");
+    wgsl.push_str("    resolution: vec2<f32>,\n");
+    wgsl.push_str("    mouse: vec2<f32>,\n");
+    wgsl.push_str("};\n\n");
+    wgsl.push_str("@group(0) @binding(0) var<uniform> uniforms: Uniforms;\n\n");
+
+    if uses_texture {
+        wgsl.push_str("@group(1) @binding(0) var input_texture: texture_2d<f32>;\n");
+        wgsl.push_str("@group(1) @binding(1) var input_sampler: sampler;\n\n");
+    }
+
+    // Prepend UV convenience if GLSL references gl_FragCoord
+    let mut body_with_uv = body.clone();
+    if glsl.contains("gl_FragCoord") || glsl.contains("gl_FragCoord.xy") {
+        let uv_prelude = "    let uv = position.xy / uniforms.resolution;\n";
+        body_with_uv = body_with_uv.replace("{", &format!("{{\n{}", uv_prelude));
+    }
+
+    wgsl.push_str(&body_with_uv);
     Ok(wgsl)
 }
 

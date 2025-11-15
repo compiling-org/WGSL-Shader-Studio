@@ -216,7 +216,7 @@ impl WgslReflectAnalyzer {
                         
                         let mut entry_point = EntryPointInfo {
                             name: fn_name,
-                            stage,
+                            stage: stage.clone(),
                             workgroup_size: None,
                             inputs: Vec::new(),
                             outputs: Vec::new(),
@@ -300,7 +300,7 @@ impl WgslReflectAnalyzer {
             } else if in_struct {
                 if line == "}" {
                     in_struct = false;
-                    self.parse_uniform_struct(&current_struct)?;
+                    Self::parse_uniform_struct(&current_struct)?;
                     current_struct.clear();
                 } else {
                     current_struct.push('\n');

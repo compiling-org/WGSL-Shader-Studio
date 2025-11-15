@@ -22,14 +22,14 @@ use pollster;
 #[cfg(feature = "gui")]
 use crate::isf_loader::*;
 #[cfg(feature = "gui")]
+use crate::isf_auto_converter::IsfAutoConverter;
+#[cfg(feature = "gui")]
 use crate::audio::{AudioMidiSystem, AudioData};
 use crate::audio::AudioData as ShaderAudioData;
 #[cfg(feature = "gui")]
 use crate::gesture_control::{GestureControlSystem, GestureType};
 #[cfg(feature = "gui")]
-use crate::shader_renderer::{ShaderRenderer, RenderParameters, WorkingShaderExample};
-use crate::wgsl_bindgen_integration::WgslBindgenAnalyzer;
-use crate::wgsl_diagnostics::{WgslDiagnostics, DiagnosticSeverity};
+use crate::shader_renderer::{ShaderRenderer, RenderParameters};
 #[cfg(feature = "gui")]
 
 
@@ -97,10 +97,13 @@ pub struct ShaderGui {
     render_fps: f32,
 
     // WGSL Bindgen integration
-    bindgen_analyzer: Option<WgslBindgenAnalyzer>,
+    // bindgen_analyzer: Option<WgslBindgenAnalyzer>,
     
     // WGSL Diagnostics
-    diagnostics_analyzer: Option<WgslDiagnostics>,
+    // diagnostics_analyzer: Option<WgslDiagnostics>,
+    
+    // ISF Auto-converter
+    isf_auto_converter: Option<IsfAutoConverter>,
 
     // Performance
     fps_counter: f32,
@@ -333,8 +336,9 @@ impl Default for ShaderGui {
             time_slider: 0.0,
             initialized: false,
             initialization_started: false,
-            bindgen_analyzer: Some(WgslBindgenAnalyzer::new()),
-            diagnostics_analyzer: Some(WgslDiagnostics::new()),
+            // bindgen_analyzer: Some(WgslBindgenAnalyzer::new()),
+            // diagnostics_analyzer: Some(WgslDiagnostics::new()),
+            isf_auto_converter: Some(IsfAutoConverter::new()),
         }
     }
 }
@@ -402,19 +406,20 @@ impl ShaderGui {
     }
 
     fn analyze_shader_uniforms(&mut self, shader_name: &str) {
-        if let Some(ref mut analyzer) = self.bindgen_analyzer {
-            match analyzer.analyze_shader(&self.current_wgsl_code, shader_name) {
-                Ok(layouts) => {
-                    println!("Analyzed {} uniform layouts for shader {}", layouts.len(), shader_name);
-                    for layout in &layouts {
-                        println!("  - Uniform '{}' at binding {}:{}", layout.name, layout.group, layout.binding);
-                    }
-                }
-                Err(e) => {
-                    eprintln!("Failed to analyze shader uniforms: {}", e);
-                }
-            }
-        }
+        // TODO: Re-enable when WgslBindgenAnalyzer is properly integrated
+        // if let Some(ref mut analyzer) = self.bindgen_analyzer {
+        //     match analyzer.analyze_shader(&self.current_wgsl_code, shader_name) {
+        //         Ok(layouts) => {
+        //             println!("Analyzed {} uniform layouts for shader {}", layouts.len(), shader_name);
+        //             for layout in &layouts {
+        //                 println!("  - Uniform '{}' at binding {}:{}", layout.name, layout.group, layout.binding);
+        //             }
+        //         }
+        //         Err(e) => {
+        //             eprintln!("Failed to analyze shader uniforms: {}", e);
+        //         }
+        //     }
+        // }
     }
 
     fn apply_theme(&mut self, theme_name: &str, ctx: &egui::Context) {
@@ -1215,11 +1220,68 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             let shader_name = shader.name.clone();
             let src = shader.source.clone();
             let is_wgsl = src.contains("@fragment") || src.contains("var<uniform>") || src.contains("@vertex");
+            
             if is_wgsl {
                 self.current_wgsl_code = src;
             } else {
-                let converted = self.convert_isf_to_wgsl(&src);
-                self.current_wgsl_code = converted;
+                // Use advanced ISF auto-converter for seamless conversion
+                if let Some(ref mut converter) = self.isf_auto_converter {
+                    // Create a temporary ISF file content for conversion
+                    let isf_content = format!(r#"
+                    /*{{
+                        "NAME": "{}",
+                        "DESCRIPTION": "Auto-converted ISF shader",
+                        "INPUTS": []
+                    }}*/
+                    {}
+                    "#, shader_name, src);
+                    
+                    // Write to temporary file for conversion
+                    let temp_path = std::env::temp_dir().join(format!("temp_isf_{}.fs", shader_name.replace(" ", "_")));
+                    if let Ok(_) = std::fs::write(&temp_path, isf_content) {
+                        match converter.load_and_convert(&temp_path) {
+                            Ok(advanced_isf) => {
+                                if let Some(conversion_result) = &advanced_isf.converted_wgsl {
+                                    self.current_wgsl_code = format!(
+                                        "// ISF Auto-converted: {}\n// {}\n\n{}\n\n{}",
+                                        shader_name,
+                                        conversion_result.conversion_notes.join("\n// "),
+                                        conversion_result.vertex_shader,
+                                        conversion_result.fragment_shader
+                                    );
+                                    
+                                    // Show performance hints if any
+                                    if !conversion_result.performance_hints.is_empty() {
+                                        println!("🚀 Performance hints for {}:", shader_name);
+                                        for hint in &conversion_result.performance_hints {
+                                            println!("  💡 {}", hint);
+                                        }
+                                    }
+                                } else {
+                                    // Fallback to basic conversion
+                                    let converted = self.convert_isf_to_wgsl(&src);
+                                    self.current_wgsl_code = converted;
+                                }
+                                
+                                // Clean up temp file
+                                let _ = std::fs::remove_file(&temp_path);
+                            }
+                            Err(e) => {
+                                println!("⚠️  Advanced ISF conversion failed: {}, falling back to basic conversion", e);
+                                let converted = self.convert_isf_to_wgsl(&src);
+                                self.current_wgsl_code = converted;
+                            }
+                        }
+                    } else {
+                        // Fallback to basic conversion
+                        let converted = self.convert_isf_to_wgsl(&src);
+                        self.current_wgsl_code = converted;
+                    }
+                } else {
+                    // Fallback to basic conversion
+                    let converted = self.convert_isf_to_wgsl(&src);
+                    self.current_wgsl_code = converted;
+                }
             }
             self.compile_wgsl_shader();
             self.start_preview_rendering();
@@ -3885,29 +3947,25 @@ fn fs_main() -> @location(0) vec4<f32> {
 
             // Add uniform layout analysis section
             ui.collapsing("Uniform Layout", |ui| {
-                if let Some(ref mut analyzer) = self.bindgen_analyzer {
-                    if let Ok(layouts) = analyzer.analyze_shader(&self.current_wgsl_code, &shader.name) {
-                        ui.label(format!("Found {} uniform buffers", layouts.len()));
-                        for layout in &layouts {
-                            ui.horizontal(|ui| {
-                                ui.label(format!("@group({}) @binding({})", layout.group, layout.binding));
-                                ui.label(&layout.name);
-                            });
-                            ui.label(format!("Size: {} bytes", layout.size));
-                            for field in &layout.fields {
-                                ui.horizontal(|ui| {
-                                    ui.label(&format!("  {}: {}", field.name, field.ty));
-                                    ui.label(format!("@{} bytes", field.offset));
-                                });
-                            }
-                            ui.separator();
-                        }
-                    } else {
-                        ui.label("No uniform layouts found");
-                    }
-                } else {
-                    ui.label("Uniform analysis not available");
-                }
+                // TODO: Re-enable when WgslBindgenAnalyzer is properly integrated
+                // if let Some(ref mut analyzer) = self.bindgen_analyzer {
+                //     if let Ok(layouts) = analyzer.analyze_shader(&self.current_wgsl_code, &shader.name) {
+                //         ui.label(format!("Found {} uniform buffers", layouts.len()));
+                //         for layout in &layouts {
+                //             ui.horizontal(|ui| {
+                //                 ui.label(format!("@group({}) @binding({})", layout.group, layout.binding));
+                //                 ui.label(&layout.name);
+                //             });
+                //             ui.label(format!("Size: {} bytes", layout.size));
+                //             for field in &layout.fields {
+                //                 ui.horizontal(|ui| {
+                //                     ui.label(&format!("  {}: {}", field.name, field.ty));
+                //                     ui.label(format!("@{} bytes", field.offset));
+                //                 });
+                //             }
+                //     }
+                // }
+                ui.label("Uniform layout analysis temporarily disabled");
             });
             
             ui.add_space(10.0);
