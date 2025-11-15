@@ -11,15 +11,20 @@ graph TD
     C --> F[Timeline & Animation]
     C --> G[Input Sources]
     C --> H[Export Pipeline]
+    C --> T[Advanced Analysis]
     D --> I[ISF Parser]
     D --> J[GLSL→WGSL Transpiler]
     D --> K[HLSL→WGSL Transpiler]
+    D --> U[ISF Auto-Converter]
     E --> L[WGSL Codegen]
     G --> M[Audio FFT]
     G --> N[MIDI Controller]
     G --> O[MediaPipe Gesture]
     H --> P[FFGL Generator]
     H --> Q[ISF Exporter]
+    T --> V[WGSL Reflect Analysis]
+    T --> W[WGSL Smith Testing]
+    T --> X[ISF Conversion Testing]
     B --> R[WGPU Renderer]
     R --> S[Live Preview]
 ```
@@ -37,6 +42,9 @@ graph TD
 | Parser/AST | tree-sitter + custom grammars | GLSL, HLSL, ISF parsing to unified AST |
 | Transpiler | custom WGSL emitter | AST → WGSL with comment & uniform preservation |
 | Export | binaryen (optional) | WGSL→SPIR-V for FFGL, ISF JSON meta |
+| Analysis | wgsl_reflect integration | Shader reflection and introspection |
+| Testing | wgslsmith framework | Professional shader validation and testing |
+| Conversion | ISF auto-converter | Seamless ISF→WGSL conversion with testing |
 
 ## 3. Core Modules
 
@@ -70,6 +78,23 @@ graph TD
 - **WGSL Bundle**: main.wgsl, uniforms.json, thumbnail.png, metadata.json
 - **FFGL Generator**: C++ wrapper, CMakeLists, parameter auto-mapping, Windows DLL & macOS dylib
 - **ISF Exporter**: reverse-convert WGSL→ISF, embed textures as base64, validate with ISF Tool
+
+### 3.6 Advanced Analysis Modules
+- **WGSL Reflect Integration**: Comprehensive shader reflection and introspection
+  - Shader metadata extraction (name, version, description, author, categories, tags)
+  - Entry point analysis with stage information and workgroup sizes
+  - Bind group extraction with binding types and visibility calculations
+  - Uniform buffer analysis with size calculations and serialization
+  - Texture, sampler, and storage buffer information extraction
+- **WGSL Smith Testing Framework**: Professional shader validation and testing
+  - Comprehensive test case management with fuzzing configuration
+  - Multi-type validation (compile/runtime success/failure testing)
+  - Performance benchmarking with metrics collection and reporting
+  - Professional test organization with pass/fail statistics
+- **ISF Conversion Testing**: Professional testing framework for ISF→WGSL conversion
+  - 10 comprehensive test cases covering all shader types
+  - Performance metrics, validation checks, and error reporting
+  - Test coverage: basic shaders, textures, audio-reactive, multi-pass, math, particles, ray marching, fractals, noise, color grading
 
 ## 4. Data Models
 
