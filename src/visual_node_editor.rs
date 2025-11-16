@@ -2,6 +2,8 @@ use bevy_egui::egui::*;
 use bevy_egui::egui::epaint::{CubicBezierShape, StrokeKind};
 use crate::node_graph::*;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 pub struct VisualNodeEditor {
     pan: Vec2,
@@ -20,6 +22,12 @@ pub struct VisualNodeEditor {
     undo_stack: Vec<NodeGraphState>,
     redo_stack: Vec<NodeGraphState>,
     max_undo_steps: usize,
+    // Execution state
+    pub auto_compile: bool,
+    pub last_generated_wgsl: Option<String>,
+    pub compilation_errors: Vec<String>,
+    pub is_compiling: Arc<AtomicBool>,
+    pub last_graph_hash: Option<String>,
 }
 
 #[derive(Clone)]
@@ -47,6 +55,12 @@ impl Default for VisualNodeEditor {
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
             max_undo_steps: 50,
+            // Execution state
+            auto_compile: true,
+            last_generated_wgsl: None,
+            compilation_errors: Vec::new(),
+            is_compiling: Arc::new(AtomicBool::new(false)),
+            last_graph_hash: None,
         }
     }
 }
@@ -56,7 +70,135 @@ impl VisualNodeEditor {
         Self::default()
     }
 
+    /// Generate WGSL code from the current node graph and update execution state
+    pub fn generate_and_compile(&mut self, node_graph: &NodeGraph, width: u32, height: u32) -> Result<String, Vec<String>> {
+        if self.is_compiling.load(Ordering::Relaxed) {
+            return Err(vec!["Compilation already in progress".to_string()]);
+        }
+        
+        self.is_compiling.store(true, Ordering::Relaxed);
+        self.compilation_errors.clear();
+        
+        // Generate WGSL code
+        let wgsl_code = node_graph.generate_wgsl(width, height);
+        self.last_generated_wgsl = Some(wgsl_code.clone());
+        
+        // Basic validation
+        let mut errors = Vec::new();
+        
+        // Check if there's an output node
+        let has_output = node_graph.nodes.values().any(|n| matches!(n.kind, NodeKind::OutputColor));
+        if !has_output {
+            errors.push("No OutputColor node found in graph".to_string());
+        }
+        
+        // Check for unconnected required inputs
+        for (node_id, node) in &node_graph.nodes {
+            for input in &node.inputs {
+                let has_connection = node_graph.connections.iter().any(|c| c.to_node == *node_id && c.to_port == input.id);
+                if !has_connection && !self.is_input_optional(&node.kind, input) {
+                    errors.push(format!("Node '{}' has unconnected input '{}'", node.title, input.name));
+                }
+            }
+        }
+        
+        self.is_compiling.store(false, Ordering::Relaxed);
+        
+        if errors.is_empty() {
+            Ok(wgsl_code)
+        } else {
+            self.compilation_errors = errors.clone();
+            Err(errors)
+        }
+    }
+    
+    /// Check if an input port is optional for a given node kind
+    fn is_input_optional(&self, node_kind: &NodeKind, input: &Port) -> bool {
+        match node_kind {
+            NodeKind::ConstantFloat(_) | NodeKind::ConstantVec2(_) | NodeKind::ConstantVec3(_) | NodeKind::ConstantVec4(_) |
+            NodeKind::Time | NodeKind::UV | NodeKind::Resolution | NodeKind::Mouse => true,
+            _ => false,
+        }
+    }
+    
+    /// Auto-compile if enabled and graph has changed
+    pub fn auto_compile_if_needed(&mut self, node_graph: &NodeGraph, width: u32, height: u32) -> Option<Result<String, Vec<String>>> {
+        if self.auto_compile && !self.is_compiling.load(Ordering::Relaxed) {
+            // Simple change detection - in a real implementation, you'd track graph version
+            let current_hash = self.calculate_graph_hash(node_graph);
+            let last_hash = self.last_graph_hash.as_ref();
+            
+            if last_hash.map_or(true, |h| h != &current_hash) {
+                self.last_graph_hash = Some(current_hash);
+                return Some(self.generate_and_compile(node_graph, width, height));
+            }
+        }
+        None
+    }
+    
+    /// Calculate a simple hash of the graph for change detection
+    fn calculate_graph_hash(&self, node_graph: &NodeGraph) -> String {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        
+        let mut hasher = DefaultHasher::new();
+        node_graph.nodes.len().hash(&mut hasher);
+        node_graph.connections.len().hash(&mut hasher);
+        format!("{:x}", hasher.finish())
+    }
+
     pub fn ui(&mut self, ui: &mut Ui, node_graph: &mut NodeGraph) {
+        // Execution control panel at the top
+        ui.horizontal(|ui| {
+            ui.label("Node Editor");
+            ui.separator();
+            
+            // Auto-compile toggle
+            ui.checkbox(&mut self.auto_compile, "Auto Compile");
+            
+            // Manual compile button
+            if ui.button("Compile Now").clicked() {
+                match self.generate_and_compile(node_graph, 512, 512) {
+                    Ok(wgsl) => {
+                        ui.label(format!("✅ Compiled successfully ({} chars)", wgsl.len()));
+                    }
+                    Err(errors) => {
+                        ui.label(format!("❌ {} errors", errors.len()));
+                        for error in &errors {
+                            ui.label(format!("  • {}", error));
+                        }
+                    }
+                }
+            }
+            
+            // Show compilation status
+            if self.is_compiling.load(Ordering::Relaxed) {
+                ui.label("⏳ Compiling...");
+            } else if !self.compilation_errors.is_empty() {
+                ui.label(format!("❌ {} errors", self.compilation_errors.len()));
+            } else if self.last_generated_wgsl.is_some() {
+                ui.label("✅ Ready");
+            }
+            
+            // Quick node creation buttons
+            ui.separator();
+            ui.label("Add Node:");
+            if ui.button("Time").clicked() {
+                let id = node_graph.add_node(NodeKind::Time, "Time", (100.0, 100.0));
+                self.node_positions.insert(id, (100.0, 100.0));
+            }
+            if ui.button("UV").clicked() {
+                let id = node_graph.add_node(NodeKind::UV, "UV", (200.0, 100.0));
+                self.node_positions.insert(id, (200.0, 100.0));
+            }
+            if ui.button("Output").clicked() {
+                let id = node_graph.add_node(NodeKind::OutputColor, "Output Color", (400.0, 300.0));
+                self.node_positions.insert(id, (400.0, 300.0));
+            }
+        });
+        
+        ui.separator();
+        
         let available_rect = ui.available_rect_before_wrap();
         let response = ui.allocate_rect(available_rect, Sense::click_and_drag());
         
@@ -118,7 +260,7 @@ impl VisualNodeEditor {
     }
 
     fn draw_grid(&self, ui: &mut Ui, rect: Rect) {
-        let painter = ui.painter();
+        // Create painter after port allocation to avoid borrow checker issues
         let grid_size = 20.0 * self.zoom;
         
         if grid_size < 2.0 {
@@ -360,8 +502,8 @@ impl VisualNodeEditor {
                     input_clicks.push(input.id);
                 }
                 
-                // Draw the port visually
-                self.draw_port_visual(painter, port_pos, input, false, node_id, node_graph);
+                // Draw the port visually - pass ui instead of painter to avoid borrow issues
+                self.draw_port_visual(ui, port_pos, input, false, node_id, node_graph);
             }
             
             // Draw output ports and collect clicks
@@ -374,8 +516,8 @@ impl VisualNodeEditor {
                     output_clicks.push(output.id);
                 }
                 
-                // Draw the port visually
-                self.draw_port_visual(painter, port_pos, output, true, node_id, node_graph);
+                // Draw the port visually - pass ui instead of painter to avoid borrow issues
+                self.draw_port_visual(ui, port_pos, output, true, node_id, node_graph);
             }
             
             // Handle port connections after drawing
@@ -407,9 +549,10 @@ impl VisualNodeEditor {
         }
     }
 
-    fn draw_port_visual(&mut self, painter: &Painter, pos: Pos2, port: &Port, is_output: bool, node_id: NodeId, node_graph: &NodeGraph) {
+    fn draw_port_visual(&mut self, ui: &mut Ui, pos: Pos2, port: &Port, is_output: bool, node_id: NodeId, node_graph: &NodeGraph) {
         let port_color = self.get_port_color(&port.kind);
         let port_size = 8.0;
+        let painter = ui.painter();
         
         // Enhanced port visual feedback
         let is_connected = self.is_port_connected(node_graph, node_id, port.id);
@@ -466,7 +609,6 @@ impl VisualNodeEditor {
             FontId::proportional(11.0),
             label_color
         );
-    }
         let response = ui.allocate_rect(port_rect, Sense::click());
         
         // Update hover state

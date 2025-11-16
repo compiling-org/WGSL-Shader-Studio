@@ -934,9 +934,19 @@ pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState
                 }
             });
             if ui.button("Generate WGSL from Graph").clicked() {
-                let wgsl = ui_state.node_graph.generate_wgsl(512, 512);
-                ui_state.draft_code = wgsl;
-                ui_state.apply_requested = true;
+                match ui_state.visual_node_editor.generate_and_compile(&ui_state.node_graph, 512, 512) {
+                    Ok(wgsl) => {
+                        ui_state.draft_code = wgsl;
+                        ui_state.apply_requested = true;
+                        ui.label("✅ Node graph compiled successfully!");
+                    }
+                    Err(errors) => {
+                        ui.label(format!("❌ Compilation failed with {} errors:", errors.len()));
+                        for error in &errors {
+                            ui.label(format!("  • {}", error));
+                        }
+                    }
+                }
             }
             ui.separator();
             if ui.button("Export Project JSON").clicked() {
@@ -960,6 +970,23 @@ pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState
             
             // Visual node editor area
             ui_state.visual_node_editor.ui(ui, &mut ui_state.node_graph);
+            
+            // Auto-compile if enabled
+            if let Some(result) = ui_state.visual_node_editor.auto_compile_if_needed(&ui_state.node_graph, 512, 512) {
+                match result {
+                    Ok(wgsl) => {
+                        ui_state.draft_code = wgsl;
+                        ui_state.apply_requested = true;
+                    }
+                    Err(errors) => {
+                        // Show compilation errors in UI
+                        ui.label(format!("❌ Auto-compile failed with {} errors:", errors.len()));
+                        for error in &errors {
+                            ui.label(format!("  • {}", error));
+                        }
+                    }
+                }
+            }
         });
         ui_state.show_node_studio = show;
     }

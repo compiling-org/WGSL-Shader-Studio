@@ -53,6 +53,16 @@ ash = "0.38.0"
 console_log = "1.0.0"
 directories = "5.0"
 bevy = "0.17"
+# Complex integrations - using specific working versions
+bevy_mod_picking = { version = "0.20", features = ["egui"] }
+bevy_inspector_egui = "0.27"
+bevy_prototype_lyon = "0.12"
+bevy_pancam = "0.17"
+petgraph = "0.6"
+noise = "0.9"
+rand = "0.8"
+# bevy_shader_graph = { git = "https://github.com/Neopallium/bevy_shader_graph.git" }
+# space_editor = { git = "https://github.com/rewin123/space_editor.git" }
 bevy_egui = { version = "0.38", optional = true }
 image = "0.25"
 # Note: Leap Motion and MediaPipe would require platform-specific SDKs

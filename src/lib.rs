@@ -359,6 +359,7 @@ pub mod node_graph;
 pub mod timeline;
 pub mod ui_analyzer;
 pub mod visual_node_editor;
+pub mod bevy_shader_graph_integration;
 
 // Re-export main types for easier use
 pub use audio::*;
