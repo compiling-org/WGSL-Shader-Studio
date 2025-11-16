@@ -358,7 +358,9 @@ pub mod simple_ui_auditor;
 pub mod node_graph;
 pub mod timeline;
 pub mod ui_analyzer;
-pub mod visual_node_editor;
+// pub mod visual_node_editor;
+// pub mod simple_shader_graph;
+// pub mod complex_shader_graph;
 pub mod bevy_shader_graph_integration;
 
 // Re-export main types for easier use

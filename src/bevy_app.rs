@@ -13,7 +13,7 @@ use crate::audio::{AudioAnalyzer, AudioAnalysisPlugin};
 use crate::timeline::{TimelinePlugin, TimelineAnimation};
 
 // Import simplified shader graph integration
-use crate::simple_shader_graph::{SimpleShaderGraphPlugin, ShaderGraphState};
+// use crate::simple_shader_graph::{SimpleShaderGraphPlugin, ShaderGraphState, spawn_shader_graph_quad};
 
 // Import editor modules - use local editor_ui module
 use super::editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_editor_side_panels, draw_editor_code_panel};
@@ -172,11 +172,11 @@ pub fn run_app() {
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(AudioAnalysisPlugin)
         .add_plugins(TimelinePlugin)
-        .add_plugins(SimpleShaderGraphPlugin)
+        // .add_plugins(SimpleShaderGraphPlugin)
         .insert_resource(EditorUiState::default())
         .insert_resource(UiStartupGate::default())
-        .insert_resource(ShaderGraphState::default())
         .add_systems(Startup, setup_camera)
+        // .add_systems(Startup, spawn_shader_graph_quad)
         .add_systems(Startup, initialize_wgpu_renderer)
         .add_systems(Update, async_initialize_wgpu_renderer)
         .add_systems(bevy_egui::EguiPrimaryContextPass, editor_ui_system)

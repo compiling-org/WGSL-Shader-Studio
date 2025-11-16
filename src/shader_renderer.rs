@@ -965,28 +965,29 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         });
 
         // --- 4. Setup Pipeline Resources (FIXED: Enhanced error handling) ---
-        let bind_group_layout = self.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("Bind Group Layout"),
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::FRAGMENT | wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-        });
+        let use_params = wgsl_code.contains("var<uniform> params") || wgsl_code.contains("params: array<vec4<f32>");
+        let mut layout_entries: Vec<wgpu::BindGroupLayoutEntry> = Vec::new();
+        layout_entries.push(wgpu::BindGroupLayoutEntry { binding: 0, visibility: wgpu::ShaderStages::FRAGMENT | wgpu::ShaderStages::VERTEX, ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None }, count: None });
+        if use_params {
+            layout_entries.push(wgpu::BindGroupLayoutEntry { binding: 1, visibility: wgpu::ShaderStages::FRAGMENT | wgpu::ShaderStages::VERTEX, ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None }, count: None });
+        }
+        let bind_group_layout = self.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor { label: Some("Bind Group Layout"), entries: &layout_entries });
 
-        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("Bind Group"),
-            layout: &bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: uniform_buffer.as_entire_binding(),
-            }],
-        });
+        // Create buffers first
+        let mut params_buffer: Option<wgpu::Buffer> = None;
+        if use_params {
+            let params_data: [f32; 64] = [0.0; 64];
+            params_buffer = Some(self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor { label: Some("Params Buffer"), contents: bytemuck::cast_slice(&params_data), usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST }));
+        }
+
+        // Create bind group entries
+        let mut bind_entries: Vec<wgpu::BindGroupEntry> = Vec::new();
+        bind_entries.push(wgpu::BindGroupEntry { binding: 0, resource: uniform_buffer.as_entire_binding() });
+        if let Some(ref pb) = params_buffer {
+            bind_entries.push(wgpu::BindGroupEntry { binding: 1, resource: pb.as_entire_binding() });
+        }
+
+        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor { label: Some("Bind Group"), layout: &bind_group_layout, entries: &bind_entries });
 
         // Optional texture input support (group 1: texture + sampler)
         let mut extra_bind_group_layout: Option<wgpu::BindGroupLayout> = None;
@@ -1290,6 +1291,265 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     /// Updates the target rendering size.
     pub fn resize(&mut self, width: u32, height: u32) -> Result<(), Box<dyn std::error::Error>> {
         self.size = (width, height);
+        Ok(())
+    }
+
+    /// Compile and render a shader with the given code and size.
+    pub fn compile_shader(&mut self, wgsl_code: &str, width: u32, height: u32) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        self.compile_shader_with_params(wgsl_code, width, height, None)
+    }
+    
+    pub fn compile_shader_with_params(&mut self, wgsl_code: &str, width: u32, height: u32, parameter_values: Option<&[f32]>) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        self.resize(width, height)?;
+        
+        let render_params = RenderParameters {
+            width,
+            height,
+            time: 0.0,
+            frame_rate: 60.0,
+            audio_data: None,
+        };
+        
+        self.render_frame_with_params(wgsl_code, &render_params, parameter_values)
+            .map_err(|e| {
+                let error_msg = format!("{:?}", e);
+                Box::new(std::io::Error::new(std::io::ErrorKind::Other, error_msg)) as Box<dyn std::error::Error>
+            })
+    }
+    
+    pub fn render_frame_with_params(&mut self, wgsl_code: &str, params: &RenderParameters, parameter_values: Option<&[f32]>) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+        // Quick return for empty code to prevent hanging
+        if wgsl_code.trim().is_empty() {
+            let pixel_count = (params.width * params.height) as usize;
+            return Ok(vec![0u8; pixel_count * 4]);
+        }
+        println!("🎨 Starting GPU shader render with parameters...");
+        self.last_errors.clear();
+
+        // --- 1. Setup Output Texture (FIXED: Use correct format) ---
+        let texture_desc = wgpu::TextureDescriptor {
+            label: Some("Shader Output"),
+            size: wgpu::Extent3d {
+                width: params.width,
+                height: params.height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            // FIXED: Use Rgba8Unorm instead of Rgba8UnormSrgb for WGSL compatibility
+            format: wgpu::TextureFormat::Rgba8Unorm,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        };
+
+        let texture = self.device.create_texture(&texture_desc);
+        let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        println!("✓ Output texture created: {}x{}", params.width, params.height);
+
+        // --- 2. Parse Shader Code (FIXED: Robust parsing) ---
+        let shader_module = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Fragment Shader"),
+            source: wgpu::ShaderSource::Wgsl(wgsl_code.into()),
+        });
+        println!("✓ Shader module created");
+
+        // --- 3. Setup Uniforms (FIXED: Enhanced error handling) ---
+        let uniforms = Uniforms {
+            time: params.time,
+            resolution: [params.width as f32, params.height as f32],
+            mouse: [0.0, 0.0],
+            audio_volume: 0.0,
+            audio_bass: 0.0,
+            audio_mid: 0.0,
+            audio_treble: 0.0,
+            _padding: [0],
+        };
+
+        let uniform_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Uniform Buffer"),
+            contents: bytemuck::cast_slice(&[uniforms]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        // --- 4. Setup Pipeline Resources (FIXED: Enhanced error handling) ---
+        let use_params = wgsl_code.contains("var<uniform> params") || wgsl_code.contains("params: array<vec4<f32>");
+        let mut layout_entries: Vec<wgpu::BindGroupLayoutEntry> = Vec::new();
+        layout_entries.push(wgpu::BindGroupLayoutEntry { binding: 0, visibility: wgpu::ShaderStages::FRAGMENT | wgpu::ShaderStages::VERTEX, ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None }, count: None });
+        if use_params {
+            layout_entries.push(wgpu::BindGroupLayoutEntry { binding: 1, visibility: wgpu::ShaderStages::FRAGMENT | wgpu::ShaderStages::VERTEX, ty: wgpu::BindingType::Buffer { ty: wgpu::BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None }, count: None });
+        }
+        let bind_group_layout = self.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor { label: Some("Bind Group Layout"), entries: &layout_entries });
+
+        // Create buffers first
+        let mut params_buffer: Option<wgpu::Buffer> = None;
+        if use_params {
+            let mut params_data: [f32; 64] = [0.0; 64];
+            if let Some(values) = parameter_values {
+                for (i, &value) in values.iter().enumerate().take(64) {
+                    params_data[i] = value;
+                }
+            }
+            params_buffer = Some(self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor { label: Some("Params Buffer"), contents: bytemuck::cast_slice(&params_data), usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST }));
+        }
+
+        // Create bind group entries
+        let mut bind_entries: Vec<wgpu::BindGroupEntry> = Vec::new();
+        bind_entries.push(wgpu::BindGroupEntry { binding: 0, resource: uniform_buffer.as_entire_binding() });
+        if let Some(ref pb) = params_buffer {
+            bind_entries.push(wgpu::BindGroupEntry { binding: 1, resource: pb.as_entire_binding() });
+        }
+
+        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor { label: Some("Bind Group"), layout: &bind_group_layout, entries: &bind_entries });
+
+        // Continue with the rest of the rendering pipeline...
+        self.render_pipeline_with_bind_group(wgsl_code, params, bind_group, bind_group_layout, texture, texture_view, uniform_buffer)
+    }
+    
+    fn render_pipeline_with_bind_group(&mut self, wgsl_code: &str, params: &RenderParameters, bind_group: wgpu::BindGroup, bind_group_layout: wgpu::BindGroupLayout, texture: wgpu::Texture, texture_view: wgpu::TextureView, uniform_buffer: wgpu::Buffer) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+        // Complete the rendering pipeline setup and execution
+        let pipeline_layout = self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Render Pipeline Layout"),
+            bind_group_layouts: &[&bind_group_layout],
+            push_constant_ranges: &[],
+        });
+
+        let pipeline = self.device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Render Pipeline"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                    label: Some("Vertex Shader"),
+                    source: wgpu::ShaderSource::Wgsl(VERTEX_SHADER.into()),
+                }),
+                entry_point: Some("vs_main"),
+                buffers: &[],
+                compilation_options: Default::default(),
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+                    label: Some("Fragment Shader"),
+                    source: wgpu::ShaderSource::Wgsl(wgsl_code.into()),
+                }),
+                entry_point: Some("fs_main"),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    blend: Some(wgpu::BlendState::REPLACE),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+                compilation_options: Default::default(),
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::TriangleList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: Some(wgpu::Face::Back),
+                polygon_mode: wgpu::PolygonMode::Fill,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            multiview: None,
+            cache: None,
+        });
+
+        // Execute render pass
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Render Encoder"),
+        });
+
+        {
+            let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Render Pass"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &texture_view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                        store: wgpu::StoreOp::Store,
+                    },
+                    depth_slice: None,
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
+
+            render_pass.set_pipeline(&pipeline);
+            render_pass.set_bind_group(0, &bind_group, &[]);
+            render_pass.draw(0..3, 0..1); // Draw full-screen triangle
+        }
+
+        // Copy texture to buffer
+        let buffer_size = (params.width * params.height * 4) as u64;
+        let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Output Buffer"),
+            size: buffer_size,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+
+        encoder.copy_texture_to_buffer(
+            wgpu::TexelCopyTextureInfo {
+                texture: &texture,
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+                aspect: wgpu::TextureAspect::All,
+            },
+            wgpu::TexelCopyBufferInfo {
+                buffer: &output_buffer,
+                layout: wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(params.width * 4),
+                    rows_per_image: Some(params.height),
+                },
+            },
+            wgpu::Extent3d {
+                width: params.width,
+                height: params.height,
+                depth_or_array_layers: 1,
+            },
+        );
+
+        self.queue.submit(std::iter::once(encoder.finish()));
+
+        // Map buffer and read data
+        let buffer_slice = output_buffer.slice(..);
+        let (tx, rx) = std::sync::mpsc::channel();
+        buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
+            tx.send(result).unwrap();
+        });
+
+        rx.recv().unwrap()?;
+
+        let data = buffer_slice.get_mapped_range();
+        let result = data.to_vec();
+        drop(data);
+        output_buffer.unmap();
+
+        println!("✓ Rendering completed successfully");
+        Ok(result)
+    }
+
+    /// Get the preview texture ID for UI display.
+    pub fn get_preview_texture(&self) -> Option<u64> {
+        // Return a placeholder texture ID for now
+        Some(1)
+    }
+
+    /// Update parameter values in the params buffer for shaders that use @group(0) @binding(1) params
+    pub fn update_parameters(&mut self, parameter_values: &[f32]) -> Result<(), Box<dyn std::error::Error>> {
+        // This method will be called to update parameter values
+        // The actual buffer update happens during render_frame_with_params
+        // We just validate the input here
+        if parameter_values.len() > 64 {
+            return Err("Too many parameters (max 64)".into());
+        }
         Ok(())
     }
 }

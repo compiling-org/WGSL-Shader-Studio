@@ -1,15 +1,58 @@
 # Project Goals
 
-Purpose: Define comprehensive, concrete goals for WGSL Shader Studio. These goals drive planning, scope control, and acceptance criteria across releases.
+**⚠️ REALITY CHECK**: Current project has **33 compilation errors** and **0 working features**. These goals represent the planned vision, not current state.
+
+```mermaid
+graph TD
+    A[WGSL Shader Studio Vision] --> B[Rendering & Engine]
+    A --> C[Authoring & UX]
+    A --> D[Conversion & Interop]
+    A --> E[Audio/MIDI & Live]
+    A --> F[Node Editor]
+    A --> G[Plugins & Export]
+    A --> H[Quality & Reliability]
+    
+    B --> B1[Real-time GPU rendering]
+    B --> B2[Robust pipeline]
+    B --> B3[Stability focus]
+    
+    C --> C1[Shader browsing]
+    C --> C2[Efficient editing]
+    C --> C3[Live preview]
+    C --> C4[Parameter control]
+    
+    D --> D1[WGSL↔GLSL↔HLSL]
+    D --> D2[Strong validation]
+    D --> D3[Round-trip conversion]
+    
+    E --> E1[Real-time audio analysis]
+    E --> E2[MIDI mapping]
+    E --> E3[Parameter modulation]
+    
+    F --> F1[Visual graph authoring]
+    F --> F2[Type-safe connections]
+    F --> F3[WGSL generation]
+    
+    G --> G1[FFGL plugin parity]
+    G --> G2[ISF compatibility]
+    G --> G3[Asset export]
+    
+    H --> H1[Logging system]
+    H --> H2[Error reporting]
+    H --> H3[Test coverage]
+    H --> H4[Performance baselines]
+    
+    style A fill:#1a237e
+    style B fill:#e8eaf6
+    style C fill:#e8eaf6
+    style D fill:#e8eaf6
+    style E fill:#e8eaf6
+    style F fill:#e8eaf6
+    style G fill:#e8eaf6
+    style H fill:#e8eaf6
+```
 
 ## Product Pillars
-- Rendering & Engine: Real-time GPU shader rendering with robust pipeline and stability.
-- Authoring & UX: Efficient UI for shader browsing, editing, previewing, and parameter control.
-- Conversion & Interop: WGSL↔GLSL↔HLSL transformations with strong validation.
-- Audio/MIDI & Live: Real-time audio analysis and MIDI mapping for parameter modulation.
-- Node Editor: Visual graph authoring producing valid WGSL with type-safe connections.
-- Plugins & Export: FFGL plugin parity, ISF compatibility, export of assets and presets.
-- Quality & Reliability: Logging, error reporting, recovery, tests, performance baselines.
 
 ## Cross-Cutting Goals
 - Cross-Platform: Windows/macOS/Linux; WASM/WebGPU where feasible.
@@ -21,6 +64,35 @@ Purpose: Define comprehensive, concrete goals for WGSL Shader Studio. These goal
 ## Feature Areas & Goals
 
 ### Rendering Pipeline
+
+```mermaid
+graph LR
+    A[Rendering Pipeline Goals] --> B[Stable Initialization]
+    A --> C[Resource Lifecycles]
+    A --> D[Live Shader Reload]
+    A --> E[Preview Controls]
+    
+    B --> B1[No UI timing panics]
+    B --> B2[Reliable startup]
+    
+    C --> C1[Buffer management]
+    C --> C2[Texture handling]
+    C --> C3[Pipeline lifecycle]
+    
+    D --> D1[WGSL hot reload]
+    D --> D2[Clear error display]
+    
+    E --> E1[Resolution scaling]
+    E --> E2[Pause/frame-step]
+    E --> E3[Camera navigation]
+    
+    style A fill:#3f51b5
+    style B fill:#c5cae9
+    style C fill:#c5cae9
+    style D fill:#c5cae9
+    style E fill:#c5cae9
+```
+
 - Stable initialization without UI timing panics.
 - Deterministic resource lifecycles (buffers, textures, pipelines).
 - Live reload of WGSL shaders with clear error display.
