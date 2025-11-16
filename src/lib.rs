@@ -358,6 +358,7 @@ pub mod simple_ui_auditor;
 pub mod node_graph;
 pub mod timeline;
 pub mod ui_analyzer;
+pub mod visual_node_editor;
 
 // Re-export main types for easier use
 pub use audio::*;
