@@ -20,13 +20,36 @@ pub enum PortKind {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NodeKind {
     ConstantFloat(f32),
+    ConstantVec2([f32; 2]),
     ConstantVec3([f32; 3]),
+    ConstantVec4([f32; 4]),
     Time,
     UV,
     Param(usize),
     Add,
+    Subtract,
     Multiply,
+    Divide,
     Sine,
+    Cosine,
+    Tangent,
+    Length,
+    Normalize,
+    Distance,
+    Mix,
+    Clamp,
+    Step,
+    Smoothstep,
+    Fract,
+    Floor,
+    Ceil,
+    Abs,
+    Min,
+    Max,
+    Pow,
+    Sqrt,
+    Dot,
+    Cross,
     TextureSample,
     OutputColor,
 }
@@ -98,8 +121,14 @@ impl NodeGraph {
             NodeKind::ConstantFloat(_) => {
                 node.outputs.push(self.new_port("value", PortKind::Float));
             }
+            NodeKind::ConstantVec2(_) => {
+                node.outputs.push(self.new_port("value", PortKind::Vec2));
+            }
             NodeKind::ConstantVec3(_) => {
                 node.outputs.push(self.new_port("value", PortKind::Vec3));
+            }
+            NodeKind::ConstantVec4(_) => {
+                node.outputs.push(self.new_port("value", PortKind::Vec4));
             }
             NodeKind::Time => {
                 node.outputs.push(self.new_port("time", PortKind::Float));
@@ -110,20 +139,63 @@ impl NodeGraph {
             NodeKind::Param(_) => {
                 node.outputs.push(self.new_port("value", PortKind::Float));
             }
-            NodeKind::Add | NodeKind::Multiply => {
+            // Binary math operations
+            NodeKind::Add | NodeKind::Subtract | NodeKind::Multiply | NodeKind::Divide | NodeKind::Min | NodeKind::Max | NodeKind::Pow | NodeKind::Distance => {
                 node.inputs.push(self.new_port("a", PortKind::Float));
                 node.inputs.push(self.new_port("b", PortKind::Float));
                 node.outputs.push(self.new_port("out", PortKind::Float));
             }
-            NodeKind::Sine => {
+            // Unary math operations
+            NodeKind::Sine | NodeKind::Cosine | NodeKind::Tangent | NodeKind::Length | NodeKind::Fract | NodeKind::Floor | NodeKind::Ceil | NodeKind::Abs | NodeKind::Sqrt => {
                 node.inputs.push(self.new_port("x", PortKind::Float));
                 node.outputs.push(self.new_port("out", PortKind::Float));
             }
+            // Vector operations
+            NodeKind::Normalize => {
+                node.inputs.push(self.new_port("vector", PortKind::Vec3));
+                node.outputs.push(self.new_port("out", PortKind::Vec3));
+            }
+            NodeKind::Dot => {
+                node.inputs.push(self.new_port("a", PortKind::Vec3));
+                node.inputs.push(self.new_port("b", PortKind::Vec3));
+                node.outputs.push(self.new_port("out", PortKind::Float));
+            }
+            NodeKind::Cross => {
+                node.inputs.push(self.new_port("a", PortKind::Vec3));
+                node.inputs.push(self.new_port("b", PortKind::Vec3));
+                node.outputs.push(self.new_port("out", PortKind::Vec3));
+            }
+            // Interpolation
+            NodeKind::Mix => {
+                node.inputs.push(self.new_port("a", PortKind::Float));
+                node.inputs.push(self.new_port("b", PortKind::Float));
+                node.inputs.push(self.new_port("t", PortKind::Float));
+                node.outputs.push(self.new_port("out", PortKind::Float));
+            }
+            NodeKind::Step => {
+                node.inputs.push(self.new_port("edge", PortKind::Float));
+                node.inputs.push(self.new_port("x", PortKind::Float));
+                node.outputs.push(self.new_port("out", PortKind::Float));
+            }
+            NodeKind::Smoothstep => {
+                node.inputs.push(self.new_port("edge0", PortKind::Float));
+                node.inputs.push(self.new_port("edge1", PortKind::Float));
+                node.inputs.push(self.new_port("x", PortKind::Float));
+                node.outputs.push(self.new_port("out", PortKind::Float));
+            }
+            NodeKind::Clamp => {
+                node.inputs.push(self.new_port("x", PortKind::Float));
+                node.inputs.push(self.new_port("min", PortKind::Float));
+                node.inputs.push(self.new_port("max", PortKind::Float));
+                node.outputs.push(self.new_port("out", PortKind::Float));
+            }
+            // Texture operations
             NodeKind::TextureSample => {
                 node.inputs.push(self.new_port("tex", PortKind::Texture));
                 node.inputs.push(self.new_port("uv", PortKind::Vec2));
                 node.outputs.push(self.new_port("color", PortKind::Color));
             }
+            // Output
             NodeKind::OutputColor => {
                 node.inputs.push(self.new_port("color", PortKind::Color));
             }
@@ -200,10 +272,20 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
                     code.push_str(&format!("  let {var}: f32 = {f};\n"));
                 }
+                NodeKind::ConstantVec2(v) => {
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    code.push_str(&format!("  let {var}: vec2<f32> = vec2<f32>({},{});\n", v[0], v[1]));
+                }
                 NodeKind::ConstantVec3(v) => {
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
                     code.push_str(&format!("  let {var}: vec3<f32> = vec3<f32>({},{},{});\n", v[0], v[1], v[2]));
+                }
+                NodeKind::ConstantVec4(v) => {
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    code.push_str(&format!("  let {var}: vec4<f32> = vec4<f32>({},{},{},{});\n", v[0], v[1], v[2], v[3]));
                 }
                 NodeKind::Time => {
                     let out = node.outputs[0].id;
@@ -222,25 +304,119 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                     let comp = match idx % 4 { 0 => "x", 1 => "y", 2 => "z", _ => "w" };
                     code.push_str(&format!("  let {var}: f32 = params[{vec_index}].{comp};\n"));
                 }
-                NodeKind::Add | NodeKind::Multiply => {
+                // Binary math operations
+                NodeKind::Add | NodeKind::Subtract | NodeKind::Multiply | NodeKind::Divide | NodeKind::Min | NodeKind::Max | NodeKind::Pow | NodeKind::Distance => {
                     let a = &node.inputs[0];
                     let b = &node.inputs[1];
                     let a_src = self.find_source_var(*id, a.id, &port_vars);
                     let b_src = self.find_source_var(*id, b.id, &port_vars);
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    if matches!(node.kind, NodeKind::Add) {
-                        code.push_str(&format!("  let {var}: f32 = {a_src} + {b_src};\n"));
+                    let op = match node.kind {
+                        NodeKind::Add => "+",
+                        NodeKind::Subtract => "-",
+                        NodeKind::Multiply => "*",
+                        NodeKind::Divide => "/",
+                        NodeKind::Min => "min",
+                        NodeKind::Max => "max",
+                        NodeKind::Pow => "pow",
+                        NodeKind::Distance => "distance",
+                        _ => "+",
+                    };
+                    if matches!(node.kind, NodeKind::Min | NodeKind::Max | NodeKind::Pow | NodeKind::Distance) {
+                        code.push_str(&format!("  let {var}: f32 = {op}({a_src}, {b_src});\n"));
                     } else {
-                        code.push_str(&format!("  let {var}: f32 = {a_src} * {b_src};\n"));
+                        code.push_str(&format!("  let {var}: f32 = {a_src} {op} {b_src};\n"));
                     }
                 }
-                NodeKind::Sine => {
+                // Unary math operations
+                NodeKind::Sine | NodeKind::Cosine | NodeKind::Tangent | NodeKind::Length | NodeKind::Fract | NodeKind::Floor | NodeKind::Ceil | NodeKind::Abs | NodeKind::Sqrt => {
                     let x = &node.inputs[0];
                     let x_src = self.find_source_var(*id, x.id, &port_vars);
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: f32 = sin({x_src});\n"));
+                    let func = match node.kind {
+                        NodeKind::Sine => "sin",
+                        NodeKind::Cosine => "cos",
+                        NodeKind::Tangent => "tan",
+                        NodeKind::Length => "length",
+                        NodeKind::Fract => "fract",
+                        NodeKind::Floor => "floor",
+                        NodeKind::Ceil => "ceil",
+                        NodeKind::Abs => "abs",
+                        NodeKind::Sqrt => "sqrt",
+                        _ => "sin",
+                    };
+                    code.push_str(&format!("  let {var}: f32 = {func}({x_src});\n"));
+                }
+                // Vector operations
+                NodeKind::Normalize => {
+                    let vec = &node.inputs[0];
+                    let vec_src = self.find_source_var(*id, vec.id, &port_vars);
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    code.push_str(&format!("  let {var}: vec3<f32> = normalize({vec_src});\n"));
+                }
+                NodeKind::Dot => {
+                    let a = &node.inputs[0];
+                    let b = &node.inputs[1];
+                    let a_src = self.find_source_var(*id, a.id, &port_vars);
+                    let b_src = self.find_source_var(*id, b.id, &port_vars);
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    code.push_str(&format!("  let {var}: f32 = dot({a_src}, {b_src});\n"));
+                }
+                NodeKind::Cross => {
+                    let a = &node.inputs[0];
+                    let b = &node.inputs[1];
+                    let a_src = self.find_source_var(*id, a.id, &port_vars);
+                    let b_src = self.find_source_var(*id, b.id, &port_vars);
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    code.push_str(&format!("  let {var}: vec3<f32> = cross({a_src}, {b_src});\n"));
+                }
+                // Interpolation
+                NodeKind::Mix => {
+                    let a = &node.inputs[0];
+                    let b = &node.inputs[1];
+                    let t = &node.inputs[2];
+                    let a_src = self.find_source_var(*id, a.id, &port_vars);
+                    let b_src = self.find_source_var(*id, b.id, &port_vars);
+                    let t_src = self.find_source_var(*id, t.id, &port_vars);
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    code.push_str(&format!("  let {var}: f32 = mix({a_src}, {b_src}, {t_src});\n"));
+                }
+                NodeKind::Step => {
+                    let edge = &node.inputs[0];
+                    let x = &node.inputs[1];
+                    let edge_src = self.find_source_var(*id, edge.id, &port_vars);
+                    let x_src = self.find_source_var(*id, x.id, &port_vars);
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    code.push_str(&format!("  let {var}: f32 = step({edge_src}, {x_src});\n"));
+                }
+                NodeKind::Smoothstep => {
+                    let edge0 = &node.inputs[0];
+                    let edge1 = &node.inputs[1];
+                    let x = &node.inputs[2];
+                    let edge0_src = self.find_source_var(*id, edge0.id, &port_vars);
+                    let edge1_src = self.find_source_var(*id, edge1.id, &port_vars);
+                    let x_src = self.find_source_var(*id, x.id, &port_vars);
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    code.push_str(&format!("  let {var}: f32 = smoothstep({edge0_src}, {edge1_src}, {x_src});\n"));
+                }
+                NodeKind::Clamp => {
+                    let x = &node.inputs[0];
+                    let min = &node.inputs[1];
+                    let max = &node.inputs[2];
+                    let x_src = self.find_source_var(*id, x.id, &port_vars);
+                    let min_src = self.find_source_var(*id, min.id, &port_vars);
+                    let max_src = self.find_source_var(*id, max.id, &port_vars);
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    code.push_str(&format!("  let {var}: f32 = clamp({x_src}, {min_src}, {max_src});\n"));
                 }
                 NodeKind::TextureSample => {
                     let _tex = &node.inputs[0];

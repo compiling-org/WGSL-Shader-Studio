@@ -1,5 +1,5 @@
 use bevy_egui::egui::*;
-use bevy_egui::egui::epaint::CubicBezierShape;
+use bevy_egui::egui::epaint::{CubicBezierShape, StrokeKind};
 use crate::node_graph::*;
 use std::collections::HashMap;
 
@@ -243,7 +243,7 @@ impl VisualNodeEditor {
                 Color32::from_gray(60)
             };
             let stroke = Stroke::new(2.0, border_color);
-            painter.rect_stroke(node_rect, 4.0, stroke);
+            painter.rect_stroke(node_rect, 4.0, stroke, StrokeKind::Inside);
             
             // Node title
             let title_pos = node_pos + vec2(10.0, 20.0);
@@ -336,13 +336,25 @@ impl VisualNodeEditor {
 
     fn get_node_color(&self, kind: &NodeKind) -> Color32 {
         match kind {
-            NodeKind::ConstantFloat(_) | NodeKind::ConstantVec3(_) => Color32::from_rgb(60, 60, 120),
+            // Constants
+            NodeKind::ConstantFloat(_) | NodeKind::ConstantVec2(_) | NodeKind::ConstantVec3(_) | NodeKind::ConstantVec4(_) => Color32::from_rgb(60, 60, 120),
+            // Input/Time
             NodeKind::Time => Color32::from_rgb(120, 60, 60),
             NodeKind::UV => Color32::from_rgb(60, 120, 60),
             NodeKind::Param(_) => Color32::from_rgb(120, 120, 60),
-            NodeKind::Add | NodeKind::Multiply => Color32::from_rgb(120, 60, 120),
-            NodeKind::Sine => Color32::from_rgb(60, 120, 120),
+            // Math Operations
+            NodeKind::Add | NodeKind::Subtract | NodeKind::Multiply | NodeKind::Divide => Color32::from_rgb(120, 60, 120),
+            // Trigonometry
+            NodeKind::Sine | NodeKind::Cosine | NodeKind::Tangent => Color32::from_rgb(60, 120, 120),
+            // Vector Operations
+            NodeKind::Length | NodeKind::Normalize | NodeKind::Distance | NodeKind::Dot | NodeKind::Cross => Color32::from_rgb(80, 100, 140),
+            // Interpolation
+            NodeKind::Mix | NodeKind::Step | NodeKind::Smoothstep | NodeKind::Clamp => Color32::from_rgb(140, 100, 80),
+            // Utility
+            NodeKind::Fract | NodeKind::Floor | NodeKind::Ceil | NodeKind::Abs | NodeKind::Min | NodeKind::Max | NodeKind::Pow | NodeKind::Sqrt => Color32::from_rgb(100, 80, 120),
+            // Texture
             NodeKind::TextureSample => Color32::from_rgb(120, 80, 40),
+            // Output
             NodeKind::OutputColor => Color32::from_rgb(180, 60, 60),
         }
     }

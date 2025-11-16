@@ -698,47 +698,202 @@ pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState
             ui.heading("Node-based Shader Authoring");
             ui.label("Quick palette:");
             ui.horizontal(|ui| {
-                if ui.button("Add UV").clicked() {
+                ui.label("Inputs:");
+                if ui.button("UV").clicked() {
                     ui_state.node_graph.add_node(NodeKind::UV, "UV", (100.0, 100.0));
                 }
-                if ui.button("Add Time").clicked() {
+                if ui.button("Time").clicked() {
                     ui_state.node_graph.add_node(NodeKind::Time, "Time", (160.0, 100.0));
                 }
-                if ui.button("Add Param").clicked() {
+                if ui.button("Param").clicked() {
                     let idx = ui_state.param_index_input.min(63);
                     ui_state.node_graph.add_node(NodeKind::Param(idx), &format!("Param[{}]", idx), (220.0, 100.0));
                 }
-                if ui.button("Add Sin").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Sine, "Sine", (220.0, 100.0));
+            });
+            ui.horizontal(|ui| {
+                ui.label("Constants:");
+                if ui.button("Float").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::ConstantFloat(1.0), "Float", (100.0, 140.0));
                 }
-                if ui.button("Add Add").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Add, "Add", (280.0, 100.0));
+                if ui.button("Vec2").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::ConstantVec2([0.5, 0.5]), "Vec2", (160.0, 140.0));
                 }
-                if ui.button("Add Multiply").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Multiply, "Multiply", (340.0, 100.0));
+                if ui.button("Vec3").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::ConstantVec3([0.5, 0.3, 0.8]), "Vec3", (220.0, 140.0));
                 }
-                if ui.button("Add Const3").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::ConstantVec3([0.5, 0.3, 0.8]), "Const Vec3", (400.0, 100.0));
+                if ui.button("Vec4").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::ConstantVec4([0.5, 0.3, 0.8, 1.0]), "Vec4", (280.0, 140.0));
                 }
-                if ui.button("Add Output").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::OutputColor, "Output", (460.0, 100.0));
+            });
+            ui.horizontal(|ui| {
+                ui.label("Math:");
+                if ui.button("Add").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Add, "Add", (100.0, 180.0));
+                }
+                if ui.button("Subtract").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Subtract, "Subtract", (160.0, 180.0));
+                }
+                if ui.button("Multiply").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Multiply, "Multiply", (220.0, 180.0));
+                }
+                if ui.button("Divide").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Divide, "Divide", (280.0, 180.0));
+                }
+                if ui.button("Min").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Min, "Min", (340.0, 180.0));
+                }
+                if ui.button("Max").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Max, "Max", (400.0, 180.0));
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label("Trig:");
+                if ui.button("Sin").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Sine, "Sin", (100.0, 220.0));
+                }
+                if ui.button("Cos").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Cosine, "Cos", (160.0, 220.0));
+                }
+                if ui.button("Tan").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Tangent, "Tan", (220.0, 220.0));
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label("Vector:");
+                if ui.button("Length").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Length, "Length", (100.0, 260.0));
+                }
+                if ui.button("Normalize").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Normalize, "Normalize", (160.0, 260.0));
+                }
+                if ui.button("Distance").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Distance, "Distance", (220.0, 260.0));
+                }
+                if ui.button("Dot").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Dot, "Dot", (280.0, 260.0));
+                }
+                if ui.button("Cross").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Cross, "Cross", (340.0, 260.0));
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label("Interpolation:");
+                if ui.button("Mix").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Mix, "Mix", (100.0, 300.0));
+                }
+                if ui.button("Step").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Step, "Step", (160.0, 300.0));
+                }
+                if ui.button("Smoothstep").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Smoothstep, "Smoothstep", (220.0, 300.0));
+                }
+                if ui.button("Clamp").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Clamp, "Clamp", (280.0, 300.0));
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label("Utility:");
+                if ui.button("Fract").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Fract, "Fract", (100.0, 340.0));
+                }
+                if ui.button("Floor").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Floor, "Floor", (160.0, 340.0));
+                }
+                if ui.button("Ceil").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Ceil, "Ceil", (220.0, 340.0));
+                }
+                if ui.button("Abs").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Abs, "Abs", (280.0, 340.0));
+                }
+                if ui.button("Sqrt").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Sqrt, "Sqrt", (340.0, 340.0));
+                }
+                if ui.button("Pow").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Pow, "Pow", (400.0, 340.0));
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label("Texture:");
+                if ui.button("Texture Sample").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::TextureSample, "Texture Sample", (100.0, 380.0));
+                }
+                if ui.button("Output").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::OutputColor, "Output", (220.0, 380.0));
                 }
             });
             ui.separator();
-            ui.label("Note: Connections can be established via auto-wiring below.");
-            if ui.button("Auto-wire: UV → TextureSample → Output").clicked() {
-                // Create a minimal graph: uv -> sample -> output
-                let uv = ui_state.node_graph.add_node(NodeKind::UV, "UV", (100.0, 160.0));
-                let ts = ui_state.node_graph.add_node(NodeKind::TextureSample, "TextureSample", (220.0, 160.0));
-                let out = ui_state.node_graph.add_node(NodeKind::OutputColor, "Output", (360.0, 160.0));
-                // Find ports
-                let uv_out = ui_state.node_graph.nodes.get(&uv).unwrap().outputs[0].id;
-                let ts_in_uv = ui_state.node_graph.nodes.get(&ts).unwrap().inputs[1].id;
-                let ts_out = ui_state.node_graph.nodes.get(&ts).unwrap().outputs[0].id;
-                let out_in = ui_state.node_graph.nodes.get(&out).unwrap().inputs[0].id;
-                ui_state.node_graph.connect(uv, uv_out, ts, ts_in_uv);
-                ui_state.node_graph.connect(ts, ts_out, out, out_in);
-            }
+            ui.label("Quick Examples:");
+            ui.horizontal(|ui| {
+                if ui.button("Texture Sample").clicked() {
+                    // Create a minimal graph: uv -> sample -> output
+                    let uv = ui_state.node_graph.add_node(NodeKind::UV, "UV", (100.0, 160.0));
+                    let ts = ui_state.node_graph.add_node(NodeKind::TextureSample, "TextureSample", (220.0, 160.0));
+                    let out = ui_state.node_graph.add_node(NodeKind::OutputColor, "Output", (360.0, 160.0));
+                    // Find ports
+                    let uv_out = ui_state.node_graph.nodes.get(&uv).unwrap().outputs[0].id;
+                    let ts_in_uv = ui_state.node_graph.nodes.get(&ts).unwrap().inputs[1].id;
+                    let ts_out = ui_state.node_graph.nodes.get(&ts).unwrap().outputs[0].id;
+                    let out_in = ui_state.node_graph.nodes.get(&out).unwrap().inputs[0].id;
+                    ui_state.node_graph.connect(uv, uv_out, ts, ts_in_uv);
+                    ui_state.node_graph.connect(ts, ts_out, out, out_in);
+                }
+                if ui.button("Sine Wave").clicked() {
+                    // Create: time -> sin -> output
+                    let time = ui_state.node_graph.add_node(NodeKind::Time, "Time", (100.0, 200.0));
+                    let sin = ui_state.node_graph.add_node(NodeKind::Sine, "Sin", (220.0, 200.0));
+                    let out = ui_state.node_graph.add_node(NodeKind::OutputColor, "Output", (360.0, 200.0));
+                    // Find ports
+                    let time_out = ui_state.node_graph.nodes.get(&time).unwrap().outputs[0].id;
+                    let sin_in = ui_state.node_graph.nodes.get(&sin).unwrap().inputs[0].id;
+                    let sin_out = ui_state.node_graph.nodes.get(&sin).unwrap().outputs[0].id;
+                    let out_in = ui_state.node_graph.nodes.get(&out).unwrap().inputs[0].id;
+                    ui_state.node_graph.connect(time, time_out, sin, sin_in);
+                    ui_state.node_graph.connect(sin, sin_out, out, out_in);
+                }
+                if ui.button("Gradient").clicked() {
+                    // Create: uv -> fract -> output
+                    let uv = ui_state.node_graph.add_node(NodeKind::UV, "UV", (100.0, 240.0));
+                    let fract = ui_state.node_graph.add_node(NodeKind::Fract, "Fract", (220.0, 240.0));
+                    let out = ui_state.node_graph.add_node(NodeKind::OutputColor, "Output", (360.0, 240.0));
+                    // Find ports
+                    let uv_out = ui_state.node_graph.nodes.get(&uv).unwrap().outputs[0].id;
+                    let fract_in = ui_state.node_graph.nodes.get(&fract).unwrap().inputs[0].id;
+                    let fract_out = ui_state.node_graph.nodes.get(&fract).unwrap().outputs[0].id;
+                    let out_in = ui_state.node_graph.nodes.get(&out).unwrap().inputs[0].id;
+                    ui_state.node_graph.connect(uv, uv_out, fract, fract_in);
+                    ui_state.node_graph.connect(fract, fract_out, out, out_in);
+                }
+            });
+            ui.horizontal(|ui| {
+                if ui.button("Distance Field").clicked() {
+                    // Create: uv -> distance -> step -> output
+                    let uv = ui_state.node_graph.add_node(NodeKind::UV, "UV", (100.0, 280.0));
+                    let center = ui_state.node_graph.add_node(NodeKind::ConstantVec2([0.5, 0.5]), "Center", (100.0, 320.0));
+                    let dist = ui_state.node_graph.add_node(NodeKind::Distance, "Distance", (220.0, 300.0));
+                    let step = ui_state.node_graph.add_node(NodeKind::Step, "Step", (340.0, 300.0));
+                    let out = ui_state.node_graph.add_node(NodeKind::OutputColor, "Output", (460.0, 300.0));
+                    // Find ports and connect
+                    let uv_out = ui_state.node_graph.nodes.get(&uv).unwrap().outputs[0].id;
+                    let center_out = ui_state.node_graph.nodes.get(&center).unwrap().outputs[0].id;
+                    let dist_in_uv = ui_state.node_graph.nodes.get(&dist).unwrap().inputs[0].id;
+                    let dist_in_center = ui_state.node_graph.nodes.get(&dist).unwrap().inputs[1].id;
+                    let dist_out = ui_state.node_graph.nodes.get(&dist).unwrap().outputs[0].id;
+                    let step_in_edge = ui_state.node_graph.nodes.get(&step).unwrap().inputs[0].id;
+                    let step_in_x = ui_state.node_graph.nodes.get(&step).unwrap().inputs[1].id;
+                    let step_out = ui_state.node_graph.nodes.get(&step).unwrap().outputs[0].id;
+                    let out_in = ui_state.node_graph.nodes.get(&out).unwrap().inputs[0].id;
+                    ui_state.node_graph.connect(uv, uv_out, dist, dist_in_uv);
+                    ui_state.node_graph.connect(center, center_out, dist, dist_in_center);
+                    ui_state.node_graph.connect(dist, dist_out, step, step_in_x);
+                    let edge_const = ui_state.node_graph.add_node(NodeKind::ConstantFloat(0.3), "Edge", (220.0, 340.0));
+                    let edge_out = ui_state.node_graph.nodes.get(&edge_const).unwrap().outputs[0].id;
+                    ui_state.node_graph.connect(edge_const, edge_out, step, step_in_edge);
+                    ui_state.node_graph.connect(step, step_out, out, out_in);
+                }
+                if ui.button("Clear Graph").clicked() {
+                    ui_state.node_graph = NodeGraph::new();
+                }
+            });
             if ui.button("Generate WGSL from Graph").clicked() {
                 let wgsl = ui_state.node_graph.generate_wgsl(512, 512);
                 ui_state.draft_code = wgsl;

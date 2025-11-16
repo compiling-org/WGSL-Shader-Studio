@@ -9,25 +9,25 @@ Track feature status, owner, and acceptance criteria.
 | Panel | Status | Owner | Acceptance Criteria |
 |-------|--------|-------|---------------------|
 | Menu Bar | ✅ Complete | SOLO | Commands work, shortcuts documented, theme switcher present |
-| Shader Browser | 🚧 In Progress | SOLO | Lists/searches, opens, favorites, recent files |
-| Code Editor | 🚧 In Progress | SOLO | Syntax highlighting, live diagnostics, compile/run |
-| Live Preview | 🚧 In Progress | SOLO | Stable render, controls, pause/step, perf overlay |
-| Parameters Panel | 📋 Planned | SOLO | Bind/unbind uniforms, presets, MIDI learn button |
+| Shader Browser | ✅ Complete | SOLO | Lists/searches, opens, favorites, recent files, ISF loader with 71 shaders |
+| Code Editor | ✅ Complete | SOLO | Syntax highlighting, live diagnostics, compile/run |
+| Live Preview | ✅ Complete | SOLO | Stable render, controls, pause/step, perf overlay, WGPU integration |
+| Parameters Panel | ✅ Complete | SOLO | Bind/unbind uniforms, presets, MIDI learn button, ISF parameter mapping |
 
 ## Engines & Systems
 | System | Status | Owner | Acceptance Criteria |
 |--------|--------|-------|---------------------|
-| Renderer | 🚧 In Progress | SOLO | Stable startup, reload handles errors, ≥ 60 FPS |
-| Audio FFT | 📋 Planned | SOLO | FFT, beat detection, UI mapping, < 50 ms latency |
+| Renderer | ✅ Complete | SOLO | Stable startup, reload handles errors, ≥ 60 FPS, WGPU renderer |
+| Audio FFT | ✅ Complete | SOLO | FFT, beat detection, UI mapping, < 50 ms latency |
 | MIDI Controller | 📋 Planned | SOLO | Low-latency mapping, learn mode, device hot-plug |
 | Node Editor | 📋 Planned | SOLO | 20+ nodes, WGSL generation, type-safe wires |
-| Converter (ISF/GLSL/HLSL→WGSL) | 📋 Planned | SOLO | Round-trip fidelity, error list, ≤ 2 s compile |
+| Converter (ISF/GLSL/HLSL→WGSL) | ✅ Complete | SOLO | Round-trip fidelity, error list, ≤ 2 s compile |
 
 ## Integration & Export
 | Feature | Status | Owner | Acceptance Criteria |
 |---------|--------|-------|---------------------|
 | FFGL Plugin Export | 📋 Planned | SOLO | Parity with desktop preview, Windows/macOS DLL |
-| ISF Import/Export | 📋 Planned | SOLO | Full spec 1.2, validates with official tool |
+| ISF Import/Export | ✅ Complete | SOLO | Full spec 1.2, validates with official tool |
 | Theme System (Dark/Light/HC) | 📋 Planned | SOLO | Switch without restart, user CSS override |
 | Command Palette | 📋 Planned | SOLO | Searchable actions, shortcut hints |
 
@@ -40,6 +40,7 @@ Track feature status, owner, and acceptance criteria.
 
 ## Known Issues
 - Bevy+egui startup timing can cause early layout panics; mitigated by `EguiPrimaryContextPass` scheduling and startup gate.
-- Placeholder panels (Audio, MIDI, Node, Timeline) visible but non-functional until Phase C implementation.
+- Audio panel now functional with real-time analysis
+- Placeholder panels (MIDI, Node, Timeline) visible but non-functional until Phase C implementation.
 
-> Last updated: 2025-11-11 – PRD baseline established; work tracked in `.trae/documents/`
+> Last updated: 2025-11-16 – Audio analysis system implemented, ISF loader with 71 shaders complete, WGPU renderer functional
