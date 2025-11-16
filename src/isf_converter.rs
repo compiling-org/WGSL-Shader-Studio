@@ -188,3 +188,50 @@ impl Default for IsfToWgslConverter {
         Self::new()
     }
 }
+
+/// Main ISF converter that wraps the functionality
+pub struct IsfConverter {
+    converter: IsfToWgslConverter,
+}
+
+impl IsfConverter {
+    pub fn new() -> Self {
+        Self {
+            converter: IsfToWgslConverter::new(),
+        }
+    }
+    
+    /// Convert ISF shader to WGSL
+    pub fn convert_to_wgsl(&mut self, isf_shader: &crate::isf_loader::IsfShader) -> Result<String, Box<dyn std::error::Error>> {
+        // Convert the ISF loader format to our internal format
+        let internal_isf = IsfShader {
+            credit: None,
+            description: None,
+            categories: None,
+            inputs: if isf_shader.inputs.is_empty() {
+                None
+            } else {
+                Some(isf_shader.inputs.iter().map(|input| IsfInput {
+                    name: input.name.clone(),
+                    input_type: match input.input_type {
+                        crate::isf_loader::InputType::Float => "float".to_string(),
+                        crate::isf_loader::InputType::Bool => "bool".to_string(),
+                        crate::isf_loader::InputType::Color => "color".to_string(),
+                        crate::isf_loader::InputType::Point2D => "point2D".to_string(),
+                        crate::isf_loader::InputType::Image => "image".to_string(),
+                    },
+                    min_value: input.min,
+                    max_value: input.max,
+                    default_value: input.default.map(|v| serde_json::Value::Number(serde_json::Number::from_f64(v as f64).unwrap())),
+                }).collect())
+            },
+            passes: None,
+            persistent_buffers: None,
+            imported: None,
+            isf_version: Some("2.0".to_string()),
+        };
+        
+        // Use the converter to convert to WGSL
+        Ok(self.converter.convert_fragment_shader(&internal_isf, &isf_shader.source)?)
+    }
+}

@@ -159,10 +159,20 @@ cargo run --features gui -- --gui
 - Template-based development
 - Performance-optimized rendering
 
+## ⚠️ **CRITICAL FRAMEWORK NOTICE**
+
+**THIS PROJECT USES BEVY + BEVY_EGUI ONLY**
+
+- ❌ **DO NOT USE eframe** - This will break the application
+- ✅ **CORRECT**: `use bevy::prelude::*;` + `use bevy_egui::{egui, EguiContexts};`
+- ❌ **WRONG**: `use eframe::egui;` - This is incompatible
+- ✅ **MAIN ENTRY**: `src/bevy_app.rs` (NOT `src/gui.rs`)
+- ✅ **RUN COMMAND**: `cargo run --bin isf-shaders`
+
 ## 🔧 **Technical Specifications**
 
 - **Rendering**: WebGPU (WGPU) with real-time preview
-- **UI Framework**: egui/eframe for responsive interface
+- **UI Framework**: Bevy + bevy_egui (NOT eframe) for responsive interface
 - **Audio Engine**: Real-time FFT analysis with MIDI integration
 - **Shader Support**: WGSL, GLSL, HLSL, ISF formats
 - **Performance**: 60+ FPS GUI, real-time shader compilation
@@ -193,7 +203,7 @@ MIT License - see LICENSE file for details
 
 - **ISF Shaders**: Sleepless Monk collection
 - **WGPU**: WebGPU implementation for Rust
-- **egui**: Immediate mode GUI framework
+- **bevy_egui**: Bevy integration for egui (NOT eframe)
 - **rustfft**: Audio analysis library
 
 ---

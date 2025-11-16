@@ -46,6 +46,14 @@ pub struct Diagnostic {
     pub quick_fix_available: bool,
 }
 
+impl Diagnostic {
+    /// Set the file path for this diagnostic
+    pub fn with_file_path(mut self, file_path: String) -> Self {
+        self.file_path = file_path;
+        self
+    }
+}
+
 /// A suggested fix for a diagnostic
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Suggestion {
@@ -66,7 +74,7 @@ pub struct RelatedInformation {
 }
 
 /// Collection of diagnostics for a conversion operation
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Diagnostics {
     pub diagnostics: Vec<Diagnostic>,
     pub has_errors: bool,

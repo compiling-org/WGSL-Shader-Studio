@@ -1,6 +1,7 @@
 //! Professional gesture control system with Leap Motion and MediaPipe integration
 //! Features: Hand tracking, gesture recognition, real-time parameter control
 
+use bevy::prelude::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -18,422 +19,338 @@ pub enum GestureType {
     SwipeDown,     // Hand swipe down
     Circle,        // Circular motion
     Grab,          // Grip gesture
-    None,          // No gesture detected
+    Release,       // Release gesture
 }
 
-/// Hand data from gesture tracking
+/// Hand tracking data
 #[derive(Debug, Clone)]
 pub struct HandData {
-    pub hand_id: u32,
-    pub palm_position: [f32; 3],
-    pub palm_velocity: [f32; 3],
-    pub palm_normal: [f32; 3],
-    pub wrist_position: [f32; 3],
-    pub thumb_position: [f32; 3],
-    pub index_position: [f32; 3],
-    pub middle_position: [f32; 3],
-    pub ring_position: [f32; 3],
-    pub pinky_position: [f32; 3],
+    pub landmarks: Vec<(f32, f32, f32)>, // 21 hand landmarks (x, y, z)
+    pub palm_position: (f32, f32, f32),
+    pub palm_normal: (f32, f32, f32),
+    pub palm_direction: (f32, f32, f32),
     pub confidence: f32,
-    pub hand_side: HandSide,
+    pub timestamp: Instant,
 }
 
-/// Hand side detection
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum HandSide {
-    Left,
-    Right,
+impl Default for HandData {
+    fn default() -> Self {
+        Self {
+            landmarks: vec![(0.0, 0.0, 0.0); 21],
+            palm_position: (0.0, 0.0, 0.0),
+            palm_normal: (0.0, 0.0, 1.0),
+            palm_direction: (0.0, 0.0, -1.0),
+            confidence: 0.0,
+            timestamp: Instant::now(),
+        }
+    }
 }
 
-/// Gesture mapping to shader parameters
+/// Gesture recognition system
+#[derive(Resource)]
+pub struct GestureControlSystem {
+    pub enabled: bool,
+    pub hands: HashMap<u32, HandData>,
+    pub active_gestures: HashMap<GestureType, f32>, // gesture -> strength (0.0-1.0)
+    pub gesture_history: Vec<(GestureType, Instant)>,
+    pub parameter_mappings: HashMap<String, GestureMapping>, // parameter name -> mapping
+    pub sensitivity: f32,
+    pub smoothing_factor: f32,
+    pub last_update: Instant,
+}
+
 #[derive(Debug, Clone)]
 pub struct GestureMapping {
-    pub gesture_type: GestureType,
+    pub gesture: GestureType,
     pub parameter_name: String,
-    pub sensitivity: f32,
-    pub smoothing: f32,
-    pub enabled: bool,
+    pub min_value: f32,
+    pub max_value: f32,
+    pub curve_type: CurveType,
+    pub invert: bool,
 }
 
-/// MediaPipe hand landmarks
-#[derive(Debug, Clone)]
-pub struct MediaPipeHand {
-    pub hand_id: u32,
-    pub landmarks: Vec<[f32; 3]>, // 21 landmarks for hand
-    pub handedness: HandSide,
-    pub confidence: f32,
-}
-
-/// Main gesture control system
-pub struct GestureControlSystem {
-    // Leap Motion data
-    leap_motion_enabled: bool,
-    leap_hands: Vec<HandData>,
-    
-    // MediaPipe data
-    mediapipe_enabled: bool,
-    mediapipe_hands: Vec<MediaPipeHand>,
-    
-    // Gesture recognition
-    gesture_history: Vec<(GestureType, Instant)>,
-    current_gesture: GestureType,
-    
-    // Mappings
-    gesture_mappings: HashMap<GestureType, GestureMapping>,
-    
-    // Control parameters
-    shader_parameters: HashMap<String, f32>,
-    last_update: Instant,
-    
-    // Performance tracking
-    fps: f32,
-    frame_count: u64,
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum CurveType {
+    Linear,
+    Quadratic,
+    Cubic,
+    Exponential,
+    Logarithmic,
 }
 
 impl Default for GestureControlSystem {
     fn default() -> Self {
-        let mut mappings = HashMap::new();
+        let mut parameter_mappings = HashMap::new();
         
-        // Default gesture mappings for shader control
-        mappings.insert(GestureType::HandOpen, GestureMapping {
-            gesture_type: GestureType::HandOpen,
-            parameter_name: "brightness".to_string(),
-            sensitivity: 1.0,
-            smoothing: 0.8,
-            enabled: true,
+        // Default mappings for common shader parameters
+        parameter_mappings.insert("time".to_string(), GestureMapping {
+            gesture: GestureType::Circle,
+            parameter_name: "time".to_string(),
+            min_value: 0.0,
+            max_value: 10.0,
+            curve_type: CurveType::Linear,
+            invert: false,
         });
         
-        mappings.insert(GestureType::HandClosed, GestureMapping {
-            gesture_type: GestureType::HandClosed,
-            parameter_name: "darkness".to_string(),
-            sensitivity: 1.0,
-            smoothing: 0.8,
-            enabled: true,
-        });
-        
-        mappings.insert(GestureType::Point, GestureMapping {
-            gesture_type: GestureType::Point,
+        parameter_mappings.insert("speed".to_string(), GestureMapping {
+            gesture: GestureType::SwipeLeft,
             parameter_name: "speed".to_string(),
-            sensitivity: 0.5,
-            smoothing: 0.6,
-            enabled: true,
+            min_value: 0.1,
+            max_value: 5.0,
+            curve_type: CurveType::Quadratic,
+            invert: false,
         });
         
-        mappings.insert(GestureType::Pinch, GestureMapping {
-            gesture_type: GestureType::Pinch,
-            parameter_name: "scale".to_string(),
-            sensitivity: 0.3,
-            smoothing: 0.9,
-            enabled: true,
-        });
-        
-        mappings.insert(GestureType::SwipeLeft, GestureMapping {
-            gesture_type: GestureType::SwipeLeft,
-            parameter_name: "hue_shift".to_string(),
-            sensitivity: 0.2,
-            smoothing: 0.5,
-            enabled: true,
-        });
-        
-        mappings.insert(GestureType::SwipeRight, GestureMapping {
-            gesture_type: GestureType::SwipeRight,
-            parameter_name: "saturation".to_string(),
-            sensitivity: 0.2,
-            smoothing: 0.5,
-            enabled: true,
-        });
-        
-        mappings.insert(GestureType::SwipeUp, GestureMapping {
-            gesture_type: GestureType::SwipeUp,
-            parameter_name: "contrast".to_string(),
-            sensitivity: 0.3,
-            smoothing: 0.7,
-            enabled: true,
-        });
-        
-        mappings.insert(GestureType::SwipeDown, GestureMapping {
-            gesture_type: GestureType::SwipeDown,
-            parameter_name: "blur".to_string(),
-            sensitivity: 0.4,
-            smoothing: 0.7,
-            enabled: true,
+        parameter_mappings.insert("intensity".to_string(), GestureMapping {
+            gesture: GestureType::Pinch,
+            parameter_name: "intensity".to_string(),
+            min_value: 0.0,
+            max_value: 1.0,
+            curve_type: CurveType::Linear,
+            invert: false,
         });
         
         Self {
-            leap_motion_enabled: false,
-            leap_hands: Vec::new(),
-            mediapipe_enabled: false,
-            mediapipe_hands: Vec::new(),
+            enabled: true,
+            hands: HashMap::new(),
+            active_gestures: HashMap::new(),
             gesture_history: Vec::new(),
-            current_gesture: GestureType::None,
-            gesture_mappings: mappings,
-            shader_parameters: HashMap::new(),
+            parameter_mappings,
+            sensitivity: 0.8,
+            smoothing_factor: 0.9,
             last_update: Instant::now(),
-            fps: 0.0,
-            frame_count: 0,
         }
     }
 }
 
 impl GestureControlSystem {
-    /// Initialize gesture control system
     pub fn new() -> Self {
         Self::default()
     }
     
-    /// Initialize Leap Motion integration
-    pub fn initialize_leap_motion(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        // Placeholder for Leap Motion initialization
-        // In a real implementation, this would:
-        // 1. Load Leap Motion SDK native library
-        // 2. Initialize connection to Leap Motion device
-        // 3. Start tracking loop
-        
-        self.leap_motion_enabled = true;
-        println!("Leap Motion gesture control initialized");
-        Ok(())
-    }
-    
-    /// Initialize MediaPipe integration
-    pub fn initialize_mediapipe(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        // Placeholder for MediaPipe initialization
-        // In a real implementation, this would:
-        // 1. Initialize MediaPipe hands solution
-        // 2. Configure camera input
-        // 3. Start hand tracking pipeline
-        
-        self.mediapipe_enabled = true;
-        println!("MediaPipe gesture control initialized");
-        Ok(())
-    }
-    
-    /// Update gesture data from Leap Motion
-    pub fn update_leap_data(&mut self, hands: Vec<HandData>) {
-        self.leap_hands = hands;
-    }
-    
-    /// Update gesture data from MediaPipe
-    pub fn update_mediapipe_data(&mut self, hands: Vec<MediaPipeHand>) {
-        self.mediapipe_hands = hands;
-    }
-    
-    /// Process and recognize gestures
-    pub fn process_gestures(&mut self) {
-        let now = Instant::now();
-        self.frame_count += 1;
-        
-        if self.frame_count % 60 == 0 {
-            let delta_time = now.duration_since(self.last_update).as_secs_f32();
-            self.fps = 60.0 / delta_time.max(0.001);
-            self.last_update = now;
+    pub fn update(&mut self) {
+        if !self.enabled {
+            return;
         }
         
-        // Recognize gestures from Leap Motion data
-        let leap_gesture = self.recognize_leap_gestures();
+        let now = Instant::now();
+        let delta_time = now.duration_since(self.last_update).as_secs_f32();
         
-        // Recognize gestures from MediaPipe data
-        let mediapipe_gesture = self.recognize_mediapipe_gestures();
+        // Update gesture recognition
+        self.recognize_gestures();
         
-        // Combine and determine current gesture
-        let detected_gesture = if leap_gesture != GestureType::None {
-            leap_gesture
-        } else {
-            mediapipe_gesture
+        // Apply smoothing to gesture strengths
+        for strength in self.active_gestures.values_mut() {
+            *strength *= self.smoothing_factor;
+        }
+        
+        // Clean up old gesture history
+        self.gesture_history.retain(|(_, timestamp)| {
+            now.duration_since(*timestamp).as_secs_f32() < 5.0
+        });
+        
+        self.last_update = now;
+    }
+    
+    fn recognize_gestures(&mut self) {
+        self.active_gestures.clear();
+        
+        let mut detected_gestures = Vec::new();
+        
+        for (hand_id, hand_data) in &self.hands {
+            if hand_data.confidence < self.sensitivity {
+                continue;
+            }
+            
+            // Simple gesture recognition based on hand landmarks
+            let mut extended_fingers = 0;
+            let mut curled_fingers = 0;
+            
+            // Check finger states (simplified)
+            for i in 0..5 {
+                let finger_base = i * 4 + 1;
+                if finger_base + 3 < hand_data.landmarks.len() {
+                    let tip = hand_data.landmarks[finger_base + 3];
+                    let base = hand_data.landmarks[finger_base];
+                    
+                    if tip.1 < base.1 { // Extended (simplified check)
+                        extended_fingers += 1;
+                    } else {
+                        curled_fingers += 1;
+                    }
+                }
+            }
+            
+            // Recognize gestures
+            if extended_fingers == 5 {
+                detected_gestures.push((GestureType::HandOpen, 1.0));
+            } else if curled_fingers >= 4 {
+                detected_gestures.push((GestureType::HandClosed, 1.0));
+            } else if extended_fingers == 1 {
+                detected_gestures.push((GestureType::Point, 1.0));
+            }
+            
+            // Swipe detection (simplified)
+            let palm_velocity = self.calculate_palm_velocity(*hand_id);
+            if palm_velocity.0 < -0.5 {
+                detected_gestures.push((GestureType::SwipeLeft, palm_velocity.0.abs().min(1.0)));
+            } else if palm_velocity.0 > 0.5 {
+                detected_gestures.push((GestureType::SwipeRight, palm_velocity.0.min(1.0)));
+            }
+        }
+        
+        // Apply all detected gestures
+        for (gesture, strength) in detected_gestures {
+            self.set_gesture_strength(gesture, strength);
+        }
+    }
+    
+    fn set_gesture_strength(&mut self, gesture: GestureType, strength: f32) {
+        let current = self.active_gestures.get(&gesture).copied().unwrap_or(0.0);
+        let new_strength = current.max(strength);
+        
+        if new_strength > 0.1 {
+            self.active_gestures.insert(gesture, new_strength);
+            self.gesture_history.push((gesture, Instant::now()));
+        }
+    }
+    
+    fn calculate_palm_velocity(&self, hand_id: u32) -> (f32, f32, f32) {
+        // Simplified velocity calculation - would need proper tracking
+        (0.0, 0.0, 0.0)
+    }
+    
+    pub fn get_parameter_value(&self, parameter_name: &str) -> Option<f32> {
+        let mapping = self.parameter_mappings.get(parameter_name)?;
+        let gesture_strength = self.active_gestures.get(&mapping.gesture).copied().unwrap_or(0.0);
+        
+        let mut value = self.apply_curve(gesture_strength, mapping.curve_type);
+        
+        if mapping.invert {
+            value = 1.0 - value;
+        }
+        
+        Some(value * (mapping.max_value - mapping.min_value) + mapping.min_value)
+    }
+    
+    fn apply_curve(&self, value: f32, curve_type: CurveType) -> f32 {
+        match curve_type {
+            CurveType::Linear => value,
+            CurveType::Quadratic => value * value,
+            CurveType::Cubic => value * value * value,
+            CurveType::Exponential => (value * 2.0).exp() - 1.0,
+            CurveType::Logarithmic => (value + 1.0).ln() / 2.0_f32.ln(),
+        }
+    }
+    
+    pub fn add_hand(&mut self, hand_id: u32, hand_data: HandData) {
+        self.hands.insert(hand_id, hand_data);
+    }
+    
+    pub fn remove_hand(&mut self, hand_id: u32) {
+        self.hands.remove(&hand_id);
+    }
+    
+    pub fn clear_hands(&mut self) {
+        self.hands.clear();
+        self.active_gestures.clear();
+    }
+    
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled;
+        if !enabled {
+            self.clear_hands();
+        }
+    }
+    
+    pub fn is_enabled(&self) -> bool {
+        self.enabled
+    }
+    
+    pub fn get_active_gestures(&self) -> &HashMap<GestureType, f32> {
+        &self.active_gestures
+    }
+    
+    pub fn get_parameter_mappings(&self) -> &HashMap<String, GestureMapping> {
+        &self.parameter_mappings
+    }
+    
+    pub fn get_parameter_mappings_mut(&mut self) -> &mut HashMap<String, GestureMapping> {
+        &mut self.parameter_mappings
+    }
+}
+
+/// Simulated gesture data for testing
+#[derive(Debug, Clone)]
+pub struct SimulatedGestureData {
+    pub gesture_type: GestureType,
+    pub strength: f32,
+    pub duration: f32,
+    pub hand_position: (f32, f32, f32),
+}
+
+impl GestureControlSystem {
+    pub fn simulate_gesture(&mut self, gesture_data: SimulatedGestureData) {
+        if !self.enabled {
+            return;
+        }
+        
+        // Create simulated hand data
+        let mut hand_data = HandData::default();
+        hand_data.palm_position = gesture_data.hand_position;
+        hand_data.confidence = gesture_data.strength;
+        
+        // Add simulated hand
+        self.add_hand(0, hand_data);
+        
+        // Set gesture strength
+        self.set_gesture_strength(gesture_data.gesture_type, gesture_data.strength);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_gesture_control_creation() {
+        let gesture_system = GestureControlSystem::new();
+        assert!(gesture_system.is_enabled());
+        assert!(gesture_system.get_active_gestures().is_empty());
+    }
+    
+    #[test]
+    fn test_gesture_simulation() {
+        let mut gesture_system = GestureControlSystem::new();
+        
+        let simulated_data = SimulatedGestureData {
+            gesture_type: GestureType::HandOpen,
+            strength: 0.8,
+            duration: 1.0,
+            hand_position: (0.0, 0.0, 0.5),
         };
         
-        // Update gesture history and current gesture
-        if detected_gesture != self.current_gesture {
-            self.gesture_history.push((detected_gesture, now));
-            self.current_gesture = detected_gesture;
-            
-            // Keep history manageable
-            if self.gesture_history.len() > 100 {
-                self.gesture_history.drain(0..50);
-            }
-        }
+        gesture_system.simulate_gesture(simulated_data);
         
-        // Apply gesture mappings to shader parameters
-        self.apply_gesture_mappings();
+        assert!(gesture_system.get_active_gestures().contains_key(&GestureType::HandOpen));
+        assert_eq!(gesture_system.get_active_gestures()[&GestureType::HandOpen], 0.8);
     }
     
-    /// Recognize gestures from Leap Motion data
-    fn recognize_leap_gestures(&self) -> GestureType {
-        if !self.leap_motion_enabled || self.leap_hands.is_empty() {
-            return GestureType::None;
-        }
+    #[test]
+    fn test_parameter_mapping() {
+        let mut gesture_system = GestureControlSystem::new();
         
-        // Analyze primary hand for gestures
-        if let Some(hand) = self.leap_hands.first() {
-            return self.classify_hand_gesture(hand);
-        }
+        // Simulate a gesture
+        gesture_system.simulate_gesture(SimulatedGestureData {
+            gesture_type: GestureType::Circle,
+            strength: 0.5,
+            duration: 1.0,
+            hand_position: (0.0, 0.0, 0.5),
+        });
         
-        GestureType::None
-    }
-    
-    /// Recognize gestures from MediaPipe data
-    fn recognize_mediapipe_gestures(&self) -> GestureType {
-        if !self.mediapipe_enabled || self.mediapipe_hands.is_empty() {
-            return GestureType::None;
-        }
-        
-        // Analyze primary hand for gestures
-        if let Some(hand) = self.mediapipe_hands.first() {
-            return self.classify_mediapipe_gesture(hand);
-        }
-        
-        GestureType::None
-    }
-    
-    /// Classify hand gesture from Leap Motion data
-    fn classify_hand_gesture(&self, hand: &HandData) -> GestureType {
-        // This would implement actual gesture classification logic
-        // based on finger positions, hand geometry, and motion patterns
-        
-        // Placeholder implementation - in reality, this would use:
-        // 1. Finger curl angles
-        // 2. Hand orientation
-        // 3. Motion history
-        // 4. Hand geometry analysis
-        
-        // For demo purposes, create some sample gestures based on hand position
-        if hand.palm_position[2] < -50.0 {
-            GestureType::HandClosed
-        } else if hand.palm_position[2] > 50.0 {
-            GestureType::HandOpen
-        } else {
-            GestureType::Point
-        }
-    }
-    
-    /// Classify hand gesture from MediaPipe data
-    fn classify_mediapipe_gesture(&self, hand: &MediaPipeHand) -> GestureType {
-        // Analyze hand landmarks to classify gestures
-        if hand.landmarks.len() < 21 {
-            return GestureType::None;
-        }
-        
-        // Extract key landmarks
-        let wrist = hand.landmarks[0];
-        let thumb_tip = hand.landmarks[4];
-        let index_tip = hand.landmarks[8];
-        let middle_tip = hand.landmarks[12];
-        let ring_tip = hand.landmarks[16];
-        let pinky_tip = hand.landmarks[20];
-        
-        // Calculate finger curl ratios
-        let index_extended = self.is_finger_extended(&hand.landmarks, 5, 8);
-        let middle_extended = self.is_finger_extended(&hand.landmarks, 9, 12);
-        let ring_extended = self.is_finger_extended(&hand.landmarks, 13, 16);
-        let pinky_extended = self.is_finger_extended(&hand.landmarks, 17, 20);
-        
-        // Classify based on extended fingers
-        match (index_extended, middle_extended, ring_extended, pinky_extended) {
-            (false, false, false, false) => GestureType::HandClosed,
-            (true, true, true, true) => GestureType::HandOpen,
-            (true, false, false, false) => GestureType::Point,
-            _ => GestureType::None,
-        }
-    }
-    
-    /// Check if a finger is extended using MediaPipe landmarks
-    fn is_finger_extended(&self, landmarks: &Vec<[f32; 3]>, base_idx: usize, tip_idx: usize) -> bool {
-        if landmarks.len() < tip_idx + 1 {
-            return false;
-        }
-        
-        let base = landmarks[base_idx];
-        let tip = landmarks[tip_idx];
-        
-        // Simple heuristic: finger is extended if tip is significantly higher than base
-        tip[1] < base[1] - 0.05
-    }
-    
-    /// Apply gesture mappings to shader parameters
-    fn apply_gesture_mappings(&mut self) {
-        if let Some(mapping) = self.gesture_mappings.get(&self.current_gesture) {
-            if !mapping.enabled {
-                return;
-            }
-            
-            // Get current value with smoothing
-            let current_value = self.shader_parameters
-                .entry(mapping.parameter_name.clone())
-                .or_insert(0.0);
-            
-            let target_value = mapping.sensitivity;
-            let smooth_factor = mapping.smoothing;
-            
-            // Apply exponential smoothing
-            let new_value = *current_value * smooth_factor + target_value * (1.0 - smooth_factor);
-            
-            self.shader_parameters.insert(mapping.parameter_name.clone(), new_value);
-        }
-    }
-    
-    /// Get current shader parameters affected by gestures
-    pub fn get_shader_parameters(&self) -> HashMap<String, f32> {
-        self.shader_parameters.clone()
-    }
-    
-    /// Get current gesture type
-    pub fn get_current_gesture(&self) -> GestureType {
-        self.current_gesture
-    }
-    
-    /// Get gesture history
-    pub fn get_gesture_history(&self) -> &Vec<(GestureType, Instant)> {
-        &self.gesture_history
-    }
-    
-    /// Set gesture mapping
-    pub fn set_gesture_mapping(&mut self, gesture: GestureType, mapping: GestureMapping) {
-        self.gesture_mappings.insert(gesture, mapping);
-    }
-    
-    /// Get gesture mapping
-    pub fn get_gesture_mapping(&self, gesture: GestureType) -> Option<&GestureMapping> {
-        self.gesture_mappings.get(&gesture)
-    }
-    
-    /// Get system statistics
-    pub fn get_stats(&self) -> GestureStats {
-        GestureStats {
-            fps: self.fps,
-            leap_enabled: self.leap_motion_enabled,
-            mediapipe_enabled: self.mediapipe_enabled,
-            active_hands: self.leap_hands.len() + self.mediapipe_hands.len(),
-            current_gesture: self.current_gesture,
-            mapped_parameters: self.shader_parameters.len(),
-        }
-    }
-}
-
-/// Gesture control statistics
-#[derive(Debug, Clone)]
-pub struct GestureStats {
-    pub fps: f32,
-    pub leap_enabled: bool,
-    pub mediapipe_enabled: bool,
-    pub active_hands: usize,
-    pub current_gesture: GestureType,
-    pub mapped_parameters: usize,
-}
-
-/// Convert gesture type to display string
-impl std::fmt::Display for GestureType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            GestureType::HandOpen => write!(f, "Hand Open"),
-            GestureType::HandClosed => write!(f, "Hand Closed"),
-            GestureType::Point => write!(f, "Pointing"),
-            GestureType::Pinch => write!(f, "Pinching"),
-            GestureType::SwipeLeft => write!(f, "Swipe Left"),
-            GestureType::SwipeRight => write!(f, "Swipe Right"),
-            GestureType::SwipeUp => write!(f, "Swipe Up"),
-            GestureType::SwipeDown => write!(f, "Swipe Down"),
-            GestureType::Circle => write!(f, "Circular Motion"),
-            GestureType::Grab => write!(f, "Grab"),
-            GestureType::None => write!(f, "No Gesture"),
-        }
+        // Check parameter value
+        let time_value = gesture_system.get_parameter_value("time");
+        assert!(time_value.is_some());
+        assert!(time_value.unwrap() > 0.0);
     }
 }

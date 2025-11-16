@@ -1,50 +1,43 @@
 //! Minimal test to check if the GUI is working properly
 
-use eframe::egui;
+use bevy::prelude::*;
+use bevy_egui::{egui, EguiContexts, EguiPlugin};
 
-fn main() {
-    let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size([800.0, 600.0])
-            .with_position([100.0, 100.0])
-            .with_title("Minimal Test")
-            .with_visible(true)
-            .with_active(true)
-            .with_decorations(true)
-            .with_transparent(false),
-        vsync: false,
-        persist_window: false,
-        ..Default::default()
-    };
-
-    eframe::run_native(
-        "Minimal Test",
-        options,
-        Box::new(|_cc| {
-            Ok(Box::new(MyApp::default()))
-        }),
-    ).unwrap();
-}
-
-struct MyApp {
+#[derive(Resource, Default)]
+struct TestState {
     counter: usize,
 }
 
-impl Default for MyApp {
-    fn default() -> Self {
-        Self { counter: 0 }
-    }
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                title: "Minimal Test".to_string(),
+                resolution: bevy::window::WindowResolution::new(800, 600),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }))
+        .add_plugins(EguiPlugin::default())
+        .init_resource::<TestState>()
+        .add_systems(Startup, setup_camera)
+        .add_systems(Update, test_ui_system)
+        .run();
 }
 
-impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Minimal Test");
-            ui.label("If you can see this, the GUI framework is working");
-            ui.label(format!("Counter: {}", self.counter));
-            if ui.button("Increment").clicked() {
-                self.counter += 1;
-            }
-        });
-    }
+fn setup_camera(mut commands: Commands) {
+    commands.spawn(Camera2d);
+}
+
+fn test_ui_system(mut egui_ctx: EguiContexts, mut state: ResMut<TestState>) {
+    let ctx = egui_ctx.ctx_mut().expect("Failed to get egui context");
+    
+    egui::CentralPanel::default().show(ctx, |ui| {
+        ui.heading("Minimal Test");
+        ui.label("If you can see this, the Bevy + bevy_egui framework is working");
+        ui.label(format!("Counter: {}", state.counter));
+        if ui.button("Increment").clicked() {
+            state.counter += 1;
+        }
+    });
 }

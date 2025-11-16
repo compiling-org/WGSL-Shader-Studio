@@ -61,10 +61,33 @@ impl RealShaderRenderer {
     pub fn compile_wgsl_shader(&mut self, name: &str, wgsl_source: &str) -> Result<(), Box<dyn std::error::Error>> {
         let start_time = Instant::now();
         
+        // Check if shader has vertex shader entry point, if not create default one
+        let has_vertex_shader = wgsl_source.contains("@vertex") || wgsl_source.contains("fn vs_main");
+        
         // Create shader module from WGSL source
         let shader_module = self.device.create_shader_module(ShaderModuleDescriptor {
             label: Some(&format!("Shader: {}", name)),
-            source: ShaderSource::Wgsl(wgsl_source.into()),
+            source: {
+                let complete_shader = if !has_vertex_shader {
+                    // Add default vertex shader for full-screen triangle
+                    format!("{}
+
+@vertex
+fn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<f32> {{
+    // Full-screen triangle covering the entire viewport
+    let positions = array<vec2<f32>, 3>(
+        vec2<f32>(-1.0, -1.0),
+        vec2<f32>(3.0, -1.0),
+        vec2<f32>(-1.0, 3.0)
+    );
+    return vec4<f32>(positions[vertex_index], 0.0, 1.0);
+}}
+", wgsl_source)
+                } else {
+                    wgsl_source.to_string()
+                };
+                ShaderSource::Wgsl(complete_shader.into())
+            },
         });
 
         // Parse uniforms from WGSL for buffer creation
@@ -125,7 +148,8 @@ impl RealShaderRenderer {
         let compilation_time = start_time.elapsed();
         self.compilation_stats.insert(name.to_string(), compilation_time);
         
-        println!("✓ Shader '{}' compiled successfully in {:.2}ms", name, compilation_time.as_millis());
+        println!("✓ Shader '{}' compiled successfully in {:.2}ms (added vertex shader: {})", 
+                  name, compilation_time.as_millis(), !has_vertex_shader);
         Ok(())
     }
 

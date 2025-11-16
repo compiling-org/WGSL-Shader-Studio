@@ -341,6 +341,7 @@ pub mod shader_renderer;
 // pub mod real_shader_renderer;
 // pub mod wgpu_renderer;
 pub mod isf_loader;
+pub mod isf_converter;
 pub mod ffgl_plugin;
 pub mod ui;
 #[cfg(feature = "gui")]
@@ -351,6 +352,12 @@ pub mod isf_auto_converter;
 pub mod isf_conversion_tester;
 pub mod wgsl_reflect_integration;
 pub mod wgslsmith_integration;
+pub mod converter; // Add comprehensive converter module
+pub mod editor_ui;
+pub mod simple_ui_auditor;
+pub mod node_graph;
+pub mod timeline;
+pub mod ui_analyzer;
 
 // Re-export main types for easier use
 pub use audio::*;
@@ -359,4 +366,3 @@ pub use shader_converter::*;
 pub use shader_renderer::*;
 pub use isf_loader::*;
 pub use ffgl_plugin::*;
-pub use ui::*;

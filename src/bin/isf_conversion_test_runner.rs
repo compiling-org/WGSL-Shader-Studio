@@ -2,20 +2,20 @@
 //! Comprehensive testing of ISF to WGSL conversion system
 
 use resolume_isf_shaders_rust_ffgl::isf_auto_converter::IsfAutoConverter;
-use resolume_isf_shaders_rust_ffgl::isf_conversion_tester::{IsfConversionTester, ConversionTestResult};
+use resolume_isf_shaders_rust_ffgl::isf_conversion_tester::IsfConversionTester;
 
 fn main() {
     println!("🚀 ISF Conversion Test Runner");
     println!("================================");
     
     // Initialize the converter and tester
-    let converter = IsfAutoConverter::new();
+    let mut converter = IsfAutoConverter::new();
     let mut tester = IsfConversionTester::new();
     
     println!("📋 Running comprehensive ISF conversion tests...");
     
     // Run all tests
-    let results = tester.run_all_tests(&converter);
+    let results = tester.run_all_tests(&mut converter);
     
     // Display results
     println!("\n📊 Test Results:");

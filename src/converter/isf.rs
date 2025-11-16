@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use anyhow::{Result, Context, bail};
-use crate::converter::diagnostics::{Diagnostic, DiagnosticSeverity, Diagnostics, DiagnosticHelpers};
+use crate::converter::diagnostics::{Diagnostic, DiagnosticSeverity, Diagnostics};
 
 /// ISF 1.2 specification structures
 /// Based on the Interactive Shader Format specification
@@ -165,53 +165,49 @@ impl ISFParser {
     fn validate_isf_schema(&mut self, json_data: &serde_json::Value, file_path: &str) -> Result<()> {
         // Check required fields
         if !json_data.is_object() {
-            self.diagnostics.add_diagnostic(
-                DiagnosticHelpers::validation_error(
-                    "ISF file must be a JSON object",
-                    1,
-                    1
-                ).with_file_path(file_path.to_string())
-            );
+            let diagnostic = self.create_validation_error(
+                "ISF file must be a JSON object",
+                1,
+                1
+            ).with_file_path(file_path.to_string());
+            self.diagnostics.add_diagnostic(diagnostic);
             return Err(anyhow::anyhow!("Invalid ISF JSON structure"));
         }
         
         // Check for FRAGMENT_SHADER
         if json_data.get("FRAGMENT_SHADER").is_none() {
-            self.diagnostics.add_diagnostic(
-                DiagnosticHelpers::validation_error(
-                    "Missing required FRAGMENT_SHADER field",
-                    1,
-                    1
-                ).with_file_path(file_path.to_string())
-            );
+            let diagnostic = self.create_validation_error(
+                "Missing required FRAGMENT_SHADER field",
+                1,
+                1
+            ).with_file_path(file_path.to_string());
+            self.diagnostics.add_diagnostic(diagnostic);
         }
         
         // Check ISF version
         if let Some(isf_version) = json_data.get("ISF_VERSION").and_then(|v| v.as_str()) {
             if !isf_version.starts_with("1.") {
-                self.diagnostics.add_diagnostic(
-                    DiagnosticHelpers::compatibility_warning(
-                        format!("ISF version {} may not be fully supported", isf_version),
-                        1,
-                        1
-                    ).with_file_path(file_path.to_string())
-                );
-            }
-        } else {
-            self.diagnostics.add_diagnostic(
-                DiagnosticHelpers::validation_error(
-                    "Missing ISF_VERSION field",
+                let diagnostic = self.create_compatibility_warning(
+                    format!("ISF version {} may not be fully supported", isf_version),
                     1,
                     1
-                ).with_file_path(file_path.to_string())
-            );
+                ).with_file_path(file_path.to_string());
+                self.diagnostics.add_diagnostic(diagnostic);
+            }
+        } else {
+            let diagnostic = self.create_validation_error(
+                "Missing ISF_VERSION field",
+                1,
+                1
+            ).with_file_path(file_path.to_string());
+            self.diagnostics.add_diagnostic(diagnostic);
         }
         
         Ok(())
     }
     
     /// Parse ISF metadata
-    fn parse_metadata(&mut self, json_data: &serde_json::Value, file_path: &str) -> Result<ISFMetadata> {
+    fn parse_metadata(&mut self, json_data: &serde_json::Value, _file_path: &str) -> Result<ISFMetadata> {
         let description = json_data.get("DESCRIPTION")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
@@ -341,13 +337,12 @@ impl ISFParser {
     /// Parse a single ISF input
     fn parse_single_input(&mut self, input_value: &serde_json::Value, index: usize, file_path: &str) -> Result<Option<ISFInput>> {
         if !input_value.is_object() {
-            self.diagnostics.add_diagnostic(
-                DiagnosticHelpers::validation_error(
-                    format!("Input at index {} must be an object", index),
-                    1,
-                    1
-                ).with_file_path(file_path.to_string())
-            );
+            let diagnostic = self.create_validation_error(
+                format!("Input at index {} must be an object", index),
+                1,
+                1
+            ).with_file_path(file_path.to_string());
+            self.diagnostics.add_diagnostic(diagnostic);
             return Ok(None);
         }
         
@@ -375,13 +370,12 @@ impl ISFParser {
             "audiowaveform" => ISFInputType::AudioWaveform,
             "audiofrequency" => ISFInputType::AudioFrequency,
             _ => {
-                self.diagnostics.add_diagnostic(
-                    DiagnosticHelpers::validation_error(
-                        format!("Unknown input type '{}' for input '{}'", input_type_str, name),
-                        1,
-                        1
-                    ).with_file_path(file_path.to_string())
-                );
+                let diagnostic = self.create_validation_error(
+                    format!("Unknown input type '{}' for input '{}'", input_type_str, name),
+                    1,
+                    1
+                ).with_file_path(file_path.to_string());
+                self.diagnostics.add_diagnostic(diagnostic);
                 ISFInputType::Float // Default fallback
             }
         };
@@ -438,13 +432,12 @@ impl ISFParser {
     /// Parse a single ISF output
     fn parse_single_output(&mut self, output_value: &serde_json::Value, index: usize, file_path: &str) -> Result<Option<ISFOutput>> {
         if !output_value.is_object() {
-            self.diagnostics.add_diagnostic(
-                DiagnosticHelpers::validation_error(
-                    format!("Output at index {} must be an object", index),
-                    1,
-                    1
-                ).with_file_path(file_path.to_string())
-            );
+            let diagnostic = self.create_validation_error(
+                format!("Output at index {} must be an object", index),
+                1,
+                1
+            ).with_file_path(file_path.to_string());
+            self.diagnostics.add_diagnostic(diagnostic);
             return Ok(None);
         }
         
@@ -463,13 +456,12 @@ impl ISFParser {
             "buffer" => ISFOutputType::Buffer,
             "audio" => ISFOutputType::Audio,
             _ => {
-                self.diagnostics.add_diagnostic(
-                    DiagnosticHelpers::validation_error(
-                        format!("Unknown output type '{}' for output '{}'", output_type_str, name),
-                        1,
-                        1
-                    ).with_file_path(file_path.to_string())
-                );
+                let diagnostic = self.create_validation_error(
+                    format!("Unknown output type '{}' for output '{}'", output_type_str, name),
+                    1,
+                    1
+                ).with_file_path(file_path.to_string());
+                self.diagnostics.add_diagnostic(diagnostic);
                 ISFOutputType::Image // Default fallback
             }
         };
@@ -508,13 +500,12 @@ impl ISFParser {
     /// Parse a single ISF pass
     fn parse_single_pass(&mut self, pass_value: &serde_json::Value, index: usize, file_path: &str) -> Result<Option<ISFPass>> {
         if !pass_value.is_object() {
-            self.diagnostics.add_diagnostic(
-                DiagnosticHelpers::validation_error(
-                    format!("Pass at index {} must be an object", index),
-                    1,
-                    1
-                ).with_file_path(file_path.to_string())
-            );
+            let diagnostic = self.create_validation_error(
+                format!("Pass at index {} must be an object", index),
+                1,
+                1
+            ).with_file_path(file_path.to_string());
+            self.diagnostics.add_diagnostic(diagnostic);
             return Ok(None);
         }
         
@@ -640,7 +631,7 @@ impl ISFParser {
     }
     
     /// Convert fragment shader to WGSL
-    fn convert_fragment_shader_to_wgsl(&mut self, fragment_shader: &str) -> Result<String> {
+    fn convert_fragment_shader_to_wgsl(&mut self, _fragment_shader: &str) -> Result<String> {
         // This is a simplified conversion - in a real implementation,
         // you would need a full GLSL to WGSL transpiler
         let mut wgsl_code = String::new();
@@ -685,6 +676,38 @@ impl ISFParser {
     /// Get diagnostics from parsing
     pub fn get_diagnostics(&self) -> &Diagnostics {
         &self.diagnostics
+    }
+    
+    /// Create a validation error diagnostic
+    fn create_validation_error(&mut self, message: impl Into<String>, line: usize, column: usize) -> Diagnostic {
+        Diagnostic {
+            severity: DiagnosticSeverity::Error,
+            code: "VALIDATION_ERROR".to_string(),
+            message: message.into(),
+            file_path: String::new(),
+            line,
+            column,
+            length: 1,
+            suggestions: Vec::new(),
+            related_information: Vec::new(),
+            quick_fix_available: false,
+        }
+    }
+    
+    /// Create a compatibility warning diagnostic
+    fn create_compatibility_warning(&mut self, message: impl Into<String>, line: usize, column: usize) -> Diagnostic {
+        Diagnostic {
+            severity: DiagnosticSeverity::Warning,
+            code: "COMPATIBILITY_WARNING".to_string(),
+            message: message.into(),
+            file_path: String::new(),
+            line,
+            column,
+            length: 1,
+            suggestions: Vec::new(),
+            related_information: Vec::new(),
+            quick_fix_available: false,
+        }
     }
     
     /// Take ownership of diagnostics

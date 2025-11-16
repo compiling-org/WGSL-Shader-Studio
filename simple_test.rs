@@ -1,41 +1,35 @@
-use eframe;
+use bevy::prelude::*;
+use bevy_egui::{egui, EguiContexts, EguiPlugin};
 
 fn main() {
     println!("Starting simple test...");
     
-    let options = eframe::NativeOptions {
-        viewport: eframe::egui::ViewportBuilder::default()
-            .with_inner_size([300.0, 200.0])
-            .with_position([100.0, 100.0])
-            .with_title("Simple Test"),
-        ..Default::default()
-    };
-
-    let result = eframe::run_native(
-        "Simple Test",
-        options,
-        Box::new(|_cc| Ok(Box::new(MyApp::default()))),
-    );
+    App::new()
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                title: "Simple Test".to_string(),
+                resolution: bevy::window::WindowResolution::new(300, 200),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }))
+        .add_plugins(EguiPlugin::default())
+        .add_systems(Startup, setup_camera)
+        .add_systems(Update, test_ui_system)
+        .run();
     
-    match result {
-        Ok(_) => println!("Window closed successfully"),
-        Err(e) => eprintln!("Failed to create window: {}", e),
-    }
+    println!("Window closed successfully");
 }
 
-struct MyApp {}
-
-impl Default for MyApp {
-    fn default() -> Self {
-        Self {}
-    }
+fn setup_camera(mut commands: Commands) {
+    commands.spawn(Camera2d);
 }
 
-impl eframe::App for MyApp {
-    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
-        eframe::egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Simple Test");
-            ui.label("If you can see this, the GUI is working!");
-        });
-    }
+fn test_ui_system(mut egui_ctx: EguiContexts) {
+    let ctx = egui_ctx.ctx_mut().expect("Failed to get egui context");
+    
+    egui::CentralPanel::default().show(ctx, |ui| {
+        ui.heading("Simple Test");
+        ui.label("If you can see this, the Bevy + bevy_egui GUI is working!");
+    });
 }

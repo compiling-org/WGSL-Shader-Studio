@@ -673,7 +673,7 @@ impl IsfConversionTester {
     }
     
     /// Run all conversion tests
-    pub fn run_all_tests(&mut self, converter: &crate::isf_auto_converter::IsfAutoConverter) -> Vec<ConversionTestResult> {
+    pub fn run_all_tests(&mut self, converter: &mut crate::isf_auto_converter::IsfAutoConverter) -> Vec<ConversionTestResult> {
         println!("🧪 Running comprehensive ISF conversion tests...");
         self.test_results.clear();
         
@@ -687,7 +687,7 @@ impl IsfConversionTester {
         self.test_results.clone()
     }
     
-    fn run_single_test(&self, test: &IsfConversionTest, converter: &crate::isf_auto_converter::IsfAutoConverter) -> ConversionTestResult {
+    fn run_single_test(&self, test: &IsfConversionTest, converter: &mut crate::isf_auto_converter::IsfAutoConverter) -> ConversionTestResult {
         let start_time = std::time::Instant::now();
         let mut errors = Vec::new();
         let mut warnings = Vec::new();

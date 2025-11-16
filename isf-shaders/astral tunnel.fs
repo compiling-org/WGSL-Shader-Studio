@@ -1,0 +1,169 @@
+/*
+{
+    "DESCRIPTION": "Modular fractal shader with toggleable looping tunnel, volumetric spores, inner patterns, and video texture integration.",
+    "CATEGORIES": ["Fractal","Volumetric","Psychedelic","Optimized"],
+    "ISFVSN": "2.0",
+    "INPUTS": [
+        { "NAME": "Speed", "TYPE": "float", "DEFAULT": 8.0, "MIN": 0.1, "MAX": 50.0 },
+        { "NAME": "Zoom", "TYPE": "float", "DEFAULT": 1.5, "MIN": 0.5, "MAX": 3.0 },
+        { "NAME": "TransformMode", "TYPE": "float", "DEFAULT": 1.8, "MIN": 0, "MAX": 5 },
+        { "NAME": "GeometryType", "TYPE": "float", "DEFAULT": 3, "MIN": 0, "MAX": 6 },
+        { "NAME": "ChaosIntensity", "TYPE": "float", "DEFAULT": 0.43, "MIN": 0.0, "MAX": 2.0 },
+        { "NAME": "ChaosSpeed", "TYPE": "float", "DEFAULT": 0.66, "MIN": 0.1, "MAX": 4.0 },
+        { "NAME": "ColorPaletteMode", "TYPE": "float", "DEFAULT": 19, "MIN": 0, "MAX": 19 },
+        { "NAME": "Brightness", "TYPE": "float", "DEFAULT": 1.1, "MIN": 0, "MAX": 3.0 },
+        { "NAME": "Contrast", "TYPE": "float", "DEFAULT": 1.2, "MIN": 0.1, "MAX": 3.0 },
+        { "NAME": "Glow", "TYPE": "float", "DEFAULT": 0.4, "MIN": 0.0, "MAX": 2.0 },
+        { "NAME": "Symmetry", "TYPE": "float", "DEFAULT": 0.4, "MIN": 0.0, "MAX": 4.0 },
+        { "NAME": "ChaosMix", "TYPE": "float", "DEFAULT": 0.35, "MIN": 0.0, "MAX": 1.0 },
+        { "NAME": "Sharpness", "TYPE": "float", "DEFAULT": 1.0, "MIN": 0.1, "MAX": 5.0 },
+        { "NAME": "FalloffCurve", "TYPE": "float", "DEFAULT": 1.1, "MIN": 0.1, "MAX": 3.0 },
+        { "NAME": "CameraOrbit", "TYPE": "float", "DEFAULT": 0.0, "MIN": -3.14, "MAX": 3.14 },
+        { "NAME": "CameraPitch", "TYPE": "float", "DEFAULT": 0.0, "MIN": -1.57, "MAX": 1.57 },
+        { "NAME": "CameraRoll", "TYPE": "float", "DEFAULT": 0.0, "MIN": -3.14, "MAX": 3.14 },
+        { "NAME": "FocusNear", "TYPE": "float", "DEFAULT": 0.0, "MIN": -5.0, "MAX": 5.0 },
+        { "NAME": "FocusFar", "TYPE": "float", "DEFAULT": 2.6, "MIN": 0.1, "MAX": 10.0 },
+        { "NAME": "FOV", "TYPE": "float", "DEFAULT": 1.6, "MIN": 0.2, "MAX": 3.0 },
+        { "NAME": "StepCount", "TYPE": "float", "DEFAULT": 6, "MIN": 1, "MAX": 60 },
+        { "NAME": "Texture", "TYPE": "image" },
+        { "NAME": "TextureWarp", "TYPE": "float", "DEFAULT": 0.5, "MIN": 0.0, "MAX": 2.0 },
+        { "NAME": "TextureScale", "TYPE": "float", "DEFAULT": 1.0, "MIN": 0.1, "MAX": 10.0 },
+        { "NAME": "colorPulse", "TYPE": "float", "DEFAULT": 0.5, "MIN": 0.0, "MAX": 2.0 },
+        { "NAME": "shakeAmount", "TYPE": "float", "DEFAULT": 0.01, "MIN": 0.0, "MAX": 0.1 },
+        { "NAME": "cameraShift", "TYPE": "float", "DEFAULT": 0.0, "MIN": -1.0, "MAX": 1.0 },
+        { "NAME": "fractalMorph", "TYPE": "float", "DEFAULT": 0.5, "MIN": 0.0, "MAX": 1.0 },
+        { "NAME": "LiminalMix", "TYPE": "float", "DEFAULT": 0.0, "MIN": 0.0, "MAX": 1.0 },
+        { "NAME": "LiminalScale", "TYPE": "float", "DEFAULT": 1.0, "MIN": 0.1, "MAX": 5.0 },
+        { "NAME": "TunnelEnabled", "TYPE": "float", "DEFAULT": 1.0, "MIN": 0.0, "MAX": 1.0 },
+        { "NAME": "TunnelZoom", "TYPE": "float", "DEFAULT": 2.0, "MIN": 0.5, "MAX": 5.0 },
+        { "NAME": "TunnelSpeed", "TYPE": "float", "DEFAULT": 1.0, "MIN": 0.0, "MAX": 5.0 },
+        { "NAME": "ExtraSporeIntensity", "TYPE": "float", "DEFAULT": 1.0, "MIN": 0.0, "MAX": 2.0 },
+        { "NAME": "VideoMix", "TYPE": "float", "DEFAULT": 0.7, "MIN": 0.0, "MAX": 1.0 },
+        { "NAME": "InnerPatternIntensity", "TYPE": "float", "DEFAULT": 0.5, "MIN": 0.0, "MAX": 1.0 }
+    ]
+}
+*/
+
+#define MAX_STEPS 48
+#define BAILOUT 16.0
+#define PI 3.141592
+
+mat3 cameraMatrix(float orbit,float pitch,float roll){
+    float co=cos(orbit),so=sin(orbit),cp=cos(pitch),sp=sin(pitch),cr=cos(roll),sr=sin(roll);
+    return mat3(co*cr+so*sp*sr,sr*cp,-so*cr+co*sp*sr,
+                -co*sr+so*sp*cr,cr*cp,sr*so+co*sp*cr,
+                so*cp,-sp,co*cp);
+}
+
+mat2 rot(float a){ float s=sin(a),c=cos(a); return mat2(c,s,-s,c); }
+vec3 pal(float t,vec3 a,vec3 b,vec3 c,vec3 d){ return a + b*cos(6.2831*(c*t+d)); }
+vec3 getColorPalette(float mode,float t){ return pal(t,vec3(0.5),vec3(0.4),vec3(1.0,1.3,0.7),vec3(0.1,0.2,0.3)); }
+
+vec3 triplanarTexture(vec3 p,float scale){
+    vec3 blend=normalize(abs(p)); blend=pow(blend,vec3(4.0))/dot(pow(blend,vec3(4.0)),vec3(1.0));
+    vec2 xz=fract(p.zy*scale); vec2 yz=fract(p.xz*scale); vec2 xy=fract(p.xy*scale);
+    vec3 tx=texture2D(Texture,xz).rgb; vec3 ty=texture2D(Texture,yz).rgb; vec3 tz=texture2D(Texture,xy).rgb;
+    return tx*blend.x+ty*blend.y+tz*blend.z;
+}
+
+// DISTANCE FUNCTIONS
+float sdSphere(vec3 p,float r){ return length(p)-r; }
+float sdTorus(vec3 p,vec2 t){ vec2 q=vec2(length(p.xz)-t.x,p.y); return length(q)-t.y; }
+float sdGrid(vec3 p,float freq){ return sin(p.x*freq)*sin(p.y*freq)*sin(p.z*freq); }
+float shapeSpikeFractal(vec3 p){ float d=0.0; for(int i=0;i<128;i++){ p=abs(p)/dot(p,p+0.001)-0.5; p*=0.95; d+=length(p);} return d/20.0; }
+float liminalFractal(vec3 p,float t,float scale){ p*=scale; float m=100.0; for(int i=0;i<7;i++){ p=abs(p)/dot(p,p)-fractalMorph; p.xy*=rot(t*0.05+float(i)*0.1); m=min(m,length(p));} return m; }
+float shapeChaos(vec3 p,float chaos){ return (sin(p.x*3.+TIME*ChaosSpeed)+sin(p.y*4.+TIME*ChaosSpeed*1.2)+sin(p.z*5.+TIME*ChaosSpeed*0.8))*chaos; }
+
+// SPORES
+float sporeField(vec3 p,float t){
+    float s=0.0;
+    for(int i=0;i<12;i++){
+        vec3 offset=vec3(sin(float(i)+t),cos(float(i)*1.3+t),sin(float(i)*0.7+t))*2.0;
+        float r=0.05+0.02*mod(float(i)+t,2.0);
+        s+=smoothstep(r,r*0.8,length(p-offset));
+    }
+    return s;
+}
+
+// INNER PATTERN
+float innerPattern(vec3 p){ return sin(p.x*12.0)*sin(p.y*12.0)*sin(p.z*12.0); }
+
+// TUNNEL TRANSFORM
+vec3 tunnelTransform(vec3 p,float tunnelZoom){
+    if(TunnelEnabled<0.5) return p;
+    float zMod=mod(p.z*TunnelZoom+TIME*TunnelSpeed,2.0)-1.0;
+    p.z=zMod;
+    return p;
+}
+
+// BASE SCENE
+float scene(vec3 p,float t,float geo,float chaos,float chaosMix,float LiminalMix,float liminalScale,float extraSpore){
+    float baseShape;
+    if(geo<0.5) baseShape=sdSphere(p,1.0);
+    else if(geo<1.5) baseShape=sdTorus(p,vec2(1.0,0.3));
+    else if(geo<2.5) baseShape=shapeSpikeFractal(p);
+    else if(geo<3.5) baseShape=sdGrid(p,4.0)*0.1;
+    else if(geo<4.5) baseShape=liminalFractal(p,t,liminalScale);
+    else if(geo<5.5) baseShape=mix(liminalFractal(p,t,liminalScale),sdGrid(p,4.0)*0.1,0.5);
+    else baseShape=mix(shapeSpikeFractal(p),sdSphere(p,1.0),0.5);
+
+    float d=mix(baseShape,liminalFractal(p,t,liminalScale),LiminalMix);
+    d=mix(d,shapeChaos(p,chaos),chaosMix);
+
+    d-=sporeField(p,t)*extraSpore;        // SPORES
+    d-=innerPattern(p)*InnerPatternIntensity*0.02; // INNER PATTERN
+    return d;
+}
+
+// APPLY TRANSFORM
+vec3 applyTransform(vec3 p,float mode,float chaos,float sym,float chspd){
+    p*=max(sym,0.001);
+    if(mode<1.5) p=abs(p);
+    else if(mode<2.5) p+=sin(p*3.0+TIME*chspd)*chaos*0.3;
+    else if(mode<3.5){ p+=sin(p*(1.0+chaos*2.0)+TIME*chspd)*chaos*0.5; p=fract(p*1.5)-0.75; }
+    if(mode>3.5&&mode<5.5){ float a=atan(p.z,p.x); float r=length(p.xz); float spin=TIME*chspd*(mode<4.5?0.2:0.3); a+=spin; p.x=cos(a)*r; p.z=sin(a)*r; }
+    return p;
+}
+
+// MAIN
+void main(){
+    vec2 uv=(gl_FragCoord.xy-0.5*RENDERSIZE.xy)/RENDERSIZE.y;
+    uv+=sin(vec2(TIME*13.1,TIME*11.5))*shakeAmount;
+    uv.x+=cameraShift; uv*=FOV;
+
+    float t=TIME*Speed;
+    vec3 ro=vec3(0.0,0.0,-3.0);
+    vec3 rd=normalize(vec3(uv*Zoom,1.0));
+    rd=cameraMatrix(CameraOrbit,CameraPitch,CameraRoll)*rd;
+
+    vec3 warp=triplanarTexture(ro*TextureScale,1.0)-0.5;
+    vec3 roWarped=ro+warp*TextureWarp;
+
+    vec3 col=vec3(0.0); float dist=0.0;
+    for(int i=0;i<MAX_STEPS;i++){
+        vec3 p=roWarped+dist*rd;
+        p=applyTransform(p,TransformMode,ChaosIntensity,Symmetry,ChaosSpeed);
+        p=tunnelTransform(p,TunnelZoom);
+
+        float d=scene(p,t,GeometryType,ChaosIntensity,ChaosMix,LiminalMix,LiminalScale,ExtraSporeIntensity);
+        d=max(abs(d),0.01);
+
+        float fade=exp(-float(i)*0.03*Sharpness);
+        float focus=smoothstep(FocusNear,FocusFar,dist);
+
+        vec3 palCol=getColorPalette(ColorPaletteMode,p.z+t*0.1)*colorPulse;
+        vec3 texCol=triplanarTexture(p*TextureScale,1.0);
+        vec3 mixedCol=mix(palCol,texCol,VideoMix);
+
+        float b=0.005/(0.01+d*FalloffCurve);
+        col+=mixedCol*b*fade*focus;
+
+        dist+=d; if(dist>BAILOUT) break;
+    }
+
+    float pulse=sin(TIME*ChaosSpeed)*0.5+0.5;
+    col*=(1.0+0.3*pulse);
+    col=(col-0.5)*Contrast+0.5; col*=Brightness*Glow;
+
+    gl_FragColor=vec4(clamp(col,0.0,1.0),1.0);
+}

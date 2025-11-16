@@ -1,4 +1,5 @@
-//! ISF Shader Editor UI using eframe + egui
+#![cfg(feature = "eframe")] // DISABLED - EFAME ONLY - DO NOT USE
+//! ISF Shader Editor UI using eframe + egui (LEGACY - DO NOT USE)
 //!
 //! This provides a standalone application for developing and testing ISF shaders
 //! before deploying them as FFGL plugins.

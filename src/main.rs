@@ -1,7 +1,7 @@
 //! Standalone application for testing ISF shaders
 
 #[cfg(feature = "gui")]
-mod gui;
+mod bevy_app;
 #[cfg(feature = "gui")]
 mod audio;
 
@@ -10,6 +10,11 @@ mod isf_loader;
 mod shader_converter;
 mod gesture_control;
 mod shader_renderer;
+mod editor_ui;
+mod node_graph;
+mod timeline;
+mod isf_converter;
+mod converter;
 
 // Re-export for easier access
 use isf_loader::*;
@@ -32,7 +37,7 @@ fn main() {
         #[cfg(feature = "gui")]
         {
             println!("Starting WGSL Shader Studio GUI...");
-            gui::run_gui();
+            bevy_app::run_app();
         }
         #[cfg(not(feature = "gui"))]
         {

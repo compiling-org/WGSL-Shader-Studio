@@ -25,7 +25,7 @@
 ### Previous Development History (Pre-2025-10-31)
 
 #### GUI Framework Implementation
-- **eframe/egui Integration**: Complete GUI framework setup
+- **Bevy + bevy_egui Integration**: Complete GUI framework setup (NOT eframe)
 - **Multi-panel Layout**: 4-column interface with collapsible panels
 - **Menu System**: Comprehensive menu bar with all major categories
 - **Status Bar**: Real-time FPS and compilation status display

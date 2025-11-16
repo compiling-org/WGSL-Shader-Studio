@@ -1,0 +1,7 @@
+{
+                "NAME": "Basic Color",
+                "DESCRIPTION": "Simple color shader",
+                "INPUTS": [
+                    {"NAME": "brightness", "TYPE": "float", "DEFAULT": 1.0, "MIN": 0.0, "MAX": 2.0}
+                ]
+            }

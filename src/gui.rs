@@ -1,4 +1,5 @@
-//! WGSL Shader Studio - Professional GUI Application
+#![cfg(feature = "eframe")] // DISABLED - EFAME ONLY - DO NOT USE
+//! WGSL Shader Studio - Professional GUI Application (LEGACY EFAME - DO NOT USE)
 //! Based on modular-fractal-shader UI architecture
 
 #[cfg(feature = "gui")]

@@ -1,45 +1,44 @@
-use eframe::egui;
+use bevy::prelude::*;
+use bevy_egui::{egui, EguiContexts, EguiPlugin};
 
-fn main() {
-    let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size([400.0, 300.0])
-            .with_position([100.0, 100.0])
-            .with_title("Minimal GUI Test")
-            .with_visible(true)
-            .with_active(true),
-        ..Default::default()
-    };
-
-    eframe::run_native(
-        "Minimal GUI Test",
-        options,
-        Box::new(|_cc| Ok(Box::new(TestApp::default()))),
-    ).unwrap();
-}
-
-struct TestApp {
+#[derive(Resource, Default)]
+struct TestState {
     counter: usize,
 }
 
-impl Default for TestApp {
-    fn default() -> Self {
-        Self { counter: 0 }
-    }
+fn main() {
+    App::new()
+        .add_plugins(DefaultPlugins.set(WindowPlugin {
+            primary_window: Some(Window {
+                title: "Minimal GUI Test".to_string(),
+                resolution: bevy::window::WindowResolution::new(400, 300),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }))
+        .add_plugins(EguiPlugin::default())
+        .init_resource::<TestState>()
+        .add_systems(Startup, setup_camera)
+        .add_systems(Update, test_ui_system)
+        .run();
 }
 
-impl eframe::App for TestApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Minimal GUI Test");
-            ui.label("If you can see this window, the GUI framework is working correctly.");
-            ui.label(format!("Counter: {}", self.counter));
-            if ui.button("Increment").clicked() {
-                self.counter += 1;
-            }
-        });
-        
-        // Request repaint for animation
-        ctx.request_repaint_after(std::time::Duration::from_millis(100));
-    }
+fn setup_camera(mut commands: Commands) {
+    commands.spawn(Camera2d);
+}
+
+fn test_ui_system(mut egui_ctx: EguiContexts, mut state: ResMut<TestState>) {
+    let ctx = egui_ctx.ctx_mut().expect("Failed to get egui context");
+    
+    egui::CentralPanel::default().show(ctx, |ui| {
+        ui.heading("Minimal GUI Test");
+        ui.label("If you can see this window, the Bevy + bevy_egui framework is working correctly.");
+        ui.label(format!("Counter: {}", state.counter));
+        if ui.button("Increment").clicked() {
+            state.counter += 1;
+        }
+    });
+    
+    // Request repaint for animation
+    ctx.request_repaint_after(std::time::Duration::from_millis(100));
 }

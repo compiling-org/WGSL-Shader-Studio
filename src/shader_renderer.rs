@@ -1,6 +1,6 @@
 use wgpu::*;
 use wgpu::util::DeviceExt;
-use egui::TextureHandle; // NOTE: This import is marked as unused in the provided error messages
+use bevy_egui::egui::TextureHandle;
 use bytemuck::{Pod, Zeroable};
 
 use crate::audio::AudioData;
@@ -889,7 +889,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     /// Compiles the WGSL code, sets up the pipeline, executes the render pass,
     /// and reads the resulting RGBA pixel data back from the GPU buffer.
     /// The return type `Box<[u8]>` fixes the `E0308` error from the compilation log.
-    pub fn render_frame(&mut self, wgsl_code: &str, params: &RenderParameters, audio_data: Option<AudioData>) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    pub fn render_frame(&mut self, wgsl_code: &str, params: &RenderParameters, audio_data: Option<AudioData>) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         // Quick return for empty code to prevent hanging
         if wgsl_code.trim().is_empty() {
             let pixel_count = (params.width * params.height) as usize;
@@ -921,10 +921,18 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
         // --- 2. Create Shader Module ---
         println!("Compiling WGSL shader...");
+        
+        // Check if the shader has a vertex shader, if not add default one
+        let full_shader_code = if !wgsl_code.contains("@vertex") {
+            println!("Adding default vertex shader to fragment-only shader");
+            format!("{}\n{}", VERTEX_SHADER, wgsl_code)
+        } else {
+            wgsl_code.to_string()
+        };
         self.device.push_error_scope(wgpu::ErrorFilter::Validation);
         let shader = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
-            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(wgsl_code)),
+            source: wgpu::ShaderSource::Wgsl(std::borrow::Cow::Borrowed(&full_shader_code)),
         });
         if let Some(err) = pollster::block_on(self.device.pop_error_scope()) {
             let msg = format!("WGSL validation error: {}", err);
