@@ -705,9 +705,15 @@ pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState
                 if ui.button("Time").clicked() {
                     ui_state.node_graph.add_node(NodeKind::Time, "Time", (160.0, 100.0));
                 }
+                if ui.button("Resolution").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Resolution, "Resolution", (220.0, 100.0));
+                }
+                if ui.button("Mouse").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Mouse, "Mouse", (280.0, 100.0));
+                }
                 if ui.button("Param").clicked() {
                     let idx = ui_state.param_index_input.min(63);
-                    ui_state.node_graph.add_node(NodeKind::Param(idx), &format!("Param[{}]", idx), (220.0, 100.0));
+                    ui_state.node_graph.add_node(NodeKind::Param(idx), &format!("Param[{}]", idx), (340.0, 100.0));
                 }
             });
             ui.horizontal(|ui| {
@@ -775,41 +781,74 @@ pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState
                 if ui.button("Cross").clicked() {
                     ui_state.node_graph.add_node(NodeKind::Cross, "Cross", (340.0, 260.0));
                 }
+                if ui.button("Reflect").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Reflect, "Reflect", (400.0, 260.0));
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label("Color:");
+                if ui.button("RGB").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::RGB, "RGB", (100.0, 300.0));
+                }
+                if ui.button("HSV").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::HSV, "HSV", (160.0, 300.0));
+                }
+                if ui.button("ColorMix").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::ColorMix, "ColorMix", (220.0, 300.0));
+                }
+                if ui.button("ColorAdjust").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::ColorAdjust, "ColorAdjust", (280.0, 300.0));
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label("Noise:");
+                if ui.button("Noise2D").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Noise2D, "Noise2D", (100.0, 340.0));
+                }
+                if ui.button("Noise3D").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Noise3D, "Noise3D", (160.0, 340.0));
+                }
+                if ui.button("Voronoi").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Voronoi, "Voronoi", (220.0, 340.0));
+                }
             });
             ui.horizontal(|ui| {
                 ui.label("Interpolation:");
                 if ui.button("Mix").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Mix, "Mix", (100.0, 300.0));
+                    ui_state.node_graph.add_node(NodeKind::Mix, "Mix", (100.0, 380.0));
                 }
                 if ui.button("Step").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Step, "Step", (160.0, 300.0));
+                    ui_state.node_graph.add_node(NodeKind::Step, "Step", (160.0, 380.0));
                 }
                 if ui.button("Smoothstep").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Smoothstep, "Smoothstep", (220.0, 300.0));
+                    ui_state.node_graph.add_node(NodeKind::Smoothstep, "Smoothstep", (220.0, 380.0));
                 }
                 if ui.button("Clamp").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Clamp, "Clamp", (280.0, 300.0));
+                    ui_state.node_graph.add_node(NodeKind::Clamp, "Clamp", (280.0, 380.0));
                 }
             });
             ui.horizontal(|ui| {
                 ui.label("Utility:");
                 if ui.button("Fract").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Fract, "Fract", (100.0, 340.0));
+                    ui_state.node_graph.add_node(NodeKind::Fract, "Fract", (100.0, 420.0));
                 }
                 if ui.button("Floor").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Floor, "Floor", (160.0, 340.0));
+                    ui_state.node_graph.add_node(NodeKind::Floor, "Floor", (160.0, 420.0));
                 }
                 if ui.button("Ceil").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Ceil, "Ceil", (220.0, 340.0));
+                    ui_state.node_graph.add_node(NodeKind::Ceil, "Ceil", (220.0, 420.0));
                 }
                 if ui.button("Abs").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Abs, "Abs", (280.0, 340.0));
+                    ui_state.node_graph.add_node(NodeKind::Abs, "Abs", (280.0, 420.0));
                 }
                 if ui.button("Sqrt").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Sqrt, "Sqrt", (340.0, 340.0));
+                    ui_state.node_graph.add_node(NodeKind::Sqrt, "Sqrt", (340.0, 420.0));
                 }
                 if ui.button("Pow").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Pow, "Pow", (400.0, 340.0));
+                    ui_state.node_graph.add_node(NodeKind::Pow, "Pow", (400.0, 420.0));
+                }
+                if ui.button("Sign").clicked() {
+                    ui_state.node_graph.add_node(NodeKind::Sign, "Sign", (460.0, 420.0));
                 }
             });
             ui.horizontal(|ui| {

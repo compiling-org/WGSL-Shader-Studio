@@ -19,13 +19,20 @@ pub enum PortKind {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NodeKind {
+    // Constants
     ConstantFloat(f32),
     ConstantVec2([f32; 2]),
     ConstantVec3([f32; 3]),
     ConstantVec4([f32; 4]),
+    
+    // Input/Time
     Time,
     UV,
     Param(usize),
+    Resolution,
+    Mouse,
+    
+    // Math Operations
     Add,
     Subtract,
     Multiply,
@@ -36,6 +43,14 @@ pub enum NodeKind {
     Length,
     Normalize,
     Distance,
+    
+    // Vector Operations
+    Dot,
+    Cross,
+    Reflect,
+    Refract,
+    
+    // Interpolation & Utility
     Mix,
     Clamp,
     Step,
@@ -48,9 +63,25 @@ pub enum NodeKind {
     Max,
     Pow,
     Sqrt,
-    Dot,
-    Cross,
+    Sign,
+    
+    // Color Operations
+    RGB,
+    HSV,
+    ColorMix,
+    ColorAdjust,
+    
+    // Noise & Procedural
+    Noise2D,
+    Noise3D,
+    Voronoi,
+    
+    // Texture Operations
     TextureSample,
+    TextureSampleLod,
+    TextureSize,
+    
+    // Output
     OutputColor,
 }
 
@@ -118,6 +149,7 @@ impl NodeGraph {
 
     fn populate_ports(&mut self, node: &mut Node) {
         match node.kind {
+            // Constants
             NodeKind::ConstantFloat(_) => {
                 node.outputs.push(self.new_port("value", PortKind::Float));
             }
@@ -130,6 +162,8 @@ impl NodeGraph {
             NodeKind::ConstantVec4(_) => {
                 node.outputs.push(self.new_port("value", PortKind::Vec4));
             }
+            
+            // Input/Time
             NodeKind::Time => {
                 node.outputs.push(self.new_port("time", PortKind::Float));
             }
@@ -139,17 +173,26 @@ impl NodeGraph {
             NodeKind::Param(_) => {
                 node.outputs.push(self.new_port("value", PortKind::Float));
             }
-            // Binary math operations
+            NodeKind::Resolution => {
+                node.outputs.push(self.new_port("resolution", PortKind::Vec2));
+            }
+            NodeKind::Mouse => {
+                node.outputs.push(self.new_port("mouse", PortKind::Vec2));
+            }
+            
+            // Math Operations
             NodeKind::Add | NodeKind::Subtract | NodeKind::Multiply | NodeKind::Divide | NodeKind::Min | NodeKind::Max | NodeKind::Pow | NodeKind::Distance => {
                 node.inputs.push(self.new_port("a", PortKind::Float));
                 node.inputs.push(self.new_port("b", PortKind::Float));
                 node.outputs.push(self.new_port("out", PortKind::Float));
             }
+            
             // Unary math operations
-            NodeKind::Sine | NodeKind::Cosine | NodeKind::Tangent | NodeKind::Length | NodeKind::Fract | NodeKind::Floor | NodeKind::Ceil | NodeKind::Abs | NodeKind::Sqrt => {
+            NodeKind::Sine | NodeKind::Cosine | NodeKind::Tangent | NodeKind::Length | NodeKind::Fract | NodeKind::Floor | NodeKind::Ceil | NodeKind::Abs | NodeKind::Sqrt | NodeKind::Sign => {
                 node.inputs.push(self.new_port("x", PortKind::Float));
                 node.outputs.push(self.new_port("out", PortKind::Float));
             }
+            
             // Vector operations
             NodeKind::Normalize => {
                 node.inputs.push(self.new_port("vector", PortKind::Vec3));
@@ -165,6 +208,18 @@ impl NodeGraph {
                 node.inputs.push(self.new_port("b", PortKind::Vec3));
                 node.outputs.push(self.new_port("out", PortKind::Vec3));
             }
+            NodeKind::Reflect => {
+                node.inputs.push(self.new_port("incident", PortKind::Vec3));
+                node.inputs.push(self.new_port("normal", PortKind::Vec3));
+                node.outputs.push(self.new_port("out", PortKind::Vec3));
+            }
+            NodeKind::Refract => {
+                node.inputs.push(self.new_port("incident", PortKind::Vec3));
+                node.inputs.push(self.new_port("normal", PortKind::Vec3));
+                node.inputs.push(self.new_port("eta", PortKind::Float));
+                node.outputs.push(self.new_port("out", PortKind::Vec3));
+            }
+            
             // Interpolation
             NodeKind::Mix => {
                 node.inputs.push(self.new_port("a", PortKind::Float));
@@ -189,12 +244,66 @@ impl NodeGraph {
                 node.inputs.push(self.new_port("max", PortKind::Float));
                 node.outputs.push(self.new_port("out", PortKind::Float));
             }
+            
+            // Color Operations
+            NodeKind::RGB => {
+                node.inputs.push(self.new_port("r", PortKind::Float));
+                node.inputs.push(self.new_port("g", PortKind::Float));
+                node.inputs.push(self.new_port("b", PortKind::Float));
+                node.outputs.push(self.new_port("color", PortKind::Color));
+            }
+            NodeKind::HSV => {
+                node.inputs.push(self.new_port("h", PortKind::Float));
+                node.inputs.push(self.new_port("s", PortKind::Float));
+                node.inputs.push(self.new_port("v", PortKind::Float));
+                node.outputs.push(self.new_port("color", PortKind::Color));
+            }
+            NodeKind::ColorMix => {
+                node.inputs.push(self.new_port("color1", PortKind::Color));
+                node.inputs.push(self.new_port("color2", PortKind::Color));
+                node.inputs.push(self.new_port("t", PortKind::Float));
+                node.outputs.push(self.new_port("out", PortKind::Color));
+            }
+            NodeKind::ColorAdjust => {
+                node.inputs.push(self.new_port("color", PortKind::Color));
+                node.inputs.push(self.new_port("brightness", PortKind::Float));
+                node.inputs.push(self.new_port("contrast", PortKind::Float));
+                node.inputs.push(self.new_port("saturation", PortKind::Float));
+                node.outputs.push(self.new_port("out", PortKind::Color));
+            }
+            
+            // Noise & Procedural
+            NodeKind::Noise2D => {
+                node.inputs.push(self.new_port("position", PortKind::Vec2));
+                node.outputs.push(self.new_port("value", PortKind::Float));
+            }
+            NodeKind::Noise3D => {
+                node.inputs.push(self.new_port("position", PortKind::Vec3));
+                node.outputs.push(self.new_port("value", PortKind::Float));
+            }
+            NodeKind::Voronoi => {
+                node.inputs.push(self.new_port("position", PortKind::Vec2));
+                node.outputs.push(self.new_port("value", PortKind::Float));
+                node.outputs.push(self.new_port("cell_id", PortKind::Float));
+            }
+            
             // Texture operations
             NodeKind::TextureSample => {
                 node.inputs.push(self.new_port("tex", PortKind::Texture));
                 node.inputs.push(self.new_port("uv", PortKind::Vec2));
                 node.outputs.push(self.new_port("color", PortKind::Color));
             }
+            NodeKind::TextureSampleLod => {
+                node.inputs.push(self.new_port("tex", PortKind::Texture));
+                node.inputs.push(self.new_port("uv", PortKind::Vec2));
+                node.inputs.push(self.new_port("lod", PortKind::Float));
+                node.outputs.push(self.new_port("color", PortKind::Color));
+            }
+            NodeKind::TextureSize => {
+                node.inputs.push(self.new_port("tex", PortKind::Texture));
+                node.outputs.push(self.new_port("size", PortKind::Vec2));
+            }
+            
             // Output
             NodeKind::OutputColor => {
                 node.inputs.push(self.new_port("color", PortKind::Color));
@@ -425,6 +534,138 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
                     code.push_str(&format!("  let {var}: vec4<f32> = textureSample(tex0, samp, {uv_src});\n"));
+                }
+                // Missing node types - add basic implementations
+                NodeKind::Resolution => {
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    code.push_str(&format!("  let {var}: vec2<f32> = uniforms.resolution;\n"));
+                }
+                NodeKind::Mouse => {
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    // Use center of screen as mouse position for now
+                    code.push_str(&format!("  let {var}: vec2<f32> = uniforms.resolution * 0.5;\n"));
+                }
+                NodeKind::Reflect => {
+                    let i = &node.inputs[0];
+                    let n = &node.inputs[1];
+                    let i_src = self.find_source_var(*id, i.id, &port_vars);
+                    let n_src = self.find_source_var(*id, n.id, &port_vars);
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    code.push_str(&format!("  let {var}: vec3<f32> = reflect({i_src}, {n_src});\n"));
+                }
+                NodeKind::Refract => {
+                    let i = &node.inputs[0];
+                    let n = &node.inputs[1];
+                    let eta = &node.inputs[2];
+                    let i_src = self.find_source_var(*id, i.id, &port_vars);
+                    let n_src = self.find_source_var(*id, n.id, &port_vars);
+                    let eta_src = self.find_source_var(*id, eta.id, &port_vars);
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    code.push_str(&format!("  let {var}: vec3<f32> = refract({i_src}, {n_src}, {eta_src});\n"));
+                }
+                NodeKind::Sign => {
+                    let x = &node.inputs[0];
+                    let x_src = self.find_source_var(*id, x.id, &port_vars);
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    code.push_str(&format!("  let {var}: f32 = sign({x_src});\n"));
+                }
+                NodeKind::RGB => {
+                    let r = &node.inputs[0];
+                    let g = &node.inputs[1];
+                    let b = &node.inputs[2];
+                    let r_src = self.find_source_var(*id, r.id, &port_vars);
+                    let g_src = self.find_source_var(*id, g.id, &port_vars);
+                    let b_src = self.find_source_var(*id, b.id, &port_vars);
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    code.push_str(&format!("  let {var}: vec3<f32> = vec3<f32>({r_src}, {g_src}, {b_src});\n"));
+                }
+                NodeKind::HSV => {
+                    let h = &node.inputs[0];
+                    let s = &node.inputs[1];
+                    let v = &node.inputs[2];
+                    let h_src = self.find_source_var(*id, h.id, &port_vars);
+                    let s_src = self.find_source_var(*id, s.id, &port_vars);
+                    let v_src = self.find_source_var(*id, v.id, &port_vars);
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    // Simple HSV to RGB conversion
+                    code.push_str(&format!("  let c = {v_src} * {s_src};\n"));
+                    code.push_str(&format!("  let x = c * (1.0 - abs(mod({h_src} * 6.0, 2.0) - 1.0));\n"));
+                    code.push_str(&format!("  let m = {v_src} - c;\n"));
+                    code.push_str(&format!("  let {var}: vec3<f32> = vec3<f32>(c, x, 0.0) + m;\n"));
+                }
+                NodeKind::ColorMix => {
+                    let color1 = &node.inputs[0];
+                    let color2 = &node.inputs[1];
+                    let t = &node.inputs[2];
+                    let color1_src = self.find_source_var(*id, color1.id, &port_vars);
+                    let color2_src = self.find_source_var(*id, color2.id, &port_vars);
+                    let t_src = self.find_source_var(*id, t.id, &port_vars);
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    code.push_str(&format!("  let {var}: vec3<f32> = mix({color1_src}, {color2_src}, {t_src});\n"));
+                }
+                NodeKind::ColorAdjust => {
+                    let color = &node.inputs[0];
+                    let brightness = &node.inputs[1];
+                    let contrast = &node.inputs[2];
+                    let saturation = &node.inputs[3];
+                    let color_src = self.find_source_var(*id, color.id, &port_vars);
+                    let brightness_src = self.find_source_var(*id, brightness.id, &port_vars);
+                    let contrast_src = self.find_source_var(*id, contrast.id, &port_vars);
+                    let saturation_src = self.find_source_var(*id, saturation.id, &port_vars);
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    code.push_str(&format!("  let {var}: vec3<f32> = ({color_src} * {contrast_src} + {brightness_src}) * {saturation_src};\n"));
+                }
+                NodeKind::Noise2D => {
+                    let position = &node.inputs[0];
+                    let position_src = self.find_source_var(*id, position.id, &port_vars);
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    // Simple pseudo-noise function
+                    code.push_str(&format!("  let {var}: f32 = fract(sin(dot({position_src}, vec2<f32>(12.9898, 78.233))) * 43758.5453);\n"));
+                }
+                NodeKind::Noise3D => {
+                    let position = &node.inputs[0];
+                    let position_src = self.find_source_var(*id, position.id, &port_vars);
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    // Simple pseudo-noise function for 3D
+                    code.push_str(&format!("  let {var}: f32 = fract(sin(dot({position_src}, vec3<f32>(12.9898, 78.233, 45.164))) * 43758.5453);\n"));
+                }
+                NodeKind::Voronoi => {
+                    let position = &node.inputs[0];
+                    let position_src = self.find_source_var(*id, position.id, &port_vars);
+                    let out = node.outputs[0].id;
+                    let cell_out = node.outputs[1].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    let cell_var = self.add_port_var(&mut port_vars, &mut var_counter, *id, cell_out);
+                    // Simple voronoi approximation
+                    code.push_str(&format!("  let {var}: f32 = length(fract({position_src}) - 0.5);\n"));
+                    code.push_str(&format!("  let {cell_var}: f32 = floor({position_src}.x) + floor({position_src}.y) * 100.0;\n"));
+                }
+                NodeKind::TextureSampleLod => {
+                    let _tex = &node.inputs[0];
+                    let uv_in = &node.inputs[1];
+                    let lod_in = &node.inputs[2];
+                    let uv_src = self.find_source_var(*id, uv_in.id, &port_vars);
+                    let lod_src = self.find_source_var(*id, lod_in.id, &port_vars);
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    code.push_str(&format!("  let {var}: vec4<f32> = textureSampleLevel(tex0, samp, {uv_src}, {lod_src});\n"));
+                }
+                NodeKind::TextureSize => {
+                    let _tex = &node.inputs[0];
+                    let out = node.outputs[0].id;
+                    let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
+                    code.push_str(&format!("  let {var}: vec2<f32> = vec2<f32>(textureDimensions(tex0));\n"));
                 }
                 NodeKind::OutputColor => {
                     let color_in = &node.inputs[0];
