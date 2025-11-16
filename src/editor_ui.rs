@@ -490,7 +490,7 @@ pub fn editor_menu(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiStat
 }
 
 // Helper that draws the browser/parameters/timeline panels using a provided egui context
-pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState, audio_analyzer: &AudioAnalyzer) {
+pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState, _audio_analyzer: &AudioAnalyzer) {
     // FIX: Use proper panel hierarchy to avoid CentralPanel conflicts
     
     // Left panel - Shader Browser
