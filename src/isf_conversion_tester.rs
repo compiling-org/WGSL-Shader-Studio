@@ -955,11 +955,11 @@ mod tests {
     fn test_comprehensive_isf_conversion() {
         println!("🧪 Starting comprehensive ISF conversion tests...");
         
-        let converter = IsfAutoConverter::new();
+        let mut converter = IsfAutoConverter::new();
         let mut tester = IsfConversionTester::new();
         
         // Run all tests using the existing method
-        let results = tester.run_all_tests(&converter);
+        let results = tester.run_all_tests(&mut converter);
         
         let passed = results.iter().filter(|r| r.success).count();
         let failed = results.iter().filter(|r| !r.success).count();
@@ -986,7 +986,7 @@ mod tests {
 
     #[test]
     fn test_individual_isf_conversions() {
-        let converter = IsfAutoConverter::new();
+        let mut converter = IsfAutoConverter::new();
         
         // Test basic shader conversion
         let basic_isf = r#"
@@ -1010,7 +1010,23 @@ mod tests {
         let isf_shader = parse_result.unwrap();
         
         // Test WGSL conversion
-        let convert_result = converter.convert_to_wgsl_advanced(&isf_shader);
+        let isf_code = r#"/*{
+    "CATEGORIES": ["Generator"],
+    "DESCRIPTION": "Simple color generator",
+    "INPUTS": [
+        {
+            "NAME": "color",
+            "TYPE": "color",
+            "DEFAULT": [1.0, 0.0, 0.0, 1.0]
+        }
+    ]
+}*/
+
+void main() {
+    gl_FragColor = color;
+}"#;
+        
+        let convert_result = converter.convert_to_wgsl_advanced(isf_code);
         assert!(convert_result.is_ok(), "Basic ISF to WGSL conversion should succeed");
         
         let conversion_result = convert_result.unwrap();

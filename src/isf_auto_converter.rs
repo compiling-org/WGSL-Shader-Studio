@@ -343,7 +343,7 @@ mod tests {
 
     #[test]
     fn test_basic_isf_conversion() {
-        let converter = IsfAutoConverter::new();
+        let mut converter = IsfAutoConverter::new();
         let test_isf = r#"
         /*{
             "NAME": "Test Shader",
@@ -375,7 +375,7 @@ mod tests {
 
     #[test]
     fn test_texture_conversion() {
-        let converter = IsfAutoConverter::new();
+        let mut converter = IsfAutoConverter::new();
         let test_isf = r#"
         /*{
             "NAME": "Texture Test",

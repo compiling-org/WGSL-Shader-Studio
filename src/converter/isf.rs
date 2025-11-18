@@ -729,7 +729,7 @@ mod tests {
     #[test]
     fn test_isf_parser_creation() {
         let parser = ISFParser::new();
-        assert_eq!(parser.diagnostics.count(), 0);
+        assert_eq!(parser.diagnostics.diagnostics.len(), 0);
     }
     
     #[test]
