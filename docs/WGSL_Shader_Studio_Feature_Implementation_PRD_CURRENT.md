@@ -231,6 +231,197 @@ graph TD
 - Recent files tracking
 - Auto-save every 30 seconds
 
+## 🎯 COMPREHENSIVE ACTION PLAN - REFERENCE REPOSITORY INCORPORATION
+
+### Phase 1: Critical Error Resolution (IMMEDIATE - Priority 1)
+
+#### Visual Node Editor Error Research (URGENT)
+```
+error: this file contains an unclosed delimiter
+   --> src\visual_node_editor.rs:166:32
+```
+
+**Research Requirements:**
+1. **Online Research**: Search for "Bevy egui unclosed delimiter error" 
+2. **Rust Community**: Check Rust forums for similar syntax errors
+3. **Bevy Issues**: Review Bevy GitHub issues for egui compilation problems
+4. **Build Artifacts**: Clear target directory and test clean builds
+5. **Minimal Reproduction**: Create minimal test case to isolate error
+
+**Research Sources:**
+- Bevy Discord community
+- Rust users forum
+- GitHub Bevy issues
+- Stack Overflow Bevy/egui tags
+- Bevy egui documentation
+
+#### Compilation Error Systematic Fix
+**33 Total Errors Breakdown:**
+- 8 Field missing errors (add missing struct fields)
+- 12 Function signature errors (fix parameter mismatches)
+- 7 Type mismatch errors (correct type annotations)
+- 6 Import issues (resolve module dependencies)
+
+### Phase 2: Reference Repository Integration (Priority 2)
+
+#### use.gpu Framework Integration
+**Available Components:**
+```typescript
+// From packages/shader/src/wgsl/ast.ts
+- WGSL AST parsing and manipulation
+- Shader module system
+- Code generation utilities
+
+// From packages/core/src/
+- WebGPU buffer management
+- Texture handling
+- Pipeline creation
+- Resource binding
+
+// From packages/scene/src/
+- 3D scene management
+- Mesh processing
+- Material systems
+```
+
+**Integration Plan:**
+1. Port WGSL AST parser to Rust using naga
+2. Adapt buffer management for Bevy resources
+3. Integrate pipeline creation systems
+4. Convert TypeScript interfaces to Rust traits
+
+#### wgsl-analyzer Integration
+**Available Components:**
+```rust
+// From crates/hir/src/
+- WGSL semantic analysis
+- Type inference system
+- Definition resolution
+- Diagnostics generation
+
+// From crates/ide/src/
+- Code completion
+- Hover information
+- Go-to-definition
+- Syntax highlighting
+
+// From crates/parser/src/
+- WGSL parsing
+- Syntax validation
+- Error recovery
+```
+
+**Integration Plan:**
+1. Extract WGSL parser for shader validation
+2. Port semantic analysis for error checking
+3. Integrate code completion for editor
+4. Adapt diagnostics for real-time feedback
+
+#### wgsl-bindgen Integration
+**Available Components:**
+```rust
+// From wgsl_bindgen/src/
+- WGSL to Rust binding generation
+- Struct layout validation
+- Uniform buffer creation
+- Vertex attribute mapping
+```
+
+**Integration Plan:**
+1. Implement automatic binding generation
+2. Create uniform buffer management
+3. Add vertex attribute validation
+4. Generate Rust structs from WGSL
+
+### Phase 3: Lost Feature Restoration (Priority 3)
+
+#### Previously Implemented Features (Now Missing)
+**ISF Conversion System:**
+- JSON parsing for ISF format
+- Parameter extraction and validation
+- WGSL code generation from ISF
+- Real-time parameter binding
+
+**Multi-Format Shader Support:**
+- GLSL to WGSL conversion
+- HLSL to WGSL conversion
+- SPIR-V intermediate representation
+- Cross-platform compatibility
+
+**Audio/MIDI Integration:**
+- FFT analysis for audio visualization
+- BPM detection and beat matching
+- MIDI parameter control
+- Real-time audio reactive shaders
+
+**Timeline System:**
+- Keyframe animation for parameters
+- Timeline scrubbing and playback
+- Animation curve editing
+- Export to video formats
+
+**Complete Node Editor:**
+- Visual node creation and connection
+- Real-time WGSL code generation
+- Node library with common operations
+- Custom node creation tools
+
+**Gesture Control System:**
+- Touch/mouse gesture recognition
+- Parameter control via gestures
+- Multi-touch support
+- Custom gesture mapping
+
+### Phase 4: Advanced System Implementation (Priority 4)
+
+#### Professional Export Systems
+- **FFGL Plugin Export**: Resolume, Magic Music Visuals compatibility
+- **VST Plugin Generation**: Audio plugin format support
+- **Video Export**: MP4, MOV, AVI with shader effects
+- **Image Sequence**: PNG, JPG sequence export
+- **Web Format**: WebGL, WebGPU web deployment
+
+#### Advanced UI Components
+- **Multi-window Support**: Detachable panels
+- **Custom Themes**: Dark/light/high contrast modes
+- **Layout Presets**: Save/restore workspace configurations
+- **Performance Monitoring**: FPS, memory usage, GPU load
+- **Advanced Code Editor**: Syntax highlighting, auto-completion, error checking
+
+### Implementation Timeline
+
+**Week 1: Foundation**
+- Day 1-2: Fix visual node editor compilation error
+- Day 3-4: Resolve all 33 compilation errors
+- Day 5-7: Basic reference repository integration
+
+**Week 2: Core Restoration**
+- Day 8-10: Restore ISF conversion system
+- Day 11-12: Implement multi-format shader support
+- Day 13-14: Basic audio/MIDI integration
+
+**Week 3: Advanced Features**
+- Day 15-17: Complete node editor restoration
+- Day 18-19: Timeline system implementation
+- Day 20-21: Gesture control restoration
+
+**Week 4: Polish and Integration**
+- Day 22-24: Professional export systems
+- Day 25-26: Advanced UI components
+- Day 27-28: Performance optimization and testing
+
+### Success Metrics
+- ✅ Zero compilation errors
+- ✅ All reference repositories integrated
+- ✅ Lost features fully restored
+- ✅ Professional-grade export capabilities
+- ✅ Advanced UI with multi-window support
+- ✅ Real-time shader compilation and preview
+- ✅ Complete node editor with code generation
+- ✅ Audio/MIDI integration with FFT analysis
+
+**Final Goal**: Professional-grade shader studio matching reference repository capabilities
+
 ### 2.3 Live Preview System
 
 ```mermaid
