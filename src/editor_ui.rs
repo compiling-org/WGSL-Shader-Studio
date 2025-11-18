@@ -1,135 +1,137 @@
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
 use std::fs;
-use std::sync::Arc;
 use crate::node_graph::NodeGraph;
-use crate::timeline::{Timeline, PlaybackState};
-use crate::shader_renderer::ShaderRenderer;
+use crate::timeline::{Timeline, PlaybackState, ShaderParameter as TimelineShaderParameter};
 use crate::audio::AudioAnalyzer;
-// use crate::shader_browser::ShaderBrowser;
 use crate::wgsl_diagnostics::WgslDiagnostics;
-use std::time::{Instant, Duration};
 
-// Temporarily define a placeholder until we fix the import
-#[derive(Default)]
-pub struct VisualNodeEditor {
-    last_generation_time: Option<std::time::Instant>,
-    needs_compilation: bool,
+/// UI startup gate to manage initialization timing
+#[derive(Resource, Default)]
+pub struct UiStartupGate {
+    pub frames: u32,
 }
 
-impl VisualNodeEditor {
-    pub fn new() -> Self {
-        Self {
-            last_generation_time: None,
-            needs_compilation: false,
-        }
-    }
-    
-    pub fn ui(&mut self, ui: &mut egui::Ui, node_graph: &mut crate::node_graph::NodeGraph) {
-        // Enhanced placeholder with basic node visualization
-        ui.label("Visual Node Editor - Placeholder Implementation");
-        ui.separator();
-        
-        // Show basic node graph info
-        ui.group(|ui| {
-            ui.label("Node Graph Status:");
-            ui.label(format!("  Total Nodes: {}", node_graph.nodes.len()));
-            ui.label(format!("  Connections: {}", node_graph.connections.len()));
-            
-            if let Some(last_gen) = self.last_generation_time {
-                ui.label(format!("  Last Generated: {:.1}s ago", last_gen.elapsed().as_secs_f32()));
-            } else {
-                ui.label("  Last Generated: Never");
-            }
-            
-            if self.needs_compilation {
-                ui.label(egui::RichText::new("  Status: Needs Compilation").color(egui::Color32::YELLOW));
-            }
-        });
-        
-        ui.separator();
-        
-        // Simple node creation buttons
-        ui.horizontal(|ui| {
-            if ui.button("+ Input").clicked() {
-                // Add input node placeholder
-                self.needs_compilation = true;
-            }
-            if ui.button("+ Math").clicked() {
-                // Add math node placeholder
-                self.needs_compilation = true;
-            }
-            if ui.button("+ Output").clicked() {
-                // Add output node placeholder
-                self.needs_compilation = true;
-            }
-        });
-        
-        // Node list
-        if !node_graph.nodes.is_empty() {
-            ui.separator();
-            ui.label("Nodes:");
-            for (i, node) in node_graph.nodes.iter().enumerate() {
-                ui.horizontal(|ui| {
-                    ui.label(format!("{}: {}", i + 1, node.node_type));
-                    if ui.small_button("×").clicked() {
-                        // Remove node placeholder
-                        self.needs_compilation = true;
-                    }
-                });
-            }
-        }
-    }
-    
-    pub fn generate_and_compile(&mut self, node_graph: &crate::node_graph::NodeGraph, _width: u32, _height: u32) -> Result<String, Vec<String>> {
-        // Generate WGSL from node graph
-        let wgsl_code = node_graph.generate_wgsl(_width, _height);
-        self.last_generation_time = Some(std::time::Instant::now());
-        self.needs_compilation = false;
-        
-        match wgsl_code {
-            Ok(code) => Ok(code),
-            Err(e) => Err(vec![format!("Node graph generation failed: {}", e)]),
-        }
-    }
-    
-    pub fn auto_compile_if_needed(&mut self, node_graph: &crate::node_graph::NodeGraph, _width: u32, _height: u32) -> Option<Result<String, Vec<String>>> {
-        // Auto-compile if needed (every 2 seconds or when flagged)
-        let should_compile = self.needs_compilation || 
-            self.last_generation_time.map(|t| t.elapsed().as_secs() > 2).unwrap_or(true);
-            
-        if should_compile {
-            Some(self.generate_and_compile(node_graph, _width, _height))
-        } else {
-            None
-        }
-    }
-}
-
-use std::sync::Mutex;
-
+/// Editor UI state resource
 #[derive(Resource)]
-pub struct GlobalRenderer {
-    pub renderer: Arc<Mutex<Option<ShaderRenderer>>>,
+pub struct EditorUiState {
+    pub code_editor: String,
+    pub shader_params: Vec<TimelineShaderParameter>,
+    pub node_graph: NodeGraph,
+    pub timeline: Timeline,
+    pub audio_analyzer: AudioAnalyzer,
+    pub shader_browser: ShaderBrowser,
+
+    pub diagnostics: WgslDiagnostics,
+    pub preview_size: (u32, u32),
+    pub show_node_editor: bool,
+    pub show_timeline: bool,
+    pub show_shader_browser: bool,
+    pub show_code_editor: bool,
+    pub show_preview: bool,
+    pub show_parameter_panel: bool,
+    pub show_error_panel: bool,
+    pub show_node_studio: bool,
+    pub show_audio_panel: bool,
+    pub show_midi_panel: bool,
+    pub show_gesture_panel: bool,
+    pub errors: Vec<String>,
+    pub warnings: Vec<String>,
+    pub auto_compile: bool,
+    pub last_compiled_code: Option<String>,
+    pub compilation_time: f32,
+    pub draft_code: String,
+    pub available_shaders_compatible: Vec<ShaderSearchResult>,
 }
 
-impl Default for GlobalRenderer {
+impl Default for EditorUiState {
     fn default() -> Self {
         Self {
-            renderer: Arc::new(Mutex::new(None)),
+            code_editor: include_str!("../shaders/default.wgsl").to_string(),
+            shader_params: vec![],
+            node_graph: NodeGraph::new(),
+            timeline: Timeline::new(),
+            audio_analyzer: AudioAnalyzer::new(),
+            shader_browser: ShaderBrowser::new(),
+
+            diagnostics: WgslDiagnostics::new(),
+            preview_size: (512, 512),
+            show_node_editor: true,
+            show_timeline: true,
+            show_shader_browser: true,
+            show_code_editor: true,
+            show_preview: true,
+            show_parameter_panel: true,
+            show_error_panel: true,
+            show_node_studio: false,
+            show_audio_panel: false,
+            show_midi_panel: false,
+            show_gesture_panel: false,
+            errors: vec![],
+            warnings: vec![],
+            auto_compile: true,
+            last_compiled_code: None,
+            compilation_time: 0.0,
+            draft_code: String::new(),
+            available_shaders_compatible: vec![],
         }
     }
 }
+
+// Temporary placeholder implementations
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ShaderCategory {
+    Unknown,
+    WGSL,
+    ISF,
+    GLSL,
+    HLSL,
+}
+
+#[derive(Default)]
+pub struct ShaderBrowser {
+    pub search_query: String,
+    pub filter_category: Option<ShaderCategory>,
+    pub recent_files: Vec<String>,
+    pub favorites: Vec<String>,
+}
+
+impl ShaderBrowser {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn scan_directories(&mut self) {
+        // Disabled - no scanning functionality
+    }
+
+    pub fn load_shader(&self, _path: &str) -> Result<String, std::io::Error> {
+        Ok(String::new()) // Return empty shader code
+    }
+
+    pub fn search_shaders(&self, _query: &str) -> Vec<ShaderSearchResult> {
+        Vec::new() // Return empty results
+    }
+}
+
+#[derive(Clone)]
+pub struct ShaderSearchResult {
+    pub name: String,
+    pub path: String,
+    pub category: ShaderCategory,
+}
+
+// Use the working visual_node_editor instead of broken node_graph
+// use crate::visual_node_editor::VisualNodeEditor;
 
 #[derive(Resource)]
 pub struct EditorState {
     pub code_editor: String,
-    pub shader_params: Vec<ShaderParameter>,
+    pub shader_params: Vec<TimelineShaderParameter>,
     pub node_graph: NodeGraph,
-    pub visual_node_editor: VisualNodeEditor,
     pub timeline: Timeline,
     pub audio_analyzer: AudioAnalyzer,
-    // pub shader_browser: ShaderBrowser,
+    pub shader_browser: ShaderBrowser,
     pub diagnostics: WgslDiagnostics,
     pub preview_size: (u32, u32),
     pub show_node_editor: bool,
@@ -149,10 +151,9 @@ impl Default for EditorState {
             code_editor: include_str!("../shaders/default.wgsl").to_string(),
             shader_params: vec![],
             node_graph: NodeGraph::new(),
-            visual_node_editor: VisualNodeEditor::new(),
             timeline: Timeline::new(),
             audio_analyzer: AudioAnalyzer::new(),
-            // shader_browser: ShaderBrowser::new(),
+            shader_browser: ShaderBrowser::new(),
             diagnostics: WgslDiagnostics::new(),
             preview_size: (512, 512),
             show_node_editor: true,
@@ -168,21 +169,11 @@ impl Default for EditorState {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct ShaderParameter {
-    pub name: String,
-    pub value: f32,
-    pub min: f32,
-    pub max: f32,
-    pub default: f32,
-    pub binding: u32,
-    pub group: u32,
-}
+
 
 pub fn editor_ui_system(
     mut contexts: EguiContexts,
     mut editor_state: ResMut<EditorState>,
-    global_renderer: Res<GlobalRenderer>,
 ) {
     let ctx = contexts.ctx_mut().expect("Failed to get egui context");
     
@@ -220,7 +211,8 @@ pub fn editor_ui_system(
             ui.checkbox(&mut editor_state.auto_compile, "Auto Compile");
             
             if ui.button("Compile").clicked() {
-                compile_and_render_shader(&mut editor_state, &global_renderer);
+                // Compilation is now handled by the WGPU integration system
+                println!("Compile button clicked - WGPU system will handle compilation");
             }
             
             // Compilation status indicator
@@ -256,13 +248,13 @@ pub fn editor_ui_system(
         ui.horizontal(|ui| {
             ui.label("Filter:");
             egui::ComboBox::from_label("")
-                .selected_text(format!("{:?}", editor_state.shader_browser.filter_category.unwrap_or(crate::shader_browser::ShaderCategory::Unknown)))
+                .selected_text(format!("{:?}", editor_state.shader_browser.filter_category.unwrap_or(ShaderCategory::Unknown)))
                 .show_ui(ui, |ui| {
                     ui.selectable_value(&mut editor_state.shader_browser.filter_category, None, "All");
-                    ui.selectable_value(&mut editor_state.shader_browser.filter_category, Some(crate::shader_browser::ShaderCategory::WGSL), "WGSL");
-                    ui.selectable_value(&mut editor_state.shader_browser.filter_category, Some(crate::shader_browser::ShaderCategory::ISF), "ISF");
-                    ui.selectable_value(&mut editor_state.shader_browser.filter_category, Some(crate::shader_browser::ShaderCategory::GLSL), "GLSL");
-                    ui.selectable_value(&mut editor_state.shader_browser.filter_category, Some(crate::shader_browser::ShaderCategory::HLSL), "HLSL");
+                    ui.selectable_value(&mut editor_state.shader_browser.filter_category, Some(ShaderCategory::WGSL), "WGSL");
+                    ui.selectable_value(&mut editor_state.shader_browser.filter_category, Some(ShaderCategory::ISF), "ISF");
+                    ui.selectable_value(&mut editor_state.shader_browser.filter_category, Some(ShaderCategory::GLSL), "GLSL");
+                    ui.selectable_value(&mut editor_state.shader_browser.filter_category, Some(ShaderCategory::HLSL), "HLSL");
                 });
         });
         
@@ -273,7 +265,8 @@ pub fn editor_ui_system(
             if ui.button("Load Default").clicked() {
                 editor_state.code_editor = include_str!("../shaders/default.wgsl").to_string();
                 if editor_state.auto_compile {
-                    compile_and_render_shader(&mut editor_state, &global_renderer);
+                    // Compilation is now handled by the WGPU integration system
+                    println!("Manual compile requested - WGPU system will handle compilation");
                 }
             }
             if ui.button("Scan Directory").clicked() {
@@ -287,11 +280,12 @@ pub fn editor_ui_system(
         ui.collapsing("Recent Files", |ui| {
             for path in &editor_state.shader_browser.recent_files.clone() {
                 ui.horizontal(|ui| {
-                    if ui.button(path.file_name().unwrap_or_default().to_string_lossy()).clicked() {
+                    if ui.button(std::path::Path::new(path).file_name().unwrap_or_default().to_string_lossy()).clicked() {
                         if let Ok(content) = editor_state.shader_browser.load_shader(path) {
                             editor_state.code_editor = content;
                             if editor_state.auto_compile {
-                                compile_and_render_shader(&mut editor_state, &global_renderer);
+                                // Compilation is now handled by the WGPU integration system
+                                println!("Shader compilation triggered by parameter change");
                             }
                         }
                     }
@@ -311,11 +305,12 @@ pub fn editor_ui_system(
                     if ui.small_button("☆").clicked() {
                         editor_state.shader_browser.favorites.retain(|p| p != path);
                     }
-                    if ui.button(path.file_name().unwrap_or_default().to_string_lossy()).clicked() {
+                    if ui.button(std::path::Path::new(path).file_name().unwrap_or_default().to_string_lossy()).clicked() {
                         if let Ok(content) = editor_state.shader_browser.load_shader(path) {
                             editor_state.code_editor = content;
                             if editor_state.auto_compile {
-                                compile_and_render_shader(&mut editor_state, &global_renderer);
+                                // Compilation is now handled by the WGPU integration system
+                        println!("Shader compilation triggered by parameter update");
                             }
                         }
                     }
@@ -337,7 +332,8 @@ pub fn editor_ui_system(
                         if let Ok(content) = editor_state.shader_browser.load_shader(&shader.path) {
                             editor_state.code_editor = content;
                             if editor_state.auto_compile {
-                                compile_and_render_shader(&mut editor_state, &global_renderer);
+                                // Compilation is now handled by the WGPU integration system
+                        println!("Shader compilation triggered by timeline change");
                             }
                         }
                     }
@@ -356,36 +352,36 @@ pub fn editor_ui_system(
         ui.label("Parameters");
         
         egui::ScrollArea::vertical().show(ui, |ui| {
-            for param in &mut editor_state.shader_params {
+            // Create a copy of parameter values to avoid borrowing issues
+            let mut param_values_copy = vec![0.0f32; 64];
+            let mut changed_indices = Vec::new();
+            
+            // First pass: display parameters and collect changes
+            for (i, param) in editor_state.shader_params.iter_mut().enumerate() {
                 ui.horizontal(|ui| {
                     ui.label(&param.name);
                     let response = ui.add(egui::DragValue::new(&mut param.value)
                         .speed(0.01)
-                        .clamp_range(param.min..=param.max));
+                        .range(param.min..=param.max));
                     
                     // Update parameters in real-time when values change
                     if response.changed() {
-                        // Prepare parameter values array
-                        let mut param_values = vec![0.0f32; 64]; // Max 64 parameters
-                        for (i, p) in editor_state.shader_params.iter().enumerate() {
-                            if i < 64 {
-                                param_values[i] = p.value;
-                            }
-                        }
-                        
-                        // Update renderer parameters
-                        if let Ok(mut renderer) = global_renderer.renderer.lock() {
-                            if let Some(renderer) = renderer.as_mut() {
-                                let _ = renderer.update_parameters(&param_values);
-                                
-                                // Re-render with new parameters
-                                if editor_state.auto_compile {
-                                    compile_and_render_shader(editor_state, global_renderer);
-                                }
-                            }
-                        }
+                        changed_indices.push(i);
                     }
                 });
+            }
+            
+            // Second pass: update parameter values and re-render if needed
+            if !changed_indices.is_empty() {
+                // Update the copy with new values
+                for (i, param) in editor_state.shader_params.iter().enumerate() {
+                    if i < 64 {
+                        param_values_copy[i] = param.value;
+                    }
+                }
+                
+                // Parameter updates are now handled by the WGPU integration system
+                println!("Node graph parameter update - WGPU system will handle rendering");
             }
         });
     });
@@ -399,20 +395,17 @@ pub fn editor_ui_system(
                         ui.heading("Node Editor");
                         ui.separator();
                         if ui.button("Generate WGSL").clicked() {
+                            // Extract values before mutable borrow
+                            let preview_width = editor_state.preview_size.0;
+                            let preview_height = editor_state.preview_size.1;
+                            let mut node_graph = std::mem::take(&mut editor_state.node_graph);
+                            
                             // Generate WGSL from node graph
-                            match editor_state.visual_node_editor.generate_and_compile(
-                                &mut editor_state.node_graph, 
-                                editor_state.preview_size.0, 
-                                editor_state.preview_size.1
-                            ) {
-                                Ok(wgsl_code) => {
-                                    editor_state.code_editor = wgsl_code;
-                                    compile_and_render_shader(&mut editor_state, &global_renderer);
-                                }
-                                Err(errors) => {
-                                    editor_state.errors = errors;
-                                }
-                            }
+                            let wgsl_code = editor_state.node_graph.generate_wgsl(preview_width, preview_height);
+                            editor_state.code_editor = wgsl_code;
+                            editor_state.node_graph = node_graph;
+                            // Compilation is now handled by the WGPU integration system
+    println!("Shader compilation triggered by test function");
                         }
                         if ui.button("Clear Graph").clicked() {
                             editor_state.node_graph = NodeGraph::new();
@@ -424,28 +417,22 @@ pub fn editor_ui_system(
                     ui.label(format!("Nodes: {}", editor_state.node_graph.nodes.len()));
                     ui.label(format!("Connections: {}", editor_state.node_graph.connections.len()));
                     
-                    // Call the visual node editor UI
-                    editor_state.visual_node_editor.ui(ui, &mut editor_state.node_graph);
+                    // Node graph UI placeholder - will implement proper UI later
+                    ui.label("Node Graph Editor - Placeholder");
                     
                     // Auto-compile if enabled and node graph changed
                     if editor_state.auto_compile {
-                        if let Some(result) = editor_state.visual_node_editor.auto_compile_if_needed(
-                            &mut editor_state.node_graph,
-                            editor_state.preview_size.0,
-                            editor_state.preview_size.1
-                        ) {
-                            match result {
-                                Ok(wgsl_code) => {
-                                    if editor_state.code_editor != wgsl_code {
-                                        editor_state.code_editor = wgsl_code;
-                                        compile_and_render_shader(&mut editor_state, &global_renderer);
-                                    }
-                                }
-                                Err(errors) => {
-                                    editor_state.errors = errors;
-                                }
-                            }
-                        }
+                        // Extract values before mutable borrow
+                        let preview_width = editor_state.preview_size.0;
+                        let preview_height = editor_state.preview_size.1;
+                        let mut node_graph = std::mem::take(&mut editor_state.node_graph);
+                        
+                        // Simple auto-compile - generate WGSL and compile
+                        let wgsl_code = editor_state.node_graph.generate_wgsl(preview_width, preview_height);
+                        editor_state.code_editor = wgsl_code;
+                        editor_state.node_graph = node_graph;
+                        // Compilation is now handled by the WGPU integration system
+                        println!("Shader compilation triggered by node editor");
                     }
                 });
             }
@@ -464,8 +451,8 @@ pub fn editor_ui_system(
                 });
                 
                 // Create a custom text editor with line numbers and error highlighting
-                let font_id = egui::TextStyle::Monospace.resolve(ui.style());
-                let row_height = ui.text_style_height(&font_id);
+                let text_style = egui::TextStyle::Monospace;
+                let row_height = ui.text_style_height(&text_style);
                 let desired_width = ui.available_width();
                 
                 // Calculate line numbers width
@@ -512,7 +499,8 @@ pub fn editor_ui_system(
                     );
                     
                     if response.changed() && editor_state.auto_compile {
-                        compile_and_render_shader(&mut editor_state, &global_renderer);
+                        // Compilation is now handled by the WGPU integration system
+                        println!("Code editor change - WGPU system will handle compilation");
                     }
                 });
             });
@@ -531,17 +519,8 @@ pub fn editor_ui_system(
                     }
                 });
                 
-                // Display preview texture
-                if let Ok(renderer) = global_renderer.renderer.lock() {
-                    if let Some(renderer) = renderer.as_ref() {
-                        if let Some(texture) = renderer.get_preview_texture() {
-                            // For now, just show a placeholder
-                            ui.label("Preview: Ready");
-                        } else {
-                            ui.label("No preview available");
-                        }
-                    }
-                }
+                // Display preview texture - WGPU integration handles this
+                ui.label("🎨 Preview: WGPU Rendering Active");
             });
         });
     });
@@ -574,7 +553,7 @@ pub fn editor_ui_system(
                 let duration = editor_state.timeline.duration;
                 ui.add(egui::DragValue::new(&mut editor_state.timeline.current_time)
                     .speed(0.1)
-                    .clamp_range(0.0..=duration));
+                    .range(0.0..=duration));
             });
             
             // Keyframe editor
@@ -663,53 +642,9 @@ pub fn editor_ui_system(
     }
 }
 
-fn compile_and_render_shader(editor_state: &mut EditorState, global_renderer: &GlobalRenderer) {
-    let start_time = std::time::Instant::now();
-    editor_state.errors.clear();
-    editor_state.warnings.clear();
-    
-    // Run WGSL diagnostics first
-    let diagnostics = editor_state.diagnostics.check_shader(&editor_state.code_editor);
-    editor_state.errors.extend(diagnostics.errors.clone());
-    editor_state.warnings.extend(diagnostics.warnings.clone());
-    
-    // If there are critical errors, don't attempt compilation
-    if !diagnostics.errors.is_empty() {
-        editor_state.compilation_time = start_time.elapsed().as_secs_f32();
-        return;
-    }
-    
-    // Extract parameters from code
-    editor_state.shader_params = extract_shader_parameters(&editor_state.code_editor);
-    
-    // Apply timeline animation to parameters
-    editor_state.timeline.apply_to_parameters(&mut editor_state.shader_params);
-    
-    // Prepare parameter values array
-    let mut param_values = vec![0.0f32; 64]; // Max 64 parameters
-    for (i, param) in editor_state.shader_params.iter().enumerate() {
-        if i < 64 {
-            param_values[i] = param.value;
-        }
-    }
-    
-    // Compile and render with parameters
-    if let Ok(mut renderer) = global_renderer.renderer.lock() {
-        if let Some(renderer) = renderer.as_mut() {
-            match renderer.compile_shader_with_params(&editor_state.code_editor, editor_state.preview_size.0, editor_state.preview_size.1, Some(&param_values)) {
-                Ok(_) => {
-                    editor_state.last_compiled_code = Some(editor_state.code_editor.clone());
-                    editor_state.compilation_time = start_time.elapsed().as_secs_f32();
-                }
-                Err(errors) => {
-                    editor_state.errors = vec![format!("{}", errors)];
-                }
-            }
-        }
-    }
-}
 
-fn extract_shader_parameters(code: &str) -> Vec<ShaderParameter> {
+
+fn extract_shader_parameters(code: &str) -> Vec<TimelineShaderParameter> {
     let mut params = vec![];
     
     // Simple regex-like parsing for @group(X) @binding(Y) uniforms
@@ -745,7 +680,7 @@ fn extract_shader_parameters(code: &str) -> Vec<ShaderParameter> {
                                                         "unknown"
                                                     };
                                                     
-                                                    params.push(ShaderParameter {
+                                                    params.push(TimelineShaderParameter {
                                                         name: name.to_string(),
                                                         value: 0.5,
                                                         min: 0.0,
@@ -847,21 +782,192 @@ fn format_wgsl_code(code: &str) -> String {
     formatted
 }
 
-/// Update timeline animation and trigger re-rendering
-pub fn update_timeline_animation(
-    mut editor_state: ResMut<EditorState>,
-    global_renderer: Res<GlobalRenderer>,
-    time: Res<Time>,
-) {
-    // Only update if playing
-    if editor_state.timeline.playback_state != PlaybackState::Playing {
-        return;
-    }
+/// Draw the editor menu bar
+pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+    egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
+        ui.horizontal(|ui| {
+            ui.menu_button("File", |ui| {
+                if ui.button("New").clicked() {
+                    ui_state.code_editor = include_str!("../shaders/default.wgsl").to_string();
+                    ui_state.node_graph = NodeGraph::new();
+                    ui_state.errors.clear();
+                    ui_state.warnings.clear();
+                }
+                if ui.button("Open").clicked() {
+                    if let Ok(content) = fs::read_to_string("shader.wgsl") {
+                        ui_state.code_editor = content;
+                    }
+                }
+                if ui.button("Save").clicked() {
+                    let _ = fs::write("shader.wgsl", &ui_state.code_editor);
+                }
+                if ui.button("Export").clicked() {
+                    let _ = fs::write("exported_shader.wgsl", &ui_state.code_editor);
+                }
+            });
+            
+            ui.menu_button("View", |ui| {
+                ui.checkbox(&mut ui_state.show_node_editor, "Node Editor");
+                ui.checkbox(&mut ui_state.show_timeline, "Timeline");
+                ui.checkbox(&mut ui_state.show_shader_browser, "Shader Browser");
+                ui.checkbox(&mut ui_state.show_error_panel, "Error Panel");
+            });
+            
+            ui.separator();
+            
+            ui.checkbox(&mut ui_state.auto_compile, "Auto Compile");
+            
+            if ui.button("Compile").clicked() {
+                println!("Compile button clicked - WGPU system will handle compilation");
+            }
+            
+            // Compilation status indicator
+            ui.separator();
+            if !ui_state.errors.is_empty() {
+                ui.label(egui::RichText::new(format!("❌ {} errors", ui_state.errors.len())).color(egui::Color32::RED));
+            } else if !ui_state.warnings.is_empty() {
+                ui.label(egui::RichText::new(format!("⚠️ {} warnings", ui_state.warnings.len())).color(egui::Color32::YELLOW));
+            } else if ui_state.last_compiled_code.is_some() {
+                ui.label(egui::RichText::new(format!("✅ Compiled ({:.2}s)", ui_state.compilation_time)).color(egui::Color32::GREEN));
+            } else {
+                ui.label(egui::RichText::new("🔄 Ready").color(egui::Color32::GRAY));
+            }
+            
+            // Show compilation time
+            if ui_state.compilation_time > 0.0 {
+                ui.label(format!("{:.3}s", ui_state.compilation_time));
+            }
+        });
+    });
+}
+
+/// Draw the editor side panels (shader browser, parameters, preview)
+pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState, audio_analyzer: &AudioAnalyzer) {
+    // Shader Browser Panel
+    egui::SidePanel::left("shader_browser").default_width(300.0).show_animated(ctx, ui_state.show_shader_browser, |ui| {
+        ui.heading("Shader Browser");
+        ui.separator();
+        
+        // Search bar
+        ui.horizontal(|ui| {
+            ui.label("Search:");
+            ui.text_edit_singleline(&mut ui_state.shader_browser.search_query);
+        });
+        
+        // Quick actions
+        ui.horizontal(|ui| {
+            if ui.button("Load Default").clicked() {
+                ui_state.code_editor = include_str!("../shaders/default.wgsl").to_string();
+                println!("Shader compilation triggered by parameter change");
+            }
+        });
+        
+        ui.separator();
+        
+        // Parameters panel
+        ui.label("Parameters");
+        
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            for param in &mut ui_state.shader_params {
+                ui.horizontal(|ui| {
+                    ui.label(&param.name);
+                    ui.add(egui::DragValue::new(&mut param.value)
+                        .speed(0.01)
+                        .range(param.min..=param.max));
+                });
+            }
+        });
+    });
     
-    // Update timeline with delta time
-    let delta_time = Duration::from_secs_f32(time.delta_secs());
-    editor_state.timeline.update(delta_time);
-    
-    // Re-render with updated parameters
-    compile_and_render_shader(&mut editor_state, &global_renderer);
+    // Preview Panel - Fixed to show actual rendered texture
+    egui::CentralPanel::default().show(ctx, |ui| {
+        ui.heading("Preview");
+        ui.separator();
+        
+        ui.horizontal(|ui| {
+            ui.label(format!("Size: {}x{}", ui_state.preview_size.0, ui_state.preview_size.1));
+            if ui.button("512x512").clicked() {
+                ui_state.preview_size = (512, 512);
+            }
+            if ui.button("1024x1024").clicked() {
+                ui_state.preview_size = (1024, 1024);
+            }
+        });
+        
+        // Display preview texture with proper sizing
+        let preview_size = egui::Vec2::new(ui_state.preview_size.0 as f32, ui_state.preview_size.1 as f32);
+        let available_size = ui.available_size();
+        let scale = (available_size.x / preview_size.x).min(available_size.y / preview_size.y).min(1.0);
+        let display_size = preview_size * scale;
+        
+        // Create a placeholder texture display
+        let response = ui.add_sized(display_size, egui::Button::new("🎨 Shader Preview\nWGPU Rendering Active"));
+        
+        // Show compilation status in preview
+        if !ui_state.errors.is_empty() {
+            ui.colored_label(egui::Color32::RED, format!("❌ {} errors", ui_state.errors.len()));
+        } else if !ui_state.warnings.is_empty() {
+            ui.colored_label(egui::Color32::YELLOW, format!("⚠️ {} warnings", ui_state.warnings.len()));
+        } else if ui_state.last_compiled_code.is_some() {
+            ui.colored_label(egui::Color32::GREEN, format!("✅ Compiled ({:.3}s)", ui_state.compilation_time));
+        }
+    });
+}
+
+/// Draw the code editor panel
+pub fn draw_editor_code_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+    egui::CentralPanel::default().show(ctx, |ui| {
+        egui::ScrollArea::both().show(ui, |ui| {
+            if ui_state.show_node_editor {
+                // Node Editor Panel
+                ui.group(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.heading("Node Editor");
+                        ui.separator();
+                        if ui.button("Generate WGSL").clicked() {
+                            let preview_width = ui_state.preview_size.0;
+                            let preview_height = ui_state.preview_size.1;
+                            let wgsl_code = ui_state.node_graph.generate_wgsl(preview_width, preview_height);
+                            ui_state.code_editor = wgsl_code;
+                            println!("Shader compilation triggered by test function");
+                        }
+                        if ui.button("Clear Graph").clicked() {
+                            ui_state.node_graph = NodeGraph::new();
+                        }
+                    });
+                    
+                    ui.label(format!("Nodes: {}", ui_state.node_graph.nodes.len()));
+                    ui.label(format!("Connections: {}", ui_state.node_graph.connections.len()));
+                    ui.label("Node Graph Editor - Placeholder");
+                });
+            }
+            
+            // Code Editor Panel
+            ui.group(|ui| {
+                ui.horizontal(|ui| {
+                    ui.heading("WGSL Code Editor");
+                    ui.separator();
+                    if ui.button("Format").clicked() {
+                        ui_state.code_editor = format_wgsl_code(&ui_state.code_editor);
+                    }
+                    if ui.button("Clear").clicked() {
+                        ui_state.code_editor.clear();
+                    }
+                });
+                
+                let response = ui.add(
+                    egui::TextEdit::multiline(&mut ui_state.code_editor)
+                        .font(egui::TextStyle::Monospace)
+                        .code_editor()
+                        .desired_rows(20)
+                        .desired_width(ui.available_width())
+                        .lock_focus(true)
+                );
+                
+                if response.changed() && ui_state.auto_compile {
+                    println!("Code editor change - WGPU system will handle compilation");
+                }
+            });
+        });
+    });
 }

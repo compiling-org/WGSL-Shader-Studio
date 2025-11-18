@@ -3,6 +3,11 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+// Add walkdir dependency that's used in the file
+use walkdir;
+
+// Shader browser module for managing shader files and projects
+
 /// Shader file information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShaderFile {

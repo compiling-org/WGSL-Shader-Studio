@@ -179,6 +179,11 @@ impl WgslDiagnostics {
         has_struct_or_fn && has_valid_braces && has_semicolons
     }
 
+    /// Check shader code and return diagnostics (alias for analyze)
+    pub fn check_shader(&mut self, wgsl_code: &str) -> Vec<Diagnostic> {
+        self.analyze(wgsl_code)
+    }
+
     /// Check if braces are balanced
     fn check_brace_balance(&self, code: &str) -> bool {
         let mut brace_count = 0;
