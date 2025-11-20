@@ -53,6 +53,9 @@ ash = "0.38.0"
 console_log = "1.0.0"
 directories = "5.0"
 bevy = "0.17"
+petgraph = "0.6"
+# bevy_shader_graph = { git = "https://github.com/Neopallium/bevy_shader_graph.git" }
+# space_editor = { git = "https://github.com/rewin123/space_editor.git" }
 bevy_egui = { version = "0.38", optional = true }
 image = "0.25"
 # Note: Leap Motion and MediaPipe would require platform-specific SDKs
@@ -76,6 +79,12 @@ naga = { version = "26.0.0", features = ["wgsl-in"] }
 wgsl_bindgen = "0.14.0"
 convert_case = "0.6.0"
 chrono = { version = "0.4", features = ["serde"] }
+walkdir = "2.4"
+lru = "0.12"
+toml = "0.8"
+serde_yaml = "0.9"
+lezer = "0.1"
+uuid = { version = "1.0", features = ["v4", "serde"] }
 
 [features]
 default = ["gui"]
