@@ -8,7 +8,7 @@ use super::node_graph::{NodeGraph, NodeKind};
 use super::timeline::{Timeline, TimelineAnimation, InterpolationType, PlaybackState};
 use super::shader_renderer::ShaderRenderer;
 use super::audio::AudioAnalyzer;
-use super::visual_node_editor::VisualNodeEditor;
+// use resolume_isf_shaders_rust_ffgl::visual_node_editor_adapter::NodeEditorAdapter; // Temporarily disabled
 use std::sync::Mutex;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -49,7 +49,7 @@ pub struct EditorUiState {
     pub auto_apply: bool,
     // Node graph and project state
     pub node_graph: NodeGraph,
-    pub visual_node_editor: VisualNodeEditor,
+    // pub visual_node_editor: NodeEditorAdapter, // Temporarily disabled
     pub last_project_path: Option<String>,
     pub timeline: TimelineAnimation,
     pub timeline_track_input: String,
@@ -89,7 +89,7 @@ impl Default for EditorUiState {
             apply_requested: false,
             auto_apply: false,
             node_graph: NodeGraph::default(),
-            visual_node_editor: VisualNodeEditor::new(),
+            // visual_node_editor: NodeEditorAdapter::new(), // Temporarily disabled
             last_project_path: None,
             timeline: TimelineAnimation::default(),
             timeline_track_input: String::new(),
@@ -959,7 +959,7 @@ pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState
             }
             
             // Visual node editor area
-            ui_state.visual_node_editor.ui(ui, &mut ui_state.node_graph);
+            // ui_state.visual_node_editor.ui(ui, &mut ui_state.node_graph); // Temporarily disabled
         });
         ui_state.show_node_studio = show;
     }

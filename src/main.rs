@@ -10,7 +10,7 @@ mod isf_loader;
 mod shader_converter;
 mod gesture_control;
 mod shader_renderer;
-mod editor_ui;
+// mod editor_ui; // Moved to library
 mod node_graph;
 mod timeline;
 mod isf_converter;
