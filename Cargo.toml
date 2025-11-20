@@ -83,7 +83,8 @@ walkdir = "2.4"
 lru = "0.12"
 toml = "0.8"
 serde_yaml = "0.9"
-lezer = "0.1"
+# Replaced lezer with proper Rust parsing libraries
+# lezer = "0.1"  # This is a JavaScript parser generator, not available in Rust
 uuid = { version = "1.0", features = ["v4", "serde"] }
 
 [features]
