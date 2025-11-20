@@ -359,9 +359,9 @@ pub mod node_graph;
 pub mod timeline;
 pub mod ui_analyzer;
 // pub mod visual_node_editor;
-// pub mod simple_shader_graph;
-// pub mod complex_shader_graph;
-pub mod bevy_shader_graph_integration;
+pub mod visual_node_editor_adapter;
+pub mod gyroflow_wgpu_interop;
+pub mod gyroflow_interop_integration;
 
 // Re-export main types for easier use
 pub use audio::*;
