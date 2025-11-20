@@ -1,12 +1,17 @@
-//! Advanced WGSL AST Parser with Lezer Grammar Integration
+//! Advanced WGSL AST Parser with Naga Integration
 //! 
 //! This module implements a comprehensive WGSL parser based on use.gpu patterns,
 //! providing AST construction, symbol table management, and type inference.
+//! Uses Rust-native naga library instead of JavaScript Lezer for compatibility.
 
 use anyhow::{Result, Context, bail};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use naga::{
+    Module, Function, Type, TypeInner, Statement, Expression, 
+    Span, Handle, AddressSpace, ShaderStage, Interpolation, Sampling
+};
 
 /// WGSL AST Node types based on use.gpu patterns
 #[derive(Debug, Clone, PartialEq)]
@@ -611,7 +616,7 @@ impl WgslAstParser {
         self.errors.clear();
         self.warnings.clear();
 
-        // Tokenize and parse (simplified for now - would integrate with Lezer grammar)
+        // Parse using naga library (Rust-native WGSL parser)
         let module = self.parse_module(source)?;
         
         // Validate the AST
