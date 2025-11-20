@@ -119,7 +119,7 @@ fn initialize_wgpu_renderer(ui_state: ResMut<EditorUiState>) {
 fn async_initialize_wgpu_renderer(
     mut ui_state: ResMut<EditorUiState>,
     mut startup_gate: ResMut<UiStartupGate>
-) {*/
+) {
     // Only attempt initialization after UI is stable
     if startup_gate.frames < 60 {
         return;
@@ -146,7 +146,6 @@ fn async_initialize_wgpu_renderer(
             // Keep None, software fallback will be used
         }
     }
-}
 */
 
 pub fn run_app() {
