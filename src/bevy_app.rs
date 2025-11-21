@@ -7,13 +7,13 @@ use bevy_egui::{
 };
 
 // Import audio system
-use crate::audio::{AudioAnalyzer, AudioAnalysisPlugin};
+use super::audio::{AudioAnalyzer, AudioAnalysisPlugin};
 
 // Import timeline animation system
-use crate::timeline::{TimelinePlugin, TimelineAnimation};
+use super::timeline::{TimelinePlugin, TimelineAnimation};
 
 // Import editor modules - use local editor_ui module
-// use super::editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_editor_side_panels, draw_editor_code_panel}; // Temporarily disabled
+use super::editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_editor_side_panels, draw_editor_code_panel};
 
 // Hint Windows drivers to prefer discrete GPU when available
 #[cfg(target_os = "windows")]
@@ -25,7 +25,6 @@ pub static NvOptimusEnablement: u32 = 0x00000001;
 pub static AmdPowerXpressRequestHighPerformance: u32 = 0x00000001;
 
 /// Main editor UI system with full functionality
-/* // Temporarily disabled - editor_ui module issues
 fn editor_ui_system(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiState>, mut startup_gate: ResMut<UiStartupGate>, audio_analyzer: Res<AudioAnalyzer>) {
     // Increment frame counter
     startup_gate.frames += 1;
@@ -72,6 +71,7 @@ fn editor_ui_system(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiSta
         
         // Call the populate_shader_list function to load real shaders
         // This will scan directories and load actual WGSL and ISF files
+        populate_shader_list(ui_state);
         
         println!("UI state initialized with {} shaders and {} lines of code", 
                  ui_state.available_shaders_compatible.len(),
@@ -98,14 +98,12 @@ fn editor_ui_system(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiSta
         // This avoids the CentralPanel conflict
     }
 }
-*/
 
 fn setup_camera(mut commands: Commands) {
     // Use Camera2d for proper UI rendering with egui
     commands.spawn(Camera2d);
 }
 
-/* // Temporarily disabled - editor_ui module issues
 fn initialize_wgpu_renderer(ui_state: ResMut<EditorUiState>) {
     println!("Initializing WGPU renderer...");
     
@@ -146,7 +144,7 @@ fn async_initialize_wgpu_renderer(
             // Keep None, software fallback will be used
         }
     }
-*/
+}
 
 pub fn run_app() {
     // Install a panic hook to improve crash diagnostics typical of Bevy 0.17 + bevy_egui
@@ -172,11 +170,11 @@ pub fn run_app() {
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(AudioAnalysisPlugin)
         .add_plugins(TimelinePlugin)
-        // .insert_resource(EditorUiState::default()) // Temporarily disabled
-        // .insert_resource(UiStartupGate::default()) // Temporarily disabled
+        .insert_resource(EditorUiState::default())
+        .insert_resource(UiStartupGate::default())
         .add_systems(Startup, setup_camera)
-        // .add_systems(Startup, initialize_wgpu_renderer) // Temporarily disabled
-        // .add_systems(Update, async_initialize_wgpu_renderer) // Temporarily disabled
-        // .add_systems(bevy_egui::EguiPrimaryContextPass, editor_ui_system) // Temporarily disabled
+        .add_systems(Startup, initialize_wgpu_renderer)
+        .add_systems(Update, async_initialize_wgpu_renderer)
+        .add_systems(bevy_egui::EguiPrimaryContextPass, editor_ui_system)
         .run();
 }

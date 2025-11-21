@@ -890,6 +890,16 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     /// and reads the resulting RGBA pixel data back from the GPU buffer.
     /// The return type `Box<[u8]>` fixes the `E0308` error from the compilation log.
     pub fn render_frame(&mut self, wgsl_code: &str, params: &RenderParameters, audio_data: Option<AudioData>) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+        // Detect the fragment shader entry point name
+        let fragment_entry_point = if wgsl_code.contains("@fragment") && wgsl_code.contains("fn main(") {
+            "main" // Standard WGSL convention
+        } else if wgsl_code.contains("fn fs_main(") {
+            "fs_main" // Legacy convention
+        } else {
+            println!("⚠️  Warning: Could not detect fragment shader entry point, defaulting to 'main'");
+            "main"
+        };
+        println!("🔍 Detected fragment shader entry point: '{}'", fragment_entry_point);
         // Quick return for empty code to prevent hanging
         if wgsl_code.trim().is_empty() {
             let pixel_count = (params.width * params.height) as usize;
@@ -1114,7 +1124,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
-                entry_point: Some("fs_main"),
+                entry_point: Some(fragment_entry_point), // Use detected entry point name
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &[Some(wgpu::ColorTargetState {
                     // FIXED: Match texture format
@@ -1326,6 +1336,17 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         println!("🎨 Starting GPU shader render with parameters...");
         self.last_errors.clear();
 
+        // Detect the fragment shader entry point name
+        let fragment_entry_point = if wgsl_code.contains("@fragment") && wgsl_code.contains("fn main(") {
+            "main" // Standard WGSL convention
+        } else if wgsl_code.contains("fn fs_main(") {
+            "fs_main" // Legacy convention
+        } else {
+            println!("⚠️  Warning: Could not detect fragment shader entry point, defaulting to 'main'");
+            "main"
+        };
+        println!("🔍 Detected fragment shader entry point: '{}'", fragment_entry_point);
+
         // --- 1. Setup Output Texture (FIXED: Use correct format) ---
         let texture_desc = wgpu::TextureDescriptor {
             label: Some("Shader Output"),
@@ -1403,10 +1424,10 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor { label: Some("Bind Group"), layout: &bind_group_layout, entries: &bind_entries });
 
         // Continue with the rest of the rendering pipeline...
-        self.render_pipeline_with_bind_group(wgsl_code, params, bind_group, bind_group_layout, texture, texture_view, uniform_buffer)
+        self.render_pipeline_with_bind_group(wgsl_code, params, bind_group, bind_group_layout, texture, texture_view, uniform_buffer, &fragment_entry_point)
     }
     
-    fn render_pipeline_with_bind_group(&mut self, wgsl_code: &str, params: &RenderParameters, bind_group: wgpu::BindGroup, bind_group_layout: wgpu::BindGroupLayout, texture: wgpu::Texture, texture_view: wgpu::TextureView, uniform_buffer: wgpu::Buffer) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+    fn render_pipeline_with_bind_group(&mut self, wgsl_code: &str, params: &RenderParameters, bind_group: wgpu::BindGroup, bind_group_layout: wgpu::BindGroupLayout, texture: wgpu::Texture, texture_view: wgpu::TextureView, _uniform_buffer: wgpu::Buffer, fragment_entry_point: &str) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         // Complete the rendering pipeline setup and execution
         let pipeline_layout = self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
@@ -1431,7 +1452,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                     label: Some("Fragment Shader"),
                     source: wgpu::ShaderSource::Wgsl(wgsl_code.into()),
                 }),
-                entry_point: Some("fs_main"),
+                entry_point: Some(fragment_entry_point), // Use detected entry point name
                 targets: &[Some(wgpu::ColorTargetState {
                     format: wgpu::TextureFormat::Rgba8Unorm,
                     blend: Some(wgpu::BlendState::REPLACE),
@@ -1485,8 +1506,11 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             render_pass.draw(0..3, 0..1); // Draw full-screen triangle
         }
 
-        // Copy texture to buffer
-        let buffer_size = (params.width * params.height * 4) as u64;
+        // Copy texture to buffer with proper alignment
+        let bytes_per_row = params.width * 4;
+        let aligned_bytes_per_row = ((bytes_per_row + 255) / 256) * 256; // Align to 256 bytes
+        let buffer_size = (aligned_bytes_per_row * params.height) as u64;
+        
         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Output Buffer"),
             size: buffer_size,
@@ -1505,7 +1529,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                 buffer: &output_buffer,
                 layout: wgpu::TexelCopyBufferLayout {
                     offset: 0,
-                    bytes_per_row: Some(params.width * 4),
+                    bytes_per_row: Some(aligned_bytes_per_row),
                     rows_per_image: Some(params.height),
                 },
             },
@@ -1528,7 +1552,15 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         rx.recv().unwrap()?;
 
         let data = buffer_slice.get_mapped_range();
-        let result = data.to_vec();
+        
+        // Extract actual pixel data, skipping alignment padding
+        let mut result = Vec::with_capacity((params.width * params.height * 4) as usize);
+        for y in 0..params.height {
+            let row_start = (y * aligned_bytes_per_row) as usize;
+            let row_end = row_start + (params.width * 4) as usize;
+            result.extend_from_slice(&data[row_start..row_end]);
+        }
+        
         drop(data);
         output_buffer.unmap();
 

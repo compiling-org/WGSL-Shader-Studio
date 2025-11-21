@@ -60,9 +60,43 @@ check_reference_integration_status() {
     fi
 }
 
+check_release_mode_usage() {
+    local recent_commands=$(history | tail -20)
+    if echo "$recent_commands" | grep -q "cargo " && ! echo "$recent_commands" | grep -q "cargo.*--release"; then
+        log_message "CRITICAL VIOLATION: Cargo commands without --release flag detected"
+        return 1
+    fi
+    return 0
+}
+
+check_ui_verification_protocol() {
+    if [ ! -f "$PROJECT_DIR/UI_AUDIT_REPORT.md" ]; then
+        log_message "CRITICAL VIOLATION: UI_AUDIT_REPORT.md missing - UI verification not performed"
+        return 1
+    fi
+    
+    local last_ui_check=$(stat -c %Y "$PROJECT_DIR/UI_AUDIT_REPORT.md" 2>/dev/null || echo "0")
+    local current_time=$(date +%s)
+    local time_diff=$((current_time - last_ui_check))
+    
+    if [ "$time_diff" -gt 600 ]; then  # 10 minutes
+        log_message "WARNING: UI verification report older than 10 minutes"
+    fi
+    
+    # Check if UI verification shows critical issues
+    if grep -q "CRITICAL BROKEN FEATURES" "$PROJECT_DIR/UI_AUDIT_REPORT.md"; then
+        local broken_features=$(grep -A5 "CRITICAL BROKEN FEATURES" "$PROJECT_DIR/UI_AUDIT_REPORT.md" | wc -l)
+        if [ "$broken_features" -gt 1 ]; then
+            log_message "CRITICAL: UI verification shows broken features present"
+            return 1
+        fi
+    fi
+    return 0
+}
+
 check_compilation_status() {
     cd "$PROJECT_DIR"
-    local cargo_result=$(cargo check 2>&1)
+    local cargo_result=$(cargo check --release 2>&1)
     local error_count=$(echo "$cargo_result" | grep -c "error\[" || echo "0")
     
     if [ "$error_count" -gt 0 ]; then
@@ -88,6 +122,14 @@ generate_compliance_report() {
     fi
     
     if ! check_compilation_status; then
+        ((issues++))
+    fi
+    
+    if ! check_release_mode_usage; then
+        ((issues++))
+    fi
+    
+    if ! check_ui_verification_protocol; then
         ((issues++))
     fi
     

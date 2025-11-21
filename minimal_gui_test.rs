@@ -28,7 +28,10 @@ fn setup_camera(mut commands: Commands) {
 }
 
 fn test_ui_system(mut egui_ctx: EguiContexts, mut state: ResMut<TestState>) {
-    let ctx = egui_ctx.ctx_mut().expect("Failed to get egui context");
+    let ctx = match egui_ctx.ctx_mut() {
+        Ok(ctx) => ctx,
+        Err(_) => return, // Context not ready yet, skip this frame
+    };
     
     egui::CentralPanel::default().show(ctx, |ui| {
         ui.heading("Minimal GUI Test");
