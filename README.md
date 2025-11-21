@@ -1,4 +1,35 @@
 # WGSL Shader Studio
+ 
+## Current Reality (2025-11-21)
+- Build fails due to a duplicate function in `src/editor_ui.rs` (`draw_editor_side_panels` defined twice at `src/editor_ui.rs:493` and `src/editor_ui.rs:1152`).
+- GUI initializes; preview uses a real WGPU renderer when available and falls back to a CPU renderer if GPU init fails.
+- Parameter sliders in the UI are not wired to the renderer’s `params` buffer; changes don’t affect shader output.
+- Audio/MIDI integration is missing (`src/audio_midi_integration.rs` is empty).
+- Compute pipeline code exists (`src/compute_pass_integration.rs`) but is not executed (no device/pipeline/dispatch wiring).
+- Version drift: Bevy’s internal wgpu version differs from the direct `wgpu = 26.0.1` dependency, risking API mismatch.
+
+### What Works
+- WGSL rendering backend (`src/shader_renderer.rs`) compiles shaders, creates pipelines, renders to texture, and reads pixels back.
+- ISF loading/validation (`src/isf_loader.rs`) with Resolume directory scanning and local assets.
+- CLI developer tools (`src/main.rs`) for listing, validating, and converting ISF shaders.
+- Node graph to WGSL generation (`src/node_graph.rs`).
+- Timeline model and Bevy plugin (`src/timeline.rs`).
+
+### What’s Broken/Missing
+- Duplicate function in UI (compilation blocker) and incorrect identifiers in the duplicate block.
+- UI parameter updates not applied to renderer (`params` uniform buffer).
+- Audio/MIDI input/mapping not implemented.
+- Compute pipeline not executed from UI or backend.
+- Batch ISF directory conversion is stubbed.
+- Frame recording not implemented; MP4 exporter presumes frames exist.
+
+### Placeholder vs Real
+- Real: `shader_renderer.rs`, `isf_loader.rs`, `node_graph.rs`, `timeline.rs`, CLI in `main.rs`, FFGL skeleton.
+- Placeholder/Stub: `audio_midi_integration.rs`, batch conversion, compute execution, several visual node editor variants and auditors, frame recording/export.
+
+### Immediate Plan
+- Backend-first: fix UI compile error, wire parameter uniform updates, implement audio/MIDI, add compute execution path, align wgpu versions.
+- UI: complete batch conversion, add frame recording, clean warnings/placeholders.
 
 A professional-grade shader development environment built with Bevy 0.17 and bevy_egui 0.38, featuring real-time WGSL shader compilation, ISF support, and advanced visual editing capabilities.
 
