@@ -1148,6 +1148,10 @@ pub fn editor_central_panel(mut egui_ctx: EguiContexts, mut ui_state: ResMut<Edi
     draw_editor_central_panel(ctx, &mut *ui_state);
 }
 
+/// Helper that draws the browser/parameters/timeline panels using a provided egui context
+pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState, _audio_analyzer: &AudioAnalyzer) {
+    let ctx = egui_ctx.ctx_mut().expect("Failed to get egui context");
+    draw_editor_side_panels(ctx, &mut *ui_state, &audio_analyzer);
 }
 
 /// Populate UI state's shader list by scanning common directories and Magic ISF folders.
