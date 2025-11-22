@@ -20,6 +20,7 @@ pub struct VisualNodeEditorState {
 fn visual_node_editor_ui(
     mut contexts: EguiContexts,
     mut state: ResMut<VisualNodeEditorState>,
+    mut ui_state: ResMut<crate::editor_ui::EditorUiState>,
 ) {
     if !state.show_node_editor {
         return;
@@ -32,7 +33,10 @@ fn visual_node_editor_ui(
             ui.horizontal(|ui| {
                 ui.toggle_value(&mut state.auto_compile, "Auto Compile");
                 if ui.button("Compile").clicked() {
-                    // TODO: Implement node graph compilation
+                    // Phase 3: Implement basic node graph compilation
+                    let compiled_shader = compile_node_graph_to_wgsl();
+                    ui_state.draft_code = compiled_shader;
+                    ui_state.code_changed = true;
                 }
             });
 

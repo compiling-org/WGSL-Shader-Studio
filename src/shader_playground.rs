@@ -2,6 +2,9 @@ use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use std::fs;
+use std::path::Path;
+use chrono::Local;
 
 use crate::shader_renderer::{ShaderRenderer, RenderParameters, WorkingShaderExample};
 use crate::audio::AudioData;
@@ -336,7 +339,8 @@ fn shader_playground_ui(
                         }
                         
                         if ui.button("Export Image").clicked() {
-                            // TODO: Implement image export
+                            // Phase 3: Implement basic image export
+                            export_current_frame(&playground_state, &renderer);
                         }
                         
                         if ui.button("Export Video").clicked() {
