@@ -140,6 +140,10 @@ impl ScreenshotVideoExporter {
             label: Some("Screenshot Encoder"),
         });
 
+        // Fix texture alignment for WGPU COPY_BYTES_PER_ROW_ALIGNMENT (256)
+        let bytes_per_row = width * 4;
+        let aligned_bytes_per_row = ((bytes_per_row + 255) / 256) * 256;
+        
         encoder.copy_texture_to_buffer(
             wgpu::ImageCopyTexture {
                 texture,
@@ -151,7 +155,7 @@ impl ScreenshotVideoExporter {
                 buffer: &buffer,
                 layout: wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: Some(width * 4),
+                    bytes_per_row: Some(aligned_bytes_per_row),
                     rows_per_image: Some(height),
                 },
             },
@@ -270,6 +274,10 @@ impl ScreenshotVideoExporter {
             label: Some("Video Frame Encoder"),
         });
 
+        // Fix texture alignment for WGPU COPY_BYTES_PER_ROW_ALIGNMENT (256)
+        let bytes_per_row = width * 4;
+        let aligned_bytes_per_row = ((bytes_per_row + 255) / 256) * 256;
+
         encoder.copy_texture_to_buffer(
             wgpu::ImageCopyTexture {
                 texture,
@@ -281,7 +289,7 @@ impl ScreenshotVideoExporter {
                 buffer: &buffer,
                 layout: wgpu::ImageDataLayout {
                     offset: 0,
-                    bytes_per_row: Some(width * 4),
+                    bytes_per_row: Some(aligned_bytes_per_row),
                     rows_per_image: Some(height),
                 },
             },

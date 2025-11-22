@@ -30,6 +30,13 @@
 - `*_fixed.rs` - Fix the original file
 - `*_audited.rs` - Audit and fix the original
 
+### UI ANALYZER SURGICAL APPROACH RULE
+- **NEVER LAUNCH BROKEN APP** - Analyze first, fix systematically
+- **UI ANALYZER IS PRIMARY TOOL** - Use before any launches
+- **SURGICAL PRECISION REQUIRED** - One issue at a time, complete fixes
+- **NO GUESSWORK** - Analyze, diagnose, then implement
+- **VERIFICATION BEFORE PROCEEDING** - Confirm each fix works before moving on
+
 ### ENFORCEMENT SCRIPT MANDATE
 - **ENFORCEMENT SCRIPT MUST ALWAYS BE ACTIVE**
 - **NO MODIFICATIONS TO ENFORCEMENT SYSTEM**
