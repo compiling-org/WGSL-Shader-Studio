@@ -1,0 +1,19 @@
+# cargo-deny configuration to ban problematic dependencies
+
+[graph]
+# Only check dependencies for Windows target since that's what we're building for
+targets = [
+    "x86_64-pc-windows-msvc",
+]
+
+[bans]
+# Ban tokio-tun completely - it's Linux-only and causes Windows compilation failures
+deny = [
+    { crate = "tokio-tun", reason = "Linux-only crate that causes Windows compilation failures" },
+]
+
+# If tokio-tun appears as a transitive dependency, we need to figure out what's pulling it in
+# and replace it with a Windows-compatible alternative
+skip-tree = [
+    #{ crate = "tokio-tun", reason = "Remove this once we find the root cause" },
+]

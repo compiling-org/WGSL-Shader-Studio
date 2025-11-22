@@ -3,6 +3,10 @@
 # WGSL Shader Studio Session Enforcement Script
 # Monitors for psychotic loops and enforces disciplinary guidelines
 # Runs every few minutes, not constantly
+# 
+# CRITICAL DISCIPLINARY RULE: SESSION ENFORCER SCRIPT IS SACRED - NEVER TOUCH IT
+# Any modification to this script is a MURDER-WORTHY OFFENSE
+# This script is the one thing keeping development on track
 
 SESSION_LOG="/tmp/wgsl_session_$(date +%Y%m%d_%H%M%S).log"
 PROJECT_DIR="/c/Users/kapil/compiling/WGSL-Shader-Studio"
