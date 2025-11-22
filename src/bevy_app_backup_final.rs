@@ -69,10 +69,12 @@ fn editor_ui_system(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiSta
         // CRITICAL: Actually populate the shader browser with real files
         println!("Initializing shader browser with real WGSL files...");
         
-        // populate_shader_list will be called as a separate startup system
+        // Call the populate_shader_list function to load real shaders
         // This will scan directories and load actual WGSL and ISF files
+        populate_shader_list(ui_state);
         
-        println!("UI state initialized with {} lines of code", 
+        println!("UI state initialized with {} shaders and {} lines of code", 
+                 ui_state.available_shaders_compatible.len(),
                  ui_state.draft_code.lines().count());
     }
     

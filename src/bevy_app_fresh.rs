@@ -13,7 +13,7 @@ use super::audio::{AudioAnalyzer, AudioAnalysisPlugin};
 use super::timeline::{TimelinePlugin, TimelineAnimation};
 
 // Import editor modules - use local editor_ui module
-use super::editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_editor_side_panels, draw_editor_code_panel};
+use super::editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_editor_side_panels, draw_editor_code_panel, populate_shader_list};
 
 // Hint Windows drivers to prefer discrete GPU when available
 #[cfg(target_os = "windows")]
@@ -135,44 +135,4 @@ fn async_initialize_wgpu_renderer(
     }) {
         Ok(renderer) => {
             println!("✅ WGPU renderer initialized successfully!");
-            *ui_state.global_renderer.renderer.lock().unwrap() = Some(renderer);
-        }
-        Err(e) => {
-            println!("❌ Failed to initialize WGPU renderer: {}. Using software fallback.", e);
-            // Keep None, software fallback will be used
-        }
-    }
-}
-
-pub fn run_app() {
-    // Install a panic hook to improve crash diagnostics typical of Bevy 0.17 + bevy_egui
-    std::panic::set_hook(Box::new(|info| {
-        eprintln!("WGSL Shader Studio panicked: {}", info);
-        eprintln!("If this happened around focus/resize, it may be the known Bevy 0.17 + bevy_egui issue.");
-    }));
-
-    App::new()
-        .add_plugins(
-            DefaultPlugins.set(WindowPlugin {
-                primary_window: Some(Window {
-                    title: "WGSL Shader Studio".to_string(),
-                    resolution: WindowResolution::new(1600, 900),
-                    present_mode: PresentMode::AutoVsync,
-                    ..Default::default()
-                }),
-                ..Default::default()
-            }),
-        )
-        .add_plugins(EguiPlugin::default())
-        .add_plugins(FrameTimeDiagnosticsPlugin::default())
-        .add_plugins(LogDiagnosticsPlugin::default())
-        .add_plugins(AudioAnalysisPlugin)
-        .add_plugins(TimelinePlugin)
-        .insert_resource(EditorUiState::default())
-        .insert_resource(UiStartupGate::default())
-        .add_systems(Startup, setup_camera)
-        .add_systems(Startup, initialize_wgpu_renderer)
-        .add_systems(Update, async_initialize_wgpu_renderer)
-        .add_systems(bevy_egui::EguiPrimaryContextPass, editor_ui_system)
-        .run();
-}
+            *ui_state.global_renderer.renderer.lock().unwrap() =
