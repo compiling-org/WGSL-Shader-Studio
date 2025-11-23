@@ -21,6 +21,17 @@ impl Default for PipelineMode {
     fn default() -> Self { PipelineMode::Fragment }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ThemePreference {
+    Light,
+    Dark,
+    System,
+}
+
+impl Default for ThemePreference {
+    fn default() -> Self { ThemePreference::Dark }
+}
+
 #[derive(Resource)]
 pub struct EditorUiState {
     pub show_shader_browser: bool,
@@ -34,9 +45,13 @@ pub struct EditorUiState {
     pub show_midi_panel: bool,
     pub show_gesture_panel: bool,
     pub show_wgslsmith_panel: bool,
+    pub show_diagnostics_panel: bool,
     pub fps: f32,
     // Preview pipeline mode
     pub pipeline_mode: PipelineMode,
+    // Theme settings
+    pub dark_mode: bool,
+    pub theme_preference: ThemePreference,
     // Browser/state
     pub search_query: String,
     pub show_all_shaders: bool,
@@ -68,6 +83,8 @@ pub struct EditorUiState {
     pub wgsl_smith_prompt: String,
     pub wgsl_smith_generated: String,
     pub wgsl_smith_status: String,
+    // WGSL diagnostics
+    pub diagnostics_messages: Vec<DiagnosticMessage>,
 }
 
 impl Default for EditorUiState {
@@ -83,8 +100,11 @@ impl Default for EditorUiState {
             show_midi_panel: false,
             show_gesture_panel: false,
             show_wgslsmith_panel: false,
+            show_diagnostics_panel: false,
             fps: 0.0,
             pipeline_mode: PipelineMode::default(),
+            dark_mode: true,
+            theme_preference: ThemePreference::default(),
             search_query: String::new(),
             show_all_shaders: false,
             available_shaders_all: Vec::new(),
@@ -109,6 +129,7 @@ impl Default for EditorUiState {
             wgsl_smith_prompt: String::new(),
             wgsl_smith_generated: String::new(),
             wgsl_smith_status: String::new(),
+            diagnostics_messages: Vec::new(),
         }
     }
 }
@@ -184,7 +205,8 @@ fn compile_and_render_shader(
     size: egui::Vec2,
     egui_ctx: &egui::Context,
     global_renderer: &GlobalShaderRenderer,
-    parameter_values: &std::collections::HashMap<String, f32>
+    parameter_values: &std::collections::HashMap<String, f32>,
+    audio_analyzer: Option<&crate::audio_system::AudioAnalyzer>
 ) -> Result<egui::TextureHandle, String> {
     if wgsl_code.trim().is_empty() {
         return Err("Empty shader code".to_string());
@@ -199,6 +221,21 @@ fn compile_and_render_shader(
     let mut renderer_guard = global_renderer.renderer.lock().unwrap();
     if let Some(ref mut renderer) = *renderer_guard {
         // Use the real WGPU renderer with parameter values
+        let audio_data = audio_analyzer.map(|analyzer| {
+            let data = analyzer.get_audio_data();
+            crate::audio_system::AudioData {
+                volume: data.volume,
+                bass_level: data.bass_level,
+                mid_level: data.mid_level,
+                treble_level: data.treble_level,
+                beat_detected: data.beat_detected,
+                beat_intensity: data.beat_intensity,
+                tempo: data.tempo,
+                frequencies: data.frequencies.clone(),
+                waveform: data.waveform.clone(),
+            }
+        });
+        
         let params = crate::shader_renderer::RenderParameters {
             width: size.x as u32,
             height: size.y as u32,
@@ -207,7 +244,7 @@ fn compile_and_render_shader(
                 .unwrap()
                 .as_secs_f32(),
             frame_rate: 60.0,
-            audio_data: None,
+            audio_data,
         };
         
         // Convert parameter values to array for shader
@@ -438,6 +475,24 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
                 ui.checkbox(&mut ui_state.show_gesture_panel, "Gestures");
                 ui.checkbox(&mut ui_state.show_wgslsmith_panel, "WGSLSmith");
             });
+            
+            ui.menu_button("View", |ui| {
+                ui.menu_button("Theme", |ui| {
+                    ui.radio_value(&mut ui_state.theme_preference, ThemePreference::Dark, "🌙 Dark");
+                    ui.radio_value(&mut ui_state.theme_preference, ThemePreference::Light, "☀️ Light");
+                    ui.radio_value(&mut ui_state.theme_preference, ThemePreference::System, "🖥️ System");
+                });
+                if ui.button("Toggle Dark Mode").clicked() {
+                    ui_state.dark_mode = !ui_state.dark_mode;
+                    ui.close_kind(egui::UiKind::Menu);
+                }
+                ui.separator();
+                ui.checkbox(&mut ui_state.show_diagnostics_panel, "Diagnostics Panel");
+                if ui.button("Run WGSL Diagnostics").clicked() {
+                    run_wgsl_diagnostics(ui_state);
+                    ui.close_kind(egui::UiKind::Menu);
+                }
+            });
 
             ui.separator();
             ui.menu_button("Import/Convert", |ui| {
@@ -569,7 +624,7 @@ fn fs_main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
     template
 }
 
-pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState, _audio_analyzer: &AudioAnalyzer) {
+pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState, audio_analyzer: &AudioAnalyzer) {
     // FIX: Use proper panel hierarchy to avoid CentralPanel conflicts
     
     // Left panel - Shader Browser
@@ -747,7 +802,7 @@ pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState
                 );
             } else {
                 // CRITICAL: Actually compile and render the WGSL shader
-                match compile_and_render_shader(&ui_state.draft_code, rect.size(), ctx, &ui_state.global_renderer, &ui_state.parameter_values) {
+                match compile_and_render_shader(&ui_state.draft_code, rect.size(), ctx, &ui_state.global_renderer, &ui_state.parameter_values, Some(audio_analyzer)) {
                     Ok(texture_handle) => {
                         // Display the rendered texture
                         let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
@@ -1184,7 +1239,7 @@ pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState
                         ui_state.draft_code = ui_state.wgsl_smith_generated.clone();
                     }
                     if ui.button("Test Compile").clicked() {
-                        match compile_and_render_shader(&ui_state.wgsl_smith_generated, egui::vec2(400.0, 300.0), ctx, &ui_state.global_renderer, &ui_state.parameter_values) {
+                        match compile_and_render_shader(&ui_state.wgsl_smith_generated, egui::vec2(400.0, 300.0), ctx, &ui_state.global_renderer, &ui_state.parameter_values, Some(audio_analyzer)) {
                             Ok(_) => ui_state.wgsl_smith_status = "Compilation successful!".to_string(),
                             Err(e) => ui_state.wgsl_smith_status = format!("Compilation failed: {}", e),
                         }
@@ -1197,10 +1252,58 @@ pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState
             }
         });
     }
+    
+    // WGSL Diagnostics Panel
+    if ui_state.show_diagnostics_panel {
+        egui::Window::new("WGSL Diagnostics").open(&mut ui_state.show_diagnostics_panel).show(ctx, |ui| {
+            ui.heading("Shader Compilation Diagnostics");
+            
+            ui.horizontal(|ui| {
+                if ui.button("Check Current Shader").clicked() {
+                    // Run diagnostics on current draft code
+                    ui_state.diagnostics_messages = check_wgsl_diagnostics(&ui_state.draft_code);
+                }
+                if ui.button("Clear").clicked() {
+                    ui_state.diagnostics_messages.clear();
+                }
+            });
+            
+            ui.separator();
+            
+            if ui_state.diagnostics_messages.is_empty() {
+                ui.label("No diagnostics available. Click 'Check Current Shader' to analyze.");
+            } else {
+                ui.label(format!("Found {} diagnostic(s):", ui_state.diagnostics_messages.len()));
+                egui::ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
+                    for (i, diagnostic) in ui_state.diagnostics_messages.iter().enumerate() {
+                        ui.group(|ui| {
+                            match diagnostic.severity {
+                                DiagnosticSeverity::Error => {
+                                    ui.colored_label(egui::Color32::RED, format!("Error {}: {}", i + 1, diagnostic.message));
+                                }
+                                DiagnosticSeverity::Warning => {
+                                    ui.colored_label(egui::Color32::YELLOW, format!("Warning {}: {}", i + 1, diagnostic.message));
+                                }
+                                DiagnosticSeverity::Info => {
+                                    ui.colored_label(egui::Color32::BLUE, format!("Info {}: {}", i + 1, diagnostic.message));
+                                }
+                            }
+                            if let Some(line) = diagnostic.line {
+                                ui.label(format!("  Line: {}", line));
+                            }
+                            if let Some(column) = diagnostic.column {
+                                ui.label(format!("  Column: {}", column));
+                            }
+                        });
+                    }
+                });
+            }
+        });
+    }
 }
 
 /// Helper that draws the main central preview panel using a provided egui context
-pub fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+pub fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiState, audio_analyzer: &AudioAnalyzer) {
     if ui_state.show_preview {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Shader Preview");
@@ -1243,7 +1346,7 @@ pub fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiSta
                 );
             } else {
                 // CRITICAL: Actually compile and render the WGSL shader
-                match compile_and_render_shader(&ui_state.draft_code, rect.size(), ctx, &ui_state.global_renderer, &ui_state.parameter_values) {
+                match compile_and_render_shader(&ui_state.draft_code, rect.size(), ctx, &ui_state.global_renderer, &ui_state.parameter_values, Some(audio_analyzer)) {
                     Ok(texture_handle) => {
                         // Display the rendered texture
                         let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
@@ -1268,9 +1371,9 @@ pub fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiSta
     }
 }
 
-pub fn editor_central_panel(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiState>) {
+pub fn editor_central_panel(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiState>, audio_analyzer: Res<AudioAnalyzer>) {
     let ctx = egui_ctx.ctx_mut().expect("Failed to get egui context");
-    draw_editor_central_panel(ctx, &mut *ui_state);
+    draw_editor_central_panel(ctx, &mut *ui_state, &audio_analyzer);
 }
 
 pub fn populate_shader_list(mut ui_state: ResMut<EditorUiState>) {
@@ -1927,4 +2030,126 @@ pub struct ShaderParameter {
     pub default_value: Option<f32>,
     pub min_value: Option<f32>,
     pub max_value: Option<f32>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DiagnosticSeverity {
+    Error,
+    Warning,
+    Info,
+}
+
+#[derive(Debug, Clone)]
+pub struct DiagnosticMessage {
+    pub severity: DiagnosticSeverity,
+    pub message: String,
+    pub line: Option<u32>,
+    pub column: Option<u32>,
+}
+
+/// Check WGSL code for common issues and return diagnostic messages
+pub fn check_wgsl_diagnostics(wgsl_code: &str) -> Vec<DiagnosticMessage> {
+    let mut diagnostics = Vec::new();
+    
+    // Check for basic syntax issues
+    if wgsl_code.trim().is_empty() {
+        diagnostics.push(DiagnosticMessage {
+            severity: DiagnosticSeverity::Error,
+            message: "Shader code is empty".to_string(),
+            line: None,
+            column: None,
+        });
+        return diagnostics;
+    }
+    
+    // Check for required entry points
+    let has_vertex = wgsl_code.contains("@vertex");
+    let has_fragment = wgsl_code.contains("@fragment");
+    let has_compute = wgsl_code.contains("@compute");
+    
+    if !has_vertex && !has_fragment && !has_compute {
+        diagnostics.push(DiagnosticMessage {
+            severity: DiagnosticSeverity::Error,
+            message: "No entry point found (@vertex, @fragment, or @compute)".to_string(),
+            line: None,
+            column: None,
+        });
+    }
+    
+    // Check for uniform bindings
+    if !wgsl_code.contains("@group") || !wgsl_code.contains("@binding") {
+        diagnostics.push(DiagnosticMessage {
+            severity: DiagnosticSeverity::Warning,
+            message: "No uniform bindings found (@group, @binding)".to_string(),
+            line: None,
+            column: None,
+        });
+    }
+    
+    // Check for common WGSL syntax issues
+    let lines: Vec<&str> = wgsl_code.lines().collect();
+    for (line_num, line) in lines.iter().enumerate() {
+        let line_number = line_num as u32 + 1;
+        
+        // Check for missing semicolons (basic check)
+        if line.trim().starts_with("var") || line.trim().starts_with("let") {
+            if !line.trim().ends_with(';') && !line.trim().is_empty() {
+                diagnostics.push(DiagnosticMessage {
+                    severity: DiagnosticSeverity::Warning,
+                    message: "Possible missing semicolon".to_string(),
+                    line: Some(line_number),
+                    column: None,
+                });
+            }
+        }
+        
+        // Check for invalid type declarations
+        if line.contains("float") && !line.contains("f32") {
+            diagnostics.push(DiagnosticMessage {
+                severity: DiagnosticSeverity::Warning,
+                message: "Use 'f32' instead of 'float' in WGSL".to_string(),
+                line: Some(line_number),
+                column: None,
+            });
+        }
+        
+        // Check for vec3/float mixing issues
+        if line.contains("vec3") && line.contains("float") {
+            diagnostics.push(DiagnosticMessage {
+                severity: DiagnosticSeverity::Warning,
+                message: "Possible type mismatch: vec3 with float".to_string(),
+                line: Some(line_number),
+                column: None,
+            });
+        }
+    }
+    
+    // Check for texture sampling issues
+    if wgsl_code.contains("textureSample") && !wgsl_code.contains("texture_2d") {
+        diagnostics.push(DiagnosticMessage {
+            severity: DiagnosticSeverity::Warning,
+            message: "textureSample used without texture_2d declaration".to_string(),
+            line: None,
+            column: None,
+        });
+    }
+    
+    // Check for uniform struct issues
+    if wgsl_code.contains("struct") && wgsl_code.contains("uniform") {
+        if !wgsl_code.contains("var<uniform>") {
+            diagnostics.push(DiagnosticMessage {
+                severity: DiagnosticSeverity::Warning,
+                message: "Uniform struct should use var<uniform>".to_string(),
+                line: None,
+                column: None,
+            });
+        }
+    }
+    
+    diagnostics
+}
+
+/// Run WGSL diagnostics and update UI state
+pub fn run_wgsl_diagnostics(ui_state: &mut EditorUiState) {
+    ui_state.diagnostics_messages = check_wgsl_diagnostics(&ui_state.draft_code);
 }

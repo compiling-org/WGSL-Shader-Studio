@@ -306,10 +306,6 @@ application cannot perform its core function as a shader development environment
 
 ## IMMEDIATE LIFE-THREATENING ISSUES
 
-### 🚨 CRITICAL RUNTIME ERRORS
-
-- **CRITICAL: WGPU placeholder still present - initialization not forced**
-
 ### 💥 WGPU INITIALIZATION FAILURE
 
 Error: error: the package 'wgsl-shader-studio' does not contain this feature: wgpu

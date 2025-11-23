@@ -7,6 +7,16 @@ use bevy_egui::{
 };
 use bevy_egui::egui;
 
+/// Apply theme settings to the egui context
+fn apply_theme(ctx: &egui::Context, ui_state: &super::editor_ui::EditorUiState) {
+    let theme = if ui_state.dark_mode {
+        egui::Visuals::dark()
+    } else {
+        egui::Visuals::light()
+    };
+    ctx.set_visuals(theme);
+}
+
 // Import audio system
 use super::audio_system::{AudioAnalyzer, AudioAnalysisPlugin};
 
@@ -14,14 +24,14 @@ use super::audio_system::{AudioAnalyzer, AudioAnalysisPlugin};
 use super::timeline::{TimelinePlugin, TimelineAnimation, PlaybackState};
 
 // Import responsive backend system - check if it exists
-use super::backend_systems::{ResponsiveBackend, ResponsiveBackendPlugin};
+// use super::backend_systems::{ResponsiveBackend, ResponsiveBackendPlugin};
 
 // Import editor modules - use local editor_ui module
 use super::editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_editor_side_panels, draw_editor_code_panel};
 
 // Import node graph and compute pass plugins - check if they exist
-use crate::bevy_node_graph_integration::BevyNodeGraphPlugin;
-use crate::compute_pass_integration::ComputePassPlugin;
+// use crate::bevy_node_graph_integration::BevyNodeGraphPlugin;
+// use crate::compute_pass_integration::ComputePassPlugin;
 
 // Hint Windows drivers to prefer discrete GPU when available
 #[cfg(target_os = "windows")]
@@ -53,6 +63,9 @@ fn editor_ui_system(
         Ok(ctx) => ctx,
         Err(_) => return, // Context not ready yet, skip this frame
     };
+    
+    // Apply theme settings
+    apply_theme(&ctx, &ui_state);
     
     // Debug: Print frame info every 60 frames
     if startup_gate.frames % 60 == 0 {
@@ -209,6 +222,9 @@ pub fn run_app() {
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(AudioAnalysisPlugin)
         .add_plugins(TimelinePlugin)
+        // .add_plugins(ResponsiveBackendPlugin)
+        // .add_plugins(BevyNodeGraphPlugin)
+        // .add_plugins(ComputePassPlugin)
         .insert_resource(EditorUiState::default())
         .insert_resource(UiStartupGate::default())
         .add_systems(Startup, setup_camera)
