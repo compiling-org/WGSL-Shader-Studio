@@ -59,7 +59,7 @@ fn editor_ui_system(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiSta
         ui_state.show_preview = true;
         ui_state.show_code_editor = true;
         ui_state.show_node_studio = true;
-        ui_state.show_timeline = false; // Keep disabled for now
+        ui_state.show_timeline = true; // Enable timeline for animation
         ui_state.show_audio_panel = false; // Keep disabled for now
         ui_state.show_midi_panel = false; // Keep disabled for now
         ui_state.show_gesture_panel = false; // Keep disabled for now
