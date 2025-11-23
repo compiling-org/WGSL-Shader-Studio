@@ -360,6 +360,7 @@ pub mod simple_ui_auditor;
 pub mod node_graph;
 pub mod timeline;
 pub mod ui_analyzer;
+pub mod backend_systems;
 // pub mod visual_node_editor;
 pub mod visual_node_editor_adapter;
 pub mod gyroflow_wgpu_interop;

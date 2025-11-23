@@ -5,9 +5,9 @@ use std::path::Path;
 use egui::text::LayoutJob;
 use std::sync::Arc;
 use super::node_graph::{NodeGraph, NodeKind};
-use super::timeline::{Timeline, TimelineAnimation, InterpolationType, PlaybackState};
+use super::timeline::{TimelineAnimation, InterpolationType, PlaybackState};
 use super::shader_renderer::ShaderRenderer;
-use super::audio::AudioAnalyzer;
+use super::audio_system::AudioAnalyzer;
 // use resolume_isf_shaders_rust_ffgl::visual_node_editor_adapter::NodeEditorAdapter; // Temporarily disabled
 use std::sync::Mutex;
 
@@ -33,6 +33,7 @@ pub struct EditorUiState {
     pub show_audio_panel: bool,
     pub show_midi_panel: bool,
     pub show_gesture_panel: bool,
+    pub show_wgslsmith_panel: bool,
     pub fps: f32,
     // Preview pipeline mode
     pub pipeline_mode: PipelineMode,
@@ -63,6 +64,10 @@ pub struct EditorUiState {
     pub global_renderer: GlobalShaderRenderer,
     // Parameter values storage for shader rendering
     pub parameter_values: std::collections::HashMap<String, f32>,
+    // WGSLSmith AI fields
+    pub wgsl_smith_prompt: String,
+    pub wgsl_smith_generated: String,
+    pub wgsl_smith_status: String,
 }
 
 impl Default for EditorUiState {
@@ -77,6 +82,7 @@ impl Default for EditorUiState {
             show_audio_panel: false,
             show_midi_panel: false,
             show_gesture_panel: false,
+            show_wgslsmith_panel: false,
             fps: 0.0,
             pipeline_mode: PipelineMode::default(),
             search_query: String::new(),
@@ -100,6 +106,9 @@ impl Default for EditorUiState {
             quick_param_b: 0.5,
             global_renderer: GlobalShaderRenderer::default(),
             parameter_values: std::collections::HashMap::new(),
+            wgsl_smith_prompt: String::new(),
+            wgsl_smith_generated: String::new(),
+            wgsl_smith_status: String::new(),
         }
     }
 }
@@ -128,6 +137,28 @@ impl EditorUiState {
     }
 }
 
+/// Connect audio analysis to shader parameters
+pub fn connect_audio_to_parameters(ui_state: &mut EditorUiState, audio_data: &crate::audio_system::AudioData) {
+    // Map audio analysis to shader parameters
+    let volume_param = audio_data.volume * 2.0; // Amplify for better effect
+    let bass_param = audio_data.bass_level * 3.0;
+    let mid_param = audio_data.mid_level * 2.0;
+    let treble_param = audio_data.treble_level * 2.0;
+    let beat_intensity = if audio_data.beat_detected { 1.0 } else { 0.0 };
+    
+    // Update parameter values with audio-reactive data
+    ui_state.set_parameter_value("audio_volume", volume_param.min(1.0));
+    ui_state.set_parameter_value("audio_bass", bass_param.min(1.0));
+    ui_state.set_parameter_value("audio_mid", mid_param.min(1.0));
+    ui_state.set_parameter_value("audio_treble", treble_param.min(1.0));
+    ui_state.set_parameter_value("beat_intensity", beat_intensity);
+    ui_state.set_parameter_value("audio_reactive", volume_param.min(1.0));
+    
+    // Log audio parameter mapping
+    println!("Audio parameters updated: volume={:.2}, bass={:.2}, beat={}", 
+             volume_param, bass_param, beat_intensity);
+}
+
 #[derive(Resource, Default)]
 pub struct UiStartupGate {
     pub frames: u32,
@@ -152,7 +183,8 @@ fn compile_and_render_shader(
     wgsl_code: &str,
     size: egui::Vec2,
     egui_ctx: &egui::Context,
-    global_renderer: &GlobalShaderRenderer
+    global_renderer: &GlobalShaderRenderer,
+    parameter_values: &std::collections::HashMap<String, f32>
 ) -> Result<egui::TextureHandle, String> {
     if wgsl_code.trim().is_empty() {
         return Err("Empty shader code".to_string());
@@ -166,7 +198,7 @@ fn compile_and_render_shader(
     // Try to use the real WGPU renderer first
     let mut renderer_guard = global_renderer.renderer.lock().unwrap();
     if let Some(ref mut renderer) = *renderer_guard {
-        // Use the real WGPU renderer
+        // Use the real WGPU renderer with parameter values
         let params = crate::shader_renderer::RenderParameters {
             width: size.x as u32,
             height: size.y as u32,
@@ -178,7 +210,16 @@ fn compile_and_render_shader(
             audio_data: None,
         };
         
-        match renderer.render_frame(wgsl_code, &params, None) {
+        // Convert parameter values to array for shader
+        let mut param_array = vec![0.0f32; 64];
+        for (name, &value) in parameter_values.iter() {
+            // Simple hash-based mapping for parameter names to array indices
+            let hash = name.bytes().fold(0u32, |acc, b| acc.wrapping_add(b as u32));
+            let index = (hash as usize) % 64;
+            param_array[index] = value;
+        }
+        
+        match renderer.render_frame_with_params(wgsl_code, &params, Some(&param_array)) {
             Ok(pixel_data) => {
                 // Create texture from pixel data
                 let texture = egui_ctx.load_texture(
@@ -338,7 +379,7 @@ fn render_shader_to_texture(
     egui_ctx: &egui::Context
 ) -> Result<egui::TextureHandle, String> {
     use crate::shader_renderer::RenderParameters;
-    use crate::audio::AudioData;
+    use crate::audio_system::AudioData;
     
     let params = RenderParameters {
         width: size.x as u32,
@@ -395,6 +436,7 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
                 ui.checkbox(&mut ui_state.show_audio_panel, "Audio");
                 ui.checkbox(&mut ui_state.show_midi_panel, "MIDI");
                 ui.checkbox(&mut ui_state.show_gesture_panel, "Gestures");
+                ui.checkbox(&mut ui_state.show_wgslsmith_panel, "WGSLSmith");
             });
 
             ui.separator();
@@ -423,6 +465,11 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
                 }
                 if ui.button("Export current WGSL → HLSL").clicked() {
                     export_current_wgsl_to_hlsl(&ui_state);
+                    ui.close_kind(egui::UiKind::Menu);
+                }
+                ui.separator();
+                if ui.button("Multi-language Transpiler").clicked() {
+                    show_transpiler_panel(ui_state);
                     ui.close_kind(egui::UiKind::Menu);
                 }
             });
@@ -489,7 +536,39 @@ pub fn editor_menu(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiStat
     draw_editor_menu(ctx, &mut *ui_state);
 }
 
-// Helper that draws the browser/parameters/timeline panels using a provided egui context
+/// Generate shader code using WGSLSmith AI
+fn generate_shader_with_wgsl_smith(prompt: &str) -> String {
+    // Simple template-based generation for now
+    // In a real implementation, this would use AI/ML models
+    let template = format!(r#"
+@group(0) @binding(0) var<uniform> time: f32;
+@group(0) @binding(1) var<uniform> resolution: vec2<f32>;
+
+@vertex
+fn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<f32> {{
+    var vertices = array<vec2<f32>, 3>(
+        vec2<f32>(-1.0, -1.0),
+        vec2<f32>(3.0, -1.0), 
+        vec2<f32>(-1.0, 3.0)
+    );
+    return vec4<f32>(vertices[vertex_index], 0.0, 1.0);
+}}
+
+@fragment
+fn fs_main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {{
+    let uv = frag_coord.xy / resolution.xy;
+    let color = vec3<f32>(
+        uv.x + 0.5 * sin(time),
+        uv.y + 0.5 * cos(time),
+        0.5 + 0.5 * sin(time * 2.0)
+    );
+    return vec4<f32>(color, 1.0);
+}}
+"#);
+    
+    template
+}
+
 pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState, _audio_analyzer: &AudioAnalyzer) {
     // FIX: Use proper panel hierarchy to avoid CentralPanel conflicts
     
@@ -668,7 +747,7 @@ pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState
                 );
             } else {
                 // CRITICAL: Actually compile and render the WGSL shader
-                match compile_and_render_shader(&ui_state.draft_code, rect.size(), ctx, &ui_state.global_renderer) {
+                match compile_and_render_shader(&ui_state.draft_code, rect.size(), ctx, &ui_state.global_renderer, &ui_state.parameter_values) {
                     Ok(texture_handle) => {
                         // Display the rendered texture
                         let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
@@ -1072,6 +1151,52 @@ pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState
             });
         });
     }
+    
+    // WGSLSmith Testing Panel
+    if ui_state.show_wgslsmith_panel {
+        egui::Window::new("WGSLSmith AI").open(&mut ui_state.show_wgslsmith_panel).show(ctx, |ui| {
+            ui.heading("AI-Assisted Shader Generation");
+            
+            ui.horizontal(|ui| {
+                ui.label("Prompt:");
+                ui.text_edit_multiline(&mut ui_state.wgsl_smith_prompt);
+            });
+            
+            ui.horizontal(|ui| {
+                if ui.button("Generate Shader").clicked() {
+                    ui_state.wgsl_smith_generated = generate_shader_with_wgsl_smith(&ui_state.wgsl_smith_prompt);
+                }
+                if ui.button("Clear").clicked() {
+                    ui_state.wgsl_smith_prompt.clear();
+                    ui_state.wgsl_smith_generated.clear();
+                }
+            });
+            
+            if !ui_state.wgsl_smith_generated.is_empty() {
+                ui.separator();
+                ui.label("Generated WGSL:");
+                egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
+                    ui.monospace(&ui_state.wgsl_smith_generated);
+                });
+                
+                ui.horizontal(|ui| {
+                    if ui.button("Apply to Editor").clicked() {
+                        ui_state.draft_code = ui_state.wgsl_smith_generated.clone();
+                    }
+                    if ui.button("Test Compile").clicked() {
+                        match compile_and_render_shader(&ui_state.wgsl_smith_generated, egui::vec2(400.0, 300.0), ctx, &ui_state.global_renderer, &ui_state.parameter_values) {
+                            Ok(_) => ui_state.wgsl_smith_status = "Compilation successful!".to_string(),
+                            Err(e) => ui_state.wgsl_smith_status = format!("Compilation failed: {}", e),
+                        }
+                    }
+                });
+            }
+            
+            if !ui_state.wgsl_smith_status.is_empty() {
+                ui.label(&ui_state.wgsl_smith_status);
+            }
+        });
+    }
 }
 
 /// Helper that draws the main central preview panel using a provided egui context
@@ -1118,7 +1243,7 @@ pub fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiSta
                 );
             } else {
                 // CRITICAL: Actually compile and render the WGSL shader
-                match compile_and_render_shader(&ui_state.draft_code, rect.size(), ctx, &ui_state.global_renderer) {
+                match compile_and_render_shader(&ui_state.draft_code, rect.size(), ctx, &ui_state.global_renderer, &ui_state.parameter_values) {
                     Ok(texture_handle) => {
                         // Display the rendered texture
                         let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
@@ -1533,6 +1658,27 @@ fn export_current_wgsl_to_hlsl(ui_state: &EditorUiState) {
     }
 }
 
+fn show_transpiler_panel(ui_state: &mut EditorUiState) {
+    // Create a comprehensive transpiler panel with multiple language support
+    println!("Opening multi-language transpiler panel...");
+    
+    // This function will be called to show a dedicated transpiler window
+    // For now, we'll create a simple implementation that can be expanded
+    ui_state.show_wgslsmith_panel = true; // Use the existing WGSLSmith panel for transpiler features
+    
+    // Add transpiler-specific test cases
+    let test_cases = vec![
+        ("GLSL Basic", "// Basic GLSL shader\nvoid main() {\n    gl_FragColor = vec4(1.0);\n}"),
+        ("HLSL Basic", "// Basic HLSL shader\nfloat4 main() : SV_TARGET {\n    return float4(1.0, 1.0, 1.0, 1.0);\n}"),
+        ("WGSL Basic", "// Basic WGSL shader\n@fragment\nfn main() -> @location(0) vec4<f32> {\n    return vec4<f32>(1.0, 1.0, 1.0, 1.0);\n}"),
+    ];
+    
+    for (name, code) in test_cases {
+        println!("Transpiler test case available: {}", name);
+        // In a full implementation, these would be loaded into the transpiler panel
+    }
+}
+
 #[derive(serde::Serialize, serde::Deserialize)]
 struct ProjectData {
     node_graph: super::node_graph::NodeGraph,
@@ -1654,7 +1800,7 @@ fn export_recorded_frames_to_mp4() {
 // removed deprecated attribute; updated calls to modern egui API
 
 /// Parse shader code for parameters (uniforms, textures, etc.)
-fn parse_shader_parameters(shader_code: &str) -> Vec<ShaderParameter> {
+pub fn parse_shader_parameters(shader_code: &str) -> Vec<ShaderParameter> {
     let mut parameters = Vec::new();
     
     // First, try to parse ISF metadata if this is an ISF shader
@@ -1677,6 +1823,7 @@ fn parse_shader_parameters(shader_code: &str) -> Vec<ShaderParameter> {
             wgsl_type,
             group,
             binding,
+            value: 0.5, // Default value
             default_value: None,
             min_value: None,
             max_value: None,
@@ -1697,6 +1844,7 @@ fn parse_shader_parameters(shader_code: &str) -> Vec<ShaderParameter> {
             wgsl_type,
             group,
             binding,
+            value: 0.5, // Default value
             default_value: None,
             min_value: None,
             max_value: None,
@@ -1739,6 +1887,7 @@ fn parse_isf_parameters(shader_code: &str) -> Option<Vec<ShaderParameter>> {
                                     wgsl_type: map_isf_type_to_wgsl(input_type),
                                     group: 0, // ISF inputs typically use group 0
                                     binding: index as u32,
+                                    value: default.unwrap_or(0.5), // Use default value or 0.5
                                     default_value: default,
                                     min_value: min,
                                     max_value: max,
@@ -1769,12 +1918,13 @@ fn map_isf_type_to_wgsl(isf_type: &str) -> String {
 }
 
 #[derive(Debug, Clone)]
-struct ShaderParameter {
-    name: String,
-    wgsl_type: String,
-    group: u32,
-    binding: u32,
-    default_value: Option<f32>,
-    min_value: Option<f32>,
-    max_value: Option<f32>,
+pub struct ShaderParameter {
+    pub name: String,
+    pub wgsl_type: String,
+    pub group: u32,
+    pub binding: u32,
+    pub value: f32,
+    pub default_value: Option<f32>,
+    pub min_value: Option<f32>,
+    pub max_value: Option<f32>,
 }

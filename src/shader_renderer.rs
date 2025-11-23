@@ -3,7 +3,7 @@ use wgpu::util::DeviceExt;
 use bevy_egui::egui::TextureHandle;
 use bytemuck::{Pod, Zeroable};
 
-use crate::audio::AudioData;
+use crate::audio_system::AudioData;
 // NOTE: This file is assumed to be 'src/shader_renderer.rs' based on the errors.
 
 // --- Data Structures for External Use (e.g., passing from a GUI/Main loop) ---

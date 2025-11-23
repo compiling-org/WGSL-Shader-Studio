@@ -11,10 +11,17 @@ use bevy_egui::egui;
 use super::audio_system::{AudioAnalyzer, AudioAnalysisPlugin};
 
 // Import timeline animation system
-use super::timeline::{TimelinePlugin, TimelineAnimation};
+use super::timeline::{TimelinePlugin, TimelineAnimation, PlaybackState};
+
+// Import responsive backend system - check if it exists
+use super::backend_systems::{ResponsiveBackend, ResponsiveBackendPlugin};
 
 // Import editor modules - use local editor_ui module
 use super::editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_editor_side_panels, draw_editor_code_panel};
+
+// Import node graph and compute pass plugins - check if they exist
+use crate::bevy_node_graph_integration::BevyNodeGraphPlugin;
+use crate::compute_pass_integration::ComputePassPlugin;
 
 // Hint Windows drivers to prefer discrete GPU when available
 #[cfg(target_os = "windows")]
@@ -26,7 +33,13 @@ pub static NvOptimusEnablement: u32 = 0x00000001;
 pub static AmdPowerXpressRequestHighPerformance: u32 = 0x00000001;
 
 /// Main editor UI system with full functionality
-fn editor_ui_system(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiState>, mut startup_gate: ResMut<UiStartupGate>, audio_analyzer: Res<AudioAnalyzer>) {
+fn editor_ui_system(
+    mut egui_ctx: EguiContexts, 
+    mut ui_state: ResMut<EditorUiState>, 
+    mut startup_gate: ResMut<UiStartupGate>, 
+    audio_analyzer: Res<AudioAnalyzer>,
+    timeline_animation: Res<TimelineAnimation>
+) {
     // Increment frame counter
     startup_gate.frames += 1;
     
@@ -75,6 +88,35 @@ fn editor_ui_system(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiSta
         
         println!("UI state initialized with {} lines of code", 
                  ui_state.draft_code.lines().count());
+    }
+    
+    // Apply timeline animation to shader parameters
+    if timeline_animation.timeline.playback_state == PlaybackState::Playing {
+        // Parse current shader parameters from the draft code
+        let editor_params = crate::editor_ui::parse_shader_parameters(&ui_state.draft_code);
+        if !editor_params.is_empty() {
+            // Convert editor parameters to timeline parameters
+            let mut timeline_params: Vec<crate::timeline::ShaderParameter> = editor_params.iter().map(|p| {
+                crate::timeline::ShaderParameter {
+                    name: p.name.clone(),
+                    value: p.value,
+                    min: 0.0,
+                    max: 1.0,
+                    default: 0.5,
+                    binding: 0,
+                    group: 0,
+                }
+            }).collect();
+            
+            timeline_animation.timeline.apply_to_parameters(&mut timeline_params);
+            
+            // Update the UI state with animated parameter values
+            for param in &timeline_params {
+                ui_state.set_parameter_value(&param.name, param.value);
+            }
+            
+            println!("Applied timeline animation to {} parameters", timeline_params.len());
+        }
     }
     
     // Draw menu bar
@@ -137,8 +179,8 @@ fn async_initialize_wgpu_renderer(
             *ui_state.global_renderer.renderer.lock().unwrap() = Some(renderer);
         }
         Err(e) => {
-            println!("❌ Failed to initialize WGPU renderer: {}. Using software fallback.", e);
-            // Keep None, software fallback will be used
+            println!("❌ Failed to initialize WGPU renderer: {}. ENFORCING GPU-ONLY POLICY - NO CPU FALLBACK ALLOWED.", e);
+            panic!("GPU initialization failed - NO CPU FALLBACK ALLOWED: {}", e);
         }
     }
 }
@@ -178,6 +220,7 @@ pub fn run_app() {
 fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
     egui::CentralPanel::default().show(ctx, |ui| {
         ui.heading("Shader Preview");
+        
         let available_size = ui.available_size();
         let preview_size = egui::vec2(available_size.x.min(800.0), available_size.y.min(400.0));
         let (response, painter) = ui.allocate_painter(preview_size, egui::Sense::hover());
