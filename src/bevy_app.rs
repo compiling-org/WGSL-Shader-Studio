@@ -26,6 +26,9 @@ use super::timeline::{TimelinePlugin, TimelineAnimation, PlaybackState};
 // Import gesture control system
 use super::gesture_control::{GestureControlSystem, GestureControlPlugin};
 
+// Import compute pass integration
+use super::compute_pass_integration::{ComputePassPlugin, ComputePassManager};
+
 // Import responsive backend system - check if it exists
 // use super::backend_systems::{ResponsiveBackend, ResponsiveBackendPlugin};
 
@@ -52,7 +55,8 @@ fn editor_ui_system(
     mut startup_gate: ResMut<UiStartupGate>, 
     audio_analyzer: Res<AudioAnalyzer>,
     timeline_animation: Res<TimelineAnimation>,
-    mut gesture_control: ResMut<GestureControlSystem>
+    mut gesture_control: ResMut<GestureControlSystem>,
+    mut compute_pass_manager: ResMut<ComputePassManager>
 ) {
     // Increment frame counter
     startup_gate.frames += 1;
@@ -156,7 +160,7 @@ fn editor_ui_system(
     
     // Draw side panels (shader browser, parameters, timeline)
     println!("Drawing side panels...");
-    draw_editor_side_panels(ctx, &mut *ui_state, &audio_analyzer, &gesture_control);
+    draw_editor_side_panels(ctx, &mut *ui_state, &audio_analyzer, &mut gesture_control, &mut compute_pass_manager);
     
     // Draw code editor panel
     println!("Drawing code editor panel...");
@@ -241,9 +245,9 @@ pub fn run_app() {
         .add_plugins(AudioAnalysisPlugin)
         .add_plugins(TimelinePlugin)
         .add_plugins(GestureControlPlugin)
+        .add_plugins(ComputePassPlugin)
         // .add_plugins(ResponsiveBackendPlugin)
         // .add_plugins(BevyNodeGraphPlugin)
-        // .add_plugins(ComputePassPlugin)
         .insert_resource(EditorUiState::default())
         .insert_resource(UiStartupGate::default())
         .add_systems(Startup, setup_camera)

@@ -6,6 +6,9 @@
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
+// Expose integration modules used by the UI and app
+pub mod compute_pass_integration;
+
 // Re-export new integration modules
 
 /// Main FFGL ISF shader plugin structure

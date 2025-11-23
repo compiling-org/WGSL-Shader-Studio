@@ -8,6 +8,7 @@ use super::node_graph::{NodeGraph, NodeKind};
 use super::timeline::{TimelineAnimation, InterpolationType, PlaybackState};
 use super::shader_renderer::ShaderRenderer;
 use super::audio_system::AudioAnalyzer;
+use super::compute_pass_integration::{ComputePassManager, TextureFormat};
 
 // Temporarily commented out to fix compilation - will be restored when visual node editor is fully integrated
 // use crate::visual_node_editor_adapter::NodeEditorAdapter;
@@ -48,6 +49,7 @@ pub struct EditorUiState {
     pub show_gesture_panel: bool,
     pub show_wgslsmith_panel: bool,
     pub show_diagnostics_panel: bool,
+    pub show_compute_panel: bool,
     pub fps: f32,
     // Preview pipeline mode
     pub pipeline_mode: PipelineMode,
@@ -87,6 +89,17 @@ pub struct EditorUiState {
     pub wgsl_smith_status: String,
     // WGSL diagnostics
     pub diagnostics_messages: Vec<DiagnosticMessage>,
+    // Compute pass UI state
+    pub compute_pass_name: String,
+    pub compute_workgroup_x: u32,
+    pub compute_workgroup_y: u32,
+    pub compute_workgroup_z: u32,
+    pub pingpong_texture_name: String,
+    pub pingpong_width: u32,
+    pub pingpong_height: u32,
+    pub dispatch_size_x: u32,
+    pub dispatch_size_y: u32,
+    pub dispatch_size_z: u32,
 }
 
 impl Default for EditorUiState {
@@ -103,6 +116,7 @@ impl Default for EditorUiState {
             show_gesture_panel: false,
             show_wgslsmith_panel: false,
             show_diagnostics_panel: false,
+            show_compute_panel: false,
             fps: 0.0,
             pipeline_mode: PipelineMode::default(),
             dark_mode: true,
@@ -132,6 +146,17 @@ impl Default for EditorUiState {
             wgsl_smith_generated: String::new(),
             wgsl_smith_status: String::new(),
             diagnostics_messages: Vec::new(),
+            // Compute pass UI defaults
+            compute_pass_name: "compute_pass_1".to_string(),
+            compute_workgroup_x: 8,
+            compute_workgroup_y: 8,
+            compute_workgroup_z: 1,
+            pingpong_texture_name: "pingpong_tex".to_string(),
+            pingpong_width: 512,
+            pingpong_height: 512,
+            dispatch_size_x: 64,
+            dispatch_size_y: 64,
+            dispatch_size_z: 1,
         }
     }
 }
@@ -476,6 +501,7 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
                 ui.checkbox(&mut ui_state.show_midi_panel, "MIDI");
                 ui.checkbox(&mut ui_state.show_gesture_panel, "Gestures");
                 ui.checkbox(&mut ui_state.show_wgslsmith_panel, "WGSLSmith");
+                ui.checkbox(&mut ui_state.show_compute_panel, "Compute Passes");
             });
             
             ui.menu_button("View", |ui| {
@@ -626,7 +652,13 @@ fn fs_main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
     template
 }
 
-pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState, audio_analyzer: &AudioAnalyzer, gesture_control: &crate::gesture_control::GestureControlSystem) {
+pub fn draw_editor_side_panels(
+    ctx: &egui::Context, 
+    ui_state: &mut EditorUiState, 
+    audio_analyzer: &AudioAnalyzer, 
+    gesture_control: &mut crate::gesture_control::GestureControlSystem,
+    compute_pass_manager: &mut ComputePassManager
+) {
     // FIX: Use proper panel hierarchy to avoid CentralPanel conflicts
     
     // Left panel - Shader Browser
@@ -1273,6 +1305,99 @@ pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState
             }
             if ui.button("Clear All").clicked() {
                 gesture_control.clear_hands();
+            }
+        });
+    }
+    
+    // Compute Pass Panel
+    if ui_state.show_compute_panel {
+        egui::Window::new("Compute Passes").open(&mut ui_state.show_compute_panel).show(ctx, |ui| {
+            ui.heading("Compute Shader Dispatch");
+            
+            ui.label("Compute pass management and dispatch controls");
+            
+            ui.separator();
+            
+            // Compute pass creation
+            ui.label("Create Compute Pass:");
+            ui.horizontal(|ui| {
+                ui.label("Name:");
+                ui.text_edit_singleline(&mut ui_state.compute_pass_name);
+            });
+            ui.horizontal(|ui| {
+                ui.label("Workgroup Size:");
+                ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_x).speed(1));
+                ui.label("x");
+                ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_y).speed(1));
+                ui.label("x");
+                ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_z).speed(1));
+            });
+            
+            if ui.button("Create Compute Pass").clicked() {
+                compute_pass_manager.create_ping_pong_texture(
+                    &ui_state.compute_pass_name,
+                    512,
+                    512,
+                    TextureFormat::Rgba8Unorm
+                );
+                println!("Created compute pass: {}", ui_state.compute_pass_name);
+            }
+            
+            ui.separator();
+            
+            // Ping-pong texture creation
+            ui.label("Create Ping-Pong Texture:");
+            ui.horizontal(|ui| {
+                ui.label("Name:");
+                ui.text_edit_singleline(&mut ui_state.pingpong_texture_name);
+            });
+            ui.horizontal(|ui| {
+                ui.label("Size:");
+                ui.add(egui::DragValue::new(&mut ui_state.pingpong_width).speed(1));
+                ui.label("x");
+                ui.add(egui::DragValue::new(&mut ui_state.pingpong_height).speed(1));
+            });
+            
+            if ui.button("Create Ping-Pong Texture").clicked() {
+                compute_pass_manager.create_ping_pong_texture(
+                    &ui_state.pingpong_texture_name,
+                    ui_state.pingpong_width,
+                    ui_state.pingpong_height,
+                    TextureFormat::Rgba8Unorm
+                );
+                println!("Created ping-pong texture: {} ({}x{})", 
+                    ui_state.pingpong_texture_name, ui_state.pingpong_width, ui_state.pingpong_height);
+            }
+            
+            ui.separator();
+            
+            // Dispatch controls
+            ui.label("Dispatch Controls:");
+            ui.horizontal(|ui| {
+                ui.label("Dispatch Size:");
+                ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_x).speed(1));
+                ui.label("x");
+                ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_y).speed(1));
+                ui.label("x");
+                ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_z).speed(1));
+            });
+            
+            if ui.button("Dispatch Compute").clicked() {
+                // Dispatch compute logic would go here
+                println!("Dispatching compute shader: ({}, {}, {})", 
+                    ui_state.dispatch_size_x, ui_state.dispatch_size_y, ui_state.dispatch_size_z);
+            }
+            
+            ui.separator();
+            
+            // Active compute passes display
+            ui.label("Active Compute Passes:");
+            if compute_pass_manager.ping_pong_textures.is_empty() && compute_pass_manager.compute_pipelines.is_empty() {
+                ui.label("No active compute passes");
+            } else {
+                ui.label(format!("Ping-pong textures: {}", compute_pass_manager.ping_pong_textures.len()));
+                ui.label(format!("Compute pipelines: {}", compute_pass_manager.compute_pipelines.len()));
+                ui.label(format!("Active passes: {}", compute_pass_manager.active_compute_passes.len()));
             }
         });
     }

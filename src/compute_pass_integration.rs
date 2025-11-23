@@ -406,13 +406,13 @@ fn update_compute_passes(
 ) {
     // Update ping-pong resources every frame
     for texture in compute_manager.ping_pong_textures.values_mut() {
-        if time.elapsed_seconds() > 0.016 { // 60 FPS
+        if time.elapsed_secs() > 0.016 { // 60 FPS
             texture.frame_count += 1;
         }
     }
     
     for buffer in compute_manager.ping_pong_buffers.values_mut() {
-        if time.elapsed_seconds() > 0.016 { // 60 FPS
+        if time.elapsed_secs() > 0.016 { // 60 FPS
             buffer.frame_count += 1;
         }
     }
