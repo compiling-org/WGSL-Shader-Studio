@@ -358,7 +358,10 @@ pub mod simple_ui_auditor;
 pub mod node_graph;
 pub mod timeline;
 pub mod ui_analyzer;
-pub mod visual_node_editor;
+// pub mod visual_node_editor;
+pub mod visual_node_editor_adapter;
+pub mod gyroflow_wgpu_interop;
+pub mod gyroflow_interop_integration;
 
 // Re-export main types for easier use
 pub use audio::*;

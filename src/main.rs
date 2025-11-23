@@ -16,6 +16,8 @@ mod node_graph;
 mod timeline;
 mod isf_converter;
 mod converter;
+#[cfg(feature = "gui")]
+mod visual_node_editor;
 
 // Re-export for easier access
 use isf_loader::*;

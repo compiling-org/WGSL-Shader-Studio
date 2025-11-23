@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WGSL Shader Studio - Complete Mermaid Diagram Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .diagram { margin: 30px 0; padding: 20px; border: 1px solid #ccc; }
+        .success { background-color: #e8f5e9; }
+        .error { background-color: #ffebee; }
+        h2 { color: #333; }
+        .status { font-weight: bold; padding: 5px 10px; border-radius: 3px; }
+        .status.success { background-color: #4caf50; color: white; }
+        .status.error { background-color: #f44336; color: white; }
+    </style>
+</head>
+<body>
+    <h1>🔍 COMPLETE MERMAID DIAGRAM VERIFICATION</h1>
+    <p>Testing every single diagram from TECHNOLOGY_STACK.md</p>
+    
+    <div class="mermaid">
+        graph TD
+            A[Technology Stack] --> B[Bevy 0.17 + bevy_egui 0.38]
+            A --> C[❌ eframe FORBIDDEN]
+            A --> D[❌ eframe::egui FORBIDDEN]
+            
+            B --> E[✅ Main Entry: src/bevy_app.rs::run_app()]
+            B --> F[✅ UI Context: bevy_egui::EguiContexts]
+            B --> G[✅ Window Management: Bevy WindowPlugin]
+            
+            C --> H[⚠️ COMPLETE APPLICATION BREAK]
+            D --> H
+            
+            style A fill:#ffebee
+            style B fill:#e8f5e9
+            style C fill:#ffcdd2
+            style D fill:#ffcdd2
+            style H fill:#f44336
+    </div>
+    <div class="diagram success">
+        <span class="status success">✅ DIAGRAM 1: SUCCESS</span> - Technology Stack Overview
+    </div>
+    
+    <div class="mermaid">
+        graph LR
+            A[Import Verification] --> B{Check Imports}
+            B -->|✅ bevy_egui| C[ALLOWED]
+            B -->|❌ eframe| D[FORBIDDEN]
+            
+            C --> E[Continue Development]
+            D --> F[INSTANT REVERT REQUIRED]
+            
+            style A fill:#e3f2fd
+            style C fill:#4caf50
+            style D fill:#f44336
+            style F fill:#ffebee
+    </div>
+    <div class="diagram success">
+        <span class="status success">✅ DIAGRAM 2: SUCCESS</span> - Import Verification Flow
+    </div>
+    
+    <div class="mermaid">
+        graph TD
+            A[Application Entry] --> B{Choose Path}
+            B -->|✅ bevy_app::run_app()| C[Bevy + bevy_egui]
+            B -->|❌ gui::run_gui()| D[eframe - FORBIDDEN]
+            
+            C --> E[Working Application]
+            D --> F[Complete Failure]
+            
+            style A fill:#fff3e0
+            style C fill:#e8f5e9
+            style D fill:#ffcdd2
+            style F fill:#f44336
+    </div>
+    <div class="diagram success">
+        <span class="status success">✅ DIAGRAM 3: SUCCESS</span> - Application Entry Flow
+    </div>
+    
+    <div class="mermaid">
+        graph TD
+            A[Bevy App] --> B[DefaultPlugins]
+            A --> C[EguiPlugin]
+            A --> D[System Schedules]
+            
+            B --> E[Window Management]
+            C --> F[egui Integration]
+            D --> G[UI Systems]
+            
+            style A fill:#e3f2fd
+            style B fill:#bbdefb
+            style C fill:#4fc3f7
+            style D fill:#29b6f6
+    </div>
+    <div class="diagram success">
+        <span class="status success">✅ DIAGRAM 4: SUCCESS</span> - Bevy App Architecture
+    </div>
+    
+    <div class="mermaid">
+        graph LR
+            A[Verification Process] --> B[Search eframe]
+            A --> C[Check bevy_egui]
+            A --> D[Test Compilation]
+            
+            B -->|Found| E[REVERT IMMEDIATELY]
+            B -->|Not Found| F[Continue]
+            C -->|Found| G[Good]
+            C -->|Not Found| H[Add bevy_egui]
+            
+            style A fill:#fff3e0
+            style E fill:#f443

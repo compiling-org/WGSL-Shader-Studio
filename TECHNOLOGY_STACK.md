@@ -10,7 +10,7 @@
 - **NEVER REFERENCE src/gui.rs** - This is eframe-based legacy code
 
 ### ✅ MANDATORY (REQUIRED)
-- **Framework**: Bevy 0.15 + bevy_egui 0.32
+- **Framework**: Bevy 0.17 + bevy_egui 0.38 (ACTUAL CURRENT VERSIONS)
 - **Main Entry**: src/bevy_app.rs::run_app()
 - **UI Context**: bevy_egui::EguiContexts
 - **Window Management**: Bevy WindowPlugin
@@ -53,6 +53,19 @@ pub fn run_app() {
 }
 ```
 
+## 📚 WORKING MODULES
+
+### ✅ BEVY-COMPATIBLE MODULES
+- `src/bevy_app.rs` - Main Bevy application
+- `src/editor_ui.rs` - bevy_egui UI functions
+- `src/simple_ui_auditor.rs` - UI auditing system
+- `src/timeline.rs` - Timeline system
+- `src/node_graph.rs` - Node graph system
+
+### ❌ EFAME-ONLY MODULES (DO NOT USE)
+- `src/gui.rs` - Legacy eframe implementation
+- `src/ui.rs` - eframe-based UI
+
 ## 🔍 VERIFICATION COMMANDS
 
 ```bash
@@ -71,19 +84,6 @@ grep -r "bevy_egui" src/ --include="*.rs"
 - **Wrong imports**: COMPLETE RESTART FROM GIT BACKUP
 - **No verification**: FULL CODE REVIEW BEFORE PROCEEDING
 
-## 📚 WORKING MODULES
-
-### ✅ BEVY-COMPATIBLE MODULES
-- `src/bevy_app.rs` - Main Bevy application
-- `src/editor_ui.rs` - bevy_egui UI functions  
-- `src/simple_ui_auditor.rs` - UI auditing system
-- `src/timeline.rs` - Timeline system
-- `src/node_graph.rs` - Node graph system
-
-### ❌ EFAME-ONLY MODULES (DO NOT USE)
-- `src/gui.rs` - Legacy eframe implementation
-- `src/ui.rs` - eframe-based UI
-
 ## 🎯 RUNNING THE APPLICATION
 
 ```bash
@@ -101,6 +101,22 @@ cargo run --bin isf-shaders
 4. **Test compilation**: `cargo check --features gui`
 5. **Verify main entry**: Confirm `bevy_app::run_app()` is called
 
+## 🚨 CURRENT PROJECT REALITY (CRITICAL)
+
+**⚠️ COMPILATION STATUS**: **BROKEN** - 33 compilation errors  
+**⚠️ FEATURE STATUS**: **0 WORKING FEATURES** - All systems missing/broken
+
+### Actual Current Versions (FROM Cargo.toml)
+```toml
+[dependencies]
+bevy = "0.17"
+bevy_egui = "0.38"
+```
+
 ---
 
 **VIOLATION OF THIS TECHNOLOGY STACK WILL RESULT IN COMPLETE APPLICATION FAILURE**
+
+**⚠️ CURRENT STATUS**: Project is **BROKEN** with 33 compilation errors and **0 working features**
+
+*This document is automatically updated and must be followed without exception.*

@@ -301,3 +301,38 @@ browser functionality, and add basic file operations. Without these critical fea
 application cannot perform its core function as a shader development environment.
 
 **Estimated Recovery Time**: 3-4 weeks for basic functionality, 6-8 weeks for full feature parity.
+
+# SURGICAL FIX PLAN - CRITICAL UI ISSUES
+
+## IMMEDIATE LIFE-THREATENING ISSUES
+
+### 🚨 CRITICAL RUNTIME ERRORS
+
+- **CRITICAL: WGPU placeholder still present - initialization not forced**
+
+### 💥 WGPU INITIALIZATION FAILURE
+
+Error: error: the package 'wgsl-shader-studio' does not contain this feature: wgpu
+help: there is a similarly named feature: gui
+
+
+**SURGICAL FIX**: Force WGPU initialization with panic on failure
+**LOCATION**: src/bevy_app.rs - initialize_wgpu_renderer()
+
+## SURGICAL INTERVENTION STEPS
+
+1. **STOP ALL APP LAUNCHES** - Do not run broken code
+2. **FIX WGPU INITIALIZATION** - Force GPU initialization with panic on failure
+3. **REMOVE CPU FALLBACK** - Delete all software rendering code
+4. **FIX UI LAYOUT** - Implement proper three-panel layout
+5. **VALIDATE RENDERING** - Ensure texture alignment and buffer management
+6. **TEST COMPREHENSIVELY** - Verify all UI elements render and function
+
+## SUCCESS CRITERIA
+
+- ✅ WGPU initializes successfully with no fallback
+- ✅ UI panels render and are interactive
+- ✅ Shader preview displays correctly
+- ✅ Performance is > 30 FPS (GPU-accelerated)
+- ✅ No critical runtime errors
+

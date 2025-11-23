@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
+use std::process::Command;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum FeatureStatus {
@@ -27,12 +29,35 @@ pub enum Priority {
     Low,
 }
 
+#[derive(Debug, Clone)]
+pub struct WgpuDiagnostics {
+    pub adapter_info: Option<String>,
+    pub device_limits: Option<String>,
+    pub surface_capabilities: Option<String>,
+    pub backend_type: Option<String>,
+    pub initialization_error: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct UiStateDiagnostics {
+    pub egui_context_exists: bool,
+    pub viewport_size: Option<(f32, f32)>,
+    pub panel_layout_valid: bool,
+    pub rendering_pipeline_active: bool,
+    pub texture_cache_size: usize,
+    pub shader_compilation_errors: Vec<String>,
+}
+
 pub struct UIAnalyzer {
     features: Vec<FeatureCheck>,
     missing_features: Vec<String>,
     broken_features: Vec<String>,
     partial_features: Vec<String>,
     functional_features: Vec<String>,
+    wgpu_diagnostics: WgpuDiagnostics,
+    ui_state_diagnostics: UiStateDiagnostics,
+    runtime_errors: Vec<String>,
+    performance_metrics: HashMap<String, f64>,
 }
 
 impl UIAnalyzer {
@@ -57,6 +82,23 @@ impl UIAnalyzer {
             broken_features: Vec::new(),
             partial_features: Vec::new(),
             functional_features: Vec::new(),
+            wgpu_diagnostics: WgpuDiagnostics {
+                adapter_info: None,
+                device_limits: None,
+                surface_capabilities: None,
+                backend_type: None,
+                initialization_error: None,
+            },
+            ui_state_diagnostics: UiStateDiagnostics {
+                egui_context_exists: false,
+                viewport_size: None,
+                panel_layout_valid: false,
+                rendering_pipeline_active: false,
+                texture_cache_size: 0,
+                shader_compilation_errors: Vec::new(),
+            },
+            runtime_errors: Vec::new(),
+            performance_metrics: HashMap::new(),
         };
         
         analyzer.initialize_comprehensive_checks();
@@ -607,7 +649,213 @@ impl UIAnalyzer {
         }
     }
 
+    pub fn run_surgical_diagnostics(&mut self) {
+        // Run WGPU diagnostics
+        self.diagnose_wgpu_state();
+        
+        // Run UI state analysis
+        self.diagnose_ui_state();
+        
+        // Check for runtime errors
+        self.check_runtime_errors();
+        
+        // Analyze performance bottlenecks
+        self.analyze_performance_bottlenecks();
+        
+        // Validate critical systems
+        self.validate_critical_systems();
+    }
+
+    fn diagnose_wgpu_state(&mut self) {
+        // Check if WGPU can be initialized
+        match std::process::Command::new("cargo")
+            .args(&["check", "--features", "wgpu"])
+            .output() {
+            Ok(output) => {
+                if !output.status.success() {
+                    self.wgpu_diagnostics.initialization_error = Some(
+                        String::from_utf8_lossy(&output.stderr).to_string()
+                    );
+                }
+            }
+            Err(e) => {
+                self.wgpu_diagnostics.initialization_error = Some(format!("Failed to run cargo check: {}", e));
+            }
+        }
+
+        // Check for WGPU-related compilation errors
+        if let Ok(cargo_output) = std::fs::read_to_string("cargo_output.log") {
+            if cargo_output.contains("wgpu") && cargo_output.contains("error") {
+                self.runtime_errors.push("WGPU compilation errors detected".to_string());
+            }
+        }
+
+        // Check for texture alignment issues
+        if let Ok(editor_content) = std::fs::read_to_string("src/editor_ui.rs") {
+            if editor_content.contains("COPY_BYTES_PER_ROW_ALIGNMENT") {
+                self.ui_state_diagnostics.rendering_pipeline_active = true;
+            }
+        }
+    }
+
+    fn diagnose_ui_state(&mut self) {
+        // Check if egui context is properly initialized
+        if let Ok(bevy_content) = std::fs::read_to_string("src/bevy_app.rs") {
+            if bevy_content.contains("EguiContext") && bevy_content.contains("egui") {
+                self.ui_state_diagnostics.egui_context_exists = true;
+            }
+        }
+
+        // Check for UI layout issues
+        if let Ok(editor_content) = std::fs::read_to_string("src/editor_ui.rs") {
+            if editor_content.contains("ui.horizontal") || editor_content.contains("ui.vertical") {
+                self.ui_state_diagnostics.panel_layout_valid = true;
+            }
+        }
+
+        // Check for texture cache issues
+        if let Ok(editor_content) = std::fs::read_to_string("src/editor_ui.rs") {
+            if editor_content.contains("PreviewCache") {
+                self.ui_state_diagnostics.texture_cache_size = 1; // Has cache
+            }
+        }
+    }
+
+    fn check_runtime_errors(&mut self) {
+        // Check for common runtime error patterns
+        let error_patterns = vec![
+            ("WGPU initialization failed", "WGPU renderer not properly initialized"),
+            ("Using software shader renderer fallback", "Critical: Using CPU fallback instead of GPU"),
+            ("Bytes per row does not respect COPY_BYTES_PER_ROW_ALIGNMENT", "WGPU texture alignment error"),
+            ("panicked at", "Application panic detected"),
+            ("unwrap() on None value", "Null pointer/unwrapping error"),
+            ("index out of bounds", "Array access error"),
+            ("bevy_egui::EguiPrimaryContextPass", "UI system stage error"),
+        ];
+
+        // Check recent logs
+        if let Ok(log_content) = std::fs::read_to_string("run_output.txt") {
+            for (pattern, description) in &error_patterns {
+                if log_content.contains(pattern) {
+                    self.runtime_errors.push(format!("{}: {}", description, pattern));
+                }
+            }
+        }
+    }
+
+    fn analyze_performance_bottlenecks(&mut self) {
+        // Check for performance issues
+        if let Ok(log_content) = std::fs::read_to_string("run_output.txt") {
+            if log_content.contains("0.2 FPS") || log_content.contains("4-6 seconds") {
+                self.performance_metrics.insert("fps".to_string(), 0.2);
+                self.runtime_errors.push("CRITICAL PERFORMANCE: 0.2 FPS detected - CPU rendering fallback".to_string());
+            }
+        }
+
+        // Check for excessive logging
+        if let Ok(log_content) = std::fs::read_to_string("run_output.txt") {
+            let log_lines = log_content.lines().count();
+            if log_lines > 1000 {
+                self.runtime_errors.push(format!("Excessive logging detected: {} lines", log_lines));
+            }
+        }
+    }
+
+    fn validate_critical_systems(&mut self) {
+        // Validate WGPU integration
+        if let Ok(bevy_content) = std::fs::read_to_string("src/bevy_app.rs") {
+            if bevy_content.contains("initialize_wgpu_renderer") && bevy_content.contains("panic!") {
+                // This is good - forces WGPU initialization
+            } else if bevy_content.contains("WGPU renderer placeholder") {
+                self.runtime_errors.push("CRITICAL: WGPU placeholder still present - initialization not forced".to_string());
+            }
+        }
+
+        // Validate UI rendering
+        if let Ok(editor_content) = std::fs::read_to_string("src/editor_ui.rs") {
+            if editor_content.contains("compile_and_render_shader") && editor_content.contains("NO SOFTWARE FALLBACK") {
+                // This is good - no CPU fallback
+            } else if editor_content.contains("SoftwareShaderRenderer") {
+                self.runtime_errors.push("CRITICAL: Software shader renderer still present".to_string());
+            }
+        }
+    }
+
+    pub fn generate_surgical_fix_plan(&self) -> String {
+        let mut plan = String::new();
+        
+        plan.push_str("# SURGICAL FIX PLAN - CRITICAL UI ISSUES\n\n");
+        plan.push_str("## IMMEDIATE LIFE-THREATENING ISSUES\n\n");
+        
+        // Critical runtime errors
+        let critical_errors: Vec<&String> = self.runtime_errors.iter()
+            .filter(|err| err.contains("CRITICAL"))
+            .collect();
+            
+        if !critical_errors.is_empty() {
+            plan.push_str("### 🚨 CRITICAL RUNTIME ERRORS\n\n");
+            for error in critical_errors {
+                plan.push_str(&format!("- **{}**\n", error));
+            }
+            plan.push_str("\n");
+        }
+
+        // WGPU issues
+        if let Some(ref error) = self.wgpu_diagnostics.initialization_error {
+            plan.push_str("### 💥 WGPU INITIALIZATION FAILURE\n\n");
+            plan.push_str(&format!("Error: {}\n\n", error));
+            plan.push_str("**SURGICAL FIX**: Force WGPU initialization with panic on failure\n");
+            plan.push_str("**LOCATION**: src/bevy_app.rs - initialize_wgpu_renderer()\n\n");
+        }
+
+        // Performance issues
+        if let Some(fps) = self.performance_metrics.get("fps") {
+            if *fps < 1.0 {
+                plan.push_str("### ⚡ PERFORMANCE CRISIS\n\n");
+                plan.push_str(&format!("Current FPS: {} (UNUSABLE)\n", fps));
+                plan.push_str("**ROOT CAUSE**: CPU software rendering fallback\n");
+                plan.push_str("**SURGICAL FIX**: Remove all CPU fallback code, force GPU-only rendering\n");
+                plan.push_str("**LOCATION**: src/editor_ui.rs - compile_and_render_shader()\n\n");
+            }
+        }
+
+        // UI state issues
+        if !self.ui_state_diagnostics.egui_context_exists {
+            plan.push_str("### 🖥️ UI CONTEXT FAILURE\n\n");
+            plan.push_str("**ISSUE**: EguiContext not properly initialized\n");
+            plan.push_str("**SURGICAL FIX**: Ensure EguiContext is created in Bevy setup\n");
+            plan.push_str("**LOCATION**: src/bevy_app.rs - setup() function\n\n");
+        }
+
+        if !self.ui_state_diagnostics.panel_layout_valid {
+            plan.push_str("### 📐 PANEL LAYOUT BROKEN\n\n");
+            plan.push_str("**ISSUE**: UI panels not properly laid out\n");
+            plan.push_str("**SURGICAL FIX**: Implement proper egui layout with horizontal/vertical containers\n");
+            plan.push_str("**LOCATION**: src/editor_ui.rs - ui() function\n\n");
+        }
+
+        plan.push_str("## SURGICAL INTERVENTION STEPS\n\n");
+        plan.push_str("1. **STOP ALL APP LAUNCHES** - Do not run broken code\n");
+        plan.push_str("2. **FIX WGPU INITIALIZATION** - Force GPU initialization with panic on failure\n");
+        plan.push_str("3. **REMOVE CPU FALLBACK** - Delete all software rendering code\n");
+        plan.push_str("4. **FIX UI LAYOUT** - Implement proper three-panel layout\n");
+        plan.push_str("5. **VALIDATE RENDERING** - Ensure texture alignment and buffer management\n");
+        plan.push_str("6. **TEST COMPREHENSIVELY** - Verify all UI elements render and function\n\n");
+
+        plan.push_str("## SUCCESS CRITERIA\n\n");
+        plan.push_str("- ✅ WGPU initializes successfully with no fallback\n");
+        plan.push_str("- ✅ UI panels render and are interactive\n");
+        plan.push_str("- ✅ Shader preview displays correctly\n");
+        plan.push_str("- ✅ Performance is > 30 FPS (GPU-accelerated)\n");
+        plan.push_str("- ✅ No critical runtime errors\n\n");
+
+        plan
+    }
+
     pub fn run_comprehensive_analysis(&mut self) -> String {
+        // Run surgical diagnostics first
+        self.run_surgical_diagnostics();
+        
         // Check file structure
         self.check_file_structure();
         
@@ -618,7 +866,13 @@ impl UIAnalyzer {
         self.analyze_current_state();
         
         // Generate comprehensive report
-        self.generate_comprehensive_report()
+        let mut report = self.generate_comprehensive_report();
+        
+        // Append surgical fix plan
+        report.push_str("\n");
+        report.push_str(&self.generate_surgical_fix_plan());
+        
+        report
     }
 }
 

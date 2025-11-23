@@ -8,7 +8,7 @@ use super::node_graph::{NodeGraph, NodeKind};
 use super::timeline::{Timeline, TimelineAnimation, InterpolationType, PlaybackState};
 use super::shader_renderer::ShaderRenderer;
 use super::audio::AudioAnalyzer;
-use super::visual_node_editor::VisualNodeEditor;
+// use resolume_isf_shaders_rust_ffgl::visual_node_editor_adapter::NodeEditorAdapter; // Temporarily disabled
 use std::sync::Mutex;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -49,7 +49,7 @@ pub struct EditorUiState {
     pub auto_apply: bool,
     // Node graph and project state
     pub node_graph: NodeGraph,
-    pub visual_node_editor: VisualNodeEditor,
+    // pub visual_node_editor: NodeEditorAdapter, // Temporarily disabled
     pub last_project_path: Option<String>,
     pub timeline: TimelineAnimation,
     pub timeline_track_input: String,
@@ -89,7 +89,7 @@ impl Default for EditorUiState {
             apply_requested: false,
             auto_apply: false,
             node_graph: NodeGraph::default(),
-            visual_node_editor: VisualNodeEditor::new(),
+            // visual_node_editor: NodeEditorAdapter::new(), // Temporarily disabled
             last_project_path: None,
             timeline: TimelineAnimation::default(),
             timeline_track_input: String::new(),
@@ -625,9 +625,9 @@ pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState
         });
     }
 
-    // CRITICAL FIX: Use TopBottomPanel for preview instead of CentralPanel to avoid conflicts
+    // CRITICAL FIX: Use CentralPanel for preview to create proper three-panel layout
     if ui_state.show_preview {
-        egui::TopBottomPanel::bottom("preview_panel").resizable(true).min_height(300.0).show(ctx, |ui| {
+        egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Shader Preview");
             
             // Quick parameter controls
@@ -959,7 +959,7 @@ pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState
             }
             
             // Visual node editor area
-            ui_state.visual_node_editor.ui(ui, &mut ui_state.node_graph);
+            // ui_state.visual_node_editor.ui(ui, &mut ui_state.node_graph); // Temporarily disabled
         });
         ui_state.show_node_studio = show;
     }
@@ -1074,13 +1074,80 @@ pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState
     }
 }
 
-pub fn editor_side_panels(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiState>, audio_analyzer: Res<AudioAnalyzer>) {
-    let ctx = egui_ctx.ctx_mut().expect("Failed to get egui context");
-    draw_editor_side_panels(ctx, &mut *ui_state, &audio_analyzer);
+/// Helper that draws the main central preview panel using a provided egui context
+pub fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+    if ui_state.show_preview {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.heading("Shader Preview");
+            
+            // Quick parameter controls
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut ui_state.quick_params_enabled, "Quick Params");
+                if ui_state.quick_params_enabled {
+                    ui.label("A:");
+                    ui.add(egui::Slider::new(&mut ui_state.quick_param_a, 0.0..=1.0));
+                    ui.label("B:");
+                    ui.add(egui::Slider::new(&mut ui_state.quick_param_b, 0.0..=1.0));
+                }
+            });
+            
+            ui.separator();
+            
+            // Preview viewport area
+            let available_size = ui.available_size();
+            let preview_size = egui::vec2(
+                available_size.x.min(800.0),
+                available_size.y.min(400.0)
+            );
+            
+            // Create a frame for the preview
+            let (response, painter) = ui.allocate_painter(preview_size, egui::Sense::hover());
+            let rect = response.rect;
+            
+            // Draw preview background
+            painter.rect_filled(rect, 0.0, egui::Color32::from_gray(20));
+            
+            // CRITICAL: Actually render the shader instead of placeholder text
+            if ui_state.draft_code.is_empty() {
+                painter.text(
+                    rect.center(),
+                    egui::Align2::CENTER_CENTER,
+                    "No shader loaded\nLoad a shader from the browser or paste code",
+                    egui::FontId::proportional(14.0),
+                    egui::Color32::from_gray(128)
+                );
+            } else {
+                // CRITICAL: Actually compile and render the WGSL shader
+                match compile_and_render_shader(&ui_state.draft_code, rect.size(), ctx, &ui_state.global_renderer) {
+                    Ok(texture_handle) => {
+                        // Display the rendered texture
+                        let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
+                        painter.image(texture_handle.id(), rect, uv, egui::Color32::WHITE);
+                    }
+                    Err(e) => {
+                        // Show error message if shader compilation fails
+                        painter.text(
+                            rect.center(),
+                            egui::Align2::CENTER_CENTER,
+                            format!("Shader Error:\n{}", e),
+                            egui::FontId::proportional(12.0),
+                            egui::Color32::RED
+                        );
+                    }
+                }
+            }
+            
+            // Draw preview border
+            painter.rect_stroke(rect, 0.0, egui::Stroke::new(1.0, egui::Color32::from_gray(60)), egui::StrokeKind::Inside);
+        });
+    }
 }
 
-/// Populate UI state's shader list by scanning common directories and Magic ISF folders.
-/// This runs at Startup from the Bevy app.
+pub fn editor_central_panel(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiState>) {
+    let ctx = egui_ctx.ctx_mut().expect("Failed to get egui context");
+    draw_editor_central_panel(ctx, &mut *ui_state);
+}
+
 pub fn populate_shader_list(mut ui_state: ResMut<EditorUiState>) {
     let mut found_all = Vec::new();
     
@@ -1146,7 +1213,7 @@ pub fn populate_shader_list(mut ui_state: ResMut<EditorUiState>) {
     ui_state.available_shaders_compatible = compatible;
 }
 
-fn collect_wgsl_files(dir: &Path, out: &mut Vec<String>) {
+pub fn collect_wgsl_files(dir: &Path, out: &mut Vec<String>) {
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
             let p = entry.path();
@@ -1163,7 +1230,7 @@ fn collect_wgsl_files(dir: &Path, out: &mut Vec<String>) {
     }
 }
 
-fn collect_isf_files(dir: &Path, out: &mut Vec<String>) {
+pub fn collect_isf_files(dir: &Path, out: &mut Vec<String>) {
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
             let p = entry.path();

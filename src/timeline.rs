@@ -3,6 +3,18 @@ use bevy::prelude::Resource;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
+/// Shader parameter structure for timeline animation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ShaderParameter {
+    pub name: String,
+    pub value: f32,
+    pub min: f32,
+    pub max: f32,
+    pub default: f32,
+    pub binding: u32,
+    pub group: u32,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum InterpolationType {
     Linear,
@@ -97,16 +109,26 @@ impl Timeline {
             // Create track with a default color if it doesn't exist
             self.create_track(parameter_name.to_string(), [0.2, 0.6, 1.0, 1.0]);
         }
-
+        
         if let Some(track) = self.tracks.get_mut(parameter_name) {
             let keyframe = Keyframe { time, value, interpolation };
-            
-            // Find insertion point to maintain sorted order
-            let insert_pos = track.keyframes.binary_search_by(|k| k.time.partial_cmp(&time).unwrap_or(std::cmp::Ordering::Equal))
-                .unwrap_or_else(|pos| pos);
-            
-            track.keyframes.insert(insert_pos, keyframe);
+            track.keyframes.push(keyframe);
+            // Sort keyframes by time
+            track.keyframes.sort_by(|a, b| a.time.partial_cmp(&b.time).unwrap());
         }
+    }
+    
+    /// Get keyframes for a parameter
+    pub fn get_keyframes(&self, parameter_name: &str) -> Option<&Vec<Keyframe>> {
+        self.tracks.get(parameter_name).map(|track| &track.keyframes)
+    }
+    
+    /// Get all keyframes as a map of parameter names to keyframes
+    pub fn get_all_keyframes(&self) -> HashMap<String, &Vec<Keyframe>> {
+        self.tracks.iter()
+            .filter(|(_, track)| !track.keyframes.is_empty())
+            .map(|(name, track)| (name.clone(), &track.keyframes))
+            .collect()
     }
 
     pub fn remove_keyframe(&mut self, parameter_name: &str, keyframe_index: usize) -> bool {
@@ -266,6 +288,15 @@ impl Timeline {
 
     pub fn import_from_json(json: &str) -> Result<Self, serde_json::Error> {
         serde_json::from_str(json)
+    }
+
+    /// Apply timeline animation to shader parameters
+    pub fn apply_to_parameters(&self, parameters: &mut [ShaderParameter]) {
+        for param in parameters.iter_mut() {
+            if let Some(animated_value) = self.get_parameter_at_time(&param.name, self.current_time) {
+                param.value = animated_value;
+            }
+        }
     }
 }
 

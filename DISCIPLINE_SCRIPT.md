@@ -52,6 +52,20 @@ grep -r "eframe" src/ --include="*.rs"
 - Wrong framework: **COMPLETE RESTART FROM BACKUP**
 - No verification: **FULL CODE REVIEW BEFORE PROCEEDING**
 
+## PROJECT RULES - CRITICAL FILE MANAGEMENT
+
+### 1. File Management (ZERO TOLERANCE)
+- **NEVER create duplicate files** - Always update existing files instead
+- **No multiple versions** of the same file (e.g., visual_node_editor.rs, visual_node_editor_new.rs, etc.)
+- Check for existing files before creating new ones
+- Use existing files as templates for modifications
+
+### 2. Feature Implementation Assessment (HONESTY REQUIRED)
+- Provide honest assessment of what's actually implemented vs claimed
+- Document actual functionality, not planned features
+- Test compilation before claiming features work
+- Reference repository code must be properly integrated
+
 ## EMERGENCY RESTORE POINTS
 - Git commit before any framework changes
 - Backup of working bevy implementation
