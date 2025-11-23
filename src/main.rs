@@ -11,6 +11,7 @@ mod shader_converter;
 mod gesture_control;
 mod shader_renderer;
 mod editor_ui;
+mod visual_node_editor;
 mod node_graph;
 mod timeline;
 mod isf_converter;

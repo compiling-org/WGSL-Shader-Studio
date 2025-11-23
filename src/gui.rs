@@ -3022,40 +3022,22 @@ fn fs_main() -> @location(0) vec4<f32> {
         }
 
         // Get audio data if available
-        let audio_data = if let Some(audio_sys) = &self.audio_system {
+        let shader_audio_data = if let Some(audio_sys) = &self.audio_system {
             if let Ok(audio) = audio_sys.lock() {
-                let local_data = audio.get_audio_data();
-                Some(AudioData {
-                    spectrum: local_data.spectrum.clone(),
-                    waveform: local_data.waveform.clone(),
-                    beat: local_data.beat,
-                    bass_level: local_data.bass_level,
-                    mid_level: local_data.mid_level,
-                    treble_level: local_data.treble_level,
-                    volume: local_data.volume,
-                    centroid: local_data.centroid,
-                    rolloff: local_data.rolloff,
+                let local = audio.audio_analyzer.get_audio_data();
+                Some(ShaderAudioData {
+                    enabled: local.enabled,
+                    bass_level: local.bass_level,
+                    mid_level: local.mid_level,
+                    treble_level: local.treble_level,
+                    overall_level: local.overall_level,
+                    beat_detected: local.beat_detected,
+                    beat_intensity: local.beat_intensity,
+                    volume: local.volume,
                 })
             } else {
                 None
             }
-        } else {
-            None
-        };
-
-        // Try to render with the current shader
-        let shader_audio_data = if let Some(ref audio_data) = audio_data {
-            Some(ShaderAudioData {
-                spectrum: audio_data.spectrum.clone(),
-                waveform: audio_data.waveform.clone(),
-                beat: audio_data.beat,
-                bass_level: audio_data.bass_level,
-                mid_level: audio_data.mid_level,
-                treble_level: audio_data.treble_level,
-                volume: audio_data.volume,
-                centroid: audio_data.centroid,
-                rolloff: audio_data.rolloff,
-            })
         } else {
             None
         };
@@ -4046,35 +4028,24 @@ fn fs_main() -> @location(0) vec4<f32> {
     fn render_audio_panel(&mut self, ui: &mut egui::Ui) {
         ui.collapsing("Audio Analysis", |ui| {
             if let Some(audio_sys) = &self.audio_system {
-                if let Ok(audio_data) = audio_sys.lock() {
-                    let data = audio_data.get_audio_data();
+                if let Ok(audio_sys) = audio_sys.lock() {
+                    let data = audio_sys.audio_analyzer.get_audio_data();
 
-                    ui.label(format!("Volume: {:.3}", data.volume));
-                    ui.label(format!("Beat: {:.3}", data.beat));
-                    ui.label(format!("Bass: {:.3}", data.bass_level));
-                    ui.label(format!("Mid: {:.3}", data.mid_level));
-                    ui.label(format!("Treble: {:.3}", data.treble_level));
-                    ui.label(format!("Centroid: {:.3}", data.centroid));
-                    ui.label(format!("Rolloff: {:.3}", data.rolloff));
-
-                    // Audio reactivity toggles
                     ui.horizontal(|ui| {
-                        let mut audio_enabled = audio_data.audio_reactivity_enabled;
-                        if ui.checkbox(&mut audio_enabled, "Audio Reactivity").changed() {
-                            drop(audio_data);
-                            if let Ok(mut audio) = audio_sys.lock() {
-                                audio.toggle_audio_reactivity();
-                            }
-                        }
+                        ui.label("Enabled:");
+                        ui.label(if data.enabled { "Yes" } else { "No" });
                     });
+                    ui.separator();
 
-                    // Audio visualization (simple bars)
-                    ui.label("Spectrum:");
-                    // Placeholder spectrum data since get_spectrum method doesn't exist
-                    let spectrum = vec![0.1, 0.3, 0.2, 0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8];
-                    for &amp in spectrum.iter() {
-                        ui.add(egui::ProgressBar::new(amp).show_percentage().animate(false));
-                    }
+                    ui.label("Levels:");
+                    ui.add(egui::ProgressBar::new(data.bass_level.clamp(0.0, 1.0)).text("Bass"));
+                    ui.add(egui::ProgressBar::new(data.mid_level.clamp(0.0, 1.0)).text("Mid"));
+                    ui.add(egui::ProgressBar::new(data.treble_level.clamp(0.0, 1.0)).text("Treble"));
+                    ui.add(egui::ProgressBar::new(data.overall_level.clamp(0.0, 1.0)).text("Overall"));
+
+                    ui.separator();
+                    ui.label(format!("Volume: {:.3}", data.volume));
+                    ui.label(format!("Beat detected: {} (intensity {:.2})", data.beat_detected, data.beat_intensity));
                 } else {
                     ui.label("Audio system not initialized");
                 }
@@ -4095,56 +4066,7 @@ fn fs_main() -> @location(0) vec4<f32> {
 
     fn render_midi_panel(&mut self, ui: &mut egui::Ui) {
         ui.collapsing("MIDI Control", |ui| {
-            if let Some(audio_sys) = &self.audio_system {
-                if let Ok(audio_data) = audio_sys.lock() {
-                    let midi = audio_data.get_midi_controller();
-
-                    ui.label("MIDI Mappings:");
-                    for (key, mapping) in midi.get_mappings() {
-                        ui.horizontal(|ui| {
-                            ui.label(format!("CC{} -> {}", key.1, mapping.parameter_name));
-                            if ui.button("Remove").clicked() {
-                                // Remove mapping functionality would be implemented
-                            }
-                        });
-                    }
-
-                    ui.separator();
-                    ui.label("Add MIDI Mapping:");
-                    ui.horizontal(|ui| {
-                        ui.label("Parameter:");
-                        egui::ComboBox::from_label("")
-                            .selected_text("time")
-                            .show_ui(ui, |ui| {
-                                ui.selectable_value(&mut "time", "time", "time");
-                                ui.selectable_value(&mut "mouse_x", "mouse_x", "mouse_x");
-                                ui.selectable_value(&mut "mouse_y", "mouse_y", "mouse_y");
-                            });
-
-                        ui.label("CC:");
-                        let mut cc_value = 0;
-                        ui.add(egui::DragValue::new(&mut cc_value).range(0..=127));
-
-                        if ui.button("Add").clicked() {
-                            // Add MIDI mapping functionality would be implemented
-                        }
-                    });
-
-                    ui.horizontal(|ui| {
-                        let mut midi_enabled = audio_data.midi_enabled;
-                        if ui.checkbox(&mut midi_enabled, "MIDI Control").changed() {
-                            drop(audio_data);
-                            if let Ok(mut audio) = audio_sys.lock() {
-                                audio.toggle_midi();
-                            }
-                        }
-                    });
-                } else {
-                    ui.label("MIDI system not available");
-                }
-            } else {
-                ui.label("MIDI system not available");
-            }
+            ui.label("MIDI system not available");
         });
     }
 

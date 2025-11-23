@@ -1,5 +1,5 @@
 use bevy_egui::egui::*;
-use bevy_egui::egui::epaint::CubicBezierShape;
+use bevy_egui::egui::epaint::{CubicBezierShape, StrokeKind};
 use crate::node_graph::*;
 use std::collections::{HashMap, HashSet};
 
@@ -257,6 +257,7 @@ impl VisualNodeEditor {
             let node_rect = Rect::from_min_size(node_pos, node_size);
             
             let response = ui.allocate_rect(node_rect, Sense::click_and_drag());
+            let painter = ui.painter();
             
             // Update hover state
             if response.hovered() {
@@ -317,7 +318,7 @@ impl VisualNodeEditor {
                 );
             }
             
-            ui.painter().rect_filled(node_rect, 4.0, bg_color);
+            painter.rect_filled(node_rect, 4.0, bg_color);
             
             // Node border with enhanced selection
             let border_color = if self.selected_nodes.contains(&node_id) {
@@ -328,7 +329,7 @@ impl VisualNodeEditor {
                 Color32::from_gray(60)
             };
             let stroke = Stroke::new(2.0, border_color);
-            ui.painter().rect_stroke(node_rect, 4.0, stroke, StrokeKind::Inside);
+            painter.rect_stroke(node_rect, 4.0, stroke, StrokeKind::Inside);
             
             // Node title with enhanced styling
             let title_pos = node_pos + vec2(10.0, 20.0);
@@ -337,7 +338,7 @@ impl VisualNodeEditor {
             } else {
                 Color32::WHITE
             };
-            ui.painter().text(
+            painter.text(
                 title_pos,
                 Align2::LEFT_CENTER,
                 &node.title,
@@ -360,7 +361,7 @@ impl VisualNodeEditor {
                 }
                 
                 // Draw the port visually
-                self.draw_port_visual(ui.painter(), port_pos, input, false, node_id, node_graph);
+                self.draw_port_visual(painter, port_pos, input, false, node_id, node_graph);
             }
             
             // Draw output ports and collect clicks
@@ -374,7 +375,7 @@ impl VisualNodeEditor {
                 }
                 
                 // Draw the port visually
-                self.draw_port_visual(ui.painter(), port_pos, output, true, node_id, node_graph);
+                self.draw_port_visual(painter, port_pos, output, true, node_id, node_graph);
             }
             
             // Handle port connections after drawing
@@ -465,6 +466,73 @@ impl VisualNodeEditor {
             FontId::proportional(11.0),
             label_color
         );
+    }
+        let response = ui.allocate_rect(port_rect, Sense::click());
+        
+        // Update hover state
+        if response.hovered() {
+            self.hovered_port = Some((node_id, port.id));
+        } else if self.hovered_port == Some((node_id, port.id)) {
+            self.hovered_port = None;
+        }
+        
+        // Enhanced port visual feedback
+        let is_connected = self.is_port_connected(node_graph, node_id, port.id);
+        let is_hovered = self.hovered_port == Some((node_id, port.id));
+        let is_active_connection = self.connection_start.map_or(false, |(start_node, start_port, _)| {
+            start_node == node_id && start_port == port.id
+        });
+        
+        // Determine final port appearance
+        let mut final_color = port_color;
+        let mut border_color = Color32::WHITE;
+        let mut port_size_final = port_size;
+        
+        if is_hovered || is_active_connection {
+            // Brighten on hover or when active
+            final_color = Color32::from_rgb(
+                (port_color.r() + 60).min(255),
+                (port_color.g() + 60).min(255),
+                (port_color.b() + 60).min(255)
+            );
+            port_size_final = port_size * 1.2; // Slightly larger
+        }
+        
+        if is_connected {
+            // Connected ports get a stronger border
+            border_color = Color32::from_rgb(255, 255, 200);
+        }
+        
+        // Draw port with enhanced visuals
+        painter.circle(pos, port_size_final, final_color, Stroke::new(2.0, border_color));
+        
+        // Add glow effect for hovered/connected ports
+        if is_hovered || is_connected {
+            painter.circle_stroke(pos, port_size_final + 3.0, Stroke::new(1.0, Color32::from_rgba_unmultiplied(255, 255, 255, 50)));
+        }
+        
+        // Port label
+        let label_pos = if is_output {
+            pos - vec2(20.0, 0.0)
+        } else {
+            pos + vec2(20.0, 0.0)
+        };
+        
+        let label_color = if is_hovered {
+            Color32::from_rgb(255, 255, 150)
+        } else {
+            Color32::WHITE
+        };
+        
+        painter.text(
+            label_pos,
+            if is_output { Align2::RIGHT_CENTER } else { Align2::LEFT_CENTER },
+            &port.name,
+            FontId::proportional(11.0),
+            label_color
+        );
+        
+        response
     }
 
     fn is_port_connected(&self, node_graph: &NodeGraph, node_id: NodeId, port_id: PortId) -> bool {
@@ -642,8 +710,9 @@ impl VisualNodeEditor {
     }
 
     fn draw_selection_box(&self, ui: &mut Ui, start_pos: Pos2, current_pos: Pos2) {
+        let painter = ui.painter();
         let rect = Rect::from_two_pos(start_pos, current_pos);
-        ui.painter().rect_stroke(rect, 0.0, Stroke::new(1.0, Color32::from_rgb(100, 150, 255)), StrokeKind::Inside);
-        ui.painter().rect_filled(rect, 0.0, Color32::from_rgba_unmultiplied(100, 150, 255, 30));
+        painter.rect_stroke(rect, 0.0, Stroke::new(1.0, Color32::from_rgb(100, 150, 255)), StrokeKind::Inside);
+        painter.rect_filled(rect, 0.0, Color32::from_rgba_unmultiplied(100, 150, 255, 30));
     }
 }

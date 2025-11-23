@@ -5,12 +5,13 @@ use bevy_egui::{
     EguiContexts,
     EguiPlugin,
 };
+use bevy_egui::egui;
 
 // Import audio system
-use crate::audio::{AudioAnalyzer, AudioAnalysisPlugin};
+use super::audio::{AudioAnalyzer, AudioAnalysisPlugin};
 
 // Import timeline animation system
-use crate::timeline::{TimelinePlugin, TimelineAnimation};
+use super::timeline::{TimelinePlugin, TimelineAnimation};
 
 // Import editor modules - use local editor_ui module
 use super::editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_editor_side_panels, draw_editor_code_panel};
@@ -57,7 +58,7 @@ fn editor_ui_system(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiSta
         ui_state.show_parameter_panel = true;
         ui_state.show_preview = true;
         ui_state.show_code_editor = true;
-        ui_state.show_node_studio = false; // Keep disabled for now
+        ui_state.show_node_studio = true;
         ui_state.show_timeline = false; // Keep disabled for now
         ui_state.show_audio_panel = false; // Keep disabled for now
         ui_state.show_midi_panel = false; // Keep disabled for now
@@ -69,11 +70,10 @@ fn editor_ui_system(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiSta
         // CRITICAL: Actually populate the shader browser with real files
         println!("Initializing shader browser with real WGSL files...");
         
-        // Call the populate_shader_list function to load real shaders
+        // populate_shader_list will be called as a separate startup system
         // This will scan directories and load actual WGSL and ISF files
         
-        println!("UI state initialized with {} shaders and {} lines of code", 
-                 ui_state.available_shaders_compatible.len(),
+        println!("UI state initialized with {} lines of code", 
                  ui_state.draft_code.lines().count());
     }
     
@@ -89,12 +89,10 @@ fn editor_ui_system(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiSta
     println!("Drawing code editor panel...");
     draw_editor_code_panel(ctx, &mut *ui_state);
     
-    // Draw the main preview panel - this should be the CentralPanel
-    // Only draw if preview is enabled, otherwise let other panels fill the space
+    // Draw the main preview panel using CentralPanel - this creates proper three-panel layout
     if ui_state.show_preview {
         println!("Drawing preview panel...");
-        // The preview panel is drawn within draw_editor_side_panels when show_preview is true
-        // This avoids the CentralPanel conflict
+        draw_editor_central_panel(ctx, &mut *ui_state);
     }
 }
 
@@ -176,4 +174,22 @@ pub fn run_app() {
         .add_systems(Update, async_initialize_wgpu_renderer)
         .add_systems(bevy_egui::EguiPrimaryContextPass, editor_ui_system)
         .run();
+}
+fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+    egui::CentralPanel::default().show(ctx, |ui| {
+        ui.heading("Shader Preview");
+        let available_size = ui.available_size();
+        let preview_size = egui::vec2(available_size.x.min(800.0), available_size.y.min(400.0));
+        let (response, painter) = ui.allocate_painter(preview_size, egui::Sense::hover());
+        let rect = response.rect;
+        painter.rect_filled(rect, 0.0, egui::Color32::from_gray(20));
+        painter.text(
+            rect.center(),
+            egui::Align2::CENTER_CENTER,
+            "Preview initialized",
+            egui::FontId::proportional(14.0),
+            egui::Color32::from_gray(180),
+        );
+        painter.rect_stroke(rect, 0.0, egui::Stroke::new(1.0, egui::Color32::from_gray(60)), egui::StrokeKind::Inside);
+    });
 }

@@ -1,13 +1,5 @@
 use bevy::prelude::*;
 use std::time::Instant;
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use rustfft::{FftPlanner, num_complex::Complex};
-use ringbuf::{HeapRb, Producer, Consumer};
-use dasp::window::hann;
-
-const FFT_SIZE: usize = 2048;
-const SAMPLE_RATE: u32 = 48000;
-const OVERLAP: usize = 2; // 50% overlap
 
 #[derive(Resource)]
 pub struct AudioAnalyzer {
@@ -19,14 +11,6 @@ pub struct AudioAnalyzer {
     pub overall_level: f32,
     pub beat_detected: bool,
     pub beat_intensity: f32,
-    // Audio capture components
-    audio_buffer: Vec<f32>,
-    fft_buffer: Vec<Complex<f32>>,
-    window_function: Vec<f32>,
-    fft_planner: FftPlanner<f32>,
-    sample_producer: Option<Producer<f32>>,
-    sample_consumer: Option<Consumer<f32>>,
-    _stream: Option<cpal::Stream>, // Keep stream alive
 }
 
 impl Default for AudioAnalyzer {
@@ -100,55 +84,41 @@ pub struct AudioData {
     pub mid_level: f32,
     pub treble_level: f32,
     pub overall_level: f32,
+    pub volume: f32,
     pub beat_detected: bool,
     pub beat_intensity: f32,
-    pub volume: f32, // Overall volume level for compatibility
 }
 
-impl AudioAnalyzer {
-    pub fn get_audio_data(&self) -> AudioData {
-        AudioData {
-            enabled: self.enabled,
-            bass_level: self.bass_level,
-            mid_level: self.mid_level,
-            treble_level: self.treble_level,
-            overall_level: self.overall_level,
-            beat_detected: self.beat_detected,
-            beat_intensity: self.beat_intensity,
-            volume: self.overall_level, // Use overall level as volume
-        }
-    }
-}
-
-pub struct AudioMidiSystem {
-    pub audio_analyzer: AudioAnalyzer,
-}
-
-impl AudioMidiSystem {
-    pub fn new() -> Self {
-        Self {
-            audio_analyzer: AudioAnalyzer::new(),
-        }
-    }
-
-    pub fn get_parameter(&self, name: &str, default: f32) -> f32 {
-        match name {
-            "u_reactive_bass" => self.audio_analyzer.bass_level,
-            "u_reactive_mid" => self.audio_analyzer.mid_level,
-            "u_reactive_treble" => self.audio_analyzer.treble_level,
-            "u_reactive_beat" => if self.audio_analyzer.beat_detected { self.audio_analyzer.beat_intensity } else { 0.0 },
-            "u_reactive_overall" => self.audio_analyzer.overall_level,
-            _ => default,
-        }
-    }
-}
-
-impl Default for AudioMidiSystem {
+impl Default for AudioData {
     fn default() -> Self {
-        Self::new()
+        Self {
+            enabled: false,
+            bass_level: 0.0,
+            mid_level: 0.0,
+            treble_level: 0.0,
+            overall_level: 0.0,
+            volume: 0.0,
+            beat_detected: false,
+            beat_intensity: 0.0,
+        }
     }
 }
 
-fn update_audio_analysis(mut audio_analyzer: ResMut<AudioAnalyzer>) {
-    audio_analyzer.process_audio_frame();
+impl AudioData {
+    pub fn from_analyzer(analyzer: &AudioAnalyzer) -> Self {
+        Self {
+            enabled: analyzer.enabled,
+            bass_level: analyzer.bass_level,
+            mid_level: analyzer.mid_level,
+            treble_level: analyzer.treble_level,
+            overall_level: analyzer.overall_level,
+            volume: analyzer.overall_level,
+            beat_detected: analyzer.beat_detected,
+            beat_intensity: analyzer.beat_intensity,
+        }
+    }
+}
+
+fn update_audio_analysis(mut analyzer: ResMut<AudioAnalyzer>) {
+    analyzer.process_audio_frame();
 }
