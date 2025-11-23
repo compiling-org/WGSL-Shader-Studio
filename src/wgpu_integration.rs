@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::shader_renderer::{ShaderRenderer, RenderParameters, Uniforms};
-use crate::audio::AudioAnalyzer;
+use crate::audio_system::AudioAnalyzer;
 use crate::timeline::Timeline;
 use crate::editor_ui::EditorUiState;
 
@@ -68,7 +68,7 @@ impl WgpuRenderPipeline {
         width: u32,
         height: u32,
         time: f32,
-        audio_data: Option<&crate::audio::AudioData>,
+        audio_data: Option<&crate::audio_system::AudioData>,
         parameter_values: Option<&[f32]>,
     ) -> Result<Vec<u8>, String> {
         // Check if already rendering to prevent concurrent access
@@ -166,7 +166,7 @@ pub fn initialize_wgpu_system(
 pub fn live_preview_system(
     mut wgpu_pipeline: ResMut<WgpuRenderPipeline>,
     shader_code: Res<crate::editor_ui::EditorState>,
-    audio_analyzer: Res<crate::audio::AudioAnalyzer>,
+    audio_analyzer: Res<crate::audio_system::AudioAnalyzer>,
     time: Res<Time>,
 ) {
     // Only render if we have a renderer and code
@@ -191,7 +191,7 @@ pub fn live_preview_system(
     
     // Get audio data if available
     let audio_data = if audio_analyzer.is_enabled() {
-        Some(crate::audio::AudioData {
+        Some(crate::audio_system::AudioData {
             volume: audio_analyzer.get_volume(),
             bass_level: audio_analyzer.get_bass(),
             mid_level: audio_analyzer.get_mid(),
@@ -230,7 +230,7 @@ pub fn live_preview_system(
 pub fn shader_compilation_system(
     mut wgpu_pipeline: ResMut<WgpuRenderPipeline>,
     mut editor_state: ResMut<crate::editor_ui::EditorState>,
-    audio_analyzer: Res<crate::audio::AudioAnalyzer>,
+    audio_analyzer: Res<crate::audio_system::AudioAnalyzer>,
     time: Res<Time>,
 ) {
     // Check if auto-compile is enabled and we have code
@@ -284,7 +284,7 @@ pub fn shader_compilation_system(
     
     // Get audio data if available
     let audio_data = if audio_analyzer.is_enabled() {
-        Some(crate::audio::AudioData {
+        Some(crate::audio_system::AudioData {
             volume: audio_analyzer.get_volume(),
             bass_level: audio_analyzer.get_bass(),
             mid_level: audio_analyzer.get_mid(),

@@ -7,7 +7,7 @@ use bevy_egui::{
 };
 
 // Import audio system
-use super::audio::{AudioAnalyzer, AudioAnalysisPlugin};
+use super::audio_system::{AudioAnalyzer, AudioAnalysisPlugin};
 
 // Import timeline animation system
 use super::timeline::{TimelinePlugin, TimelineAnimation};

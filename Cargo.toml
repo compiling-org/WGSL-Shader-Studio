@@ -95,6 +95,11 @@ tun-rs = { version = "2.0", optional = true }
 futures = "0.3"
 async-trait = "0.1"
 
+# Audio analysis dependencies
+# cpal = "0.15"  # Removed due to Send/Sync issues with Bevy Resources
+dasp = "0.11"
+ringbuf = "0.4"
+
 [features]
 default = ["gui"]
 gui = ["dep:bevy_egui"]

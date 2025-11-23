@@ -1,7 +1,7 @@
 //! FFGL plugin interface implementation
 
 use crate::{ResolumeIsfShadersRustFfgl, IsfShader, ShaderValue};
-use crate::audio::AudioMidiSystem;
+use crate::audio_system::AudioMidiSystem;
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_void, c_int, c_uint, c_float};
 use std::ptr;

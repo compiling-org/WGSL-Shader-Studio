@@ -334,7 +334,9 @@ mod tests {
 }
 
 // Module declarations
-pub mod audio;
+pub mod audio_system;
+// EMERGENCY BYPASS: Create audio module alias for corrupted build system
+pub use audio_system as audio;
 pub mod gesture_control;
 pub mod shader_converter;
 pub mod shader_renderer;
@@ -364,7 +366,7 @@ pub mod gyroflow_wgpu_interop;
 pub mod gyroflow_interop_integration;
 
 // Re-export main types for easier use
-pub use audio::*;
+pub use audio_system::*;
 pub use gesture_control::*;
 pub use shader_converter::*;
 pub use shader_renderer::*;

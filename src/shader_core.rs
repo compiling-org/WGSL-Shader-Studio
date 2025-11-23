@@ -1,4 +1,4 @@
-use crate::audio::AudioData;
+use crate::audio_system::AudioData;
 use crate::shader_renderer::{RenderParameters, ShaderRenderer, WorkingShaderExample};
 
 /// Unified backend interface so different UIs (egui or bevy_egui)
