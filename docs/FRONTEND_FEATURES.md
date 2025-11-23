@@ -46,49 +46,49 @@ The UI follows a standard three-panel, dark-theme layout optimized for deep focu
 - **Clean Connections**: Smooth curved splines between nodes
 - **Minimalist Design**: Node names and ports only, parameters in right panel
 
-## ✅ Current Implementation Status - FULLY FUNCTIONAL
+## Current Implementation Status
 
-### **All Features Successfully Implemented**
-The WGSL Shader Studio is now a complete, professional-grade shader development environment with all requested features fully functional.
-
-## Core Features - All Fully Implemented ✅
+### Progress Summary
+Several core features are implemented and working, while others are actively being integrated. The sections below reflect the target design; current status highlights:
+- WGSL diagnostics: implemented with active panel and error reporting
+- WGPU renderer initialization: implemented; preview panel shows placeholder; live rendering in progress
+- Gesture Control plugin: integrated; basic parameter mapping applied
+- Compute Pass integration: plugin and UI controls added; dispatch/bindings in progress
 
 ### Phase 1: Core Visual Features
 
-#### ✅ Live Preview System
-- **WGPU Integration**: Direct WebGPU rendering in GUI viewport with high-performance pipeline
-- **Real-time Rendering**: Live shader preview with parameter updates and smooth animation
-- **Performance Monitoring**: FPS counters, render time tracking with overlay display
-- **Texture Display**: Support for input/output texture visualization and manipulation
-- **Resolution Control**: Dynamic viewport sizing (256x256 to 2048x2048) with aspect ratio locking
+#### Live Preview System (in progress)
+- **WGPU Initialization**: Implemented async initialization and GPU-only policy
+- **Preview Panel**: Active with placeholder rendering; live shader pipeline integration ongoing
+- **Performance Monitoring**: Planned overlay
+- **Texture Display**: Planned input/output visualization
+- **Resolution Control**: Planned dynamic sizing
 
-#### ✅ WGSL Syntax Highlighting
-- **Keyword Recognition**: Complete WGSL keyword highlighting with high-contrast colors
-- **Semantic Coloring**: Types, functions, attributes, and literals with professional color scheme
-- **Error Indicators**: Squiggles and error highlighting with clear visual feedback
-- **Auto-completion**: Context-aware suggestions for productivity
-- **Custom Layouter**: Advanced text rendering with syntax colors and line numbers
+#### WGSL Diagnostics (implemented)
+- **Validation**: Shader diagnostics and error reporting integrated
+- **Indicators**: Error listing and status messages
+- **Editor Integration**: Planned syntax highlighting and completions
 
-#### ✅ Node-based Editor
-- **Visual Programming**: Drag-and-drop node graph interface with smooth interactions
-- **Data Flow**: Visual connections between shader operations with curved splines
-- **Code Generation**: Automatic WGSL code generation from nodes with topological sorting
-- **Parameter Mapping**: Node-based parameter controls integrated with right panel
-- **Template Integration**: Node templates for common operations (Math, Color, Transform, etc.)
+#### Node-based Editor (planned)
+- **Visual Programming**: UI scaffolding present; integration pending
+- **Data Flow**: Planned connections and node types
+- **Code Generation**: Planned WGSL code generation
+- **Parameter Mapping**: Planned integration with right panel
+- **Template Integration**: Planned node templates
 
-## Phase 2: File & Export System
+## Phase 2: File & Export System (planned)
 
-#### ✅ Advanced File Dialogs
-- **Native OS Integration**: Platform-specific file dialogs with rfd crate
-- **Recent Files**: Quick access to recently opened shaders with persistent storage
-- **Project Management**: Organized file structure support with project file format
-- **Auto-save**: Background file saving and recovery capabilities
+#### Advanced File Dialogs (planned)
+- **Native OS Integration**: rfd integration pending
+- **Recent Files**: Planned persistent storage
+- **Project Management**: Planned project format
+- **Auto-save**: Planned recovery features
 
-#### ✅ Export/Import Functionality
-- **WGSL ↔ GLSL**: Bidirectional shader format conversion with error handling
-- **WGSL ↔ HLSL**: DirectX shader compatibility with full translation
-- **ISF Import/Export**: Full Interactive Shader Format support with metadata parsing
-- **Batch Processing**: Multiple file conversion operations with progress feedback
+#### Export/Import Functionality (planned)
+- **WGSL ↔ GLSL**: Conversion pipeline planned
+- **WGSL ↔ HLSL**: Conversion pipeline planned
+- **ISF Import/Export**: Metadata parsing and mapping planned
+- **Batch Processing**: Planned operations with progress
 
 ## Phase 3: Advanced Features
 
