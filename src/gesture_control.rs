@@ -46,6 +46,21 @@ impl Default for HandData {
     }
 }
 
+/// Bevy plugin for gesture control system
+pub struct GestureControlPlugin;
+
+impl Plugin for GestureControlPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<GestureControlSystem>()
+           .add_systems(Update, gesture_control_update_system);
+    }
+}
+
+/// System to update gesture control each frame
+fn gesture_control_update_system(mut gesture_control: ResMut<GestureControlSystem>) {
+    gesture_control.update();
+}
+
 /// Gesture recognition system
 #[derive(Resource)]
 pub struct GestureControlSystem {

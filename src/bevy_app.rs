@@ -23,6 +23,9 @@ use super::audio_system::{AudioAnalyzer, AudioAnalysisPlugin};
 // Import timeline animation system
 use super::timeline::{TimelinePlugin, TimelineAnimation, PlaybackState};
 
+// Import gesture control system
+use super::gesture_control::{GestureControlSystem, GestureControlPlugin};
+
 // Import responsive backend system - check if it exists
 // use super::backend_systems::{ResponsiveBackend, ResponsiveBackendPlugin};
 
@@ -48,7 +51,8 @@ fn editor_ui_system(
     mut ui_state: ResMut<EditorUiState>, 
     mut startup_gate: ResMut<UiStartupGate>, 
     audio_analyzer: Res<AudioAnalyzer>,
-    timeline_animation: Res<TimelineAnimation>
+    timeline_animation: Res<TimelineAnimation>,
+    mut gesture_control: ResMut<GestureControlSystem>
 ) {
     // Increment frame counter
     startup_gate.frames += 1;
@@ -132,13 +136,27 @@ fn editor_ui_system(
         }
     }
     
+    // Update gesture control system and apply gesture parameters
+    gesture_control.update();
+    
+    // Apply gesture control parameters to shader
+    if ui_state.show_gesture_panel {
+        // Get gesture-controlled parameter values
+        for param_name in &["time", "speed", "intensity"] {
+            if let Some(gesture_value) = gesture_control.get_parameter_value(param_name) {
+                ui_state.set_parameter_value(param_name, gesture_value);
+                println!("Applied gesture control to parameter '{}': {}", param_name, gesture_value);
+            }
+        }
+    }
+    
     // Draw menu bar
     println!("Drawing menu bar...");
     draw_editor_menu(ctx, &mut *ui_state);
     
     // Draw side panels (shader browser, parameters, timeline)
     println!("Drawing side panels...");
-    draw_editor_side_panels(ctx, &mut *ui_state, &audio_analyzer);
+    draw_editor_side_panels(ctx, &mut *ui_state, &audio_analyzer, &gesture_control);
     
     // Draw code editor panel
     println!("Drawing code editor panel...");
@@ -222,6 +240,7 @@ pub fn run_app() {
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(AudioAnalysisPlugin)
         .add_plugins(TimelinePlugin)
+        .add_plugins(GestureControlPlugin)
         // .add_plugins(ResponsiveBackendPlugin)
         // .add_plugins(BevyNodeGraphPlugin)
         // .add_plugins(ComputePassPlugin)

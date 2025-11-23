@@ -8,7 +8,9 @@ use super::node_graph::{NodeGraph, NodeKind};
 use super::timeline::{TimelineAnimation, InterpolationType, PlaybackState};
 use super::shader_renderer::ShaderRenderer;
 use super::audio_system::AudioAnalyzer;
-// use resolume_isf_shaders_rust_ffgl::visual_node_editor_adapter::NodeEditorAdapter; // Temporarily disabled
+
+// Temporarily commented out to fix compilation - will be restored when visual node editor is fully integrated
+// use crate::visual_node_editor_adapter::NodeEditorAdapter;
 use std::sync::Mutex;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -65,7 +67,7 @@ pub struct EditorUiState {
     pub auto_apply: bool,
     // Node graph and project state
     pub node_graph: NodeGraph,
-    // pub visual_node_editor: NodeEditorAdapter, // Temporarily disabled
+    // pub visual_node_editor: NodeEditorAdapter,
     pub last_project_path: Option<String>,
     pub timeline: TimelineAnimation,
     pub timeline_track_input: String,
@@ -115,7 +117,7 @@ impl Default for EditorUiState {
             apply_requested: false,
             auto_apply: false,
             node_graph: NodeGraph::default(),
-            // visual_node_editor: NodeEditorAdapter::new(), // Temporarily disabled
+            // visual_node_editor: NodeEditorAdapter::new(),
             last_project_path: None,
             timeline: TimelineAnimation::default(),
             timeline_track_input: String::new(),
@@ -624,7 +626,7 @@ fn fs_main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
     template
 }
 
-pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState, audio_analyzer: &AudioAnalyzer) {
+pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState, audio_analyzer: &AudioAnalyzer, gesture_control: &crate::gesture_control::GestureControlSystem) {
     // FIX: Use proper panel hierarchy to avoid CentralPanel conflicts
     
     // Left panel - Shader Browser
@@ -1093,7 +1095,7 @@ pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState
             }
             
             // Visual node editor area
-            // ui_state.visual_node_editor.ui(ui, &mut ui_state.node_graph); // Temporarily disabled
+            // ui_state.visual_node_editor.ui(ui, &mut ui_state.node_graph);
         });
         ui_state.show_node_studio = show;
     }
@@ -1199,11 +1201,79 @@ pub fn draw_editor_side_panels(ctx: &egui::Context, ui_state: &mut EditorUiState
     if ui_state.show_gesture_panel {
         egui::Window::new("Gestures").open(&mut ui_state.show_gesture_panel).show(ctx, |ui| {
             ui.heading("Gesture Controls");
-            ui.checkbox(&mut ui_state.quick_params_enabled, "Map gestures to params");
+            
+            // Gesture system status
             ui.horizontal(|ui| {
-                ui.label("Sensitivity");
-                ui.add(egui::Slider::new(&mut ui_state.quick_param_a, 0.0..=1.0));
+                ui.label("Status:");
+                ui.label(if gesture_control.is_enabled() { "Enabled" } else { "Disabled" });
+                if ui.button(if gesture_control.is_enabled() { "Disable" } else { "Enable" }).clicked() {
+                    gesture_control.set_enabled(!gesture_control.is_enabled());
+                }
             });
+            
+            ui.separator();
+            
+            // Active gestures display
+            ui.label("Active Gestures:");
+            let active_gestures = gesture_control.get_active_gestures();
+            if active_gestures.is_empty() {
+                ui.label("No gestures detected");
+            } else {
+                for (gesture, strength) in active_gestures {
+                    ui.horizontal(|ui| {
+                        ui.label(format!("{:?}:", gesture));
+                        ui.add(egui::ProgressBar::new(*strength).text(format!("{:.2}", strength)));
+                    });
+                }
+            }
+            
+            ui.separator();
+            
+            // Parameter mappings
+            ui.label("Parameter Mappings:");
+            let mappings = gesture_control.get_parameter_mappings();
+            for (param_name, mapping) in mappings {
+                ui.horizontal(|ui| {
+                    ui.label(format!("{}:", param_name));
+                    if let Some(value) = gesture_control.get_parameter_value(param_name) {
+                        ui.label(format!("{:.2}", value));
+                    } else {
+                        ui.label("-");
+                    }
+                });
+            }
+            
+            ui.separator();
+            
+            // Test gesture simulation
+            ui.label("Test Gestures:");
+            if ui.button("Simulate Hand Open").clicked() {
+                gesture_control.simulate_gesture(crate::gesture_control::SimulatedGestureData {
+                    gesture_type: crate::gesture_control::GestureType::HandOpen,
+                    strength: 1.0,
+                    duration: 2.0,
+                    hand_position: (0.0, 0.0, 0.5),
+                });
+            }
+            if ui.button("Simulate Swipe Left").clicked() {
+                gesture_control.simulate_gesture(crate::gesture_control::SimulatedGestureData {
+                    gesture_type: crate::gesture_control::GestureType::SwipeLeft,
+                    strength: 0.8,
+                    duration: 1.5,
+                    hand_position: (-0.5, 0.0, 0.5),
+                });
+            }
+            if ui.button("Simulate Pinch").clicked() {
+                gesture_control.simulate_gesture(crate::gesture_control::SimulatedGestureData {
+                    gesture_type: crate::gesture_control::GestureType::Pinch,
+                    strength: 0.9,
+                    duration: 1.0,
+                    hand_position: (0.0, 0.0, 0.3),
+                });
+            }
+            if ui.button("Clear All").clicked() {
+                gesture_control.clear_hands();
+            }
         });
     }
     
