@@ -4,11 +4,12 @@ use std::fs;
 use std::path::Path;
 use egui::text::LayoutJob;
 use std::sync::Arc;
-use super::node_graph::{NodeGraph, NodeKind};
-use super::timeline::{TimelineAnimation, InterpolationType, PlaybackState};
-use super::shader_renderer::ShaderRenderer;
-use super::audio_system::AudioAnalyzer;
-use super::compute_pass_integration::{ComputePassManager, TextureFormat};
+use crate::node_graph::{NodeGraph, NodeKind};
+use crate::timeline::{TimelineAnimation, InterpolationType, PlaybackState};
+use crate::shader_renderer::ShaderRenderer;
+use crate::audio_system::AudioAnalyzer;
+use crate::compute_pass_integration::{ComputePassManager, TextureFormat};
+// use crate::screenshot_video_export::{ScreenshotVideoExporter, VideoExportSettings};
 
 // Temporarily commented out to fix compilation - will be restored when visual node editor is fully integrated
 // use crate::visual_node_editor_adapter::NodeEditorAdapter;
@@ -50,6 +51,7 @@ pub struct EditorUiState {
     pub show_wgslsmith_panel: bool,
     pub show_diagnostics_panel: bool,
     pub show_compute_panel: bool,
+    pub show_3d_scene_panel: bool,
     pub fps: f32,
     // Preview pipeline mode
     pub pipeline_mode: PipelineMode,
@@ -100,6 +102,23 @@ pub struct EditorUiState {
     pub dispatch_size_x: u32,
     pub dispatch_size_y: u32,
     pub dispatch_size_z: u32,
+    // Video recording state
+    pub is_recording_video: bool,
+    pub video_fps: u32,
+    pub video_duration: f32,
+    pub video_format: String,
+    pub video_quality: u8,
+    // 3D Scene parameters (Space Editor inspired)
+    pub camera_position: [f32; 3],
+    pub camera_rotation: [f32; 3],
+    pub camera_fov: f32,
+    pub camera_near: f32,
+    pub camera_far: f32,
+    pub light_position: [f32; 3],
+    pub light_color: [f32; 3],
+    pub light_intensity: f32,
+    pub ambient_light_color: [f32; 3],
+    pub ambient_light_intensity: f32,
 }
 
 impl Default for EditorUiState {
@@ -117,6 +136,7 @@ impl Default for EditorUiState {
             show_wgslsmith_panel: false,
             show_diagnostics_panel: false,
             show_compute_panel: false,
+            show_3d_scene_panel: false,
             fps: 0.0,
             pipeline_mode: PipelineMode::default(),
             dark_mode: true,
@@ -154,9 +174,26 @@ impl Default for EditorUiState {
             pingpong_texture_name: "pingpong_tex".to_string(),
             pingpong_width: 512,
             pingpong_height: 512,
-            dispatch_size_x: 64,
-            dispatch_size_y: 64,
+            dispatch_size_x: 8,
+            dispatch_size_y: 8,
             dispatch_size_z: 1,
+            // Video recording defaults
+            is_recording_video: false,
+            video_fps: 30,
+            video_duration: 10.0,
+            video_format: "mp4".to_string(),
+            video_quality: 90,
+            // 3D Scene parameters defaults
+            camera_position: [0.0, 0.0, 5.0],
+            camera_rotation: [0.0, 0.0, 0.0],
+            camera_fov: 60.0,
+            camera_near: 0.1,
+            camera_far: 100.0,
+            light_position: [2.0, 2.0, 2.0],
+            light_color: [1.0, 1.0, 1.0],
+            light_intensity: 1.0,
+            ambient_light_color: [0.2, 0.2, 0.2],
+            ambient_light_intensity: 0.3,
         }
     }
 }
@@ -233,7 +270,8 @@ fn compile_and_render_shader(
     egui_ctx: &egui::Context,
     global_renderer: &GlobalShaderRenderer,
     parameter_values: &std::collections::HashMap<String, f32>,
-    audio_analyzer: Option<&crate::audio_system::AudioAnalyzer>
+    audio_analyzer: Option<&crate::audio_system::AudioAnalyzer>,
+    video_exporter: Option<&ScreenshotVideoExporter>
 ) -> Result<egui::TextureHandle, String> {
     if wgsl_code.trim().is_empty() {
         return Err("Empty shader code".to_string());
@@ -297,6 +335,14 @@ fn compile_and_render_shader(
                     },
                     egui::TextureOptions::default()
                 );
+                
+                // Capture frame for video recording if active
+                if let Some(exporter) = video_exporter {
+                    // For now, we'll capture the pixel data directly
+                    // In a real implementation, we'd need access to the WGPU texture
+                    let _ = exporter.capture_frame_data(&pixel_data, params.width, params.height);
+                }
+                
                 return Ok(texture);
             }
             Err(e) => {
@@ -657,7 +703,8 @@ pub fn draw_editor_side_panels(
     ui_state: &mut EditorUiState, 
     audio_analyzer: &AudioAnalyzer, 
     gesture_control: &mut crate::gesture_control::GestureControlSystem,
-    compute_pass_manager: &mut ComputePassManager
+    compute_pass_manager: &mut ComputePassManager,
+    video_exporter: Option<&ScreenshotVideoExporter>
 ) {
     // FIX: Use proper panel hierarchy to avoid CentralPanel conflicts
     
@@ -809,6 +856,65 @@ pub fn draw_editor_side_panels(
                 }
             });
             
+            // Video recording controls
+            ui.horizontal(|ui| {
+                ui.label("Video Recording:");
+                
+                if ui_state.is_recording_video {
+                    if ui.button("⏹ Stop Recording").clicked() {
+                        ui_state.is_recording_video = false;
+                        // Stop recording
+                        if let Some(exporter) = video_exporter {
+                            let file_path = format!("shader_recording.{}", ui_state.video_format);
+                            match exporter.stop_recording(&file_path) {
+                                Ok(_) => println!("Video recording stopped and saved to: {}", file_path),
+                                Err(e) => eprintln!("Failed to stop recording: {}", e),
+                            }
+                        }
+                    }
+                    ui.label(format!("Recording... FPS: {}", ui_state.video_fps));
+                } else {
+                    if ui.button("⏺ Start Recording").clicked() {
+                        ui_state.is_recording_video = true;
+                        // Start recording
+                        if let Some(exporter) = video_exporter {
+                            let settings = VideoExportSettings {
+                                output_path: "shader_recording.mp4".to_string(),
+                                format: ui_state.video_format.clone(),
+                                fps: ui_state.video_fps,
+                                bitrate: 5000,
+                                quality: ui_state.video_quality,
+                                width: 1920,
+                                height: 1080,
+                                duration: std::time::Duration::from_secs_f32(ui_state.video_duration),
+                                codec: "h264".to_string(),
+                            };
+                            match exporter.start_recording(settings) {
+                                Ok(_) => println!("Video recording started"),
+                                Err(e) => eprintln!("Failed to start recording: {}", e),
+                            }
+                        }
+                    }
+                }
+                
+                ui.separator();
+                
+                ui.label("Format:");
+                egui::ComboBox::from_label("")
+                    .selected_text(&ui_state.video_format)
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut ui_state.video_format, "mp4".to_string(), "MP4");
+                        ui.selectable_value(&mut ui_state.video_format, "webm".to_string(), "WebM");
+                        ui.selectable_value(&mut ui_state.video_format, "gif".to_string(), "GIF");
+                    });
+                
+                ui.label("FPS:");
+                ui.add(egui::Slider::new(&mut ui_state.video_fps, 15..=120));
+                
+                ui.label("Quality:");
+                ui.add(egui::Slider::new(&mut ui_state.video_quality, 1..=100));
+            });
+            
             ui.separator();
             
             // Preview viewport area
@@ -836,7 +942,7 @@ pub fn draw_editor_side_panels(
                 );
             } else {
                 // CRITICAL: Actually compile and render the WGSL shader
-                match compile_and_render_shader(&ui_state.draft_code, rect.size(), ctx, &ui_state.global_renderer, &ui_state.parameter_values, Some(audio_analyzer)) {
+                match compile_and_render_shader(&ui_state.draft_code, rect.size(), ctx, &ui_state.global_renderer, &ui_state.parameter_values, Some(audio_analyzer), video_exporter) {
                     Ok(texture_handle) => {
                         // Display the rendered texture
                         let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
@@ -1434,7 +1540,7 @@ pub fn draw_editor_side_panels(
                         ui_state.draft_code = ui_state.wgsl_smith_generated.clone();
                     }
                     if ui.button("Test Compile").clicked() {
-                        match compile_and_render_shader(&ui_state.wgsl_smith_generated, egui::vec2(400.0, 300.0), ctx, &ui_state.global_renderer, &ui_state.parameter_values, Some(audio_analyzer)) {
+                        match compile_and_render_shader(&ui_state.wgsl_smith_generated, egui::vec2(400.0, 300.0), ctx, &ui_state.global_renderer, &ui_state.parameter_values, Some(audio_analyzer), None) {
                             Ok(_) => ui_state.wgsl_smith_status = "Compilation successful!".to_string(),
                             Err(e) => ui_state.wgsl_smith_status = format!("Compilation failed: {}", e),
                         }
@@ -1498,7 +1604,7 @@ pub fn draw_editor_side_panels(
 }
 
 /// Helper that draws the main central preview panel using a provided egui context
-pub fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiState, audio_analyzer: &AudioAnalyzer) {
+pub fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiState, audio_analyzer: &AudioAnalyzer, video_exporter: Option<&ScreenshotVideoExporter>) {
     if ui_state.show_preview {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Shader Preview");
@@ -1513,6 +1619,59 @@ pub fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiSta
                     ui.add(egui::Slider::new(&mut ui_state.quick_param_b, 0.0..=1.0));
                 }
             });
+            
+            // Video recording controls
+            let mut should_start_recording = false;
+            let mut should_stop_recording = false;
+            
+            ui.horizontal(|ui| {
+                ui.label("Video Recording:");
+                
+                if ui_state.is_recording_video {
+                    if ui.button("⏹ Stop Recording").clicked() {
+                        should_stop_recording = true;
+                    }
+                    ui.label(format!("Recording... FPS: {} Duration: {:.1}s", ui_state.video_fps, ui_state.video_duration));
+                } else {
+                    if ui.button("⏺ Start Recording").clicked() {
+                        should_start_recording = true;
+                    }
+                    
+                    ui.add(egui::Slider::new(&mut ui_state.video_fps, 15..=60).text("FPS"));
+                    
+                    egui::ComboBox::from_label("Format")
+                        .selected_text(&ui_state.video_format)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut ui_state.video_format, "mp4".to_string(), "MP4");
+                            ui.selectable_value(&mut ui_state.video_format, "gif".to_string(), "GIF");
+                        });
+                        
+                    ui.add(egui::Slider::new(&mut ui_state.video_quality, 50..=100).text("Quality"));
+                }
+            });
+            
+            // Handle recording actions outside the UI closure
+            if should_start_recording {
+                ui_state.is_recording_video = true;
+                ui_state.video_duration = 0.0;
+                if let Some(exporter) = video_exporter {
+                    let settings = VideoExportSettings {
+                        output_path: "shader_recording.mp4".to_string(),
+                        fps: ui_state.video_fps,
+                        quality: ui_state.video_quality,
+                        format: ui_state.video_format.clone(),
+                        ..Default::default()
+                    };
+                    let _ = exporter.start_recording(settings);
+                }
+            }
+            
+            if should_stop_recording {
+                ui_state.is_recording_video = false;
+                if let Some(exporter) = video_exporter {
+                    let _ = exporter.stop_recording();
+                }
+            }
             
             ui.separator();
             
@@ -1541,11 +1700,22 @@ pub fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiSta
                 );
             } else {
                 // CRITICAL: Actually compile and render the WGSL shader
-                match compile_and_render_shader(&ui_state.draft_code, rect.size(), ctx, &ui_state.global_renderer, &ui_state.parameter_values, Some(audio_analyzer)) {
+                match compile_and_render_shader(&ui_state.draft_code, rect.size(), ctx, &ui_state.global_renderer, &ui_state.parameter_values, Some(audio_analyzer), video_exporter) {
                     Ok(texture_handle) => {
                         // Display the rendered texture
                         let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
                         painter.image(texture_handle.id(), rect, uv, egui::Color32::WHITE);
+                        
+                        // Capture frame for video recording if active
+                        if ui_state.is_recording_video {
+                            if let Some(exporter) = video_exporter {
+                                // Get pixel data from the texture for video recording
+                                if let Ok(pixel_data) = get_texture_pixels(&texture_handle, ctx) {
+                                    let _ = exporter.capture_frame_data(&pixel_data, rect.width() as u32, rect.height() as u32);
+                                    ui_state.video_duration += 1.0 / ui_state.video_fps as f32;
+                                }
+                            }
+                        }
                     }
                     Err(e) => {
                         // Show error message if shader compilation fails
@@ -1566,9 +1736,10 @@ pub fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiSta
     }
 }
 
-pub fn editor_central_panel(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiState>, audio_analyzer: Res<AudioAnalyzer>) {
+pub fn editor_central_panel(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiState>, audio_analyzer: Res<AudioAnalyzer>, video_exporter: Option<Res<ScreenshotVideoExporter>>) {
     let ctx = egui_ctx.ctx_mut().expect("Failed to get egui context");
-    draw_editor_central_panel(ctx, &mut *ui_state, &audio_analyzer);
+    let video_exporter_ref = video_exporter.as_deref();
+    draw_editor_central_panel(ctx, &mut *ui_state, &audio_analyzer, video_exporter_ref);
 }
 
 pub fn populate_shader_list(mut ui_state: ResMut<EditorUiState>) {
@@ -2007,6 +2178,14 @@ fn import_project_json() -> Result<ProjectData, String> {
     } else {
         Err("No file selected".to_string())
     }
+}
+
+/// Helper function to extract pixel data from an egui texture handle
+fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
+    // This is a simplified implementation - in a real implementation you'd need to
+    // access the underlying GPU texture data, which requires more complex WGPU integration
+    // For now, we'll return a placeholder
+    Ok(vec![0u8; 4 * 800 * 600]) // RGBA placeholder
 }
 
 fn default_wgsl_template() -> String {

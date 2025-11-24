@@ -55,7 +55,7 @@ directories = "5.0"
 bevy = "0.17"
 petgraph = "0.6"
 # bevy_shader_graph = { git = "https://github.com/Neopallium/bevy_shader_graph.git" }
-# space_editor = { git = "https://github.com/rewin123/space_editor.git" }
+# space_editor = { git = "https://github.com/rewin123/space_editor.git" }  # Bevy version mismatch (0.14 vs 0.17)
 bevy_egui = { version = "0.38", optional = true }
 image = "0.25"
 # Note: Leap Motion and MediaPipe would require platform-specific SDKs

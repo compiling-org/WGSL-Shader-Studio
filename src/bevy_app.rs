@@ -27,7 +27,7 @@ use super::timeline::{TimelinePlugin, TimelineAnimation, PlaybackState};
 use super::gesture_control::{GestureControlSystem, GestureControlPlugin};
 
 // Import compute pass integration
-use super::compute_pass_integration::{ComputePassPlugin, ComputePassManager};
+use resolume_isf_shaders_rust_ffgl::compute_pass_integration::{ComputePassPlugin, ComputePassManager};
 
 // Import responsive backend system - check if it exists
 // use super::backend_systems::{ResponsiveBackend, ResponsiveBackendPlugin};
@@ -56,7 +56,8 @@ fn editor_ui_system(
     audio_analyzer: Res<AudioAnalyzer>,
     timeline_animation: Res<TimelineAnimation>,
     mut gesture_control: ResMut<GestureControlSystem>,
-    mut compute_pass_manager: ResMut<ComputePassManager>
+    mut compute_pass_manager: ResMut<ComputePassManager>,
+    video_exporter: Res<crate::screenshot_video_export::ScreenshotVideoExporter>
 ) {
     // Increment frame counter
     startup_gate.frames += 1;
@@ -160,7 +161,7 @@ fn editor_ui_system(
     
     // Draw side panels (shader browser, parameters, timeline)
     println!("Drawing side panels...");
-    draw_editor_side_panels(ctx, &mut *ui_state, &audio_analyzer, &mut gesture_control, &mut compute_pass_manager);
+    draw_editor_side_panels(ctx, &mut *ui_state, &audio_analyzer, &mut gesture_control, &mut compute_pass_manager, Some(&video_exporter));
     
     // Draw code editor panel
     println!("Drawing code editor panel...");
@@ -169,7 +170,7 @@ fn editor_ui_system(
     // Draw the main preview panel using CentralPanel - this creates proper three-panel layout
     if ui_state.show_preview {
         println!("Drawing preview panel...");
-        draw_editor_central_panel(ctx, &mut *ui_state);
+        draw_editor_central_panel(ctx, &mut *ui_state, &audio_analyzer, Some(&video_exporter));
     }
 }
 
@@ -250,28 +251,10 @@ pub fn run_app() {
         // .add_plugins(BevyNodeGraphPlugin)
         .insert_resource(EditorUiState::default())
         .insert_resource(UiStartupGate::default())
+        .insert_resource(crate::screenshot_video_export::ScreenshotVideoExporter::new())
         .add_systems(Startup, setup_camera)
         .add_systems(Startup, initialize_wgpu_renderer)
         .add_systems(Update, async_initialize_wgpu_renderer)
         .add_systems(bevy_egui::EguiPrimaryContextPass, editor_ui_system)
         .run();
-}
-fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
-    egui::CentralPanel::default().show(ctx, |ui| {
-        ui.heading("Shader Preview");
-        
-        let available_size = ui.available_size();
-        let preview_size = egui::vec2(available_size.x.min(800.0), available_size.y.min(400.0));
-        let (response, painter) = ui.allocate_painter(preview_size, egui::Sense::hover());
-        let rect = response.rect;
-        painter.rect_filled(rect, 0.0, egui::Color32::from_gray(20));
-        painter.text(
-            rect.center(),
-            egui::Align2::CENTER_CENTER,
-            "Preview initialized",
-            egui::FontId::proportional(14.0),
-            egui::Color32::from_gray(180),
-        );
-        painter.rect_stroke(rect, 0.0, egui::Stroke::new(1.0, egui::Color32::from_gray(60)), egui::StrokeKind::Inside);
-    });
 }

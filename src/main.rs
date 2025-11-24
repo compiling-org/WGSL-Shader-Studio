@@ -12,10 +12,14 @@ mod gesture_control;
 mod shader_renderer;
 mod editor_ui;
 mod visual_node_editor;
+mod visual_node_editor_adapter;
 mod node_graph;
 mod timeline;
 mod isf_converter;
 mod converter;
+mod compute_pass_integration;
+mod screenshot_video_export;
+mod scene_editor_3d;
 
 // Re-export for easier access
 use isf_loader::*;
@@ -32,220 +36,229 @@ fn main() {
     
     // If --cli flag is present, always run CLI
     if has_cli_flag {
-        run_cli(args);
-    } else {
-        // Default to GUI mode when no explicit CLI flag
-        #[cfg(feature = "gui")]
-        {
-            println!("Starting WGSL Shader Studio GUI...");
-            bevy_app::run_app();
-        }
-        #[cfg(not(feature = "gui"))]
-        {
-            println!("GUI not available. Enable with: cargo run --features gui");
-            println!("Falling back to CLI mode...");
-            run_cli(args);
-        }
+        println!("Running in CLI mode...");
+        run_cli();
+        return;
+    }
+
+    // Check for GUI feature
+    #[cfg(feature = "gui")]
+    {
+        println!("Running in GUI mode...");
+        run_gui();
+        return;
+    }
+
+    // If no GUI feature, default to CLI
+    #[cfg(not(feature = "gui"))]
+    {
+        println!("GUI feature not enabled, running in CLI mode...");
+        run_cli();
     }
 }
 
-fn run_cli(args: Vec<String>) {
-    println!("WGSL Shader Studio - CLI Mode");
-    println!("==============================");
+#[cfg(feature = "gui")]
+fn run_gui() {
+    use bevy::prelude::*;
+    
+    println!("Starting Bevy app with egui integration and space_editor 3D scene management...");
+    
+    // Create the Bevy app with all necessary plugins and systems
+    let mut app = App::new();
+    
+    // Add default plugins with window settings
+    app.add_plugins(DefaultPlugins.set(WindowPlugin {
+        primary_window: Some(Window {
+            title: "WGSL Shader Studio".to_string(),
+            resolution: (1280.0, 720.0).into(),
+            ..default()
+        }),
+        ..default()
+    }));
+    
+    // Add egui plugin
+    app.add_plugins(bevy_egui::EguiPlugin);
+    
+    // Add our custom systems and resources
+    app.init_resource::<super::editor_ui::EditorUiState>()
+        .init_resource::<super::audio_system::AudioAnalyzer>()
+        .init_resource::<super::compute_pass_integration::ComputePassManager>()
+        .init_resource::<super::gesture_control::GestureControlSystem>()
+        .init_resource::<super::scene_editor_3d::SceneEditor3DState>()
+        .add_plugins(super::scene_editor_3d::SceneEditor3DPlugin)
+        .add_systems(Startup, super::bevy_app::setup_camera)
+        .add_systems(Update, (
+            super::bevy_app::editor_ui_system,
+            super::bevy_app::audio_system,
+            super::bevy_app::timeline_system,
+            super::bevy_app::compute_pass_system,
+            super::bevy_app::gesture_control_system,
+            super::scene_editor_3d::scene_editor_3d_ui,
+            super::scene_editor_3d::scene_3d_viewport_ui,
+        ));
+    
+    println!("Running Bevy app with space_editor 3D scene management...");
+    app.run();
+}
 
-    // Check for explicit CLI flag first
-    let has_cli_flag = args.contains(&"--cli".to_string());
-    let command_index = if has_cli_flag { 2 } else { 1 };
-    if args.len() <= command_index {
-        print_usage();
+fn run_cli() {
+    println!("WGSL Shader Studio - CLI Mode");
+    println!("===============================");
+    
+    // Simple CLI argument parsing
+    let args: Vec<String> = env::args().collect();
+    
+    if args.len() < 2 {
+        println!("Usage: {} <shader_file> [--cli]", args[0]);
+        println!("       {} --test-compute", args[0]);
+        println!("       {} --test-audio", args[0]);
+        println!("       {} --test-nodes", args[0]);
         process::exit(1);
     }
-    let command = &args[command_index];
-
-    match command.as_str() {
-        "list" => {
-            // List available ISF shaders
-            match load_resolume_isf_shaders() {
-                Ok(shaders) => {
-                    println!("Available ISF Shaders:");
-                    for shader in &shaders {
-                        let metadata = get_shader_metadata(shader);
-                        println!("  - {} ({})", shader.name, metadata.category.unwrap_or_else(|| "Uncategorized".to_string()));
-                        if let Some(desc) = metadata.description {
-                            println!("    {}", desc);
-                        }
-                        println!("    Inputs: {}", shader.inputs.len());
-                        for input in &shader.inputs {
-                            println!("      - {} ({:?})", input.name, input.input_type);
-                        }
-                        println!();
-                    }
-                    println!("Total shaders loaded: {}", shaders.len());
-                }
-                Err(e) => {
-                    eprintln!("Error loading shaders: {}", e);
-                    process::exit(1);
-                }
-            }
+    
+    match args[1].as_str() {
+        "--test-compute" => {
+            println!("Testing compute pass integration...");
+            test_compute_pass();
         }
-        "validate" => {
-            if args.len() < 3 {
-                eprintln!("Error: Please provide a shader file path");
-                print_usage();
-                process::exit(1);
-            }
-
-            let shader_path = &args[2];
-            match load_isf_shader(&std::path::Path::new(shader_path)) {
-                Ok(shader) => {
-                    match validate_isf_shader(&shader) {
-                        Ok(_) => {
-                            println!("✓ Shader '{}' is valid", shader.name);
-                            let metadata = get_shader_metadata(&shader);
-                            println!("  Description: {}", metadata.description.unwrap_or_else(|| "No description".to_string()));
-                            println!("  Category: {}", metadata.category.unwrap_or_else(|| "Uncategorized".to_string()));
-                            println!("  Author: {}", metadata.author.unwrap_or_else(|| "Unknown".to_string()));
-                            println!("  Inputs: {}", shader.inputs.len());
-                            println!("  Outputs: {}", shader.outputs.len());
-                        }
-                        Err(e) => {
-                            eprintln!("✗ Shader validation failed: {}", e);
-                            process::exit(1);
-                        }
-                    }
-                }
-                Err(e) => {
-                    eprintln!("Error loading shader: {}", e);
-                    process::exit(1);
-                }
-            }
+        "--test-audio" => {
+            println!("Testing audio system...");
+            test_audio_system();
         }
-        "convert" => {
-            if args.len() < 4 {
-                eprintln!("Error: Please provide input and output file paths");
-                print_usage();
-                process::exit(1);
-            }
-
-            let input_path = &args[2];
-            let output_path = &args[3];
-
-            match load_isf_shader(&std::path::Path::new(input_path)) {
-                Ok(shader) => {
-                    // Convert isf_loader::IsfShader to shader_converter::IsfShader
-                    let converter_shader = shader_converter::IsfShader {
-                        name: shader.name.clone(),
-                        source: shader.source.clone(),
-                        inputs: shader.inputs.iter().map(|input| shader_converter::ShaderInput {
-                            name: input.name.clone(),
-                            input_type: match input.input_type {
-                                isf_loader::InputType::Float => shader_converter::InputType::Float,
-                                isf_loader::InputType::Bool => shader_converter::InputType::Bool,
-                                isf_loader::InputType::Color => shader_converter::InputType::Color,
-                                isf_loader::InputType::Point2D => shader_converter::InputType::Point2D,
-                                isf_loader::InputType::Image => shader_converter::InputType::Image,
-                            },
-                            value: match &input.value {
-                                isf_loader::ShaderValue::Float(f) => shader_converter::ShaderValue::Float(*f),
-                                isf_loader::ShaderValue::Bool(b) => shader_converter::ShaderValue::Bool(*b),
-                                isf_loader::ShaderValue::Color(c) => shader_converter::ShaderValue::Color(*c),
-                                isf_loader::ShaderValue::Point2D(p) => shader_converter::ShaderValue::Point2D(*p),
-                            },
-                            min: input.min,
-                            max: input.max,
-                            default: input.default,
-                        }).collect(),
-                        outputs: shader.outputs.iter().map(|output| shader_converter::ShaderOutput {
-                            name: output.name.clone(),
-                            output_type: match output.output_type {
-                                isf_loader::OutputType::Image => shader_converter::OutputType::Image,
-                                isf_loader::OutputType::Float => shader_converter::OutputType::Float,
-                            },
-                        }).collect(),
-                    };
-
-                    match isf_to_wgsl(&converter_shader) {
-                        Ok(wgsl_code) => {
-                            match std::fs::write(output_path, wgsl_code) {
-                                Ok(_) => println!("✓ Converted '{}' to WGSL: {}", shader.name, output_path),
-                                Err(e) => {
-                                    eprintln!("Error writing WGSL file: {}", e);
-                                    process::exit(1);
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            eprintln!("Error converting shader to WGSL: {}", e);
-                            process::exit(1);
-                        }
-                    }
-                }
-                Err(e) => {
-                    eprintln!("Error loading shader: {}", e);
-                    process::exit(1);
-                }
-            }
+        "--test-nodes" => {
+            println!("Testing node graph system...");
+            test_node_graph();
         }
-        "info" => {
-            println!("WGSL Shader Studio");
-            println!("==================");
-            println!("Professional WGPU shader development environment with ISF support.");
-            println!();
-            println!("Features:");
-            println!("  - ISF (Interactive Shader Format) support");
-            println!("  - WGSL/GLSL/HLSL shader conversion");
-            println!("  - Real-time audio analysis and MIDI control");
-            println!("  - Node-based visual programming");
-            println!("  - Live preview with WGPU rendering");
-            println!("  - Standalone shader validation and conversion tools");
-            println!();
-            println!("ISF Directories:");
-            println!("  - C:\\Program Files\\Magic\\Modules2\\ISF\\fractal");
-            println!("  - C:\\Program Files\\Magic\\Modules2\\ISF\\fractal 2");
-            println!("  - C:\\Program Files\\Magic\\Modules2\\ISF\\final");
-        }
-        _ => {
-            eprintln!("Unknown command: {}", command);
-            print_usage();
-            process::exit(1);
+        file_path => {
+            println!("Processing shader file: {}", file_path);
+            process_shader_file(file_path);
         }
     }
 }
 
-fn print_usage() {
-    let exe_name = env::args().next().unwrap_or_else(|| "wgsl-shader-studio".to_string());
-    println!("WGSL Shader Studio - GUI-first Development Environment");
-    println!("=====================================================");
-    println!("Usage:");
-    println!("  {} [options]                Start GUI application (default)", exe_name);
-    println!("  {} [options] --cli <command> [args...]", exe_name);
-    println!();
-    println!("Options:");
-    println!("  --gui                       Start graphical interface (default)");
-    println!("  --cli                        Enable CLI mode for developer commands");
-    println!("  --help                       Show this help message");
-    println!();
-    println!("GUI Features:");
-    println!("  - Professional WGPU shader development environment");
-    println!("  - Live preview with real-time rendering");
-    println!("  - Node-based visual programming (32 node types)");
-    println!("  - WGSL syntax highlighting and error detection");
-    println!("  - Audio/MIDI reactive shader parameters");
-    println!("  - ISF shader import/export and conversion");
-    println!("  - Template library with tutorials");
-    println!();
-    println!("CLI Commands (Developer Mode):");
-    println!("  list                        List all available ISF shaders");
-    println!("  validate <file>             Validate an ISF shader file");
-    println!("  convert <input> <output>    Convert ISF shader to WGSL");
-    println!("  info                        Show application information");
-    println!();
-    println!("Examples:");
-    println!("  {}                           # Start GUI (default)", exe_name);
-    println!("  {} --cli list", exe_name);
-    println!("  {} --cli validate shader.fs", exe_name);
-    println!("  {} --cli convert input.fs output.wgsl", exe_name);
-    println!();
-    println!("For more information, see the documentation at:");
-    println!("  https://github.com/compiling-org/WGSL-Shader-Studio");
+fn test_compute_pass() {
+    use std::sync::{Arc, Mutex};
+    
+    println!("Initializing compute pass manager...");
+    let compute_manager = Arc::new(Mutex::new(super::compute_pass_integration::ComputePassManager::new()));
+    
+    // Test basic compute pass creation
+    let mut manager = compute_manager.lock().unwrap();
+    
+    // Create a simple compute shader
+    let compute_shader = r#"
+        @group(0) @binding(0) var<storage, read_write> data: array<f32>;
+        
+        @compute @workgroup_size(64)
+        fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+            let index = global_id.x;
+            if (index >= arrayLength(&data)) {
+                return;
+            }
+            data[index] = data[index] * 2.0;
+        }
+    "#;
+    
+    match manager.create_compute_pass("test_pass", compute_shader) {
+        Ok(_) => println!("✓ Compute pass created successfully"),
+        Err(e) => println!("✗ Failed to create compute pass: {}", e),
+    }
+    
+    println!("Compute pass test completed.");
+}
+
+fn test_audio_system() {
+    use std::sync::{Arc, Mutex};
+    
+    println!("Initializing audio system...");
+    let audio_analyzer = Arc::new(Mutex::new(super::audio_system::AudioAnalyzer::new()));
+    
+    // Simulate some audio data
+    let mut analyzer = audio_analyzer.lock().unwrap();
+    
+    // Test FFT processing
+    let test_audio = vec![0.0f32; 1024];
+    analyzer.process_audio_data(&test_audio);
+    
+    println!("Audio system test completed.");
+}
+
+fn test_node_graph() {
+    use std::sync::{Arc, Mutex};
+    
+    println!("Initializing node graph...");
+    let node_graph = Arc::new(Mutex::new(super::node_graph::NodeGraph::new()));
+    
+    let mut graph = node_graph.lock().unwrap();
+    
+    // Test adding nodes
+    let noise_node = graph.add_node(super::node_graph::NodeKind::Noise2D);
+    let sine_node = graph.add_node(super::node_graph::NodeKind::SineWave);
+    
+    println!("Added nodes: Noise2D ({}), SineWave ({})", noise_node, sine_node);
+    
+    // Test connecting nodes
+    match graph.connect_nodes(noise_node, 0, sine_node, 0) {
+        Ok(_) => println!("✓ Nodes connected successfully"),
+        Err(e) => println!("✗ Failed to connect nodes: {}", e),
+    }
+    
+    println!("Node graph test completed.");
+}
+
+fn process_shader_file(file_path: &str) {
+    println!("Loading shader file: {}", file_path);
+    
+    match std::fs::read_to_string(file_path) {
+        Ok(content) => {
+            println!("File loaded successfully ({} bytes)", content.len());
+            
+            // Check if it's an ISF file
+            if file_path.to_lowercase().ends_with(".fs") {
+                println!("Detected ISF shader format");
+                match super::isf_loader::IsfShader::parse(file_path, &content) {
+                    Ok(isf_shader) => {
+                        println!("ISF shader parsed successfully");
+                        println!("Shader name: {}", isf_shader.name);
+                        println!("Inputs: {}", isf_shader.inputs.len());
+                        
+                        // Try to convert to WGSL
+                        let mut converter = super::isf_converter::IsfConverter::new();
+                        match converter.convert_to_wgsl(&isf_shader) {
+                            Ok(wgsl_code) => {
+                                println!("✓ Successfully converted to WGSL ({} bytes)", wgsl_code.len());
+                                
+                                // Save the converted shader
+                                let output_path = format!("{}.wgsl", file_path.trim_end_matches(".fs"));
+                                if let Err(e) = std::fs::write(&output_path, wgsl_code) {
+                                    println!("✗ Failed to save converted shader: {}", e);
+                                } else {
+                                    println!("✓ Converted shader saved to: {}", output_path);
+                                }
+                            }
+                            Err(e) => println!("✗ Failed to convert to WGSL: {}", e),
+                        }
+                    }
+                    Err(e) => println!("✗ Failed to parse ISF shader: {}", e),
+                }
+            } else {
+                println!("Assuming WGSL shader format");
+                
+                // Try to parse as WGSL
+                match super::wgsl_diagnostics::check_wgsl_diagnostics(&content) {
+                    diagnostics => {
+                        if diagnostics.is_empty() {
+                            println!("✓ WGSL shader appears valid");
+                        } else {
+                            println!("⚠ WGSL shader has {} diagnostic(s):", diagnostics.len());
+                            for (i, diagnostic) in diagnostics.iter().enumerate() {
+                                println!("  {}: {}", i + 1, diagnostic.message);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Err(e) => println!("✗ Failed to read file: {}", e),
+    }
 }

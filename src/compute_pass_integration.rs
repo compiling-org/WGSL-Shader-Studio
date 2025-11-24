@@ -169,10 +169,36 @@ impl ComputePassManager {
     /// Get previous ping-pong texture (for reading previous frame)
     pub fn get_previous_ping_pong_texture(&self, name: &str) -> Option<&PingPongTexture> {
         self.ping_pong_textures.get(name).map(|texture| {
-            let prev_index = if texture.current_index == 0 { 1 } else { 0 };
+            let _prev_index = if texture.current_index == 0 { 1 } else { 0 };
             // Return the same texture but with the previous index conceptually
             texture
         })
+    }
+    
+    /// Create a compute pipeline
+    pub fn create_compute_pipeline(&mut self, name: &str, workgroup_size: (u32, u32, u32), shader_code: String, bind_group_layouts: Vec<BindGroupLayoutResource>) {
+        let compute_pipeline = ComputePipelineResource {
+            name: name.to_string(),
+            workgroup_size,
+            shader_code,
+            bind_group_layouts,
+        };
+        
+        self.compute_pipelines.insert(name.to_string(), compute_pipeline);
+    }
+    
+    /// Create a compute pass execution
+    pub fn create_compute_pass_execution(&mut self, name: &str, pipeline_name: &str, dispatch_size: (u32, u32, u32), input_resources: Vec<String>, output_resources: Vec<String>, dependencies: Vec<String>) {
+        let compute_pass = ComputePassExecution {
+            name: name.to_string(),
+            pipeline_name: pipeline_name.to_string(),
+            dispatch_size,
+            input_resources,
+            output_resources,
+            dependencies,
+        };
+        
+        self.active_compute_passes.push(compute_pass);
     }
     
     /// Create a new ping-pong buffer

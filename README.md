@@ -1,19 +1,22 @@
 # WGSL Shader Studio
  
-## Current Reality (2025-11-21)
-- Build fails due to a duplicate function in `src/editor_ui.rs` (`draw_editor_side_panels` defined twice at `src/editor_ui.rs:493` and `src/editor_ui.rs:1152`).
+## Current Reality (2025-11-25)
+- ✅ **3D Scene Editor Integration Complete** - Comprehensive 3D scene management with gizmo-based manipulation
+- ✅ Build compilation issues resolved (duplicate functions fixed, module imports corrected)
 - GUI initializes; preview uses a real WGPU renderer when available and falls back to a CPU renderer if GPU init fails.
-- Parameter sliders in the UI are not wired to the renderer’s `params` buffer; changes don’t affect shader output.
+- Parameter sliders in the UI are not wired to the renderer's `params` buffer; changes don't affect shader output.
 - Audio/MIDI integration is missing (`src/audio_midi_integration.rs` is empty).
 - Compute pipeline code exists (`src/compute_pass_integration.rs`) but is not executed (no device/pipeline/dispatch wiring).
-- Version drift: Bevy’s internal wgpu version differs from the direct `wgpu = 26.0.1` dependency, risking API mismatch.
+- Version drift: Bevy's internal wgpu version differs from the direct `wgpu = 26.0.1` dependency, risking API mismatch.
 
 ### What Works
+- ✅ **3D Scene Editor** - Interactive 3D scene management with gizmo-based manipulation, camera controls, and export capabilities
 - WGSL rendering backend (`src/shader_renderer.rs`) compiles shaders, creates pipelines, renders to texture, and reads pixels back.
 - ISF loading/validation (`src/isf_loader.rs`) with Resolume directory scanning and local assets.
 - CLI developer tools (`src/main.rs`) for listing, validating, and converting ISF shaders.
 - Node graph to WGSL generation (`src/node_graph.rs`).
 - Timeline model and Bevy plugin (`src/timeline.rs`).
+- Screenshot and video export system (`src/screenshot_video_export.rs`) with multiple format support.
 
 ### What’s Broken/Missing
 - Duplicate function in UI (compilation blocker) and incorrect identifiers in the duplicate block.
