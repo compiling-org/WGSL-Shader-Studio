@@ -414,7 +414,7 @@ pub fn scene_editor_3d_ui(
 /// 3D viewport panel that can be embedded in the main editor
 pub fn scene_3d_viewport_ui(
     mut egui_ctx: bevy_egui::EguiContexts,
-    editor_state: Res<SceneEditor3DState>,
+    editor_state: &crate::scene_editor_3d::SceneEditor3DState,
 ) {
     use bevy_egui::egui;
     

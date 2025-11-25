@@ -6,6 +6,29 @@ use bevy_egui::{
     EguiPlugin,
 };
 use bevy_egui::egui;
+use bevy_egui::egui::TextureHandle;
+use std::sync::Arc;
+use std::sync::Mutex;
+
+/// Resource to manage 3D viewport texture data
+#[derive(Resource, Clone)]
+pub struct Viewport3DTexture {
+    pub texture_data: Arc<Mutex<Option<Vec<u8>>>>,
+    pub width: u32,
+    pub height: u32,
+    pub needs_update: bool,
+}
+
+impl Default for Viewport3DTexture {
+    fn default() -> Self {
+        Self {
+            texture_data: Arc::new(Mutex::new(None)),
+            width: 512,
+            height: 512,
+            needs_update: true,
+        }
+    }
+}
 
 /// Apply theme settings to the egui context
 fn apply_theme(ctx: &egui::Context, ui_state: &super::editor_ui::EditorUiState) {
@@ -35,6 +58,9 @@ use resolume_isf_shaders_rust_ffgl::compute_pass_integration::{ComputePassPlugin
 // Import editor modules - use local editor_ui module
 use super::editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_editor_side_panels, draw_editor_code_panel};
 
+// Import shader renderer for 3D viewport texture rendering
+use super::shader_renderer::{ShaderRenderer, RenderParameters};
+
 // Import node graph and compute pass plugins - check if they exist
 // use crate::bevy_node_graph_integration::BevyNodeGraphPlugin;
 // use crate::compute_pass_integration::ComputePassPlugin;
@@ -57,7 +83,9 @@ fn editor_ui_system(
     timeline_animation: Res<TimelineAnimation>,
     mut gesture_control: ResMut<GestureControlSystem>,
     mut compute_pass_manager: ResMut<ComputePassManager>,
-    video_exporter: Res<crate::screenshot_video_export::ScreenshotVideoExporter>
+    video_exporter: Res<crate::screenshot_video_export::ScreenshotVideoExporter>,
+    editor_state: Res<crate::scene_editor_3d::SceneEditor3DState>,
+    mut viewport_texture: ResMut<Viewport3DTexture>
 ) {
     // Increment frame counter
     startup_gate.frames += 1;
@@ -161,7 +189,7 @@ fn editor_ui_system(
     
     // Draw side panels (shader browser, parameters, timeline)
     println!("Drawing side panels...");
-    draw_editor_side_panels(ctx, &mut *ui_state, &audio_analyzer, &mut gesture_control, &mut compute_pass_manager, Some(&video_exporter));
+    draw_editor_side_panels(ctx, &mut *ui_state, &audio_analyzer, &mut gesture_control, &mut compute_pass_manager, None, None);
     
     // Draw code editor panel
     println!("Drawing code editor panel...");
@@ -170,7 +198,132 @@ fn editor_ui_system(
     // Draw the main preview panel using CentralPanel - this creates proper three-panel layout
     if ui_state.show_preview {
         println!("Drawing preview panel...");
-        draw_editor_central_panel(ctx, &mut *ui_state, &audio_analyzer, Some(&video_exporter));
+        draw_editor_central_panel(ctx, &mut *ui_state, &audio_analyzer, None);
+    }
+    
+    // Draw 3D scene editor panel
+    if ui_state.show_3d_scene_panel {
+        println!("Drawing 3D scene editor panel...");
+        // Create a simple 3D scene editor panel for now
+        egui::Window::new("3D Scene Editor")
+            .default_pos([100.0, 100.0])
+            .default_size([600.0, 400.0])
+            .show(&ctx, |ui| {
+                ui.heading("3D Scene View");
+                
+                if editor_state.enabled {
+                    ui.label("3D viewport active - use mouse controls to navigate");
+                    ui.label(format!("Selected: {:?}", editor_state.selected_entity));
+                    ui.label(format!("Mode: {:?}", editor_state.manipulation_mode));
+                    
+                    // Controls info
+                    ui.separator();
+                    ui.label("Controls:");
+                    ui.label("• Left Click: Select entity");
+                    ui.label("• Right Drag: Orbit camera");
+                    ui.label("• Middle Drag: Pan camera");
+                    ui.label("• Q/Z: Zoom out/in");
+                    ui.label("• W/E/R: Switch manipulation mode");
+                    
+                    // Render-to-texture viewport
+                    ui.separator();
+                    
+                    // Simple 3D scene shader for viewport rendering
+                    let scene_shader = r#"
+@vertex
+fn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<f32> {
+    var vertices = array<vec2<f32>, 6>(
+        vec2<f32>(-1.0, -1.0),
+        vec2<f32>( 1.0, -1.0),
+        vec2<f32>(-1.0,  1.0),
+        vec2<f32>(-1.0,  1.0),
+        vec2<f32>( 1.0, -1.0),
+        vec2<f32>( 1.0,  1.0)
+    );
+    let pos = vertices[vertex_index];
+    return vec4<f32>(pos, 0.0, 1.0);
+}
+
+@fragment
+fn fs_main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
+    let uv = (frag_coord.xy - vec2<f32>(256.0, 192.0)) / vec2<f32>(256.0, 192.0);
+    let time = 0.0; // Static for now
+    
+    // Simple 3D grid pattern to simulate a 3D viewport
+    let grid = step(0.95, sin(uv.x * 20.0)) + step(0.95, sin(uv.y * 20.0));
+    let bg = vec3<f32>(0.1, 0.15, 0.2) + grid * 0.1;
+    
+    // Add some "3D objects" as colored circles
+    let obj1 = smoothstep(0.1, 0.09, length(uv - vec2<f32>(-0.3, 0.2)));
+    let obj2 = smoothstep(0.08, 0.07, length(uv - vec2<f32>(0.4, -0.1)));
+    let obj3 = smoothstep(0.06, 0.05, length(uv - vec2<f32>(0.0, 0.4)));
+    
+    var color = bg;
+    color = mix(color, vec3<f32>(0.8, 0.3, 0.2), obj1);
+    color = mix(color, vec3<f32>(0.2, 0.8, 0.3), obj2);
+    color = mix(color, vec3<f32>(0.3, 0.2, 0.8), obj3);
+    
+    return vec4<f32>(color, 1.0);
+}
+"#;
+                    
+                    // Try to render the 3D scene shader
+                    if let Some(renderer) = ui_state.global_renderer.renderer.lock().unwrap().as_mut() {
+                        let render_params = RenderParameters {
+                            width: 512,
+                            height: 384,
+                            time: ui_state.time as f32,
+                            frame_rate: 60.0,
+                            audio_data: None, // Could integrate audio data here
+                        };
+                        
+                        match renderer.render_frame(scene_shader, &render_params, None) {
+                            Ok(texture_data) => {
+                                // Create or update the texture in egui
+                                let texture_id = ctx.tex_manager().write().alloc(
+                                    egui::epaint::ImageDelta {
+                                        image: egui::epaint::ImageData::Color(
+                                            egui::epaint::ColorImage::from_rgba_unmultiplied(
+                                                [512, 384],
+                                                &texture_data
+                                            )
+                                        ),
+                                        pos: None,
+                                        options: egui::epaint::TextureOptions::LINEAR,
+                                    }
+                                );
+                                
+                                // Display the rendered texture
+                                ui.image(egui::Image::new(egui::TextureId::User(texture_id))
+                                    .max_width(512.0)
+                                    .max_height(384.0));
+                                
+                                ui.label("3D viewport rendered successfully");
+                            }
+                            Err(e) => {
+                                ui.label(format!("Render error: {}", e));
+                                ui.label("Using fallback viewport display");
+                                // Fallback: display a simple colored rectangle
+                                ui.painter().rect_filled(
+                                    egui::Rect::from_min_size(ui.cursor().min, egui::vec2(512.0, 384.0)),
+                                    0.0,
+                                    egui::Color32::from_rgb(30, 45, 60)
+                                );
+                            }
+                        }
+                    } else {
+                        ui.label("Renderer not initialized - using fallback display");
+                        // Fallback: display a simple colored rectangle
+                        ui.painter().rect_filled(
+                            egui::Rect::from_min_size(ui.cursor().min, egui::vec2(512.0, 384.0)),
+                            0.0,
+                            egui::Color32::from_rgb(30, 45, 60)
+                        );
+                    }
+                } else {
+                    ui.label("3D editor disabled - enable from Studio menu");
+                }
+            });
     }
 }
 
@@ -251,6 +404,7 @@ pub fn run_app() {
         // .add_plugins(BevyNodeGraphPlugin)
         .insert_resource(EditorUiState::default())
         .insert_resource(UiStartupGate::default())
+        .insert_resource(Viewport3DTexture::default())
         .insert_resource(crate::screenshot_video_export::ScreenshotVideoExporter::new())
         .add_systems(Startup, setup_camera)
         .add_systems(Startup, initialize_wgpu_renderer)
