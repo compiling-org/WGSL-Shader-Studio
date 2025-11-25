@@ -306,12 +306,14 @@ use bevy::prelude::*;
 #[derive(Resource, Clone)]
 pub struct TimelineAnimation {
     pub timeline: Timeline,
+    pub playing: bool, // Convenience field for UI binding
 }
 
 impl Default for TimelineAnimation {
     fn default() -> Self {
         Self {
             timeline: Timeline::new(),
+            playing: false,
         }
     }
 }

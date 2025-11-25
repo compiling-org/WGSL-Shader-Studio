@@ -102,6 +102,7 @@ pub enum ExportRequest {
 }
 
 /// Screenshot and video exporter
+#[derive(Resource)]
 pub struct ScreenshotVideoExporter {
     export_state: Arc<Mutex<ExportState>>,
 }

@@ -649,7 +649,7 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
                         Ok(proj) => {
                             ui_state.node_graph = proj.node_graph;
                             if let Some(code) = proj.draft_code { ui_state.draft_code = code; }
-                            ui_state.timeline = TimelineAnimation { timeline: proj.timeline };
+                            ui_state.timeline = TimelineAnimation { timeline: proj.timeline, playing: false };
                             ui_state.param_index_map = proj.param_index_map;
                         }
                         Err(e) => { println!("Import project failed: {}", e); }
@@ -724,7 +724,8 @@ pub fn draw_editor_side_panels(
     gesture_control: &mut crate::gesture_control::GestureControlSystem,
     compute_pass_manager: &mut ComputePassManager,
     video_exporter: Option<&()>,
-    editor_state: Option<&()>
+    editor_state: Option<&()>,
+    global_renderer: Option<&GlobalShaderRenderer>
 ) {
     // CRITICAL FIX: Use proper panel hierarchy - NO CentralPanel here to avoid conflicts
     
@@ -1100,7 +1101,7 @@ pub fn draw_editor_side_panels(
                         if let Some(code) = loaded.draft_code {
                             ui_state.draft_code = code;
                         }
-                        ui_state.timeline = TimelineAnimation { timeline: loaded.timeline };
+                        ui_state.timeline = TimelineAnimation { timeline: loaded.timeline, playing: false };
                         ui_state.param_index_map = loaded.param_index_map;
                     }
                     Err(e) => { ui.label(format!("Import error: {}", e)); }
@@ -1364,9 +1365,42 @@ pub fn draw_editor_side_panels(
             });
             
             if ui.button("Dispatch Compute").clicked() {
-                // Dispatch compute logic would go here
-                println!("Dispatching compute shader: ({}, {}, {})", 
-                    ui_state.dispatch_size_x, ui_state.dispatch_size_y, ui_state.dispatch_size_z);
+                // Get current shader code from the UI state
+                let shader_code = ui_state.draft_code.clone();
+                
+                // Check if it's a compute shader
+                if shader_code.contains("@compute") {
+                    // Execute the compute shader
+                    if let Some(renderer) = global_renderer {
+                        match renderer.renderer.lock().unwrap().as_mut() {
+                            Some(renderer_ref) => {
+                                match renderer_ref.execute_compute_shader(
+                                    &shader_code,
+                                    (ui_state.dispatch_size_x, ui_state.dispatch_size_y, ui_state.dispatch_size_z),
+                                    Some(&[])
+                                ) {
+                                    Ok(_) => {
+                                        println!("Compute shader dispatched successfully: ({}, {}, {})", 
+                                            ui_state.dispatch_size_x, ui_state.dispatch_size_y, ui_state.dispatch_size_z);
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Failed to execute compute shader: {}", e);
+                                        ui_state.compilation_error = format!("Compute execution failed: {}", e);
+                                    }
+                                }
+                            }
+                            None => {
+                                ui_state.compilation_error = "No renderer available".to_string();
+                            }
+                        }
+                    } else {
+                        println!("Compute shader dispatch requested: ({}, {}, {})", 
+                            ui_state.dispatch_size_x, ui_state.dispatch_size_y, ui_state.dispatch_size_z);
+                        println!("Note: Compute execution requires renderer initialization");
+                    }
+                } else {
+                    ui_state.compilation_error = "No compute shader detected. Add @compute entry point.".to_string();
+                }
             }
             
             ui.separator();
@@ -1566,6 +1600,28 @@ pub fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiSta
             
             // Draw preview background
             painter.rect_filled(rect, 0.0, egui::Color32::from_gray(20));
+            
+            // Performance monitoring overlay - draw in top-right corner
+            let frame_time = ui.input(|i| i.time);
+            let fps = if frame_time > 0.0 { 1.0 / frame_time } else { 0.0 };
+            
+            let stats_pos = rect.right_top() - egui::vec2(150.0, 25.0);
+            
+            // Draw semi-transparent background for stats
+            painter.rect_filled(
+                egui::Rect::from_min_size(stats_pos, egui::vec2(140.0, 20.0)),
+                4.0,
+                egui::Color32::from_black_alpha(180)
+            );
+            
+            // Draw FPS text
+            painter.text(
+                stats_pos + egui::vec2(5.0, 2.0),
+                egui::Align2::LEFT_TOP,
+                format!("FPS: {:.1} | Frame: {:.1}ms", fps, frame_time * 1000.0),
+                egui::FontId::monospace(10.0),
+                egui::Color32::from_rgb(100, 255, 100)
+            );
             
             // CRITICAL: Actually render the shader instead of placeholder text
             if ui_state.draft_code.is_empty() {

@@ -82,7 +82,7 @@ pub struct ShaderRenderer {
     _instance: Instance, // Keep instance alive
     size: (u32, u32),
     // Working WGPU example shaders
-    working_examples: Vec<WorkingShaderExample>,
+    pub working_examples: Vec<WorkingShaderExample>,
     time: std::time::Instant,
     last_errors: Vec<String>,
 }
@@ -1582,6 +1582,104 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         if parameter_values.len() > 64 {
             return Err("Too many parameters (max 64)".into());
         }
+        Ok(())
+    }
+    
+    /// Execute a compute shader with the given dispatch size and parameters
+    pub fn execute_compute_shader(
+        &mut self,
+        compute_code: &str,
+        dispatch_size: (u32, u32, u32),
+        parameter_values: Option<&[f32]>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        // Validate compute shader code
+        if !compute_code.contains("@compute") {
+            return Err("Compute shader must contain @compute entry point".into());
+        }
+        
+        // Create compute pipeline
+        let compute_module = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Compute Shader"),
+            source: wgpu::ShaderSource::Wgsl(compute_code.into()),
+        });
+        
+        // Create uniform buffer for parameters
+        let mut uniform_data = [0.0f32; 4];
+        if let Some(params) = parameter_values {
+            for (i, &value) in params.iter().take(4).enumerate() {
+                uniform_data[i] = value;
+            }
+        }
+        
+        let uniform_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Compute Uniforms"),
+            contents: bytemuck::cast_slice(&uniform_data),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+        
+        // Create bind group layout
+        let bind_group_layout = self.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some("Compute Bind Group Layout"),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                },
+            ],
+        });
+        
+        // Create bind group
+        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("Compute Bind Group"),
+            layout: &bind_group_layout,
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: uniform_buffer.as_entire_binding(),
+            }],
+        });
+        
+        // Create compute pipeline
+        let pipeline_layout = self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Compute Pipeline Layout"),
+            bind_group_layouts: &[&bind_group_layout],
+            push_constant_ranges: &[],
+        });
+        
+        let compute_pipeline = self.device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("Compute Pipeline"),
+            layout: Some(&pipeline_layout),
+            module: &compute_module,
+            entry_point: Some("main"),
+            compilation_options: Default::default(),
+            cache: None,
+        });
+        
+        // Execute compute pass
+        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("Compute Encoder"),
+        });
+        
+        {
+            let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                label: Some("Compute Pass"),
+                timestamp_writes: None,
+            });
+            
+            compute_pass.set_pipeline(&compute_pipeline);
+            compute_pass.set_bind_group(0, &bind_group, &[]);
+            compute_pass.dispatch_workgroups(dispatch_size.0, dispatch_size.1, dispatch_size.2);
+        }
+        
+        // Submit command buffer
+        let command_buffer = encoder.finish();
+        self.queue.submit(std::iter::once(command_buffer));
+        
         Ok(())
     }
 }

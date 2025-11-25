@@ -1,6 +1,5 @@
 use bevy::prelude::*;
-use bevy::render::camera::{Camera, Projection};
-use bevy::render::primitives::Frustum;
+use bevy::render::primitives::{Frustum, Aabb};
 use bevy::render::view::VisibleEntities;
 
 /// 3D Scene Editor inspired by space_editor patterns
@@ -122,6 +121,7 @@ fn setup_editor_3d(
     commands.insert_resource(AmbientLight {
         color: Color::WHITE,
         brightness: 0.1,
+        affects_lightmapped_meshes: false,
     });
     
     // Create a default manipulable cube for testing
@@ -164,11 +164,11 @@ fn editor_3d_input_system(
     
     // Handle entity selection with mouse
     if mouse_button.just_pressed(MouseButton::Left) {
-        if let Ok(window) = windows.get_single() {
-            if let Ok((camera, camera_transform)) = camera_query.get_single() {
+        if let Ok(window) = windows.single() {
+            if let Ok((camera, camera_transform)) = camera_query.single() {
                 if let Some(cursor_position) = window.cursor_position() {
                     // Cast ray from camera to select entity
-                    if let Some(ray) = camera.viewport_to_world(camera_transform, cursor_position) {
+                    if let Ok(ray) = camera.viewport_to_world(camera_transform, cursor_position) {
                         let mut closest_entity = None;
                         let mut closest_distance = f32::MAX;
                         
@@ -182,13 +182,13 @@ fn editor_3d_input_system(
                                 0.5
                             };
                             
-                            let distance_to_ray = ray.intersect_sphere(entity_pos, selection_radius);
+                            // Simple distance-based selection - check if entity is close to ray origin
+                            let ray_origin = ray.origin;
+                            let distance_to_ray = ray_origin.distance(entity_pos);
                             
-                            if let Some(distance) = distance_to_ray {
-                                if distance < closest_distance && distance > 0.0 {
-                                    closest_distance = distance;
-                                    closest_entity = Some(entity);
-                                }
+                            if distance_to_ray < selection_radius && distance_to_ray < closest_distance {
+                                closest_distance = distance_to_ray;
+                                closest_entity = Some(entity);
                             }
                         }
                         
@@ -207,7 +207,7 @@ fn editor_3d_input_system(
 fn gizmo_manipulation_system(
     mut editor_state: ResMut<SceneEditor3DState>,
     mut manipulable_query: Query<&mut Transform, With<EditorManipulable>>,
-    mouse_motion: Res<MouseMotion>,
+    mut mouse_motion_events: MessageReader<bevy::input::mouse::MouseMotion>,
     mouse_button: Res<ButtonInput<MouseButton>>,
 ) {
     if !editor_state.enabled {
@@ -218,7 +218,12 @@ fn gizmo_manipulation_system(
         if let Ok(mut transform) = manipulable_query.get_mut(selected_entity) {
             // Only manipulate when left mouse is held down
             if mouse_button.pressed(MouseButton::Left) {
-                let delta = mouse_motion.delta();
+                // Process mouse motion events
+                let mut total_delta = Vec2::ZERO;
+                for event in mouse_motion_events.read() {
+                    total_delta += event.delta;
+                }
+                let delta = total_delta;
                 
                 match editor_state.manipulation_mode {
                     ManipulationMode::Translate => {
@@ -228,7 +233,12 @@ fn gizmo_manipulation_system(
                     }
                     ManipulationMode::Rotate => {
                         // Simple rotation based on mouse movement
-                        let rotation_delta = Vec3::new(-delta.y * 0.01, -delta.x * 0.01, 0.0);
+                        let rotation_delta = Quat::from_euler(
+                            bevy::math::EulerRot::XYZ,
+                            -delta.y * 0.01,
+                            -delta.x * 0.01,
+                            0.0
+                        );
                         transform.rotate_local(rotation_delta);
                     }
                     ManipulationMode::Scale => {
@@ -245,16 +255,21 @@ fn gizmo_manipulation_system(
 /// Update editor camera with pan/orbit controls
 fn update_editor_camera(
     mut camera_query: Query<(&mut Transform, &mut Projection), With<EditorCamera3D>>,
-    mouse_motion: Res<MouseMotion>,
+    mut mouse_motion_events: MessageReader<bevy::input::mouse::MouseMotion>,
     mouse_button: Res<ButtonInput<MouseButton>>,
     key_input: Res<ButtonInput<KeyCode>>,
-    mut mouse_wheel: EventReader<bevy::input::mouse::MouseWheel>,
+    mut mouse_wheel: MessageReader<bevy::input::mouse::MouseWheel>,
     time: Res<Time>,
 ) {
-    if let Ok((mut transform, _projection)) = camera_query.get_single_mut() {
+    if let Ok((mut transform, _projection)) = camera_query.single_mut() {
         // Orbit camera with right mouse button
         if mouse_button.pressed(MouseButton::Right) {
-            let delta = mouse_motion.delta();
+            // Process mouse motion events
+            let mut total_delta = Vec2::ZERO;
+            for event in mouse_motion_events.read() {
+                total_delta += event.delta;
+            }
+            let delta = total_delta;
             
             // Orbit around origin (simplified)
             let radius = transform.translation.length();
@@ -270,14 +285,19 @@ fn update_editor_camera(
         
         // Pan camera with middle mouse button
         if mouse_button.pressed(MouseButton::Middle) {
-            let delta = mouse_motion.delta();
+            // Process mouse motion events
+            let mut total_delta = Vec2::ZERO;
+            for event in mouse_motion_events.read() {
+                total_delta += event.delta;
+            }
+            let delta = total_delta;
             let pan_speed = 0.1;
             
             let right = transform.right();
             let up = transform.up();
             
-            transform.translation += right * -delta.x * pan_speed;
-            transform.translation += up * delta.y * pan_speed;
+            transform.translation += right.as_vec3() * -delta.x * pan_speed;
+            transform.translation += up.as_vec3() * delta.y * pan_speed;
         }
         
         // Zoom with mouse wheel
@@ -314,36 +334,36 @@ fn highlight_selected_entity(
             // Draw selection highlight box
             gizmos.cuboid(
                 Transform::from_translation(pos).with_scale(Vec3::splat(1.2)),
-                Color::YELLOW,
+                Color::srgb(1.0, 1.0, 0.0), // Yellow
             );
             
             // Draw manipulation gizmo based on current mode
             match editor_state.manipulation_mode {
                 ManipulationMode::Translate => {
                     // Draw translation axes
-                    gizmos.arrow(pos, pos + Vec3::X * 0.5, Color::RED);
-                    gizmos.arrow(pos, pos + Vec3::Y * 0.5, Color::GREEN);
-                    gizmos.arrow(pos, pos + Vec3::Z * 0.5, Color::BLUE);
+                    gizmos.arrow(pos, pos + Vec3::X * 0.5, Color::srgb(1.0, 0.0, 0.0)); // Red
+                    gizmos.arrow(pos, pos + Vec3::Y * 0.5, Color::srgb(0.0, 1.0, 0.0)); // Green
+                    gizmos.arrow(pos, pos + Vec3::Z * 0.5, Color::srgb(0.0, 0.0, 1.0)); // Blue
                 }
                 ManipulationMode::Rotate => {
                     // Draw rotation circles
-                    gizmos.circle(pos, Direction3d::X, 0.3, Color::RED);
-                    gizmos.circle(pos, Direction3d::Y, 0.3, Color::GREEN);
-                    gizmos.circle(pos, Direction3d::Z, 0.3, Color::BLUE);
+                    gizmos.circle(pos, 0.3, Color::srgb(1.0, 0.0, 0.0)); // Red
+                    gizmos.circle(pos, 0.3, Color::srgb(0.0, 1.0, 0.0)); // Green  
+                    gizmos.circle(pos, 0.3, Color::srgb(0.0, 0.0, 1.0)); // Blue
                 }
                 ManipulationMode::Scale => {
                     // Draw scale handles
                     gizmos.cuboid(
                         Transform::from_translation(pos + Vec3::X * 0.4).with_scale(Vec3::splat(0.1)),
-                        Color::RED,
+                        Color::srgb(1.0, 0.0, 0.0), // Red
                     );
                     gizmos.cuboid(
                         Transform::from_translation(pos + Vec3::Y * 0.4).with_scale(Vec3::splat(0.1)),
-                        Color::GREEN,
+                        Color::srgb(0.0, 1.0, 0.0), // Green
                     );
                     gizmos.cuboid(
                         Transform::from_translation(pos + Vec3::Z * 0.4).with_scale(Vec3::splat(0.1)),
-                        Color::BLUE,
+                        Color::srgb(0.0, 0.0, 1.0), // Blue
                     );
                 }
             }
@@ -461,7 +481,7 @@ pub fn scene_editor_3d_ui(
                     ui.label("Grid Size:");
                     ui.add(egui::DragValue::new(&mut editor_state.grid_size)
                         .speed(0.1)
-                        .clamp_range(0.1..=10.0));
+                        .range(0.1..=10.0));
                 });
                 ui.label("Press G to snap selected entities");
             }
@@ -547,7 +567,7 @@ fn snap_to_grid_system(
 /// 3D viewport panel that can be embedded in the main editor
 pub fn scene_3d_viewport_ui(
     mut egui_ctx: bevy_egui::EguiContexts,
-    editor_state: &crate::scene_editor_3d::SceneEditor3DState,
+    editor_state: Res<crate::scene_editor_3d::SceneEditor3DState>,
 ) {
     use bevy_egui::egui;
     

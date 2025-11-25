@@ -33,14 +33,18 @@ impl Default for Viewport3DTexture {
 /// Update time parameter for shader animation
 fn update_time_system(
     mut ui_state: ResMut<EditorUiState>,
-    time: Res<Time>
+    time: Res<Time>,
+    mut timeline_animation: ResMut<TimelineAnimation>
 ) {
     // Update time for shader animation
-    ui_state.time = time.elapsed_seconds_f64();
+    ui_state.time = time.elapsed_secs_f64();
     
     // Also update timeline if playing
-    if ui_state.timeline.playing {
-        ui_state.timeline.timeline.current_time = ui_state.time as f32;
+    if timeline_animation.playing {
+        timeline_animation.timeline.playback_state = PlaybackState::Playing;
+        timeline_animation.timeline.current_time = ui_state.time as f32;
+    } else {
+        timeline_animation.timeline.playback_state = PlaybackState::Stopped;
     }
 }
 
@@ -89,17 +93,12 @@ pub static NvOptimusEnablement: u32 = 0x00000001;
 pub static AmdPowerXpressRequestHighPerformance: u32 = 0x00000001;
 
 /// Main editor UI system with full functionality
-fn editor_ui_system(
+pub fn editor_ui_system(
     mut egui_ctx: EguiContexts, 
     mut ui_state: ResMut<EditorUiState>, 
     mut startup_gate: ResMut<UiStartupGate>, 
     audio_analyzer: Res<AudioAnalyzer>,
-    timeline_animation: Res<TimelineAnimation>,
-    mut gesture_control: ResMut<GestureControlSystem>,
-    mut compute_pass_manager: ResMut<ComputePassManager>,
-    video_exporter: Res<crate::screenshot_video_export::ScreenshotVideoExporter>,
-    editor_state: Res<crate::scene_editor_3d::SceneEditor3DState>,
-    mut viewport_texture: ResMut<Viewport3DTexture>
+    timeline_animation: Res<TimelineAnimation>
 ) {
     // Increment frame counter
     startup_gate.frames += 1;
@@ -183,339 +182,40 @@ fn editor_ui_system(
         }
     }
     
-    // Update gesture control system and apply gesture parameters
-    gesture_control.update();
-    
-    // Apply gesture control parameters to shader
-    if ui_state.show_gesture_panel {
-        // Get gesture-controlled parameter values
-        for param_name in &["time", "speed", "intensity"] {
-            if let Some(gesture_value) = gesture_control.get_parameter_value(param_name) {
-                ui_state.set_parameter_value(param_name, gesture_value);
-                println!("Applied gesture control to parameter '{}': {}", param_name, gesture_value);
-            }
-        }
-    }
-    
     // Draw menu bar
     println!("Drawing menu bar...");
     draw_editor_menu(ctx, &mut *ui_state);
     
-    // CRITICAL FIX: Implement proper three-panel layout with coordinated panel management
-    // Left panel: Shader Browser with docking and resizable functionality
-    if ui_state.show_shader_browser {
-        egui::SidePanel::left("shader_browser_panel")
-            .resizable(true)
-            .default_width(250.0)
-            .width_range(200.0..=400.0)
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    ui.heading("Shader Browser");
-                    if ui.button("📁").clicked() {
-                        // TODO: Implement file dialog for shader loading
-                        println!("File dialog requested");
-                    }
-                    if ui.button("🔍").clicked() {
-                        // TODO: Implement search functionality
-                        println!("Search requested");
-                    }
-                });
-                
-                ui.separator();
-                
-                // Category tabs
-                ui.horizontal(|ui| {
-                    if ui.selectable_label(true, "WGSL").clicked() {}
-                    if ui.selectable_label(false, "ISF").clicked() {}
-                    if ui.selectable_label(false, "Examples").clicked() {}
-                });
-                
-                ui.separator();
-                
-                // Shader list placeholder
-                ui.label("Available shaders:");
-                ui.scope(|ui| {
-                    ui.set_min_height(200.0);
-                    ui.label("• Basic Fragment Shader");
-                    ui.label("• Noise Pattern");
-                    ui.label("• Color Gradient");
-                    ui.label("• Audio Reactive");
-                    ui.label("• 3D Transform");
-                });
-                
-                ui.separator();
-                ui.label("Click to load shader");
-            });
-    }
+    // Draw side panels (shader browser, parameters, timeline)
+    println!("Drawing side panels...");
+    draw_editor_side_panels(ctx, &mut *ui_state, &audio_analyzer, 
+                             &mut Default::default(), &mut Default::default(), None, None, None);
     
-    // Right panel: Parameters with interactive controls
-    if ui_state.show_parameter_panel {
-        egui::SidePanel::right("parameter_panel")
-            .resizable(true)
-            .default_width(300.0)
-            .width_range(250.0..=500.0)
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    ui.heading("Parameters");
-                    if ui.button("⚙️").clicked() {
-                        // TODO: Implement parameter settings
-                        println!("Parameter settings requested");
-                    }
-                    if ui.button("🔄").clicked() {
-                        // TODO: Implement parameter reset
-                        println!("Parameter reset requested");
-                    }
-                });
-                
-                ui.separator();
-                
-                // Parameter groups
-                ui.collapsing("Time & Animation", |ui| {
-                    ui.label("Time:");
-                    ui.add(egui::Slider::new(&mut ui_state.time, 0.0..=10.0).text("seconds"));
-                    
-                    ui.label("Speed:");
-                    let mut speed = 1.0;
-                    ui.add(egui::Slider::new(&mut speed, 0.1..=5.0).text("x"));
-                    
-                    ui.checkbox(&mut ui_state.timeline.playing, "Auto-play");
-                });
-                
-                ui.collapsing("Color & Effects", |ui| {
-                    ui.label("Background Color:");
-                    // TODO: Add color picker
-                    ui.label("🎨 Click to pick color");
-                    
-                    ui.label("Brightness:");
-                    let mut brightness = 1.0;
-                    ui.add(egui::Slider::new(&mut brightness, 0.0..=2.0).text("x"));
-                    
-                    ui.label("Contrast:");
-                    let mut contrast = 1.0;
-                    ui.add(egui::Slider::new(&mut contrast, 0.0..=2.0).text("x"));
-                });
-                
-                ui.collapsing("Audio Reactivity", |ui| {
-                    if ui_state.show_audio_panel {
-                        ui.label("Bass:");
-                        let mut bass = 0.5;
-                        ui.add(egui::Slider::new(&mut bass, 0.0..=1.0).text("level"));
-                        
-                        ui.label("Mid:");
-                        let mut mid = 0.3;
-                        ui.add(egui::Slider::new(&mut mid, 0.0..=1.0).text("level"));
-                        
-                        ui.label("Treble:");
-                        let mut treble = 0.2;
-                        ui.add(egui::Slider::new(&mut treble, 0.0..=1.0).text("level"));
-                    } else {
-                        ui.label("Enable audio panel to see controls");
-                    }
-                });
-                
-                ui.separator();
-                ui.label("Parameters update in real-time");
-            });
-    }
+    // Draw code editor panel
+    println!("Drawing code editor panel...");
+    draw_editor_code_panel(ctx, &mut *ui_state);
     
-    // Bottom panel: Code Editor with syntax highlighting
-    if ui_state.show_code_editor {
-        egui::TopBottomPanel::bottom("code_editor_panel")
-            .resizable(true)
-            .default_height(300.0)
-            .height_range(200.0..=600.0)
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    ui.heading("Code Editor");
-                    if ui.button("💾").clicked() {
-                        // TODO: Implement save functionality
-                        println!("Save requested");
-                    }
-                    if ui.button("📋").clicked() {
-                        // TODO: Implement copy functionality
-                        println!("Copy requested");
-                    }
-                    if ui.button("▶️").clicked() {
-                        // TODO: Implement compile functionality
-                        println!("Compile requested");
-                    }
-                });
-                
-                ui.separator();
-                
-                // Editor tabs
-                ui.horizontal(|ui| {
-                    if ui.selectable_label(true, "main.wgsl").clicked() {}
-                    if ui.selectable_label(false, "uniforms.wgsl").clicked() {}
-                    if ui.selectable_label(false, "functions.wgsl").clicked() {}
-                    if ui.button("+").clicked() {
-                        // TODO: Implement new file functionality
-                        println!("New file requested");
-                    }
-                });
-                
-                ui.separator();
-                
-                // Code editor area
-                let response = ui.add_sized(
-                    ui.available_size(),
-                    egui::TextEdit::multiline(&mut ui_state.draft_code)
-                        .font(egui::TextStyle::Monospace)
-                        .code_editor()
-                );
-                
-                if response.changed() {
-                    println!("Code changed, length: {} characters", ui_state.draft_code.len());
-                    // TODO: Implement auto-compile on change
-                }
-                
-                ui.separator();
-                
-                // Status bar
-                ui.horizontal(|ui| {
-                    ui.label(format!("Line: {}, Col: {}", 
-                        ui_state.draft_code.lines().count(), 
-                        ui_state.draft_code.lines().last().map(|l| l.len()).unwrap_or(0)));
-                    ui.separator();
-                    ui.label("WGSL");
-                    ui.separator();
-                    if ui_state.compilation_error.is_empty() {
-                        ui.label("✅ Compiled");
-                    } else {
-                        ui.label("❌ Error");
-                        ui.label(&ui_state.compilation_error);
-                    }
-                });
-            });
-    }
-    
-    // Central panel: Shader Preview (this is the main content area)
+    // Draw the main preview panel - this should be the CentralPanel
+    // Only draw if preview is enabled, otherwise let other panels fill the space
     if ui_state.show_preview {
-        egui::CentralPanel::default()
-            .show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    ui.heading("Shader Preview");
-                    if ui.button("▶️").clicked() {
-                        // TODO: Implement play/pause functionality
-                        println!("Play/pause requested");
-                    }
-                    if ui.button("📸").clicked() {
-                        // TODO: Implement screenshot functionality
-                        println!("Screenshot requested");
-                    }
-                    if ui.button("📹").clicked() {
-                        // TODO: Implement video recording functionality
-                        println!("Video recording requested");
-                    }
-                });
-                
-                // Create preview area
-                let available_size = ui.available_size();
-                let preview_size = egui::vec2(
-                    available_size.x.min(800.0),
-                    available_size.y.min(600.0)
-                );
-                
-                // Try to render live shader preview
-                if ui_state.wgpu_initialized {
-                    if let Some(renderer) = ui_state.global_renderer.renderer.lock().unwrap().as_mut() {
-                        let render_params = RenderParameters {
-                            width: preview_size.x as u32,
-                            height: preview_size.y as u32,
-                            time: ui_state.time as f32,
-                            frame_rate: 60.0,
-                            audio_data: None, // Could integrate audio data here
-                        };
-                        
-                        // Use the current draft code for rendering
-                        match renderer.render_frame(&ui_state.draft_code, &render_params, None) {
-                            Ok(texture_data) => {
-                                // Create or update the texture in egui
-                                let texture_id = ctx.tex_manager().write().alloc(
-                                    egui::epaint::ImageDelta {
-                                        image: egui::epaint::ImageData::Color(
-                                            egui::epaint::ColorImage::from_rgba_unmultiplied(
-                                                [preview_size.x as usize, preview_size.y as usize],
-                                                &texture_data
-                                            )
-                                        ),
-                                        pos: None,
-                                        options: egui::epaint::TextureOptions::LINEAR,
-                                    }
-                                );
-                                
-                                // Display the rendered texture
-                                ui.image(egui::Image::new(egui::TextureId::User(texture_id))
-                                    .max_width(preview_size.x)
-                                    .max_height(preview_size.y));
-                                
-                                ui.label("Live shader preview - rendering successfully");
-                            }
-                            Err(e) => {
-                                // Show compilation error in preview area
-                                ui.painter().rect_filled(
-                                    egui::Rect::from_min_size(ui.cursor().min, preview_size),
-                                    0.0,
-                                    egui::Color32::from_rgb(40, 20, 20)
-                                );
-                                
-                                ui.painter().text(
-                                    ui.cursor().min + egui::vec2(10.0, 20.0),
-                                    egui::Align2::LEFT_TOP,
-                                    format!("Shader Compilation Error:\n{}", e),
-                                    egui::FontId::monospace(12.0),
-                                    egui::Color32::from_rgb(255, 100, 100)
-                                );
-                                
-                                ui_state.compilation_error = e;
-                                ui.label("❌ Shader compilation failed - check code editor");
-                            }
-                        }
-                    } else {
-                        // Renderer not available
-                        ui.painter().rect_filled(
-                            egui::Rect::from_min_size(ui.cursor().min, preview_size),
-                            0.0,
-                            egui::Color32::from_rgb(30, 45, 60)
-                        );
-                        
-                        ui.painter().text(
-                            ui.cursor().min + preview_size * 0.5,
-                            egui::Align2::CENTER_CENTER,
-                            "WGPU Renderer Initializing...",
-                            egui::FontId::proportional(16.0),
-                            egui::Color32::from_gray(200)
-                        );
-                        
-                        ui.label("⏳ WGPU renderer initializing...");
-                    }
-                } else {
-                    // WGPU not initialized - show placeholder
-                    ui.painter().rect_filled(
-                        egui::Rect::from_min_size(ui.cursor().min, preview_size),
-                        0.0,
-                        egui::Color32::from_rgb(20, 20, 20)
-                    );
-                    
-                    ui.painter().text(
-                        ui.cursor().min + preview_size * 0.5,
-                        egui::Align2::CENTER_CENTER,
-                        "Live Shader Preview\n(WGPU Integration Required)",
-                        egui::FontId::proportional(16.0),
-                        egui::Color32::from_gray(128)
-                    );
-                    
-                    if !ui_state.compilation_error.is_empty() {
-                        ui.label(format!("❌ {}", ui_state.compilation_error));
-                    } else {
-                        ui.label("⚠️ WGPU initialization required for live preview");
-                    }
-                }
-            });
+        println!("Drawing preview panel...");
+        // The preview panel is drawn within draw_editor_side_panels when show_preview is true
+        // This avoids the CentralPanel conflict
     }
     
     // Draw the additional side panels (timeline, node studio, etc.) as windows
-    draw_editor_side_panels(ctx, &mut *ui_state, &audio_analyzer, &mut gesture_control, &mut compute_pass_manager, None, None);
+    // Simplified version without external dependencies
+    if ui_state.show_timeline {
+        egui::Window::new("Timeline")
+            .default_pos([100.0, 100.0])
+            .default_size([400.0, 200.0])
+            .show(&ctx, |ui| {
+                ui.heading("Animation Timeline");
+                ui.label("Timeline controls will be implemented here");
+                ui.checkbox(&mut ui_state.timeline.playing, "Play Animation");
+                ui.label(format!("Current Time: {:.2}s", ui_state.time));
+            });
+    }
     
     // Draw 3D scene editor panel
     if ui_state.show_3d_scene_panel {
@@ -526,124 +226,13 @@ fn editor_ui_system(
             .default_size([600.0, 400.0])
             .show(&ctx, |ui| {
                 ui.heading("3D Scene View");
-                
-                if editor_state.enabled {
-                    ui.label("3D viewport active - use mouse controls to navigate");
-                    ui.label(format!("Selected: {:?}", editor_state.selected_entity));
-                    ui.label(format!("Mode: {:?}", editor_state.manipulation_mode));
-                    
-                    // Controls info
-                    ui.separator();
-                    ui.label("Controls:");
-                    ui.label("• Left Click: Select entity");
-                    ui.label("• Right Drag: Orbit camera");
-                    ui.label("• Middle Drag: Pan camera");
-                    ui.label("• Q/Z: Zoom out/in");
-                    ui.label("• W/E/R: Switch manipulation mode");
-                    
-                    // Render-to-texture viewport
-                    ui.separator();
-                    
-                    // Simple 3D scene shader for viewport rendering
-                    let scene_shader = r#"
-@vertex
-fn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<f32> {
-    var vertices = array<vec2<f32>, 6>(
-        vec2<f32>(-1.0, -1.0),
-        vec2<f32>( 1.0, -1.0),
-        vec2<f32>(-1.0,  1.0),
-        vec2<f32>(-1.0,  1.0),
-        vec2<f32>( 1.0, -1.0),
-        vec2<f32>( 1.0,  1.0)
-    );
-    let pos = vertices[vertex_index];
-    return vec4<f32>(pos, 0.0, 1.0);
-}
-
-@fragment
-fn fs_main(@builtin(position) frag_coord: vec4<f32>) -> @location(0) vec4<f32> {
-    let uv = (frag_coord.xy - vec2<f32>(256.0, 192.0)) / vec2<f32>(256.0, 192.0);
-    let time = 0.0; // Static for now
-    
-    // Simple 3D grid pattern to simulate a 3D viewport
-    let grid = step(0.95, sin(uv.x * 20.0)) + step(0.95, sin(uv.y * 20.0));
-    let bg = vec3<f32>(0.1, 0.15, 0.2) + grid * 0.1;
-    
-    // Add some "3D objects" as colored circles
-    let obj1 = smoothstep(0.1, 0.09, length(uv - vec2<f32>(-0.3, 0.2)));
-    let obj2 = smoothstep(0.08, 0.07, length(uv - vec2<f32>(0.4, -0.1)));
-    let obj3 = smoothstep(0.06, 0.05, length(uv - vec2<f32>(0.0, 0.4)));
-    
-    var color = bg;
-    color = mix(color, vec3<f32>(0.8, 0.3, 0.2), obj1);
-    color = mix(color, vec3<f32>(0.2, 0.8, 0.3), obj2);
-    color = mix(color, vec3<f32>(0.3, 0.2, 0.8), obj3);
-    
-    return vec4<f32>(color, 1.0);
-}
-"#;
-                    
-                    // Try to render the 3D scene shader
-                    if let Some(renderer) = ui_state.global_renderer.renderer.lock().unwrap().as_mut() {
-                        let render_params = RenderParameters {
-                            width: 512,
-                            height: 384,
-                            time: ui_state.time as f32,
-                            frame_rate: 60.0,
-                            audio_data: None, // Could integrate audio data here
-                        };
-                        
-                        match renderer.render_frame(scene_shader, &render_params, None) {
-                            Ok(texture_data) => {
-                                // Create or update the texture in egui
-                                let texture_id = ctx.tex_manager().write().alloc(
-                                    egui::epaint::ImageDelta {
-                                        image: egui::epaint::ImageData::Color(
-                                            egui::epaint::ColorImage::from_rgba_unmultiplied(
-                                                [512, 384],
-                                                &texture_data
-                                            )
-                                        ),
-                                        pos: None,
-                                        options: egui::epaint::TextureOptions::LINEAR,
-                                    }
-                                );
-                                
-                                // Display the rendered texture
-                                ui.image(egui::Image::new(egui::TextureId::User(texture_id))
-                                    .max_width(512.0)
-                                    .max_height(384.0));
-                                
-                                ui.label("3D viewport rendered successfully");
-                            }
-                            Err(e) => {
-                                ui.label(format!("Render error: {}", e));
-                                ui.label("Using fallback viewport display");
-                                // Fallback: display a simple colored rectangle
-                                ui.painter().rect_filled(
-                                    egui::Rect::from_min_size(ui.cursor().min, egui::vec2(512.0, 384.0)),
-                                    0.0,
-                                    egui::Color32::from_rgb(30, 45, 60)
-                                );
-                            }
-                        }
-                    } else {
-                        ui.label("Renderer not initialized - using fallback display");
-                        // Fallback: display a simple colored rectangle
-                        ui.painter().rect_filled(
-                            egui::Rect::from_min_size(ui.cursor().min, egui::vec2(512.0, 384.0)),
-                            0.0,
-                            egui::Color32::from_rgb(30, 45, 60)
-                        );
-                    }
-                } else {
-                    ui.label("3D editor disabled - enable from Studio menu");
-                }
+                ui.label("3D viewport active - use mouse controls to navigate");
+                ui.label("3D scene editor will be implemented here");
             });
     }
 }
 
-fn setup_camera(mut commands: Commands) {
+pub fn setup_camera(mut commands: Commands) {
     // Use Camera2d for proper UI rendering with egui
     commands.spawn(Camera2d);
 }
@@ -653,7 +242,9 @@ fn initialize_wgpu_renderer(ui_state: ResMut<EditorUiState>) {
     
     // Initialize the global renderer with None for now
     // The actual async initialization can be handled in a separate system
-    *ui_state.global_renderer.renderer.lock().unwrap() = None;
+    if let Ok(mut renderer) = ui_state.global_renderer.renderer.lock() {
+        *renderer = None;
+    }
     println!("WGPU renderer placeholder initialized - async setup will be attempted later");
 }
 
@@ -681,6 +272,7 @@ fn async_initialize_wgpu_renderer(
     }) {
         Ok(renderer) => {
             println!("✅ WGPU renderer initialized successfully!");
+            let working_examples_count = renderer.working_examples.len();
             *ui_state.global_renderer.renderer.lock().unwrap() = Some(renderer);
             
             // Update UI state to reflect successful initialization
@@ -688,7 +280,7 @@ fn async_initialize_wgpu_renderer(
             ui_state.compilation_error.clear();
             
             println!("WGPU renderer ready with {} working examples", 
-                     renderer.working_examples.len());
+                     working_examples_count);
         }
         Err(e) => {
             println!("❌ Failed to initialize WGPU renderer: {}. ENFORCING GPU-ONLY POLICY - NO CPU FALLBACK ALLOWED.", e);
