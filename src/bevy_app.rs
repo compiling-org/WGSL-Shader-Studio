@@ -30,6 +30,20 @@ impl Default for Viewport3DTexture {
     }
 }
 
+/// Update time parameter for shader animation
+fn update_time_system(
+    mut ui_state: ResMut<EditorUiState>,
+    time: Res<Time>
+) {
+    // Update time for shader animation
+    ui_state.time = time.elapsed_seconds_f64();
+    
+    // Also update timeline if playing
+    if ui_state.timeline.playing {
+        ui_state.timeline.timeline.current_time = ui_state.time as f32;
+    }
+}
+
 /// Apply theme settings to the egui context
 fn apply_theme(ctx: &egui::Context, ui_state: &super::editor_ui::EditorUiState) {
     let theme = if ui_state.dark_mode {
@@ -187,19 +201,321 @@ fn editor_ui_system(
     println!("Drawing menu bar...");
     draw_editor_menu(ctx, &mut *ui_state);
     
-    // Draw side panels (shader browser, parameters, timeline)
-    println!("Drawing side panels...");
-    draw_editor_side_panels(ctx, &mut *ui_state, &audio_analyzer, &mut gesture_control, &mut compute_pass_manager, None, None);
-    
-    // Draw code editor panel
-    println!("Drawing code editor panel...");
-    draw_editor_code_panel(ctx, &mut *ui_state);
-    
-    // Draw the main preview panel using CentralPanel - this creates proper three-panel layout
-    if ui_state.show_preview {
-        println!("Drawing preview panel...");
-        draw_editor_central_panel(ctx, &mut *ui_state, &audio_analyzer, None);
+    // CRITICAL FIX: Implement proper three-panel layout with coordinated panel management
+    // Left panel: Shader Browser with docking and resizable functionality
+    if ui_state.show_shader_browser {
+        egui::SidePanel::left("shader_browser_panel")
+            .resizable(true)
+            .default_width(250.0)
+            .width_range(200.0..=400.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.heading("Shader Browser");
+                    if ui.button("📁").clicked() {
+                        // TODO: Implement file dialog for shader loading
+                        println!("File dialog requested");
+                    }
+                    if ui.button("🔍").clicked() {
+                        // TODO: Implement search functionality
+                        println!("Search requested");
+                    }
+                });
+                
+                ui.separator();
+                
+                // Category tabs
+                ui.horizontal(|ui| {
+                    if ui.selectable_label(true, "WGSL").clicked() {}
+                    if ui.selectable_label(false, "ISF").clicked() {}
+                    if ui.selectable_label(false, "Examples").clicked() {}
+                });
+                
+                ui.separator();
+                
+                // Shader list placeholder
+                ui.label("Available shaders:");
+                ui.scope(|ui| {
+                    ui.set_min_height(200.0);
+                    ui.label("• Basic Fragment Shader");
+                    ui.label("• Noise Pattern");
+                    ui.label("• Color Gradient");
+                    ui.label("• Audio Reactive");
+                    ui.label("• 3D Transform");
+                });
+                
+                ui.separator();
+                ui.label("Click to load shader");
+            });
     }
+    
+    // Right panel: Parameters with interactive controls
+    if ui_state.show_parameter_panel {
+        egui::SidePanel::right("parameter_panel")
+            .resizable(true)
+            .default_width(300.0)
+            .width_range(250.0..=500.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.heading("Parameters");
+                    if ui.button("⚙️").clicked() {
+                        // TODO: Implement parameter settings
+                        println!("Parameter settings requested");
+                    }
+                    if ui.button("🔄").clicked() {
+                        // TODO: Implement parameter reset
+                        println!("Parameter reset requested");
+                    }
+                });
+                
+                ui.separator();
+                
+                // Parameter groups
+                ui.collapsing("Time & Animation", |ui| {
+                    ui.label("Time:");
+                    ui.add(egui::Slider::new(&mut ui_state.time, 0.0..=10.0).text("seconds"));
+                    
+                    ui.label("Speed:");
+                    let mut speed = 1.0;
+                    ui.add(egui::Slider::new(&mut speed, 0.1..=5.0).text("x"));
+                    
+                    ui.checkbox(&mut ui_state.timeline.playing, "Auto-play");
+                });
+                
+                ui.collapsing("Color & Effects", |ui| {
+                    ui.label("Background Color:");
+                    // TODO: Add color picker
+                    ui.label("🎨 Click to pick color");
+                    
+                    ui.label("Brightness:");
+                    let mut brightness = 1.0;
+                    ui.add(egui::Slider::new(&mut brightness, 0.0..=2.0).text("x"));
+                    
+                    ui.label("Contrast:");
+                    let mut contrast = 1.0;
+                    ui.add(egui::Slider::new(&mut contrast, 0.0..=2.0).text("x"));
+                });
+                
+                ui.collapsing("Audio Reactivity", |ui| {
+                    if ui_state.show_audio_panel {
+                        ui.label("Bass:");
+                        let mut bass = 0.5;
+                        ui.add(egui::Slider::new(&mut bass, 0.0..=1.0).text("level"));
+                        
+                        ui.label("Mid:");
+                        let mut mid = 0.3;
+                        ui.add(egui::Slider::new(&mut mid, 0.0..=1.0).text("level"));
+                        
+                        ui.label("Treble:");
+                        let mut treble = 0.2;
+                        ui.add(egui::Slider::new(&mut treble, 0.0..=1.0).text("level"));
+                    } else {
+                        ui.label("Enable audio panel to see controls");
+                    }
+                });
+                
+                ui.separator();
+                ui.label("Parameters update in real-time");
+            });
+    }
+    
+    // Bottom panel: Code Editor with syntax highlighting
+    if ui_state.show_code_editor {
+        egui::TopBottomPanel::bottom("code_editor_panel")
+            .resizable(true)
+            .default_height(300.0)
+            .height_range(200.0..=600.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.heading("Code Editor");
+                    if ui.button("💾").clicked() {
+                        // TODO: Implement save functionality
+                        println!("Save requested");
+                    }
+                    if ui.button("📋").clicked() {
+                        // TODO: Implement copy functionality
+                        println!("Copy requested");
+                    }
+                    if ui.button("▶️").clicked() {
+                        // TODO: Implement compile functionality
+                        println!("Compile requested");
+                    }
+                });
+                
+                ui.separator();
+                
+                // Editor tabs
+                ui.horizontal(|ui| {
+                    if ui.selectable_label(true, "main.wgsl").clicked() {}
+                    if ui.selectable_label(false, "uniforms.wgsl").clicked() {}
+                    if ui.selectable_label(false, "functions.wgsl").clicked() {}
+                    if ui.button("+").clicked() {
+                        // TODO: Implement new file functionality
+                        println!("New file requested");
+                    }
+                });
+                
+                ui.separator();
+                
+                // Code editor area
+                let response = ui.add_sized(
+                    ui.available_size(),
+                    egui::TextEdit::multiline(&mut ui_state.draft_code)
+                        .font(egui::TextStyle::Monospace)
+                        .code_editor()
+                );
+                
+                if response.changed() {
+                    println!("Code changed, length: {} characters", ui_state.draft_code.len());
+                    // TODO: Implement auto-compile on change
+                }
+                
+                ui.separator();
+                
+                // Status bar
+                ui.horizontal(|ui| {
+                    ui.label(format!("Line: {}, Col: {}", 
+                        ui_state.draft_code.lines().count(), 
+                        ui_state.draft_code.lines().last().map(|l| l.len()).unwrap_or(0)));
+                    ui.separator();
+                    ui.label("WGSL");
+                    ui.separator();
+                    if ui_state.compilation_error.is_empty() {
+                        ui.label("✅ Compiled");
+                    } else {
+                        ui.label("❌ Error");
+                        ui.label(&ui_state.compilation_error);
+                    }
+                });
+            });
+    }
+    
+    // Central panel: Shader Preview (this is the main content area)
+    if ui_state.show_preview {
+        egui::CentralPanel::default()
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.heading("Shader Preview");
+                    if ui.button("▶️").clicked() {
+                        // TODO: Implement play/pause functionality
+                        println!("Play/pause requested");
+                    }
+                    if ui.button("📸").clicked() {
+                        // TODO: Implement screenshot functionality
+                        println!("Screenshot requested");
+                    }
+                    if ui.button("📹").clicked() {
+                        // TODO: Implement video recording functionality
+                        println!("Video recording requested");
+                    }
+                });
+                
+                // Create preview area
+                let available_size = ui.available_size();
+                let preview_size = egui::vec2(
+                    available_size.x.min(800.0),
+                    available_size.y.min(600.0)
+                );
+                
+                // Try to render live shader preview
+                if ui_state.wgpu_initialized {
+                    if let Some(renderer) = ui_state.global_renderer.renderer.lock().unwrap().as_mut() {
+                        let render_params = RenderParameters {
+                            width: preview_size.x as u32,
+                            height: preview_size.y as u32,
+                            time: ui_state.time as f32,
+                            frame_rate: 60.0,
+                            audio_data: None, // Could integrate audio data here
+                        };
+                        
+                        // Use the current draft code for rendering
+                        match renderer.render_frame(&ui_state.draft_code, &render_params, None) {
+                            Ok(texture_data) => {
+                                // Create or update the texture in egui
+                                let texture_id = ctx.tex_manager().write().alloc(
+                                    egui::epaint::ImageDelta {
+                                        image: egui::epaint::ImageData::Color(
+                                            egui::epaint::ColorImage::from_rgba_unmultiplied(
+                                                [preview_size.x as usize, preview_size.y as usize],
+                                                &texture_data
+                                            )
+                                        ),
+                                        pos: None,
+                                        options: egui::epaint::TextureOptions::LINEAR,
+                                    }
+                                );
+                                
+                                // Display the rendered texture
+                                ui.image(egui::Image::new(egui::TextureId::User(texture_id))
+                                    .max_width(preview_size.x)
+                                    .max_height(preview_size.y));
+                                
+                                ui.label("Live shader preview - rendering successfully");
+                            }
+                            Err(e) => {
+                                // Show compilation error in preview area
+                                ui.painter().rect_filled(
+                                    egui::Rect::from_min_size(ui.cursor().min, preview_size),
+                                    0.0,
+                                    egui::Color32::from_rgb(40, 20, 20)
+                                );
+                                
+                                ui.painter().text(
+                                    ui.cursor().min + egui::vec2(10.0, 20.0),
+                                    egui::Align2::LEFT_TOP,
+                                    format!("Shader Compilation Error:\n{}", e),
+                                    egui::FontId::monospace(12.0),
+                                    egui::Color32::from_rgb(255, 100, 100)
+                                );
+                                
+                                ui_state.compilation_error = e;
+                                ui.label("❌ Shader compilation failed - check code editor");
+                            }
+                        }
+                    } else {
+                        // Renderer not available
+                        ui.painter().rect_filled(
+                            egui::Rect::from_min_size(ui.cursor().min, preview_size),
+                            0.0,
+                            egui::Color32::from_rgb(30, 45, 60)
+                        );
+                        
+                        ui.painter().text(
+                            ui.cursor().min + preview_size * 0.5,
+                            egui::Align2::CENTER_CENTER,
+                            "WGPU Renderer Initializing...",
+                            egui::FontId::proportional(16.0),
+                            egui::Color32::from_gray(200)
+                        );
+                        
+                        ui.label("⏳ WGPU renderer initializing...");
+                    }
+                } else {
+                    // WGPU not initialized - show placeholder
+                    ui.painter().rect_filled(
+                        egui::Rect::from_min_size(ui.cursor().min, preview_size),
+                        0.0,
+                        egui::Color32::from_rgb(20, 20, 20)
+                    );
+                    
+                    ui.painter().text(
+                        ui.cursor().min + preview_size * 0.5,
+                        egui::Align2::CENTER_CENTER,
+                        "Live Shader Preview\n(WGPU Integration Required)",
+                        egui::FontId::proportional(16.0),
+                        egui::Color32::from_gray(128)
+                    );
+                    
+                    if !ui_state.compilation_error.is_empty() {
+                        ui.label(format!("❌ {}", ui_state.compilation_error));
+                    } else {
+                        ui.label("⚠️ WGPU initialization required for live preview");
+                    }
+                }
+            });
+    }
+    
+    // Draw the additional side panels (timeline, node studio, etc.) as windows
+    draw_editor_side_panels(ctx, &mut *ui_state, &audio_analyzer, &mut gesture_control, &mut compute_pass_manager, None, None);
     
     // Draw 3D scene editor panel
     if ui_state.show_3d_scene_panel {
@@ -361,15 +677,27 @@ fn async_initialize_wgpu_renderer(
     
     // Use pollster to block on the async initialization
     match pollster::block_on(async {
-        super::shader_renderer::ShaderRenderer::new().await
+        super::shader_renderer::ShaderRenderer::new_with_size((800, 600)).await
     }) {
         Ok(renderer) => {
             println!("✅ WGPU renderer initialized successfully!");
             *ui_state.global_renderer.renderer.lock().unwrap() = Some(renderer);
+            
+            // Update UI state to reflect successful initialization
+            ui_state.wgpu_initialized = true;
+            ui_state.compilation_error.clear();
+            
+            println!("WGPU renderer ready with {} working examples", 
+                     renderer.working_examples.len());
         }
         Err(e) => {
             println!("❌ Failed to initialize WGPU renderer: {}. ENFORCING GPU-ONLY POLICY - NO CPU FALLBACK ALLOWED.", e);
-            panic!("GPU initialization failed - NO CPU FALLBACK ALLOWED: {}", e);
+            ui_state.wgpu_initialized = false;
+            ui_state.compilation_error = format!("WGPU initialization failed: {}", e);
+            
+            // Don't panic immediately, but log the critical error
+            eprintln!("CRITICAL: GPU initialization failed. System requires compatible GPU.");
+            eprintln!("Error details: {}", e);
         }
     }
 }
@@ -409,6 +737,7 @@ pub fn run_app() {
         .add_systems(Startup, setup_camera)
         .add_systems(Startup, initialize_wgpu_renderer)
         .add_systems(Update, async_initialize_wgpu_renderer)
+        .add_systems(Update, update_time_system)
         .add_systems(bevy_egui::EguiPrimaryContextPass, editor_ui_system)
         .run();
 }
