@@ -13,6 +13,9 @@ pub struct SceneEditor3DState {
     pub selected_entity: Option<Entity>,
     pub manipulation_mode: ManipulationMode,
     pub camera_entity: Option<Entity>,
+    pub create_primitive_type: PrimitiveType,
+    pub snap_to_grid: bool,
+    pub grid_size: f32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -22,9 +25,23 @@ pub enum ManipulationMode {
     Scale,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrimitiveType {
+    Cube,
+    Sphere,
+    Cylinder,
+    Plane,
+}
+
 impl Default for ManipulationMode {
     fn default() -> Self {
         Self::Translate
+    }
+}
+
+impl Default for PrimitiveType {
+    fn default() -> Self {
+        Self::Cube
     }
 }
 
@@ -48,6 +65,8 @@ impl Plugin for SceneEditor3DPlugin {
                 gizmo_manipulation_system,
                 update_editor_camera,
                 highlight_selected_entity,
+                create_primitive_system,
+                snap_to_grid_system,
             ));
     }
 }
@@ -80,6 +99,9 @@ fn setup_editor_3d(
     editor_state.camera_entity = Some(camera_entity);
     editor_state.enabled = true;
     editor_state.show_gizmos = true;
+    editor_state.create_primitive_type = PrimitiveType::Cube;
+    editor_state.snap_to_grid = false;
+    editor_state.grid_size = 1.0;
     
     // Add some default lighting
     commands.spawn((
@@ -122,7 +144,7 @@ fn editor_3d_input_system(
     key_input: Res<ButtonInput<KeyCode>>,
     windows: Query<&Window>,
     camera_query: Query<(&Camera, &GlobalTransform), With<EditorCamera3D>>,
-    manipulable_query: Query<(Entity, &GlobalTransform), With<EditorManipulable>>,
+    manipulable_query: Query<(Entity, &GlobalTransform, Option<&Aabb>), With<EditorManipulable>>,
 ) {
     if !editor_state.enabled {
         return;
@@ -150,13 +172,23 @@ fn editor_3d_input_system(
                         let mut closest_entity = None;
                         let mut closest_distance = f32::MAX;
                         
-                        for (entity, transform) in manipulable_query.iter() {
+                        for (entity, transform, aabb) in manipulable_query.iter() {
                             let entity_pos = transform.translation();
-                            let distance = ray.intersect_sphere(entity_pos, 0.5).unwrap_or(f32::MAX);
+                            let selection_radius = if let Some(aabb) = aabb {
+                                // Use AABB half-extents for more accurate selection
+                                aabb.half_extents().length()
+                            } else {
+                                // Default selection radius
+                                0.5
+                            };
                             
-                            if distance < closest_distance {
-                                closest_distance = distance;
-                                closest_entity = Some(entity);
+                            let distance_to_ray = ray.intersect_sphere(entity_pos, selection_radius);
+                            
+                            if let Some(distance) = distance_to_ray {
+                                if distance < closest_distance && distance > 0.0 {
+                                    closest_distance = distance;
+                                    closest_entity = Some(entity);
+                                }
                             }
                         }
                         
@@ -216,6 +248,7 @@ fn update_editor_camera(
     mouse_motion: Res<MouseMotion>,
     mouse_button: Res<ButtonInput<MouseButton>>,
     key_input: Res<ButtonInput<KeyCode>>,
+    mut mouse_wheel: EventReader<bevy::input::mouse::MouseWheel>,
     time: Res<Time>,
 ) {
     if let Ok((mut transform, _projection)) = camera_query.get_single_mut() {
@@ -247,7 +280,14 @@ fn update_editor_camera(
             transform.translation += up * delta.y * pan_speed;
         }
         
-        // Zoom with mouse wheel (simulated with keys for now)
+        // Zoom with mouse wheel
+        for wheel_event in mouse_wheel.read() {
+            let zoom_speed = 0.1;
+            let zoom_factor = 1.0 - wheel_event.y * zoom_speed;
+            transform.translation *= zoom_factor;
+        }
+        
+        // Zoom with keyboard keys (Q/Z)
         if key_input.pressed(KeyCode::KeyQ) {
             transform.translation *= 1.02; // Zoom out
         }
@@ -375,6 +415,22 @@ pub fn scene_editor_3d_ui(
             
             ui.separator();
             
+            // Primitive creation
+            ui.horizontal(|ui| {
+                ui.label("Create:");
+                egui::ComboBox::from_label("")
+                    .selected_text(format!("{:?}", editor_state.create_primitive_type))
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut editor_state.create_primitive_type, PrimitiveType::Cube, "Cube");
+                        ui.selectable_value(&mut editor_state.create_primitive_type, PrimitiveType::Sphere, "Sphere");
+                        ui.selectable_value(&mut editor_state.create_primitive_type, PrimitiveType::Cylinder, "Cylinder");
+                        ui.selectable_value(&mut editor_state.create_primitive_type, PrimitiveType::Plane, "Plane");
+                    });
+                ui.label("(Ctrl+N)");
+            });
+            
+            ui.separator();
+            
             // Scene hierarchy
             ui.heading("Scene Hierarchy");
             egui::ScrollArea::vertical()
@@ -398,6 +454,17 @@ pub fn scene_editor_3d_ui(
             // Editor options
             ui.checkbox(&mut editor_state.show_gizmos, "Show Gizmos");
             ui.checkbox(&mut editor_state.enabled, "Editor Enabled");
+            ui.checkbox(&mut editor_state.snap_to_grid, "Snap to Grid");
+            
+            if editor_state.snap_to_grid {
+                ui.horizontal(|ui| {
+                    ui.label("Grid Size:");
+                    ui.add(egui::DragValue::new(&mut editor_state.grid_size)
+                        .speed(0.1)
+                        .clamp_range(0.1..=10.0));
+                });
+                ui.label("Press G to snap selected entities");
+            }
             
             ui.separator();
             
@@ -406,9 +473,75 @@ pub fn scene_editor_3d_ui(
             ui.label("• Left Click: Select entity");
             ui.label("• Right Drag: Orbit camera");
             ui.label("• Middle Drag: Pan camera");
+            ui.label("• Mouse Wheel: Zoom in/out");
             ui.label("• Q/Z: Zoom out/in");
             ui.label("• W/E/R: Switch manipulation mode");
+            ui.label("• Ctrl+N: Create new primitive");
+            ui.label("• G: Snap to grid (when enabled)");
         });
+}
+
+/// System to create new primitives in the scene
+fn create_primitive_system(
+    mut commands: Commands,
+    mut editor_state: ResMut<SceneEditor3DState>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    key_input: Res<ButtonInput<KeyCode>>,
+) {
+    if !editor_state.enabled {
+        return;
+    }
+    
+    // Create primitive with Ctrl+N
+    if key_input.pressed(KeyCode::ControlLeft) && key_input.just_pressed(KeyCode::KeyN) {
+        let primitive_mesh = match editor_state.create_primitive_type {
+            PrimitiveType::Cube => meshes.add(Cuboid::default()),
+            PrimitiveType::Sphere => meshes.add(Sphere::new(0.5)),
+            PrimitiveType::Cylinder => meshes.add(Cylinder::new(0.5, 1.0)),
+            PrimitiveType::Plane => meshes.add(Plane3d::default()),
+        };
+        
+        let material = materials.add(StandardMaterial {
+            base_color: Color::srgb(0.8, 0.7, 0.6),
+            ..default()
+        });
+        
+        commands.spawn((
+            Mesh3d(primitive_mesh),
+            MeshMaterial3d(material),
+            Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
+            EditorManipulable,
+            Name::new(format!("{:?}", editor_state.create_primitive_type)),
+        ));
+        
+        println!("Created {:?}", editor_state.create_primitive_type);
+    }
+}
+
+/// System to snap entities to grid
+fn snap_to_grid_system(
+    mut transforms: Query<&mut Transform, With<EditorManipulable>>,
+    editor_state: Res<SceneEditor3DState>,
+    key_input: Res<ButtonInput<KeyCode>>,
+) {
+    if !editor_state.enabled || !editor_state.snap_to_grid {
+        return;
+    }
+    
+    // Snap selected entities to grid with G key
+    if key_input.just_pressed(KeyCode::KeyG) {
+        for mut transform in transforms.iter_mut() {
+            let grid_size = editor_state.grid_size;
+            
+            // Snap translation to grid
+            transform.translation.x = (transform.translation.x / grid_size).round() * grid_size;
+            transform.translation.y = (transform.translation.y / grid_size).round() * grid_size;
+            transform.translation.z = (transform.translation.z / grid_size).round() * grid_size;
+        }
+        
+        println!("Snapped entities to grid (size: {})", editor_state.grid_size);
+    }
 }
 
 /// 3D viewport panel that can be embedded in the main editor

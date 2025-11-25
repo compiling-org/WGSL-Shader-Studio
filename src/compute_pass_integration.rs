@@ -239,17 +239,6 @@ impl ComputePassManager {
         self.storage_textures.insert(name.to_string(), storage_texture);
     }
     
-    /// Create a compute pipeline
-    pub fn create_compute_pipeline(&mut self, name: &str, workgroup_size: (u32, u32, u32), shader_code: String) {
-        let compute_pipeline = ComputePipelineResource {
-            name: name.to_string(),
-            workgroup_size,
-            shader_code,
-            bind_group_layouts: vec![],
-        };
-        
-        self.compute_pipelines.insert(name.to_string(), compute_pipeline);
-    }
     
     /// Add a compute pass execution
     pub fn add_compute_pass(&mut self, execution: ComputePassExecution) {
