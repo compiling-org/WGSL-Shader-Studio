@@ -155,7 +155,7 @@ impl ScreenshotVideoExporter {
             },
             wgpu::TexelCopyBufferInfo {
                 buffer: &buffer,
-                layout: wgpu::TexelCopyBufferLayout {
+                layout: wgpu::ImageDataLayout {
                     offset: 0,
                     bytes_per_row: Some(aligned_bytes_per_row),
                     rows_per_image: Some(height),
@@ -178,7 +178,7 @@ impl ScreenshotVideoExporter {
             tx.send(result).unwrap();
         });
 
-        device.poll(wgpu::PollType::Wait);
+        device.poll(wgpu::Maintain::Wait);
         
         if rx.recv().unwrap().is_err() {
             return Err("Failed to map buffer".to_string());
@@ -281,15 +281,15 @@ impl ScreenshotVideoExporter {
         let aligned_bytes_per_row = ((bytes_per_row + 255) / 256) * 256;
 
         encoder.copy_texture_to_buffer(
-            wgpu::TexelCopyTextureInfo {
+            wgpu::ImageCopyTexture {
                 texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,
             },
-            wgpu::TexelCopyBufferInfo {
+            wgpu::ImageCopyBuffer {
                 buffer: &buffer,
-                layout: wgpu::TexelCopyBufferLayout {
+                layout: wgpu::ImageDataLayout {
                     offset: 0,
                     bytes_per_row: Some(aligned_bytes_per_row),
                     rows_per_image: Some(height),
@@ -312,7 +312,7 @@ impl ScreenshotVideoExporter {
             tx.send(result).unwrap();
         });
 
-        device.poll(wgpu::PollType::Wait);
+        device.poll(wgpu::Maintain::Wait);
         
         if rx.recv().unwrap().is_err() {
             return Err("Failed to map buffer".to_string());
