@@ -1,6 +1,7 @@
 use bevy::prelude::*;
-use bevy::render::primitives::{Frustum, Aabb};
-use bevy::render::view::VisibleEntities;
+use bevy::prelude::Projection;
+// use bevy::render::primitives::{Frustum, Aabb};
+// use bevy::render::view::VisibleEntities;
 
 /// 3D Scene Editor inspired by space_editor patterns
 /// Provides gizmo-based manipulation, scene hierarchy, and 3D viewport management
@@ -82,15 +83,12 @@ fn setup_editor_3d(
         Camera3d::default(),
         Transform::from_translation(Vec3::new(5.0, 5.0, 5.0))
             .looking_at(Vec3::ZERO, Vec3::Y),
-        PerspectiveProjection {
+        Projection::Perspective(PerspectiveProjection {
             fov: 60.0_f32.to_radians(),
             near: 0.1,
             far: 1000.0,
             ..default()
-        },
-        VisibleEntities::default(),
-        Frustum::default(),
-        Camera::default(),
+        }),
         EditorCamera3D,
         Name::new("Editor Camera"),
     )).id();
@@ -144,7 +142,7 @@ fn editor_3d_input_system(
     key_input: Res<ButtonInput<KeyCode>>,
     windows: Query<&Window>,
     camera_query: Query<(&Camera, &GlobalTransform), With<EditorCamera3D>>,
-    manipulable_query: Query<(Entity, &GlobalTransform, Option<&Aabb>), With<EditorManipulable>>,
+    manipulable_query: Query<(Entity, &GlobalTransform), With<EditorManipulable>>,
 ) {
     if !editor_state.enabled {
         return;
@@ -172,15 +170,9 @@ fn editor_3d_input_system(
                         let mut closest_entity = None;
                         let mut closest_distance = f32::MAX;
                         
-                        for (entity, transform, aabb) in manipulable_query.iter() {
+                        for (entity, transform) in manipulable_query.iter() {
                             let entity_pos = transform.translation();
-                            let selection_radius = if let Some(aabb) = aabb {
-                                // Use AABB half-extents for more accurate selection
-                                aabb.half_extents().length()
-                            } else {
-                                // Default selection radius
-                                0.5
-                            };
+                            let selection_radius = 0.5; // Default selection radius
                             
                             // Simple distance-based selection - check if entity is close to ray origin
                             let ray_origin = ray.origin;

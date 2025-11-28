@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_egui::egui;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::path::Path;
@@ -146,13 +147,13 @@ impl ScreenshotVideoExporter {
         let aligned_bytes_per_row = ((bytes_per_row + 255) / 256) * 256;
         
         encoder.copy_texture_to_buffer(
-            wgpu::ImageCopyTexture {
+            wgpu::TexelCopyTextureInfo {
                 texture,
                 mip_level: 0,
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All,
             },
-            wgpu::ImageCopyBuffer {
+            wgpu::TexelCopyBufferInfo {
                 buffer: &buffer,
                 layout: wgpu::ImageDataLayout {
                     offset: 0,

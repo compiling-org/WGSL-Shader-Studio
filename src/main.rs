@@ -28,7 +28,7 @@ use audio_system::{AudioAnalyzer, AudioAnalysisPlugin};
 use gesture_control::{GestureControlSystem, GestureControlPlugin};
 use compute_pass_integration::{ComputePassManager, ComputePassPlugin};
 use scene_editor_3d::{SceneEditor3DState, SceneEditor3DPlugin, scene_editor_3d_ui, scene_3d_viewport_ui};
-use timeline::{TimelinePlugin, TimelineAnimation, timeline_system};
+use timeline::{TimelinePlugin, TimelineAnimation};
 use bevy_app::{setup_camera, editor_ui_system, editor_ui_system as bevy_editor_ui_system};
 
 // Re-export for easier access

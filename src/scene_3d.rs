@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::render::camera::{Camera, Projection};
-use bevy::render::primitives::Frustum;
-use bevy::render::view::VisibleEntities;
+// use bevy::render::primitives::Frustum;
+// use bevy::render::view::VisibleEntities;
 use std::collections::HashMap;
 
 /// 3D scene configuration and management
