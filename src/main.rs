@@ -92,6 +92,7 @@ fn run_gui() {
     
     // Add our custom systems and resources
     app.init_resource::<EditorUiState>()
+        .init_resource::<UiStartupGate>()
         .init_resource::<AudioAnalyzer>()
         .init_resource::<ComputePassManager>()
         .init_resource::<GestureControlSystem>()
