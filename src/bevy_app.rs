@@ -80,7 +80,7 @@ use super::editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_edit
 use super::shader_renderer::{ShaderRenderer, RenderParameters};
 
 // Import node graph and compute pass plugins - check if they exist
-// use crate::bevy_node_graph_integration::BevyNodeGraphPlugin;
+use crate::bevy_node_graph_integration::BevyNodeGraphPlugin;
 // use crate::compute_pass_integration::ComputePassPlugin;
 
 // Hint Windows drivers to prefer discrete GPU when available
@@ -320,8 +320,8 @@ pub fn run_app() {
         .add_plugins(TimelinePlugin)
         .add_plugins(GestureControlPlugin)
         .add_plugins(ComputePassPlugin)
+        .add_plugins(BevyNodeGraphPlugin)
         // .add_plugins(ResponsiveBackendPlugin)
-        // .add_plugins(BevyNodeGraphPlugin)
         .insert_resource(EditorUiState::default())
         .insert_resource(UiStartupGate::default())
         .insert_resource(Viewport3DTexture::default())
