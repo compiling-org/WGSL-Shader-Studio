@@ -23,7 +23,7 @@ mod scene_editor_3d;
 mod wgsl_diagnostics;
 
 // Import the specific types we need
-use editor_ui::{EditorUiState, draw_editor_menu, draw_editor_side_panels, draw_editor_code_panel};
+use editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_editor_side_panels, draw_editor_code_panel};
 use audio_system::{AudioAnalyzer, AudioAnalysisPlugin};
 use gesture_control::{GestureControlSystem, GestureControlPlugin};
 use compute_pass_integration::{ComputePassManager, ComputePassPlugin};
