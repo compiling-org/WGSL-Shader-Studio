@@ -55,6 +55,8 @@ pub enum ShaderStage {
     Vertex,
     Fragment,
     Compute,
+    Task,
+    Mesh,
 }
 
 /// Struct definition node
@@ -569,6 +571,21 @@ pub struct ParseError {
     pub error_type: ParseErrorType,
 }
 
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Parse error at {}:{}: {} ({})", self.line, self.column, self.message, 
+               match self.error_type {
+                   ParseErrorType::SyntaxError => "syntax error",
+                   ParseErrorType::TypeError => "type error",
+                   ParseErrorType::SemanticError => "semantic error",
+                   ParseErrorType::UndefinedSymbol => "undefined symbol",
+                   ParseErrorType::Redefinition => "redefinition",
+                   ParseErrorType::InvalidAttribute => "invalid attribute",
+                   ParseErrorType::InvalidBinding => "invalid binding",
+               })
+    }
+}
+
 /// Parse error types
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ParseErrorType {
@@ -895,7 +912,9 @@ mod tests {
     }
 }
 
-/// Integration with existing shader compilation system
+// Integration with existing shader compilation system
+// TODO: Re-enable when advanced_shader_compilation module is implemented
+/*
 pub mod integration {
     use super::*;
     use crate::advanced_shader_compilation::{AdvancedShaderCompiler, CompiledShader, ShaderMetadata};
@@ -1183,10 +1202,12 @@ pub mod integration {
             code.push('\n');
         }
         
-        code.push_str(&format!("struct {} {{\n", struct_node.name));
+        code.push_str(&format!(r#"struct {} {{
+"#, struct_node.name));
         
         for member in &struct_node.members {
-            code.push_str(&format!("    {}: {},\n", member.name, type_node_to_string(&member.data_type)));
+            code.push_str(&format!(r#"    {}: {},
+"#, member.name, type_node_to_string(&member.data_type)));
         }
         
         code.push('}');
@@ -1393,3 +1414,4 @@ pub mod integration {
         }
     }
 }
+*/

@@ -205,6 +205,16 @@ impl ShaderNodeGraph {
                     wgsl.push_str(&format!("    let {}_result = sin(0.0);\n", node.name));
                 }
             }
+            ShaderNodeType::Cos => {
+                // Get input connection
+                if let Some(input_conn) = self.connections.iter().find(|c| c.to_node == node.id && c.to_input == 0) {
+                    let input_node = &self.nodes[&input_conn.from_node];
+                    wgsl.push_str(&format!("    let {}_result = cos({}_output_{});\n", 
+                        node.name, input_node.name, input_conn.from_output));
+                } else {
+                    wgsl.push_str(&format!("    let {}_result = cos(0.0);\n", node.name));
+                }
+            }
             ShaderNodeType::Multiply => {
                 let mut inputs = Vec::new();
                 for i in 0..2 {
@@ -218,6 +228,45 @@ impl ShaderNodeGraph {
                 wgsl.push_str(&format!("    let {}_result = {} * {};\n", 
                     node.name, inputs[0], inputs[1]));
             }
+            ShaderNodeType::Add => {
+                let mut inputs = Vec::new();
+                for i in 0..2 {
+                    if let Some(input_conn) = self.connections.iter().find(|c| c.to_node == node.id && c.to_input == i) {
+                        let input_node = &self.nodes[&input_conn.from_node];
+                        inputs.push(format!("{}_output_{}", input_node.name, input_conn.from_output));
+                    } else {
+                        inputs.push("0.0".to_string());
+                    }
+                }
+                wgsl.push_str(&format!("    let {}_result = {} + {};\n", 
+                    node.name, inputs[0], inputs[1]));
+            }
+            ShaderNodeType::Subtract => {
+                let mut inputs = Vec::new();
+                for i in 0..2 {
+                    if let Some(input_conn) = self.connections.iter().find(|c| c.to_node == node.id && c.to_input == i) {
+                        let input_node = &self.nodes[&input_conn.from_node];
+                        inputs.push(format!("{}_output_{}", input_node.name, input_conn.from_output));
+                    } else {
+                        inputs.push("0.0".to_string());
+                    }
+                }
+                wgsl.push_str(&format!("    let {}_result = {} - {};\n", 
+                    node.name, inputs[0], inputs[1]));
+            }
+            ShaderNodeType::Divide => {
+                let mut inputs = Vec::new();
+                for i in 0..2 {
+                    if let Some(input_conn) = self.connections.iter().find(|c| c.to_node == node.id && c.to_input == i) {
+                        let input_node = &self.nodes[&input_conn.from_node];
+                        inputs.push(format!("{}_output_{}", input_node.name, input_conn.from_output));
+                    } else {
+                        inputs.push("1.0".to_string());
+                    }
+                }
+                wgsl.push_str(&format!("    let {}_result = {} / {};\n", 
+                    node.name, inputs[0], inputs[1]));
+            }
             ShaderNodeType::Color => {
                 let mut rgb = vec!["0.0".to_string(); 3];
                 for i in 0..3 {
@@ -228,6 +277,20 @@ impl ShaderNodeGraph {
                 }
                 wgsl.push_str(&format!("    let {}_color = vec4<f32>({}, {}, {}, 1.0);\n", 
                     node.name, rgb[0], rgb[1], rgb[2]));
+            }
+            ShaderNodeType::Texture => {
+                // Simple texture sampling for now
+                wgsl.push_str(&format!("    let {}_result = vec4<f32>(1.0, 0.0, 0.0, 1.0); // Texture placeholder\n", node.name));
+            }
+            ShaderNodeType::UV => {
+                wgsl.push_str(&format!("    let {}_result = vec2<f32>(uv.x, uv.y);\n", node.name));
+            }
+            ShaderNodeType::Input => {
+                // Input nodes pass through their value
+                wgsl.push_str(&format!("    let {}_result = 0.0; // Input placeholder\n", node.name));
+            }
+            ShaderNodeType::Constant(value) => {
+                wgsl.push_str(&format!("    let {}_result = {};\n", node.name, value));
             }
             ShaderNodeType::Output => {
                 if let Some(input_conn) = self.connections.iter().find(|c| c.to_node == node.id && c.to_input == 0) {

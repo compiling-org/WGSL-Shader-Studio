@@ -5,7 +5,7 @@ use thiserror::Error;
 use crate::wgsl_ast_parser::{AstNode, AstVisitor, VisitResult};
 use crate::shader_module_system::{ShaderModule, ModuleId};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ShaderLanguage {
     Wgsl,
     Glsl,
@@ -78,7 +78,7 @@ impl Default for TranspilerOptions {
 }
 
 #[derive(Debug, Clone)]
-pub struct TranspilerResult {
+pub struct TranspilerOutput {
     pub source_code: String,
     pub source_map: Option<String>,
     pub dependencies: Vec<String>,
@@ -168,7 +168,7 @@ pub enum WarningSeverity {
 pub type TranspilerResult<T> = Result<T, TranspilerError>;
 
 pub trait ShaderTranspiler: Send + Sync {
-    fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerResult>;
+    fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput>;
     fn get_supported_source_languages(&self) -> Vec<ShaderLanguage>;
     fn get_supported_target_languages(&self) -> Vec<ShaderLanguage>;
     fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()>;
@@ -220,7 +220,7 @@ impl MultiFormatTranspiler {
         self.transpilers.insert((source, target), transpiler);
     }
 
-    pub fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerResult> {
+    pub fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
         let start_time = std::time::Instant::now();
 
         if options.validate_semantics {
@@ -264,7 +264,7 @@ impl WgslToGlslTranspiler {
 }
 
 impl ShaderTranspiler for WgslToGlslTranspiler {
-    fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerResult> {
+    fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
         use crate::wgsl_ast_parser::WgslAstParser;
         
         let parser = WgslAstParser::new();
@@ -276,7 +276,7 @@ impl ShaderTranspiler for WgslToGlslTranspiler {
 
         let metadata = self.extract_metadata(&ast, source, &result)?;
 
-        Ok(TranspilerResult {
+        Ok(TranspilerOutput {
             source_code: result,
             source_map: None,
             dependencies: Vec::new(),
@@ -526,7 +526,7 @@ impl WgslToGlslVisitor {
         }
     }
 
-    fn map_type(&self, wgsl_type: &str) -> String {
+    fn map_type(&mut self, wgsl_type: &str) -> String {
         match wgsl_type {
             "f32" => "float".to_string(),
             "i32" => "int".to_string(),
@@ -900,7 +900,7 @@ impl ShaderValidator {
 
     pub fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
         for rule in &self.validation_rules {
-            rule(source, language)?;
+            rule(source, language.clone())?;
         }
         Ok(())
     }

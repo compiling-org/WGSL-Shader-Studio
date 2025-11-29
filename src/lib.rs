@@ -368,6 +368,14 @@ pub mod backend_systems;
 pub mod visual_node_editor_adapter;
 pub mod gyroflow_wgpu_interop;
 pub mod gyroflow_interop_integration;
+pub mod bevy_node_graph_integration;
+pub mod bevy_node_graph_integration_enhanced;
+pub mod screenshot_video_export;
+pub mod scene_editor_3d;
+pub mod shader_transpiler;
+pub mod wgsl_analyzer;
+pub mod wgsl_ast_parser;
+pub mod shader_module_system;
 
 // Re-export main types for easier use
 pub use audio_system::*;

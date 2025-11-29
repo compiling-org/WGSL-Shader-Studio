@@ -687,8 +687,17 @@ fn draw_connections(ui: &mut egui::Ui, node_graph: &NodeGraphResource) {
 use egui::CubicBezierShape;
 
 fn draw_nodes(ui: &mut egui::Ui, node_graph: &mut NodeGraphResource) {
-    for node in node_graph.graph.nodes.values_mut() {
-        draw_single_node(ui, node, node_graph);
+    // Extract the needed data before the mutable borrow
+    let snap_to_grid = node_graph.snap_to_grid;
+    let grid_size = node_graph.grid_size;
+    let drag_state = node_graph.drag_state.clone();
+    
+    // Clone the node IDs to avoid borrowing issues
+    let node_ids: Vec<_> = node_graph.graph.nodes.keys().cloned().collect();
+    for node_id in node_ids {
+        if let Some(node) = node_graph.graph.nodes.get_mut(&node_id) {
+            draw_single_node(ui, node, snap_to_grid, grid_size, drag_state.as_ref());
+        }
     }
 }
 
