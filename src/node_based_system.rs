@@ -1276,7 +1276,7 @@ fn noise_2d(p: vec2<f32>) -> f32 {
     }
 
     fn generate_node_execution(&mut self, node: &Node) -> Result<(), String> {
-        let node_var = node.name.to_lowercase().replace(" ", "_");
+        let node_var = node.name.to_lowercase().replace(' ', "_");
         
         match &node.node_type {
             NodeType::TimeNode => {

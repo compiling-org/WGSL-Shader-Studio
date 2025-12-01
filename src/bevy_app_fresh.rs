@@ -135,4 +135,11 @@ fn async_initialize_wgpu_renderer(
     }) {
         Ok(renderer) => {
             println!("✅ WGPU renderer initialized successfully!");
-            *ui_state.global_renderer.renderer.lock().unwrap() =
+            *ui_state.global_renderer.renderer.lock().unwrap() = Some(renderer);
+            println!("✅ Global renderer stored in UI state");
+        }
+        Err(e) => {
+            eprintln!("❌ Failed to initialize WGPU renderer: {}", e);
+        }
+    }
+}

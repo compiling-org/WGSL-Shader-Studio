@@ -543,5 +543,4 @@ fn auto_generate_shader_system(mut editor: ResMut<ShaderGraphEditor>) {
     }
 }
 
-// Re-export for use in other modules
-pub use ShaderGraphPlugin;
+// Re-export for use in other modules - FIXED: Removed duplicate re-export

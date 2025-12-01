@@ -136,7 +136,7 @@ impl SimpleIsfConverter {
                     glsl_code,
                 ))
             } else {
-                Err(anyhow!("Missing closing }*/ in ISF header"))
+                Err(anyhow!("Missing closing */ in ISF header"))
             }
         } else {
             // No metadata block, treat entire code as GLSL
@@ -171,4 +171,40 @@ impl SimpleIsfConverter {
         // Add texture and sampler declarations
         if glsl_code.contains("IMG_PIXEL") || glsl_code.contains("texture") {
             wgsl_code.push_str("@group(0) @binding(1) var inputImage: texture_2d<f32>;\n");
-            wgsl_code.push_str("@group(0) @binding(2) var inputImage_sampler: sampler;\n
+            wgsl_code.push_str("@group(0) @binding(2) var inputImage_sampler: sampler;\n");
+        }
+        
+        // Convert main GLSL function to WGSL
+        wgsl_code.push_str("\n@fragment\n");
+        wgsl_code.push_str("fn main(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {\n");
+        
+        // Simple conversion - replace common GLSL patterns
+        let mut main_body = glsl_code.clone();
+        main_body = main_body.replace("gl_FragCoord", "vec4<f32>(uv * uniforms.resolution, 0.0, 1.0)");
+        main_body = main_body.replace("gl_FragColor", "output_color");
+        main_body = main_body.replace("texture2D", "textureSample");
+        main_body = main_body.replace("IMG_PIXEL", "textureSample");
+        main_body = main_body.replace("IMG_NORM_PIXEL", "textureSample");
+        
+        // Add output variable declaration
+        wgsl_code.push_str("    var output_color: vec4<f32>;\n");
+        wgsl_code.push_str(&format!("    {}\n", main_body));
+        wgsl_code.push_str("    return output_color;\n");
+        wgsl_code.push_str("}\n");
+        
+        Ok(wgsl_code)
+    }
+    
+    fn extract_uniforms(&self, inputs: &[IsfInput]) -> Vec<String> {
+        inputs.iter().map(|input| input.name.clone()).collect()
+    }
+    
+    fn extract_textures(&self, glsl_code: &str) -> Vec<String> {
+        // Simple texture extraction - look for texture sampling patterns
+        let mut textures = Vec::new();
+        if glsl_code.contains("IMG_PIXEL") {
+            textures.push("inputImage".to_string());
+        }
+        textures
+    }
+}

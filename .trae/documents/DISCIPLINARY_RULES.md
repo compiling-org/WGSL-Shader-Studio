@@ -48,4 +48,11 @@
 - Documentation of violation in PSYCHOTIC_LOOP_DOCUMENT.md
 - Reinforcement of enforcement mechanisms
 
+### LIB.RS INTEGRITY PROTECTION RULE
+**CRITICAL**: lib.rs MUST contain WGSL Shader Studio library code only
+- ANY modification to lib.rs structure requires explicit user approval
+- FFGL plugin code belongs in ffgl_plugin.rs module, NOT lib.rs
+- Violation results in immediate enforcement action and system restoration
+- Psychotic replacement of core library files is PROHIBITED
+
 This is not a suggestion. This is LAW.

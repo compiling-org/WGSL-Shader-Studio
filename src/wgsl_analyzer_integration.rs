@@ -268,7 +268,7 @@ impl WgslAnalyzer {
 /// System to analyze shaders and update diagnostics
 pub fn analyze_shader_system(
     mut analyzer: ResMut<WgslAnalyzer>,
-    editor_state: Res<crate::EditorState>,
+    editor_state: Res<crate::editor_ui::EditorUiState>,
 ) {
     if editor_state.code_changed {
         if let Some(current_file) = &editor_state.current_file {

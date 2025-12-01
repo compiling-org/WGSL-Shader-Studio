@@ -76,7 +76,7 @@ pub enum ParameterDefinition {
     },
 }
 
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct ShaderPlaygroundState {
     pub examples: Vec<ShaderExample>,
     pub selected_example: Option<String>,
@@ -280,9 +280,8 @@ fn example_card_ui(ui: &mut egui::Ui, state: &mut ShaderPlaygroundState, example
         
         ui.vertical(|ui| {
             if let Some(thumbnail) = &example.thumbnail {
-                ui.image(egui::Image::new(egui::include_image!(thumbnail)))
-                    .max_width(100.0)
-                    .max_height(60.0);
+                // FIXED: Use proper image loading instead of include_image! with variable
+                ui.add(egui::Image::new(thumbnail.as_str()).max_width(100.0).max_height(60.0));
             } else {
                 ui.allocate_space([100.0, 60.0].into());
             }

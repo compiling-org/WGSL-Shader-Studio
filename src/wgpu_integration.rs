@@ -134,10 +134,10 @@ impl WgpuRenderPipeline {
 /// System to initialize the WGPU renderer
 pub fn initialize_wgpu_system(
     mut wgpu_pipeline: ResMut<WgpuRenderPipeline>,
-    mut startup_timer: Local<Instant>,
+    time: Res<Time>,
 ) {
     // Only attempt initialization after a short delay to let the app stabilize
-    if startup_timer.elapsed() < Duration::from_millis(100) {
+    if time.elapsed().as_millis() < 100 {
         return;
     }
     

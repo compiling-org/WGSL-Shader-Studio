@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_egui::egui;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -472,7 +473,7 @@ impl DiagnosticRenderer {
 /// System to analyze shaders in real-time
 pub fn analyze_shader_system(
     mut analyzer: ResMut<WgslAnalyzer>,
-    editor_state: Res<crate::EditorState>,
+    editor_state: Res<crate::editor_ui::EditorUiState>,
 ) {
     if analyzer.real_time_analysis && editor_state.code_changed {
         if let Some(current_file) = &editor_state.current_file {

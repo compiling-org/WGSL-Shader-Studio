@@ -1,7 +1,10 @@
 //! FFGL plugin interface implementation
 
-use crate::{ResolumeIsfShadersRustFfgl, IsfShader, ShaderValue};
+// FIXED: Removed invalid imports - these don't exist in root crate
+use crate::isf_converter::IsfShader;
+use crate::ShaderValue;
 use crate::audio_system::AudioMidiSystem;
+use crate::ResolumeIsfShadersRustFfgl;
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_void, c_int, c_uint, c_float};
 use std::ptr;

@@ -22,11 +22,13 @@ function Write-EnforcementLog {
 }
 
 function Test-TestBinaryCompilation {
-    # Check if test binaries are being compiled
-    $cargoOutput = & cargo build 2>&1
-    if ($cargoOutput -match "minimal.*test|test.*window|gui.*test|simple.*test") {
-        Write-EnforcementLog "VIOLATION: Test binary compilation detected" "ERROR"
-        return $true
+    # Check if test binaries are being compiled by looking for test-related files
+    $testFiles = @("minimal_test.rs", "test_window.rs", "gui_test.rs", "simple_test.rs", "test_gui.rs")
+    foreach ($file in $testFiles) {
+        if (Test-Path $file) {
+            Write-EnforcementLog "VIOLATION: Test binary file detected: $file" "ERROR"
+            return $true
+        }
     }
     return $false
 }
@@ -124,7 +126,7 @@ function Invoke-EnforcementAction {
     
     $script:violations++
     $violationCount = $script:violations
-    Write-EnforcementLog "Enforcement violation $violationCount/$MaxViolations: $ViolationType" "ERROR"
+    Write-EnforcementLog "Enforcement violation ${violationCount}/${MaxViolations}: ${ViolationType}" "ERROR"
     
     if ($script:violations -ge $MaxViolations) {
         Write-EnforcementLog "MAXIMUM VIOLATIONS REACHED - TAKING DRASTIC ACTION" "ERROR"

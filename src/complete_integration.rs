@@ -63,4 +63,10 @@ const DEFAULT_SHADER: &str = r#"
 @fragment
 fn main(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
     let color = vec3<f32>(
-        sin(uv.x * 10.0 + uniforms.time) *
+        sin(uv.x * 10.0 + 0.5) * 0.5 + 0.5,
+        sin(uv.y * 10.0 + 0.5) * 0.5 + 0.5,
+        sin((uv.x + uv.y) * 10.0 + 0.5) * 0.5 + 0.5
+    );
+    return vec4<f32>(color, 1.0);
+}
+"#;

@@ -7,6 +7,35 @@ use anyhow::{Result, Context, bail};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use thiserror::Error;
+
+/// Error types for shader compilation
+#[derive(Debug, Error)]
+pub enum ShaderCompilationError {
+    #[error("WGSL parsing error: {0}")]
+    WgslParseError(String),
+    
+    #[error("GLSL conversion error: {0}")]
+    GlslConversionError(String),
+    
+    #[error("HLSL conversion error: {0}")]
+    HlslConversionError(String),
+    
+    #[error("ISF conversion error: {0}")]
+    IsfConversionError(String),
+    
+    #[error("Validation error: {0}")]
+    ValidationError(String),
+    
+    #[error("Optimization error: {0}")]
+    OptimizationError(String),
+    
+    #[error("IO error: {0}")]
+    IoError(#[from] std::io::Error),
+    
+    #[error("Internal error: {0}")]
+    InternalError(String),
+}
 
 /// Advanced shader compilation pipeline
 pub struct AdvancedShaderCompiler {
@@ -177,6 +206,13 @@ impl AdvancedShaderCompiler {
             isf_converter: ISFConverter::new(),
             optimization_level: OptimizationLevel::Basic,
         }
+    }
+
+    /// Compile shader from WGSL source (synchronous wrapper)
+    pub fn compile(&mut self, source_code: &str) -> Result<CompiledShader> {
+        // Create a simple async runtime for the async compile_shader method
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(self.compile_shader(source_code, ShaderFormat::WGSL, "main"))
     }
 
     /// Compile shader from various source formats
@@ -433,7 +469,7 @@ impl GLSLConverter {
         }
     }
 
-    fn convert_glsl_type(&self, glsl_type: &str) -> &str {
+    fn convert_glsl_type<'a>(&self, glsl_type: &'a str) -> &'a str {
         match glsl_type {
             "float" => "f32",
             "vec2" => "vec2<f32>",

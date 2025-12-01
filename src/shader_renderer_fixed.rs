@@ -2,7 +2,7 @@ use wgpu::util::DeviceExt;
 use std::collections::HashMap;
 
 impl ShaderRenderer {
-    pub fn compile_and_render_shader_fixed(
+    pub async fn compile_and_render_shader_fixed(
         &mut self,
         wgsl_code: &str,
         width: u32,

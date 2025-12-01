@@ -345,182 +345,109 @@ pub struct NodeConnection {
     pub to_input: usize,
 }
 
-/// Update the node graph logic
-fn update_node_graph(
-    mut graph_res: ResMut<NodeGraphResource>,
+/// Update node graph logic - processes node connections and updates shader state
+pub fn update_node_graph(
+    mut node_graph: ResMut<NodeGraphResource>,
     time: Res<Time>,
 ) {
-    // Update any time-based parameters
-    for node in graph_res.graph.nodes.values_mut() {
-        if let ShaderNodeType::Time = node.node_type {
-            node.parameters.insert("time".to_string(), time.elapsed_seconds());
+    // Update time-based nodes
+    for node in node_graph.graph.nodes.values_mut() {
+        match &mut node.node_type {
+            ShaderNodeType::Time => {
+                // Time node updates automatically via uniforms
+            }
+            ShaderNodeType::Constant(value) => {
+                // Constants don't need updates
+            }
+            _ => {
+                // Other nodes will be processed during code generation
+            }
         }
     }
 }
 
-/// Draw the node graph UI
-fn draw_node_graph_ui(
-    mut egui_ctx: EguiContexts,
-    mut graph_res: ResMut<NodeGraphResource>,
+/// Draw the node graph UI using egui
+pub fn draw_node_graph_ui(
+    mut contexts: EguiContexts,
+    mut node_graph: ResMut<NodeGraphResource>,
 ) {
-    let ctx = egui_ctx.ctx_mut().unwrap();
+    let ctx = contexts.ctx_mut();
     
-    egui::Window::new("Visual Shader Editor")
-        .default_pos([50.0, 50.0])
+    egui::Window::new("Shader Node Graph")
         .default_size([800.0, 600.0])
+        .resizable(true)
         .show(ctx, |ui| {
             ui.horizontal(|ui| {
                 if ui.button("Add Time Node").clicked() {
-                    let id = graph_res.graph.add_node(
-                        ShaderNodeType::Time, 
+                    let id = node_graph.graph.add_node(
+                        ShaderNodeType::Time,
                         "Time".to_string(),
-                        vec![], 
+                        vec![],
                         vec!["time".to_string()]
                     );
-                    if let Some(node) = graph_res.graph.nodes.get_mut(&id) {
-                        node.position = egui::Pos2::new(100.0, 100.0);
-                    }
+                    node_graph.selected_node = Some(id);
                 }
                 
                 if ui.button("Add Sin Node").clicked() {
-                    let id = graph_res.graph.add_node(
+                    let id = node_graph.graph.add_node(
                         ShaderNodeType::Sin,
                         "Sin".to_string(),
                         vec!["input".to_string()],
                         vec!["result".to_string()]
                     );
-                    if let Some(node) = graph_res.graph.nodes.get_mut(&id) {
-                        node.position = egui::Pos2::new(300.0, 100.0);
-                    }
+                    node_graph.selected_node = Some(id);
                 }
                 
                 if ui.button("Add Color Node").clicked() {
-                    let id = graph_res.graph.add_node(
+                    let id = node_graph.graph.add_node(
                         ShaderNodeType::Color,
                         "Color".to_string(),
                         vec!["r".to_string(), "g".to_string(), "b".to_string()],
                         vec!["color".to_string()]
                     );
-                    if let Some(node) = graph_res.graph.nodes.get_mut(&id) {
-                        node.position = egui::Pos2::new(500.0, 100.0);
-                    }
+                    node_graph.selected_node = Some(id);
                 }
                 
                 if ui.button("Generate WGSL").clicked() {
-                    match graph_res.graph.generate_wgsl() {
+                    match node_graph.graph.generate_wgsl() {
                         Ok(wgsl) => {
-                            println!("Generated WGSL code:\n{}", wgsl);
-                            // TODO: Send to editor state
+                            println!("Generated WGSL:\n{}", wgsl);
+                            // TODO: Send to shader compiler
                         }
                         Err(e) => {
-                            println!("Error generating WGSL: {}", e);
+                            eprintln!("Failed to generate WGSL: {}", e);
                         }
                     }
-                }
-                
-                if ui.button("Reset Graph").clicked() {
-                    graph_res.graph.create_default_shader_graph();
                 }
             });
             
             ui.separator();
             
-            // Node graph canvas
-            let response = ui.allocate_response(ui.available_size(), egui::Sense::click_and_drag());
-            
-            let painter = ui.painter_at(response.rect);
-            let to_screen = egui::emath::RectTransform::from_to(
-                egui::Rect::from_min_size(egui::Pos2::ZERO, response.rect.size()),
-                response.rect,
-            );
-            
-            // Draw grid
-            draw_grid(&painter, response.rect);
-            
-            // Draw connections
-            for connection in &graph_res.graph.connections {
-                if let (Some(from_node), Some(to_node)) = (
-                    graph_res.graph.nodes.get(&connection.from_node),
-                    graph_res.graph.nodes.get(&connection.to_node)
-                ) {
-                    let from_pos = to_screen.transform_pos(from_node.position + egui::Vec2::new(120.0, 30.0 + connection.from_output as f32 * 25.0));
-                    let to_pos = to_screen.transform_pos(to_node.position + egui::Vec2::new(0.0, 30.0 + connection.to_input as f32 * 25.0));
-                    
-                    painter.line_segment([from_pos, to_pos], egui::Stroke::new(2.0, egui::Color32::WHITE));
+            // Simple node list for now
+            ui.vertical(|ui| {
+                ui.label("Nodes:");
+                for (id, node) in &node_graph.graph.nodes {
+                    ui.horizontal(|ui| {
+                        let is_selected = node_graph.selected_node == Some(*id);
+                        if ui.selectable_label(is_selected, &node.name).clicked() {
+                            node_graph.selected_node = Some(*id);
+                        }
+                        
+                        ui.label(format!("{:?}", node.node_type));
+                    });
                 }
-            }
+            });
             
-            // Draw nodes
-            for (node_id, node) in &mut graph_res.graph.nodes {
-                let node_rect = egui::Rect::from_min_size(
-                    to_screen.transform_pos(node.position),
-                    egui::Vec2::new(120.0, 80.0)
-                );
-                
-                // Node background
-                painter.rect(
-                    node_rect,
-                    egui::Rounding::same(5.0),
-                    egui::Color32::from_gray(60),
-                    egui::Stroke::new(1.0, egui::Color32::WHITE)
-                );
-                
-                // Node title
-                painter.text(
-                    node_rect.center_top() + egui::Vec2::new(0.0, 10.0),
-                    egui::Align2::CENTER_CENTER,
-                    &node.name,
-                    egui::FontId::proportional(12.0),
-                    egui::Color32::WHITE
-                );
-                
-                // Input/output ports
-                for (i, (_, name)) in node.inputs.iter().enumerate() {
-                    let port_pos = node_rect.left_top() + egui::Vec2::new(0.0, 30.0 + i as f32 * 25.0);
-                    painter.circle(port_pos, 5.0, egui::Color32::GREEN, egui::Stroke::new(1.0, egui::Color32::WHITE));
-                    painter.text(
-                        port_pos + egui::Vec2::new(10.0, 0.0),
-                        egui::Align2::LEFT_CENTER,
-                        name,
-                        egui::FontId::proportional(10.0),
-                        egui::Color32::WHITE
-                    );
+            ui.separator();
+            
+            // Show connections
+            ui.vertical(|ui| {
+                ui.label("Connections:");
+                for conn in &node_graph.graph.connections {
+                    ui.label(format!("Node {}[{}] -> Node {}[{}]", 
+                        conn.from_node.0, conn.from_output,
+                        conn.to_node.0, conn.to_input));
                 }
-                
-                for (i, (_, name)) in node.outputs.iter().enumerate() {
-                    let port_pos = node_rect.right_top() + egui::Vec2::new(0.0, 30.0 + i as f32 * 25.0);
-                    painter.circle(port_pos, 5.0, egui::Color32::RED, egui::Stroke::new(1.0, egui::Color32::WHITE));
-                    painter.text(
-                        port_pos - egui::Vec2::new(10.0, 0.0),
-                        egui::Align2::RIGHT_CENTER,
-                        name,
-                        egui::FontId::proportional(10.0),
-                        egui::Color32::WHITE
-                    );
-                }
-            }
+            });
         });
-}
-
-fn draw_grid(painter: &egui::Painter, rect: egui::Rect) {
-    let grid_size = 20.0;
-    let grid_color = egui::Color32::from_gray(40);
-    
-    let mut x = rect.min.x;
-    while x < rect.max.x {
-        painter.line_segment(
-            [egui::pos2(x, rect.min.y), egui::pos2(x, rect.max.y)],
-            egui::Stroke::new(1.0, grid_color)
-        );
-        x += grid_size;
-    }
-    
-    let mut y = rect.min.y;
-    while y < rect.max.y {
-        painter.line_segment(
-            [egui::pos2(rect.min.x, y), egui::pos2(rect.max.x, y)],
-            egui::Stroke::new(1.0, grid_color)
-        );
-        y += grid_size;
-    }
 }

@@ -4,27 +4,35 @@
 //! providing AST construction, symbol table management, and type inference.
 //! Uses Rust-native naga library instead of JavaScript Lezer for compatibility.
 
-use anyhow::{Result, Context, bail};
-use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use naga::{
-    Module, Function, Type, TypeInner, Statement, Expression, 
-    Span, Handle, AddressSpace, ShaderStage, Interpolation, Sampling
-};
+use std::collections::HashMap;
+use anyhow::{Result, bail};
+use serde::{Serialize, Deserialize};
 
 /// WGSL AST Node types based on use.gpu patterns
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AstNode {
     Module(ModuleNode),
     Function(FunctionNode),
+    FunctionDecl { name: String, parameters: Vec<String>, return_type: Option<String>, body: Box<AstNode> },
     Struct(StructNode),
+    StructDecl { name: String, fields: Vec<String>, members: Vec<AstNode> },
+    StructMember { name: String, type_name: String },
     Variable(VariableNode),
     TypeAlias(TypeAliasNode),
+    TypeAliasDecl { name: String, target_type: String },
     Constant(ConstantNode),
+    ConstDecl { name: String, value: String },
     Attribute(AttributeNode),
     Statement(StatementNode),
     Expression(ExpressionNode),
+    ImportDecl { path: String },
+    OverrideDecl { name: String },
+    GlobalVarDecl { name: String, type_name: String, initializer: Option<String> },
+    BlockStatement(Vec<AstNode>),
+    ReturnStatement(Option<String>),
+    AssignmentStatement { target: String, value: String },
+    IfStatement { condition: String, then_branch: Box<AstNode>, else_branch: Option<Box<AstNode>> },
+    TranslationUnit,
 }
 
 /// Module node containing all top-level declarations
@@ -45,13 +53,13 @@ pub struct FunctionNode {
     pub return_type: Option<TypeNode>,
     pub body: Option<BlockNode>,
     pub attributes: Vec<AttributeNode>,
-    pub stage: Option<ShaderStage>,
+    pub stage: Option<WgslShaderStage>,
     pub workgroup_size: Option<(u32, u32, u32)>,
 }
 
 /// Shader stage enumeration
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ShaderStage {
+pub enum WgslShaderStage {
     Vertex,
     Fragment,
     Compute,
@@ -328,7 +336,7 @@ pub struct LoopNode {
 /// For loop statement
 #[derive(Debug, Clone, PartialEq)]
 pub struct ForNode {
-    pub initializer: Option<StatementNode>,
+    pub initializer: Option<Box<StatementNode>>,
     pub condition: Option<ExpressionNode>,
     pub increment: Option<ExpressionNode>,
     pub body: Box<StatementNode>,
@@ -582,6 +590,7 @@ impl std::fmt::Display for ParseError {
                    ParseErrorType::Redefinition => "redefinition",
                    ParseErrorType::InvalidAttribute => "invalid attribute",
                    ParseErrorType::InvalidBinding => "invalid binding",
+                   ParseErrorType::UnexpectedToken => "unexpected token",
                })
     }
 }
@@ -596,6 +605,7 @@ pub enum ParseErrorType {
     Redefinition,
     InvalidAttribute,
     InvalidBinding,
+    UnexpectedToken,
 }
 
 /// Parse warning information

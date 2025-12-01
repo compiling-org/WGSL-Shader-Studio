@@ -59,7 +59,12 @@ fn apply_theme(ctx: &egui::Context, ui_state: &super::editor_ui::EditorUiState) 
 }
 
 // Import audio system
-use super::audio_system::{AudioAnalyzer, AudioAnalysisPlugin};
+use super::audio_system::{AudioAnalyzer, AudioAnalysisPlugin, EnhancedAudioPlugin};
+use crate::ffgl_plugin::FfglPlugin;
+use crate::gyroflow_interop_integration::GyroflowInteropPlugin;
+use crate::screenshot_video_export::ExportPlugin;
+use crate::ndi_output::NdiOutputPlugin;
+use crate::dmx_lighting_control::DmxLightingControlPlugin;
 
 // Import timeline animation system
 use super::timeline::{TimelinePlugin, TimelineAnimation, PlaybackState};
@@ -74,13 +79,14 @@ use resolume_isf_shaders_rust_ffgl::compute_pass_integration::{ComputePassPlugin
 // use super::backend_systems::{ResponsiveBackend, ResponsiveBackendPlugin};
 
 // Import editor modules - use local editor_ui module
-use super::editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_editor_side_panels, draw_editor_code_panel};
+use super::editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_editor_side_panels, draw_editor_code_panel, draw_editor_central_panel};
 
 // Import shader renderer for 3D viewport texture rendering
 use super::shader_renderer::{ShaderRenderer, RenderParameters};
 
 // Import node graph and compute pass plugins - check if they exist
 use crate::bevy_node_graph_integration::BevyNodeGraphPlugin;
+// use crate::bevy_node_graph_integration_enhanced::BevyNodeGraphPluginEnhanced;
 // use crate::compute_pass_integration::ComputePassPlugin;
 
 // Hint Windows drivers to prefer discrete GPU when available
@@ -98,7 +104,8 @@ pub fn editor_ui_system(
     mut ui_state: ResMut<EditorUiState>, 
     mut startup_gate: ResMut<UiStartupGate>, 
     audio_analyzer: Res<AudioAnalyzer>,
-    timeline_animation: Res<TimelineAnimation>
+    timeline_animation: Res<TimelineAnimation>,
+    scene_editor_state: Res<SceneEditor3DState>
 ) {
     // Increment frame counter
     startup_gate.frames += 1;
@@ -189,7 +196,7 @@ pub fn editor_ui_system(
     // Draw side panels (shader browser, parameters, timeline)
     println!("Drawing side panels...");
     draw_editor_side_panels(ctx, &mut *ui_state, &audio_analyzer, 
-                             &mut Default::default(), &mut Default::default(), None, None, None);
+                             &mut Default::default(), &mut Default::default(), None, Some(&*scene_editor_state), None);
     
     // Draw code editor panel
     println!("Drawing code editor panel...");
@@ -199,8 +206,7 @@ pub fn editor_ui_system(
     // Only draw if preview is enabled, otherwise let other panels fill the space
     if ui_state.show_preview {
         println!("Drawing preview panel...");
-        // The preview panel is drawn within draw_editor_side_panels when show_preview is true
-        // This avoids the CentralPanel conflict
+        draw_editor_central_panel(ctx, &mut *ui_state, &audio_analyzer, None);
     }
     
     // Draw the additional side panels (timeline, node studio, etc.) as windows
@@ -317,10 +323,16 @@ pub fn run_app() {
         .add_plugins(FrameTimeDiagnosticsPlugin::default())
         .add_plugins(LogDiagnosticsPlugin::default())
         .add_plugins(AudioAnalysisPlugin)
+        .add_plugins(EnhancedAudioPlugin)
+        .add_plugins(FfglPlugin)
+        .add_plugins(GyroflowInteropPlugin)
+        .add_plugins(ExportPlugin)
         .add_plugins(TimelinePlugin)
+        .add_plugins(DmxLightingControlPlugin)
         .add_plugins(GestureControlPlugin)
         .add_plugins(ComputePassPlugin)
         .add_plugins(BevyNodeGraphPlugin)
+        // .add_plugins(BevyNodeGraphPluginEnhanced)
         // .add_plugins(ResponsiveBackendPlugin)
         .insert_resource(EditorUiState::default())
         .insert_resource(UiStartupGate::default())

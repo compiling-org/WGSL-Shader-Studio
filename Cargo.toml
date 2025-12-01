@@ -19,6 +19,10 @@ name = "ui-analyzer"
 path = "src/bin/ui_analyzer.rs"
 
 [[bin]]
+name = "ui-analyzer-enhanced"
+path = "src/bin/ui_analyzer_enhanced.rs"
+
+[[bin]]
 name = "test-window"
 path = "test_window.rs"
 

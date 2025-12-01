@@ -262,3 +262,31 @@ impl NodeGraph {
         code.push_str("    var color = vec3<f32>(0.0);\n\n");
         
         // Generate node code in topological order
+        for node in &self.nodes {
+            match node.node_type {
+                NodeType::Input => {
+                    // Input nodes provide basic values
+                    code.push_str(&format!("    let {} = pos.x + pos.y * 0.5;\n", node.name));
+                }
+                NodeType::Sine => {
+                    // Sine wave generator
+                    code.push_str(&format!("    let {} = sin({} * 3.14159);\n", node.name, node.inputs[0]));
+                }
+                NodeType::Multiply => {
+                    // Multiply two values
+                    code.push_str(&format!("    let {} = {} * {};\n", node.name, node.inputs[0], node.inputs[1]));
+                }
+                NodeType::Output => {
+                    // Final output
+                    code.push_str(&format!("    color = vec3<f32>({});\n", node.inputs[0]));
+                }
+            }
+        }
+        
+        // Complete the main function
+        code.push_str("\n    return vec4<f32>(color, 1.0);\n");
+        code.push_str("}\n");
+        
+        Ok(code)
+    }
+}

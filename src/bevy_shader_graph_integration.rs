@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy::ecs::system::CommandQueue;
+// FIXED: Removed invalid import - CommandQueue doesn't exist in bevy::ecs::system
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, RwLock};
 use uuid::Uuid;

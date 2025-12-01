@@ -7,7 +7,7 @@ use std::path::Path;
 use chrono::Local;
 
 use crate::shader_renderer::{ShaderRenderer, RenderParameters, WorkingShaderExample};
-use crate::audio::AudioData;
+// FIXED: Removed invalid audio::AudioData import - module doesn't exist
 
 /// Complete shader playground system with live preview and parameter controls
 pub struct ShaderPlaygroundPlugin;

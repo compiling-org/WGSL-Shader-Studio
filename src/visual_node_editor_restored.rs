@@ -26,6 +26,109 @@ impl VisualNodeEditor {
             compilation_errors: Vec::new(),
         }
     }
+    
+    fn draw_connections(&self, ui: &mut Ui, node_graph: &NodeGraph) {
+        let painter = ui.painter();
+        
+        for connection in &node_graph.connections {
+            if let (Some(from_pos), Some(to_pos)) = (
+                self.get_node_port_pos(ui, node_graph, connection.from_node, connection.from_port, true),
+                self.get_node_port_pos(ui, node_graph, connection.to_node, connection.to_port, false)
+            ) {
+                let stroke = Stroke::new(2.0, Color32::from_rgb(100, 200, 255));
+                painter.line_segment([from_pos, to_pos], stroke);
+            }
+        }
+    }
+    
+    fn draw_active_connection(&self, ui: &mut Ui, node_graph: &NodeGraph, start_node: NodeId, start_port: PortId, is_output: bool) {
+        if let Some(start_pos) = self.get_node_port_pos(ui, node_graph, start_node, start_port, is_output) {
+            if let Some(mouse_pos) = ui.input(|i| i.pointer.latest_pos()) {
+                let painter = ui.painter();
+                let stroke = Stroke::new(2.0, Color32::from_rgb(255, 200, 100));
+                painter.line_segment([start_pos, mouse_pos], stroke);
+            }
+        }
+    }
+    
+    fn draw_node(&self, ui: &mut Ui, node_id: NodeId, node_graph: &NodeGraph) {
+        if let Some(node) = node_graph.nodes.get(&node_id) {
+            let position = self.node_positions.get(&node_id).copied().unwrap_or((100.0, 100.0));
+            let pos = pos2(position.0, position.1);
+            let node_size = vec2(120.0, 80.0);
+            let node_rect = Rect::from_center_size(pos, node_size);
+            
+            let painter = ui.painter();
+            
+            // Node background
+            painter.rect_filled(node_rect, 4.0, Color32::from_rgb(60, 60, 80));
+            painter.rect_stroke(node_rect, 4.0, Stroke::new(1.0, Color32::from_rgb(120, 120, 150)));
+            
+            // Node title
+            painter.text(
+                pos,
+                Align2::CENTER_CENTER,
+                &node.name,
+                FontId::proportional(12.0),
+                Color32::WHITE
+            );
+            
+            // Draw ports
+            self.draw_node_ports(ui, node_id, node, node_rect);
+            
+            // Node interaction
+            let response = ui.allocate_rect(node_rect, Sense::click_and_drag());
+            
+            if response.dragged() {
+                // Update node position
+                if let Some(pos) = self.node_positions.get_mut(&node_id) {
+                    pos.0 += response.drag_delta().x;
+                    pos.1 += response.drag_delta().y;
+                }
+            }
+            
+            if response.clicked() {
+                self.selected_node = Some(node_id);
+            }
+        }
+    }
+    
+    fn draw_node_ports(&self, ui: &mut Ui, node_id: NodeId, node: &Node, node_rect: &Rect) {
+        let painter = ui.painter();
+        let port_radius = 4.0;
+        
+        // Input ports (left side)
+        for (i, input) in node.inputs.iter().enumerate() {
+            let y = node_rect.min.y + 20.0 + (i as f32 * 15.0);
+            let port_pos = pos2(node_rect.min.x - port_radius, y);
+            painter.circle_filled(port_pos, port_radius, Color32::from_rgb(100, 150, 255));
+        }
+        
+        // Output ports (right side)
+        for (i, output) in node.outputs.iter().enumerate() {
+            let y = node_rect.min.y + 20.0 + (i as f32 * 15.0);
+            let port_pos = pos2(node_rect.max.x + port_radius, y);
+            painter.circle_filled(port_pos, port_radius, Color32::from_rgb(255, 150, 100));
+        }
+    }
+    
+    fn get_node_port_pos(&self, ui: &Ui, node_graph: &NodeGraph, node_id: NodeId, port_id: PortId, is_output: bool) -> Option<Pos2> {
+        if let Some(node) = node_graph.nodes.get(&node_id) {
+            if let Some(position) = self.node_positions.get(&node_id) {
+                let pos = pos2(position.0, position.1);
+                let node_size = vec2(120.0, 80.0);
+                let node_rect = Rect::from_center_size(pos, node_size);
+                
+                let ports = if is_output { &node.outputs } else { &node.inputs };
+                if let Some(port_index) = ports.iter().position(|p| p.id == port_id) {
+                    let y = node_rect.min.y + 20.0 + (port_index as f32 * 15.0);
+                    let x = if is_output { node_rect.max.x } else { node_rect.min.x };
+                    return Some(pos2(x, y));
+                }
+            }
+        }
+        None
+    }
 
     pub fn generate_and_compile(&mut self, node_graph: &NodeGraph, width: u32, height: u32) -> Result<String, Vec<String>> {
         match node_graph.generate_wgsl() {
@@ -164,3 +267,11 @@ impl VisualNodeEditor {
         let start_y = ((rect.min.y - self.pan.y) / grid_size).floor() * grid_size + self.pan.y;
         let mut y = start_y;
         while y < rect.max.y {
+            painter.line_segment(
+                [pos2(rect.min.x, y), pos2(rect.max.x, y)],
+                Stroke::new(1.0, grid_color)
+            );
+            y += grid_size;
+        }
+    }
+}

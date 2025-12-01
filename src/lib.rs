@@ -363,17 +363,30 @@ pub mod simple_ui_auditor;
 pub mod node_graph;
 pub mod timeline;
 pub mod ui_analyzer;
+pub mod ui_analyzer_enhanced;
+
+// Re-export UI analyzer types for external use
+pub use ui_analyzer::{UIAnalyzer, FeatureCheck, FeatureStatus, Priority, WgpuDiagnostics, UiStateDiagnostics};
+pub use ui_analyzer_enhanced::{UIAnalyzerEnhanced, AnalysisSummary};
+
 pub mod backend_systems;
 // pub mod visual_node_editor;
 pub mod visual_node_editor_adapter;
 pub mod gyroflow_wgpu_interop;
 pub mod gyroflow_interop_integration;
 pub mod bevy_node_graph_integration;
-pub mod bevy_node_graph_integration_enhanced;
+// pub mod bevy_node_graph_integration_enhanced; // Temporarily commented due to compilation issues
 pub mod screenshot_video_export;
+pub mod ndi_output;
+pub mod spout_syphon_output;
+pub mod osc_control;
+pub mod dmx_lighting_control;
+#[cfg(test)]
+pub mod dmx_lighting_control_test;
 pub mod scene_editor_3d;
 pub mod shader_transpiler;
 pub mod wgsl_analyzer;
+pub mod advanced_shader_compilation;
 pub mod wgsl_ast_parser;
 pub mod shader_module_system;
 
@@ -384,3 +397,6 @@ pub use shader_converter::*;
 pub use shader_renderer::*;
 pub use isf_loader::*;
 pub use ffgl_plugin::*;
+pub use dmx_lighting_control::*;
+
+// Types are already defined in this module, no need to re-export
