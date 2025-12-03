@@ -370,7 +370,7 @@ impl WgslToGlslVisitor {
 
     fn visit_node(&mut self, node: &AstNode) -> TranspilerResult<()> {
         match node {
-            AstNode::TranslationUnit => {
+            AstNode::Module(_) => {
                 self.write_line("#version 450 core");
                 self.write_line("");
                 // Translation unit processing would go here

@@ -338,7 +338,7 @@ fn update_timeline_animation(
 }
 
 // UI Functions for Timeline
-use egui::{Color32, Response, RichText, Ui};
+use bevy_egui::egui::{Color32, Response, RichText, Ui};
 
 pub fn draw_timeline_ui(ui: &mut Ui, timeline: &mut TimelineAnimation) {
     ui.group(|ui| {
@@ -375,7 +375,7 @@ pub fn draw_timeline_ui(ui: &mut Ui, timeline: &mut TimelineAnimation) {
             // Speed control
             ui.separator();
             ui.label("Speed:");
-            ui.add(egui::DragValue::new(&mut timeline.timeline.playback_speed)
+            ui.add(bevy_egui::egui::DragValue::new(&mut timeline.timeline.playback_speed)
                 .speed(0.1)
                 .clamp_range(0.1..=5.0)
                 .prefix("x"));
@@ -393,9 +393,9 @@ pub fn draw_timeline_ui(ui: &mut Ui, timeline: &mut TimelineAnimation) {
             // Timeline ruler
             ui.horizontal(|ui| {
                 ui.label("Time:");
-                ui.allocate_ui(egui::vec2(timeline_width, ruler_height), |ui| {
+                ui.allocate_ui(bevy_egui::egui::vec2(timeline_width, ruler_height), |ui| {
                     let painter = ui.painter();
-                    let rect = egui::Rect::from_min_size(ui.cursor().min, egui::vec2(timeline_width, ruler_height));
+                    let rect = bevy_egui::egui::Rect::from_min_size(ui.cursor().min, bevy_egui::egui::vec2(timeline_width, ruler_height));
                     
                     // Draw ruler background
                     painter.rect_filled(rect, 0.0, Color32::from_gray(40));
@@ -409,15 +409,15 @@ pub fn draw_timeline_ui(ui: &mut Ui, timeline: &mut TimelineAnimation) {
                         let x = rect.left() + (time / time_per_pixel);
                         if x <= rect.right() {
                             painter.line_segment(
-                                [egui::pos2(x, rect.top()), egui::pos2(x, rect.bottom())],
+                                [bevy_egui::egui::pos2(x, rect.top()), bevy_egui::egui::pos2(x, rect.bottom())],
                                 (1.0, Color32::from_gray(100))
                             );
                             
                             painter.text(
-                                egui::pos2(x + 2.0, rect.top() + 2.0),
-                                egui::Align2::LEFT_TOP,
+                                bevy_egui::egui::pos2(x + 2.0, rect.top() + 2.0),
+                                bevy_egui::egui::Align2::LEFT_TOP,
                                 format!("{:.1}s", time),
-                                egui::FontId::monospace(10.0),
+                                bevy_egui::egui::FontId::monospace(10.0),
                                 Color32::WHITE,
                             );
                         }
@@ -427,7 +427,7 @@ pub fn draw_timeline_ui(ui: &mut Ui, timeline: &mut TimelineAnimation) {
                     // Draw current time indicator
                     let current_x = rect.left() + (timeline.timeline.current_time / time_per_pixel);
                     painter.line_segment(
-                        [egui::pos2(current_x, rect.top()), egui::pos2(current_x, rect.bottom() + track_height * timeline.timeline.tracks.len() as f32)],
+                        [bevy_egui::egui::pos2(current_x, rect.top()), bevy_egui::egui::pos2(current_x, rect.bottom() + track_height * timeline.timeline.tracks.len() as f32)],
                         (2.0, Color32::from_rgb(255, 100, 100))
                     );
                 });
@@ -446,17 +446,17 @@ pub fn draw_timeline_ui(ui: &mut Ui, timeline: &mut TimelineAnimation) {
                     });
                     
                     // Track timeline
-                    ui.allocate_ui(egui::vec2(timeline_width - 60.0, track_height), |ui| {
+                    ui.allocate_ui(bevy_egui::egui::vec2(timeline_width - 60.0, track_height), |ui| {
                         let painter = ui.painter();
-                        let rect = egui::Rect::from_min_size(ui.cursor().min, egui::vec2(timeline_width - 60.0, track_height));
+                        let rect = bevy_egui::egui::Rect::from_min_size(ui.cursor().min, bevy_egui::egui::vec2(timeline_width - 60.0, track_height));
                         
                         // Draw track background
                         painter.rect_filled(rect, 2.0, Color32::from_gray(30));
                         
                         // Draw track color indicator
-                        let color_rect = egui::Rect::from_min_max(
+                        let color_rect = bevy_egui::egui::Rect::from_min_max(
                             rect.left_top(),
-                            egui::pos2(rect.left() + 4.0, rect.bottom())
+                            bevy_egui::egui::pos2(rect.left() + 4.0, rect.bottom())
                         );
                         painter.rect_filled(color_rect, 0.0, Color32::from_rgba_unmultiplied(
                             (track.color[0] * 255.0) as u8,
@@ -479,15 +479,15 @@ pub fn draw_timeline_ui(ui: &mut Ui, timeline: &mut TimelineAnimation) {
                                 InterpolationType::Step => Color32::from_rgb(200, 100, 255),
                             };
                             
-                            painter.circle_filled(egui::pos2(x, y), 4.0, keyframe_color);
-                            painter.circle_stroke(egui::pos2(x, y), 5.0, (1.0, Color32::WHITE));
+                            painter.circle_filled(bevy_egui::egui::pos2(x, y), 4.0, keyframe_color);
+                            painter.circle_stroke(bevy_egui::egui::pos2(x, y), 5.0, (1.0, Color32::WHITE));
                             
                             // Keyframe value tooltip
                             if ui.rect_contains_pointer(rect) {
                                 let mouse_pos = ui.input(|i| i.pointer.interact_pos().unwrap_or_default());
-                                let keyframe_rect = egui::Rect::from_center_size(egui::pos2(x, y), egui::vec2(10.0, 10.0));
+                                let keyframe_rect = bevy_egui::egui::Rect::from_center_size(bevy_egui::egui::pos2(x, y), bevy_egui::egui::vec2(10.0, 10.0));
                                 if keyframe_rect.contains(mouse_pos) {
-                                    egui::show_tooltip_at_pointer(ui.ctx(), egui::Id::new((track_name, i)), |ui| {
+                                    bevy_egui::egui::show_tooltip_at_pointer(ui.ctx(), bevy_egui::egui::Id::new((track_name, i)), |ui| {
                                         ui.label(format!("Time: {:.2}s\nValue: {:.3}", keyframe.time, keyframe.value));
                                     });
                                 }
@@ -510,11 +510,11 @@ pub fn draw_timeline_ui(ui: &mut Ui, timeline: &mut TimelineAnimation) {
             ui.checkbox(&mut timeline.timeline.loop_enabled, "Loop");
             if timeline.timeline.loop_enabled {
                 ui.label("Start:");
-                ui.add(egui::DragValue::new(&mut timeline.timeline.loop_start)
+                ui.add(bevy_egui::egui::DragValue::new(&mut timeline.timeline.loop_start)
                     .speed(0.1)
                     .clamp_range(0.0..=timeline.timeline.loop_end));
                 ui.label("End:");
-                ui.add(egui::DragValue::new(&mut timeline.loop_end)
+                ui.add(bevy_egui::egui::DragValue::new(&mut timeline.timeline.loop_end)
                     .speed(0.1)
                     .clamp_range(timeline.timeline.loop_start..=timeline.timeline.duration));
             }
@@ -525,7 +525,7 @@ pub fn draw_timeline_ui(ui: &mut Ui, timeline: &mut TimelineAnimation) {
             ui.checkbox(&mut timeline.timeline.snap_to_grid, "Snap to Grid");
             if timeline.timeline.snap_to_grid {
                 ui.label("Division:");
-                ui.add(egui::DragValue::new(&mut timeline.timeline.grid_division)
+                ui.add(bevy_egui::egui::DragValue::new(&mut timeline.timeline.grid_division)
                     .speed(0.01)
                     .clamp_range(0.01..=1.0)
                     .suffix("s"));
@@ -553,7 +553,7 @@ pub fn draw_timeline_ui(ui: &mut Ui, timeline: &mut TimelineAnimation) {
             
             if ui.button("Export Timeline").clicked() {
                 if let Ok(json) = timeline.timeline.export_to_json() {
-                    ui.output_mut(|o| o.copied_text = json);
+                    // ui.output_mut(|o| o.copied_text = json); // TODO: Fix PlatformOutput field access
                     println!("Timeline exported to clipboard");
                 }
             }
@@ -594,7 +594,7 @@ pub fn draw_timeline_controls(ui: &mut Ui, timeline: &mut TimelineAnimation) {
         
         // Time scrubber
         let time_before = timeline.timeline.current_time;
-        ui.add(egui::Slider::new(&mut timeline.timeline.current_time, 0.0..=timeline.timeline.duration)
+        ui.add(bevy_egui::egui::Slider::new(&mut timeline.timeline.current_time, 0.0..=timeline.timeline.duration)
             .text("Time")
             .suffix("s"));
         
@@ -607,7 +607,7 @@ pub fn draw_timeline_controls(ui: &mut Ui, timeline: &mut TimelineAnimation) {
         
         // Duration control
         ui.label("Duration:");
-        ui.add(egui::DragValue::new(&mut timeline.timeline.duration)
+        ui.add(bevy_egui::egui::DragValue::new(&mut timeline.timeline.duration)
             .speed(0.1)
             .clamp_range(1.0..=300.0)
             .suffix("s"));

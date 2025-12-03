@@ -2,6 +2,7 @@
 //! Enables real-time lighting control via DMX512 protocol for stage lighting integration
 
 use bevy::prelude::*;
+use bevy_egui::egui;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::collections::HashMap;

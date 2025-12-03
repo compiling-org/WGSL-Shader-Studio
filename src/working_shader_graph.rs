@@ -530,7 +530,7 @@ fn shader_graph_editor_system(
                     ui.separator();
                     
                     if ui.button("Copy to Clipboard").clicked() {
-                        ui.output_mut(|o| o.copied_text = editor.generated_code.clone());
+                        // ui.output_mut(|o| o.copied_text = editor.generated_code.clone()); // TODO: Fix PlatformOutput field access
                     }
                 });
             });

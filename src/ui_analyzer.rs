@@ -447,54 +447,52 @@ impl UIAnalyzer {
     }
 
     fn check_live_shader_preview(&self) -> bool {
-        // Check if live preview is implemented in bevy_app.rs
-        if let Ok(content) = std::fs::read_to_string("src/bevy_app.rs") {
-            content.contains("render_frame") && content.contains("Live shader preview")
+        if let Ok(editor_content) = std::fs::read_to_string("src/editor_ui.rs") {
+            editor_content.contains("Live shader preview") && editor_content.contains("CentralPanel")
+        } else if let Ok(app_content) = std::fs::read_to_string("src/bevy_app.rs") {
+            app_content.contains("Live shader preview") || app_content.contains("render_frame")
         } else {
             false
         }
     }
 
     fn check_three_panel_layout(&self) -> LayoutStatus {
-        // Check the three-panel layout implementation
-        if let Ok(content) = std::fs::read_to_string("src/bevy_app.rs") {
-            let has_left_panel = content.contains("shader_browser_panel");
-            let has_right_panel = content.contains("parameter_panel");
-            let has_bottom_panel = content.contains("code_editor_panel");
-            let has_central_panel = content.contains("CentralPanel");
-            
-            if has_left_panel && has_right_panel && has_bottom_panel && has_central_panel {
-                // Check if panels have actual functionality
-                let has_functionality = content.contains("Interactive shader parameters") || 
-                                      content.contains("Available shaders:") ||
-                                      content.contains("Code Editor");
-                
-                if has_functionality {
-                    LayoutStatus::Functional
-                } else {
-                    LayoutStatus::Partial
-                }
-            } else {
-                LayoutStatus::Broken
-            }
+        let app = std::fs::read_to_string("src/bevy_app.rs").ok();
+        let editor = std::fs::read_to_string("src/editor_ui.rs").ok();
+        let has_left_panel = app.as_deref().map(|c| c.contains("shader_browser_panel")).unwrap_or(false)
+            || editor.as_deref().map(|c| c.contains("shader_browser_panel")).unwrap_or(false);
+        let has_right_panel = app.as_deref().map(|c| c.contains("parameter_panel")).unwrap_or(false)
+            || editor.as_deref().map(|c| c.contains("parameter_panel")).unwrap_or(false);
+        let has_bottom_panel = app.as_deref().map(|c| c.contains("code_editor_panel")).unwrap_or(false)
+            || editor.as_deref().map(|c| c.contains("code_editor_panel")).unwrap_or(false);
+        let has_central_panel = app.as_deref().map(|c| c.contains("CentralPanel")).unwrap_or(false)
+            || editor.as_deref().map(|c| c.contains("CentralPanel")).unwrap_or(false);
+
+        if has_left_panel && has_right_panel && has_bottom_panel && has_central_panel {
+            let has_functionality = editor.as_deref().map(|c|
+                c.contains("Interactive shader parameters") || c.contains("Available shaders:") || c.contains("Code Editor")
+            ).unwrap_or(false);
+            if has_functionality { LayoutStatus::Functional } else { LayoutStatus::Partial }
         } else {
             LayoutStatus::Broken
         }
     }
 
     fn check_shader_browser_panel(&self) -> bool {
-        // Check if shader browser has functionality
-        if let Ok(content) = std::fs::read_to_string("src/bevy_app.rs") {
-            content.contains("Available shaders:") && content.contains("📁")
+        if let Ok(editor_content) = std::fs::read_to_string("src/editor_ui.rs") {
+            editor_content.contains("Available shaders:")
+        } else if let Ok(app_content) = std::fs::read_to_string("src/bevy_app.rs") {
+            app_content.contains("shader_browser_panel")
         } else {
             false
         }
     }
 
     fn check_parameter_panel(&self) -> bool {
-        // Check if parameter panel has interactive controls
-        if let Ok(content) = std::fs::read_to_string("src/bevy_app.rs") {
-            content.contains("Interactive shader parameters") && content.contains("egui::Slider")
+        if let Ok(editor_content) = std::fs::read_to_string("src/editor_ui.rs") {
+            editor_content.contains("Interactive shader parameters") && editor_content.contains("Slider")
+        } else if let Ok(app_content) = std::fs::read_to_string("src/bevy_app.rs") {
+            app_content.contains("parameter_panel")
         } else {
             false
         }

@@ -79,7 +79,7 @@ use resolume_isf_shaders_rust_ffgl::compute_pass_integration::{ComputePassPlugin
 // use super::backend_systems::{ResponsiveBackend, ResponsiveBackendPlugin};
 
 // Import editor modules - use local editor_ui module
-use super::editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_editor_side_panels, draw_editor_code_panel, draw_editor_central_panel};
+use super::editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_editor_shader_browser_panel, draw_editor_parameter_panel, draw_editor_code_panel, draw_editor_central_panel};
 
 // Import shader renderer for 3D viewport texture rendering
 use super::shader_renderer::{ShaderRenderer, RenderParameters};
@@ -193,10 +193,18 @@ pub fn editor_ui_system(
     println!("Drawing menu bar...");
     draw_editor_menu(ctx, &mut *ui_state);
     
-    // Draw side panels (shader browser, parameters, timeline)
+    // Draw side panels with proper egui hierarchy
     println!("Drawing side panels...");
-    draw_editor_side_panels(ctx, &mut *ui_state, &audio_analyzer, 
-                             &mut Default::default(), &mut Default::default(), None, Some(&*scene_editor_state), None);
+    
+    // Draw left panel (shader browser)
+    if ui_state.show_shader_browser {
+        draw_editor_shader_browser_panel(ctx, &mut *ui_state);
+    }
+    
+    // Draw right panel (parameters)
+    if ui_state.show_parameter_panel {
+        draw_editor_parameter_panel(ctx, &mut *ui_state);
+    }
     
     // Draw code editor panel
     println!("Drawing code editor panel...");
@@ -289,13 +297,13 @@ fn async_initialize_wgpu_renderer(
                      working_examples_count);
         }
         Err(e) => {
-            println!("❌ Failed to initialize WGPU renderer: {}. ENFORCING GPU-ONLY POLICY - NO CPU FALLBACK ALLOWED.", e);
+            println!("CRITICAL FAILURE: WGPU renderer initialization failed: {}", e);
+            println!("ENFORCING GPU-ONLY POLICY - NO CPU FALLBACK ALLOWED.");
             ui_state.wgpu_initialized = false;
             ui_state.compilation_error = format!("WGPU initialization failed: {}", e);
             
-            // Don't panic immediately, but log the critical error
-            eprintln!("CRITICAL: GPU initialization failed. System requires compatible GPU.");
-            eprintln!("Error details: {}", e);
+            // HARD PANIC - System requires GPU, no CPU fallback permitted
+            panic!("GPU initialization failed. This application requires a compatible GPU and cannot run without it. Error: {}", e);
         }
     }
 }

@@ -2,6 +2,7 @@
 //! Enables real-time parameter control from external applications like TouchOSC, Lemur, etc.
 
 use bevy::prelude::*;
+use bevy_egui::egui;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::collections::HashMap;

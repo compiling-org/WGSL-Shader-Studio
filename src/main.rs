@@ -23,7 +23,7 @@ mod scene_editor_3d;
 mod wgsl_diagnostics;
 
 // Import the specific types we need
-use editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_editor_side_panels, draw_editor_code_panel};
+use editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_editor_shader_browser_panel, draw_editor_parameter_panel, draw_editor_code_panel};
 use audio_system::{AudioAnalyzer, AudioAnalysisPlugin};
 use gesture_control::{GestureControlSystem, GestureControlPlugin};
 use compute_pass_integration::{ComputePassManager, ComputePassPlugin};
@@ -69,42 +69,10 @@ fn main() {
 
 #[cfg(feature = "gui")]
 fn run_gui() {
-    use bevy::prelude::*;
-    use bevy::window::WindowResolution;
+    println!("Starting WGSL Shader Studio with corrected panel hierarchy...");
     
-    println!("Starting Bevy app with egui integration and space_editor 3D scene management...");
-    
-    // Create the Bevy app with all necessary plugins and systems
-    let mut app = App::new();
-    
-    // Add default plugins with window settings
-    app.add_plugins(DefaultPlugins.set(WindowPlugin {
-        primary_window: Some(Window {
-            title: "WGSL Shader Studio".to_string(),
-            resolution: WindowResolution::new(1280, 720),
-            ..default()
-        }),
-        ..default()
-    }));
-    
-    // Add egui plugin
-    app.add_plugins(bevy_egui::EguiPlugin::default());
-    
-    // Add our custom systems and resources
-    app.init_resource::<EditorUiState>()
-        .init_resource::<UiStartupGate>()
-        .init_resource::<AudioAnalyzer>()
-        .init_resource::<ComputePassManager>()
-        .init_resource::<GestureControlSystem>()
-        .init_resource::<SceneEditor3DState>()
-        .add_plugins(SceneEditor3DPlugin)
-        .add_systems(Startup, setup_camera)
-        .add_systems(Update, bevy_editor_ui_system)
-        .add_systems(Update, scene_editor_3d_ui)
-        .add_systems(Update, scene_3d_viewport_ui);
-    
-    println!("Running Bevy app with space_editor 3D scene management...");
-    app.run();
+    // Use the proper bevy_app module that has the corrected panel hierarchy
+    bevy_app::run_app();
 }
 
 fn run_cli() {

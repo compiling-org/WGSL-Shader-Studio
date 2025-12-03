@@ -454,17 +454,17 @@ impl DiagnosticRenderer {
                 ui.colored(egui::Color32::RED, format!("● {} errors", error_count));
             }
             if warning_count > 0 {
-                ui.colored(egui::Color32::YELLOW, format!("▲ {} warnings", warning_count));
+                ui.colored_label(egui::Color32::YELLOW, format!("▲ {} warnings", warning_count));
             }
             if info_count > 0 {
-                ui.colored(egui::Color32::BLUE, format!("ℹ {} info", info_count));
+                ui.colored_label(egui::Color32::BLUE, format!("ℹ {} info", info_count));
             }
             if hint_count > 0 {
-                ui.colored(egui::Color32::GRAY, format!("💡 {} hints", hint_count));
+                ui.colored_label(egui::Color32::GRAY, format!("💡 {} hints", hint_count));
             }
             
             if diagnostics.is_empty() {
-                ui.colored(egui::Color32::GREEN, "✓ No issues");
+                ui.colored_label(egui::Color32::GREEN, "✓ No issues");
             }
         });
     }

@@ -2,6 +2,7 @@
 //! Enables shader output to be shared with other applications in real-time
 
 use bevy::prelude::*;
+use bevy_egui::egui;
 use std::sync::Arc;
 use std::sync::Mutex;
 

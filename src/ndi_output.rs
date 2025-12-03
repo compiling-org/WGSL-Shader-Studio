@@ -2,6 +2,7 @@
 //! Compatible with OBS Studio, vMix, Wirecast, and other NDI-enabled applications
 
 use bevy::prelude::*;
+use bevy_egui::egui;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};

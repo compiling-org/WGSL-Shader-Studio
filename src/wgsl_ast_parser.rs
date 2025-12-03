@@ -36,7 +36,7 @@ pub enum AstNode {
 }
 
 /// Module node containing all top-level declarations
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ModuleNode {
     pub name: Option<String>,
     pub imports: Vec<ImportNode>,
@@ -46,7 +46,7 @@ pub struct ModuleNode {
 }
 
 /// Function declaration node
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FunctionNode {
     pub name: String,
     pub parameters: Vec<ParameterNode>,

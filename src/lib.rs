@@ -354,20 +354,20 @@ pub mod gui;
 pub mod wgsl_bindgen_integration;
 pub mod wgsl_diagnostics;
 pub mod isf_auto_converter;
-pub mod isf_conversion_tester;
+// pub mod isf_conversion_tester; // Module not found
 pub mod wgsl_reflect_integration;
-pub mod wgslsmith_integration;
+// pub mod wgslsmith_integration; // Module not found
 pub mod converter; // Add comprehensive converter module
 pub mod editor_ui;
 pub mod simple_ui_auditor;
 pub mod node_graph;
 pub mod timeline;
 pub mod ui_analyzer;
-pub mod ui_analyzer_enhanced;
+// pub mod ui_analyzer_enhanced; // Module exists in bin/ directory
 
 // Re-export UI analyzer types for external use
 pub use ui_analyzer::{UIAnalyzer, FeatureCheck, FeatureStatus, Priority, WgpuDiagnostics, UiStateDiagnostics};
-pub use ui_analyzer_enhanced::{UIAnalyzerEnhanced, AnalysisSummary};
+// pub use ui_analyzer_enhanced::{UIAnalyzerEnhanced, AnalysisSummary}; // Module exists in bin/ directory
 
 pub mod backend_systems;
 // pub mod visual_node_editor;

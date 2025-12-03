@@ -1,7 +1,7 @@
 //! WGSL Bindgen Integration Module
-//! Provides uniform layout analysis and code generation using wgsl_bindgen
+//! Provides uniform layout analysis and code generation using naga for proper WGSL parsing
 
-use wgsl_bindgen::{WgslBindgenOptionBuilder, WgslTypeSerializeStrategy};
+use naga::{Module, GlobalVariable, Type, TypeInner, AddressSpace};
 use std::collections::HashMap;
 use anyhow::Result;
 
@@ -36,11 +36,11 @@ impl WgslBindgenAnalyzer {
         }
     }
 
-    /// Analyze WGSL code and extract uniform layouts
+    /// Analyze WGSL code and extract uniform layouts using naga
     pub fn analyze_shader(&mut self, wgsl_code: &str, shader_name: &str) -> Result<Vec<UniformLayout>> {
-        // For now, we'll use a simplified approach since wgsl_bindgen is primarily a build-time tool
-        // We'll parse the WGSL code manually to extract uniform information
-        let layouts = self.parse_wgsl_for_uniforms(wgsl_code)?;
+        // Parse WGSL using naga for proper analysis
+        let module = naga::front::wgsl::parse_str(wgsl_code)?;
+        let layouts = self.extract_uniforms_from_module(&module)?;
         
         // Store layouts for this shader
         for layout in &layouts {
@@ -50,7 +50,92 @@ impl WgslBindgenAnalyzer {
         Ok(layouts)
     }
     
-    /// Parse WGSL code manually to extract uniform information
+    /// Extract uniform layouts from naga module
+    fn extract_uniforms_from_module(&self, module: &Module) -> Result<Vec<UniformLayout>> {
+        let mut layouts = Vec::new();
+        
+        // Iterate through global variables to find uniforms
+        for (handle, var) in module.global_variables.iter() {
+            if var.space == AddressSpace::Uniform {
+                if let Some(type_info) = self.extract_uniform_info(module, var) {
+                    layouts.push(type_info);
+                }
+            }
+        }
+        
+        Ok(layouts)
+    }
+    
+    /// Extract uniform information from a global variable
+    fn extract_uniform_info(&self, module: &Module, var: &GlobalVariable) -> Option<UniformLayout> {
+        let type_handle = var.ty;
+        let type_info = &module.types[type_handle];
+        
+        match &type_info.inner {
+            TypeInner::Struct { members, .. } => {
+                let mut fields = Vec::new();
+                
+                for (i, member) in members.iter().enumerate() {
+                    let member_type = &module.types[member.ty];
+                    let (ty, size) = self.get_type_info(member_type)?;
+                    
+                    fields.push(UniformField {
+                        name: member.name.clone().unwrap_or_else(|| format!("field_{}", i)),
+                        ty,
+                        offset: 0, // Will be calculated later
+                        size,
+                        alignment: size,
+                    });
+                }
+                
+                let total_size = fields.iter().map(|f| f.size).sum::<usize>().max(256);
+                
+                Some(UniformLayout {
+                    name: var.name.clone().unwrap_or_else(|| "Uniforms".to_string()),
+                    binding: var.binding.as_ref()?.binding,
+                    group: var.binding.as_ref()?.group,
+                    size: total_size,
+                    fields,
+                })
+            }
+            _ => None,
+        }
+    }
+    
+    /// Get type information from naga type
+    fn get_type_info(&self, type_info: &Type) -> Option<(String, usize)> {
+        match &type_info.inner {
+            TypeInner::Scalar(kind, width) => {
+                match kind {
+                    naga::ScalarKind::Float => Some(("f32".to_string(), *width as usize)),
+                    naga::ScalarKind::Sint => Some(("i32".to_string(), *width as usize)),
+                    naga::ScalarKind::Uint => Some(("u32".to_string(), *width as usize)),
+                    naga::ScalarKind::Bool => Some(("bool".to_string(), *width as usize)),
+                }
+            }
+            TypeInner::Vector { size, scalar } => {
+                let base_type = match scalar.kind {
+                    naga::ScalarKind::Float => "f32",
+                    naga::ScalarKind::Sint => "i32",
+                    naga::ScalarKind::Uint => "u32",
+                    naga::ScalarKind::Bool => "bool",
+                };
+                let vec_size = match *size {
+                    naga::VectorSize::Bi => 2,
+                    naga::VectorSize::Tri => 3,
+                    naga::VectorSize::Quad => 4,
+                };
+                Some((format!("vec{}<{}>", vec_size, base_type), (scalar.width as usize) * vec_size))
+            }
+            TypeInner::Matrix { columns, rows, scalar } => {
+                let total_size = (*columns as usize) * (*rows as usize) * (scalar.width as usize);
+                Some((format!("mat{}x{}<f32>", *columns as usize, *rows as usize), total_size))
+            }
+            _ => None,
+        }
+    }
+    
+    /// Parse WGSL code manually to extract uniform information (fallback method)
     fn parse_wgsl_for_uniforms(&self, wgsl_code: &str) -> Result<Vec<UniformLayout>> {
         let mut layouts = Vec::new();
         let lines: Vec<&str> = wgsl_code.lines().collect();
