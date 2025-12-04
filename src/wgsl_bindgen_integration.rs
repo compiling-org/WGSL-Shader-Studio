@@ -105,12 +105,14 @@ impl WgslBindgenAnalyzer {
     /// Get type information from naga type
     fn get_type_info(&self, type_info: &Type) -> Option<(String, usize)> {
         match &type_info.inner {
-            TypeInner::Scalar(kind, width) => {
-                match kind {
-                    naga::ScalarKind::Float => Some(("f32".to_string(), *width as usize)),
-                    naga::ScalarKind::Sint => Some(("i32".to_string(), *width as usize)),
-                    naga::ScalarKind::Uint => Some(("u32".to_string(), *width as usize)),
-                    naga::ScalarKind::Bool => Some(("bool".to_string(), *width as usize)),
+            TypeInner::Scalar(scalar) => {
+                match scalar.kind {
+                    naga::ScalarKind::Float => Some(("f32".to_string(), scalar.width as usize)),
+                    naga::ScalarKind::Sint => Some(("i32".to_string(), scalar.width as usize)),
+                    naga::ScalarKind::Uint => Some(("u32".to_string(), scalar.width as usize)),
+                    naga::ScalarKind::Bool => Some(("bool".to_string(), scalar.width as usize)),
+                    naga::ScalarKind::AbstractInt => Some(("i32".to_string(), scalar.width as usize)),
+                    naga::ScalarKind::AbstractFloat => Some(("f32".to_string(), scalar.width as usize)),
                 }
             }
             TypeInner::Vector { size, scalar } => {
@@ -119,6 +121,8 @@ impl WgslBindgenAnalyzer {
                     naga::ScalarKind::Sint => "i32",
                     naga::ScalarKind::Uint => "u32",
                     naga::ScalarKind::Bool => "bool",
+                    naga::ScalarKind::AbstractInt => "i32",
+                    naga::ScalarKind::AbstractFloat => "f32",
                 };
                 let vec_size = match *size {
                     naga::VectorSize::Bi => 2,

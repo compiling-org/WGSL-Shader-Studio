@@ -376,12 +376,12 @@ impl WgslToGlslVisitor {
                 // Translation unit processing would go here
                 Ok(())
             },
-            AstNode::FunctionDecl { name, params, return_type, body, .. } => {
+            AstNode::FunctionDecl { name, parameters, return_type, body, .. } => {
                 self.write_indent();
                 self.write(&format!("{} ", self.map_shader_stage(name)));
                 self.write(&format!("{}(", name));
                 
-                for (i, param) in params.iter().enumerate() {
+                for (i, param) in parameters.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
