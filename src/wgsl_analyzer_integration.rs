@@ -304,7 +304,7 @@ impl DiagnosticRenderer {
                 }
                 
                 // Diagnostic message
-                ui.label(&diagnostic.message);
+                ui.label(diagnostic.message.as_str());
                 
                 // Position info
                 ui.weak(format!(
@@ -326,7 +326,7 @@ impl DiagnosticRenderer {
                 ui.horizontal(|ui| {
                     ui.add_space(20.0);
                     ui.weak("→");
-                    ui.label(&related.message);
+                    ui.label(related.message.as_str());
                     ui.weak(format!(
                         " ({}:{})",
                         related.range.start.line + 1,
@@ -364,7 +364,7 @@ impl DiagnosticRenderer {
                     
                     if ui.add(egui::Button::new("").sense(egui::Sense::hover())).hovered() {
                         egui::show_tooltip(ui.ctx(), egui::Id::new(&diagnostic.code), |ui| {
-                            ui.label(&diagnostic.message);
+                            ui.label(diagnostic.message.as_str());
                             ui.weak(format!("Code: {}", diagnostic.code));
                             match diagnostic.source {
                                 DiagnosticSource::WgslAnalyzer => ui.weak("Source: WGSL-Analyzer"),

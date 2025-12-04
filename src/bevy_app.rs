@@ -207,7 +207,7 @@ pub fn editor_ui_system(
     
     // Draw right panel (parameters)
     if ui_state.show_parameter_panel {
-        draw_editor_parameter_panel(ctx, &mut *ui_state, &*audio_analyzer);
+        draw_editor_parameter_panel(ctx, &mut *ui_state);
     }
     
     // Draw code editor panel
