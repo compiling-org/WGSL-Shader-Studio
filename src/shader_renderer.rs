@@ -1395,15 +1395,15 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         });
         println!("SUCCESS: Shader module created");
 
-        // --- 3. Setup Uniforms (FIXED: Enhanced error handling) ---
+        // --- 3. Setup Uniforms (ENHANCED: Live audio metrics from AudioAnalyzer) ---
         let uniforms = Uniforms {
             time: params.time,
             resolution: [params.width as f32, params.height as f32],
             mouse: [0.0, 0.0],
-            audio_volume: 0.0,
-            audio_bass: 0.0,
-            audio_mid: 0.0,
-            audio_treble: 0.0,
+            audio_volume: audio_data.as_ref().map(|d| d.volume).unwrap_or(0.0),
+            audio_bass: audio_data.as_ref().map(|d| d.bass_level).unwrap_or(0.0),
+            audio_mid: audio_data.as_ref().map(|d| d.mid_level).unwrap_or(0.0),
+            audio_treble: audio_data.as_ref().map(|d| d.treble_level).unwrap_or(0.0),
             _padding: [0],
         };
 

@@ -46,6 +46,10 @@ path = "minimal_test.rs"
 name = "isf-conversion-test-runner"
 path = "src/bin/isf_conversion_test_runner.rs"
 
+[[bin]]
+name = "integration_test"
+path = "src/bin/integration_test.rs"
+
 [lib]
 name = "resolume_isf_shaders_rust_ffgl"
 crate-type = ["cdylib", "rlib"]
