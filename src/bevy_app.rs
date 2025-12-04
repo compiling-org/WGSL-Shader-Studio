@@ -60,6 +60,9 @@ fn apply_theme(ctx: &egui::Context, ui_state: &super::editor_ui::EditorUiState) 
 
 // Import audio system
 use super::audio_system::{AudioAnalyzer, AudioAnalysisPlugin, EnhancedAudioPlugin};
+
+// Import performance overlay
+use super::performance_overlay::{PerformanceOverlayPlugin, PerformanceMetrics, performance_monitoring_system};
 use crate::ffgl_plugin::FfglPlugin;
 use crate::gyroflow_interop_integration::GyroflowInteropPlugin;
 use crate::screenshot_video_export::ExportPlugin;
@@ -109,7 +112,8 @@ pub fn editor_ui_system(
     mut startup_gate: ResMut<UiStartupGate>, 
     audio_analyzer: Res<AudioAnalyzer>,
     timeline_animation: Res<TimelineAnimation>,
-    scene_editor_state: Res<SceneEditor3DState>
+    scene_editor_state: Res<SceneEditor3DState>,
+    performance_metrics: Res<PerformanceMetrics>
 ) {
     // Increment frame counter
     startup_gate.frames += 1;
@@ -267,7 +271,12 @@ fn initialize_wgpu_renderer(ui_state: ResMut<EditorUiState>) {
     if let Ok(mut renderer) = ui_state.global_renderer.renderer.lock() {
         *renderer = None;
     }
-    println!("WGPU renderer placeholder initialized - async setup will be attempted later");
+}
+
+fn start_audio_analysis_system(mut audio_analyzer: ResMut<AudioAnalyzer>) {
+    println!("🎵 Starting audio analysis system...");
+    audio_analyzer.start_audio_capture();
+    println!("✅ Audio analysis system started successfully");
 }
 
 /// Async system to initialize the real WGPU renderer
@@ -338,6 +347,7 @@ pub fn run_app() {
         .add_plugins(EguiPlugin::default())
         .add_plugins(FrameTimeDiagnosticsPlugin::default())
         .add_plugins(LogDiagnosticsPlugin::default())
+        .add_plugins(PerformanceOverlayPlugin)
         .add_plugins(AudioAnalysisPlugin)
         .add_plugins(EnhancedAudioPlugin)
         .add_plugins(FfglPlugin)
@@ -362,8 +372,10 @@ pub fn run_app() {
         .insert_resource(crate::screenshot_video_export::ScreenshotVideoExporter::new())
         .add_systems(Startup, setup_camera)
         .add_systems(Startup, initialize_wgpu_renderer)
+        .add_systems(Startup, start_audio_analysis_system)
         .add_systems(Update, async_initialize_wgpu_renderer)
         .add_systems(Update, update_time_system)
+        .add_systems(Update, performance_monitoring_system)
         .add_systems(bevy_egui::EguiPrimaryContextPass, editor_ui_system)
         .run();
 }

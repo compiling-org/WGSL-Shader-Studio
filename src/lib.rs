@@ -338,6 +338,7 @@ mod tests {
 
 // Module declarations
 pub mod audio_system;
+pub mod performance_overlay;
 // EMERGENCY BYPASS: Create audio module alias for corrupted build system
 pub use audio_system as audio;
 pub mod gesture_control;

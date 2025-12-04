@@ -110,25 +110,70 @@ impl AudioAnalyzer {
 
         if !audio_samples.is_empty() {
             self.analyze_audio(&audio_samples);
+            
+            // Log audio metrics for debugging (every 60 frames ~1 second at 60 FPS)
+            static mut FRAME_COUNT: u32 = 0;
+            unsafe {
+                FRAME_COUNT += 1;
+                if FRAME_COUNT % 60 == 0 {
+                    let data = self.data.lock().unwrap();
+                    println!("🎵 Audio Analysis - Volume: {:.3}, Bass: {:.3}, Mid: {:.3}, Treble: {:.3}, Beat: {}, BPM: {:.1}", 
+                        data.volume, data.bass_level, data.mid_level, data.treble_level, 
+                        if data.beat_detected { "✓" } else { "✗" }, data.tempo);
+                }
+            }
         }
 
         self.last_update = Instant::now();
     }
 
     fn audio_capture_thread(data: Arc<Mutex<AudioData>>, audio_buffer: Arc<Mutex<Vec<f32>>>) {
-        // Synthetic audio generation for testing
+        // Enhanced synthetic audio generation for testing shader audio reactive features
         let sample_rate: f32 = 44100.0;
         let buffer_size = 1024;
         let mut phase = 0.0f32;
+        let mut bass_phase = 0.0f32;
+        let mut mid_phase = 0.0f32;
+        let mut treble_phase = 0.0f32;
+        let mut beat_phase = 0.0f32;
 
         loop {
             let mut samples = Vec::with_capacity(buffer_size);
             
-            // Generate synthetic audio for testing
-            for _ in 0..buffer_size {
-                let sample = (phase * 0.1).sin() * 0.5 + (phase * 0.3).sin() * 0.3;
-                samples.push(sample);
+            // Generate multi-frequency synthetic audio for comprehensive testing
+            for i in 0..buffer_size {
+                // Bass frequency (80Hz)
+                let bass_freq = 80.0;
+                let bass_sample = (bass_phase * 2.0 * std::f32::consts::PI / sample_rate * bass_freq).sin() * 0.4;
+                
+                // Mid frequency (800Hz) 
+                let mid_freq = 800.0;
+                let mid_sample = (mid_phase * 2.0 * std::f32::consts::PI / sample_rate * mid_freq).sin() * 0.3;
+                
+                // Treble frequency (4000Hz)
+                let treble_freq = 4000.0;
+                let treble_sample = (treble_phase * 2.0 * std::f32::consts::PI / sample_rate * treble_freq).sin() * 0.2;
+                
+                // Beat pattern (2Hz = 120 BPM)
+                let beat_freq = 2.0;
+                let beat_envelope = (beat_phase * 2.0 * std::f32::consts::PI / sample_rate * beat_freq).sin() * 0.5 + 0.5;
+                
+                // Combine all frequencies with beat modulation
+                let mut sample = bass_sample + mid_sample + treble_sample;
+                sample *= (0.7 + beat_envelope * 0.3); // Beat modulation
+                
+                // Add some noise for realism
+                let noise = (rand::random::<f32>() - 0.5) * 0.05;
+                sample += noise;
+                
+                samples.push(sample.clamp(-1.0, 1.0));
+                
+                // Update phases
                 phase += 1.0;
+                bass_phase += 1.0;
+                mid_phase += 1.0; 
+                treble_phase += 1.0;
+                beat_phase += 1.0;
             }
 
             // Add samples to buffer
