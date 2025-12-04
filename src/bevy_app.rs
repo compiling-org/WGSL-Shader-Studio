@@ -65,6 +65,10 @@ use crate::gyroflow_interop_integration::GyroflowInteropPlugin;
 use crate::screenshot_video_export::ExportPlugin;
 use crate::ndi_output::NdiOutputPlugin;
 use crate::dmx_lighting_control::DmxLightingControlPlugin;
+use crate::osc_control::OscControlPlugin;
+use crate::audio_midi_integration::AudioMidiIntegrationPlugin;
+use crate::wgsl_analyzer::WgslAnalyzerPlugin;
+use crate::spout_syphon_output::SpoutSyphonOutputPlugin;
 
 // Import timeline animation system
 use super::timeline::{TimelinePlugin, TimelineAnimation, PlaybackState};
@@ -218,17 +222,21 @@ pub fn editor_ui_system(
     }
     
     // Draw the additional side panels (timeline, node studio, etc.) as windows
-    // Simplified version without external dependencies
     if ui_state.show_timeline {
+        // Use the actual timeline UI from timeline.rs
         egui::Window::new("Timeline")
             .default_pos([100.0, 100.0])
-            .default_size([400.0, 200.0])
+            .default_size([800.0, 400.0])
             .show(&ctx, |ui| {
-                ui.heading("Animation Timeline");
-                ui.label("Timeline controls will be implemented here");
-                ui.checkbox(&mut ui_state.timeline.playing, "Play Animation");
-                ui.label(format!("Current Time: {:.2}s", ui_state.time));
+                crate::timeline::draw_timeline_ui(ui, &mut *timeline_animation);
             });
+    }
+    
+    // Draw node studio (node graph editor)
+    if ui_state.show_node_studio {
+        // The node graph UI system is separate due to its resource requirements
+        // It will be called automatically by Bevy's system scheduler
+        println!("Node studio window should be visible");
     }
     
     // Draw 3D scene editor panel
@@ -340,6 +348,12 @@ pub fn run_app() {
         .add_plugins(GestureControlPlugin)
         .add_plugins(ComputePassPlugin)
         .add_plugins(BevyNodeGraphPlugin)
+        .add_plugins(SceneEditor3DPlugin)
+        .add_plugins(OscControlPlugin)
+        .add_plugins(AudioMidiIntegrationPlugin)
+        .add_plugins(WgslAnalyzerPlugin)
+        .add_plugins(NdiOutputPlugin)
+        .add_plugins(SpoutSyphonOutputPlugin)
         // .add_plugins(BevyNodeGraphPluginEnhanced)
         // .add_plugins(ResponsiveBackendPlugin)
         .insert_resource(EditorUiState::default())

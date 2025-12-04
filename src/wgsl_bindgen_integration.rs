@@ -107,12 +107,12 @@ impl WgslBindgenAnalyzer {
         match &type_info.inner {
             TypeInner::Scalar(scalar) => {
                 match scalar.kind {
-                    naga::ScalarKind::Float => Some(("f32".to_string(), scalar.width as usize)),
-                    naga::ScalarKind::Sint => Some(("i32".to_string(), scalar.width as usize)),
-                    naga::ScalarKind::Uint => Some(("u32".to_string(), scalar.width as usize)),
-                    naga::ScalarKind::Bool => Some(("bool".to_string(), scalar.width as usize)),
-                    naga::ScalarKind::AbstractInt => Some(("i32".to_string(), scalar.width as usize)),
-                    naga::ScalarKind::AbstractFloat => Some(("f32".to_string(), scalar.width as usize)),
+                    naga::ScalarKind::Float => Some(("f32".to_string(), 4)),
+                    naga::ScalarKind::Sint => Some(("i32".to_string(), 4)),
+                    naga::ScalarKind::Uint => Some(("u32".to_string(), 4)),
+                    naga::ScalarKind::Bool => Some(("bool".to_string(), 1)),
+                    naga::ScalarKind::AbstractInt => Some(("i32".to_string(), 4)),
+                    naga::ScalarKind::AbstractFloat => Some(("f32".to_string(), 4)),
                 }
             }
             TypeInner::Vector { size, scalar } => {
@@ -129,10 +129,10 @@ impl WgslBindgenAnalyzer {
                     naga::VectorSize::Tri => 3,
                     naga::VectorSize::Quad => 4,
                 };
-                Some((format!("vec{}<{}>", vec_size, base_type), (scalar.width as usize) * vec_size))
+                Some((format!("vec{}<{}>", vec_size, base_type), 4 * vec_size))
             }
             TypeInner::Matrix { columns, rows, scalar } => {
-                let total_size = (*columns as usize) * (*rows as usize) * (scalar.width as usize);
+                let total_size = (*columns as usize) * (*rows as usize) * 4;
                 Some((format!("mat{}x{}<f32>", *columns as usize, *rows as usize), total_size))
             }
             _ => None,

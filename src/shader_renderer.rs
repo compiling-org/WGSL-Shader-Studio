@@ -1340,14 +1340,14 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             audio_data: None,
         };
         
-        self.render_frame_with_params(wgsl_code, &render_params, parameter_values)
+        self.render_frame_with_params(wgsl_code, &render_params, parameter_values, render_params.audio_data.clone())
             .map_err(|e| {
                 let error_msg = format!("{:?}", e);
                 Box::new(std::io::Error::new(std::io::ErrorKind::Other, error_msg)) as Box<dyn std::error::Error>
             })
     }
     
-    pub fn render_frame_with_params(&mut self, wgsl_code: &str, params: &RenderParameters, parameter_values: Option<&[f32]>) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+    pub fn render_frame_with_params(&mut self, wgsl_code: &str, params: &RenderParameters, parameter_values: Option<&[f32]>, audio_data: Option<AudioData>) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         // Quick return for empty code to prevent hanging
         if wgsl_code.trim().is_empty() {
             let pixel_count = (params.width * params.height) as usize;

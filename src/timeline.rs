@@ -487,9 +487,7 @@ pub fn draw_timeline_ui(ui: &mut Ui, timeline: &mut TimelineAnimation) {
                                 let mouse_pos = ui.input(|i| i.pointer.interact_pos().unwrap_or_default());
                                 let keyframe_rect = bevy_egui::egui::Rect::from_center_size(bevy_egui::egui::pos2(x, y), bevy_egui::egui::vec2(10.0, 10.0));
                                 if keyframe_rect.contains(mouse_pos) {
-                                    bevy_egui::egui::show_tooltip_at_pointer(ui.ctx(), bevy_egui::egui::Id::new((track_name, i)), |ui| {
-                                        ui.label(format!("Time: {:.2}s\nValue: {:.3}", keyframe.time, keyframe.value));
-                                    });
+                                    ui.label(format!("Time: {:.2}s\nValue: {:.3}", keyframe.time, keyframe.value));
                                 }
                             }
                         }

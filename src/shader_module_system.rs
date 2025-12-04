@@ -237,13 +237,13 @@ impl ShaderModuleSystem {
 
     fn extract_module_info(&self, module: &mut ShaderModule, ast: &AstNode) -> ModuleResult<()> {
         match ast {
-            AstNode::TranslationUnit(items) => {
-                for item in items {
-                    self.extract_item_info(module, item)?;
+            AstNode::Module(module_node) => {
+                for declaration in &module_node.declarations {
+                    self.extract_declaration_info(module, declaration)?;
                 }
             }
             _ => return Err(ModuleSystemError::ParseError(
-                ParseError::UnexpectedToken("Expected translation unit".to_string())
+                ParseError { message: "Expected module node".to_string(), line: 0, column: 0, error_type: crate::wgsl_ast_parser::ParseErrorType::UnexpectedToken, }
             )),
         }
         Ok(())
