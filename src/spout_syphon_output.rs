@@ -2,9 +2,7 @@
 //! Enables shader output to be shared with other applications in real-time
 
 use bevy::prelude::*;
-use bevy_egui::egui;
-use std::sync::Arc;
-use std::sync::Mutex;
+use bevy_egui::{egui, EguiContexts};
 
 /// Spout/Syphon output configuration
 #[derive(Debug, Clone, Resource)]
@@ -253,7 +251,8 @@ impl Plugin for SpoutSyphonOutputPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SpoutSyphonConfig>()
             .insert_resource(SpoutSyphonOutput::new(SpoutSyphonConfig::default()))
-            .add_systems(Update, update_spout_syphon_output);
+            .add_systems(Update, update_spout_syphon_output)
+            .add_systems(Update, spout_syphon_ui_system);
     }
 }
 
@@ -266,6 +265,27 @@ fn update_spout_syphon_output(
     if config.is_changed() {
         let _ = spout_output.update_config(config.clone());
     }
+}
+
+/// UI system to render Spout/Syphon controls within the main editor
+fn spout_syphon_ui_system(
+    mut contexts: EguiContexts,
+    mut config: ResMut<SpoutSyphonConfig>,
+    output: Res<SpoutSyphonOutput>,
+    mut ui_state: ResMut<crate::editor_ui::EditorUiState>,
+) {
+    if !ui_state.show_spout_panel {
+        return;
+    }
+    let ctx = match contexts.ctx_mut() {
+        Ok(ctx) => ctx,
+        Err(_) => return,
+    };
+    egui::Window::new("Spout/Syphon")
+        .open(&mut ui_state.show_spout_panel)
+        .show(&ctx, |ui| {
+            SpoutSyphonUI::render_spout_syphon_controls(ui, &mut *config, &*output);
+        });
 }
 
 /// UI component for Spout/Syphon controls

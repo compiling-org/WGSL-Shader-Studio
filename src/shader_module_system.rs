@@ -5,27 +5,40 @@ use std::time::{Duration, Instant};
 use lru::LruCache;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use std::fmt;
 
-use crate::wgsl_ast_parser::{AstNode, WgslAstParser, ParseError};
+use crate::wgsl_ast_parser::{AstNode, WgslAstParser, ParseError, ModuleNode};
 use crate::advanced_shader_compilation::{CompiledShader, ShaderCompilationError};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ModuleId(pub String);
+
+impl fmt::Display for ModuleId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShaderModule {
     pub id: ModuleId,
     pub name: String,
     pub source: String,
+    #[serde(skip)]
     pub ast: Option<AstNode>,
+    #[serde(skip)]
     pub compiled: Option<CompiledShader>,
     pub dependencies: HashSet<ModuleId>,
     pub exports: HashSet<String>,
     pub imports: HashSet<String>,
+    #[serde(skip_serializing, skip_deserializing, default = "default_instant")]
     pub last_modified: Instant,
     pub version: u64,
 }
 
+fn default_instant() -> Instant {
+    Instant::now()
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModuleBundle {
     pub name: String,
@@ -60,7 +73,7 @@ pub struct ImportResolution {
 
 #[derive(Debug, Error)]
 pub enum ModuleSystemError {
-    #[error("Module not found: {0}")]
+    #[error("Module not found: {0:?}")]
     ModuleNotFound(ModuleId),
     
     #[error("Circular dependency detected: {0:?}")]
@@ -89,7 +102,7 @@ pub struct ShaderModuleSystem {
     cache: Arc<RwLock<LruCache<ModuleId, ModuleCacheEntry>>>,
     import_resolver: Arc<ImportResolver>,
     bundle_loader: Arc<BundleLoader>,
-    parser: Arc<WgslAstParser>,
+    parser: Arc<RwLock<WgslAstParser>>,
     max_cache_size: usize,
     cache_ttl: Duration,
 }
@@ -101,7 +114,7 @@ impl ShaderModuleSystem {
             cache: Arc::new(RwLock::new(LruCache::new(std::num::NonZeroUsize::new(max_cache_size).unwrap()))),
             import_resolver: Arc::new(ImportResolver::new()),
             bundle_loader: Arc::new(BundleLoader::new()),
-            parser: Arc::new(WgslAstParser::new()),
+            parser: Arc::new(RwLock::new(WgslAstParser::new())),
             max_cache_size,
             cache_ttl,
         }
@@ -125,9 +138,12 @@ impl ShaderModuleSystem {
             version: 1,
         };
 
-        let ast = self.parser.parse(&source)?;
-        self.extract_module_info(&mut module, &ast)?;
-        module.ast = Some(ast);
+        let module_node = {
+            let mut parser = self.parser.write().unwrap();
+            parser.parse(&source)?
+        };
+        self.extract_module_info(&mut module, &module_node)?;
+        module.ast = Some(AstNode::Module(module_node.clone()));
 
         let module = Arc::new(module);
         self.insert_module(id.clone(), module.clone())?;
@@ -235,16 +251,31 @@ impl ShaderModuleSystem {
         Ok(())
     }
 
-    fn extract_module_info(&self, module: &mut ShaderModule, ast: &AstNode) -> ModuleResult<()> {
-        match ast {
-            AstNode::Module(module_node) => {
-                for declaration in &module_node.declarations {
-                    self.extract_declaration_info(module, declaration)?;
-                }
+    fn extract_module_info(&self, module: &mut ShaderModule, module_node: &ModuleNode) -> ModuleResult<()> {
+        for declaration in &module_node.declarations {
+            self.extract_declaration_info(module, declaration)?;
+        }
+        Ok(())
+    }
+
+    fn extract_declaration_info(&self, module: &mut ShaderModule, declaration: &crate::wgsl_ast_parser::DeclarationNode) -> ModuleResult<()> {
+        use crate::wgsl_ast_parser::DeclarationNode::*;
+        match declaration {
+            Function(func) => {
+                module.exports.insert(func.name.clone());
             }
-            _ => return Err(ModuleSystemError::ParseError(
-                ParseError { message: "Expected module node".to_string(), line: 0, column: 0, error_type: crate::wgsl_ast_parser::ParseErrorType::UnexpectedToken, }
-            )),
+            Struct(strukt) => {
+                module.exports.insert(strukt.name.clone());
+            }
+            Variable(var) => {
+                module.exports.insert(var.name.clone());
+            }
+            TypeAlias(alias) => {
+                module.exports.insert(alias.name.clone());
+            }
+            Constant(constant) => {
+                module.exports.insert(constant.name.clone());
+            }
         }
         Ok(())
     }
@@ -329,7 +360,10 @@ impl ShaderModuleSystem {
         combined_source.push_str(&module.source);
 
         let compiled = crate::advanced_shader_compilation::AdvancedShaderCompiler::new()
-            .compile(&combined_source)?;
+            .compile(&combined_source)
+            .map_err(|e| ModuleSystemError::CompilationError(
+                crate::advanced_shader_compilation::ShaderCompilationError::ValidationError(e.to_string())
+            ))?;
 
         Ok(compiled)
     }

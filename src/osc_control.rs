@@ -2,7 +2,7 @@
 //! Enables real-time parameter control from external applications like TouchOSC, Lemur, etc.
 
 use bevy::prelude::*;
-use bevy_egui::egui;
+use bevy_egui::{egui, EguiContexts};
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::collections::HashMap;
@@ -288,7 +288,8 @@ impl Plugin for OscControlPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<OscConfig>()
             .insert_resource(OscControl::new(OscConfig::default()))
-            .add_systems(Update, update_osc_control);
+            .add_systems(Update, update_osc_control)
+            .add_systems(Update, osc_ui_system);
     }
 }
 
@@ -301,6 +302,27 @@ fn update_osc_control(
     if config.is_changed() {
         let _ = osc_control.update_config(config.clone());
     }
+}
+
+/// UI system to render OSC controls within the main editor
+fn osc_ui_system(
+    mut contexts: EguiContexts,
+    mut config: ResMut<OscConfig>,
+    control: Res<OscControl>,
+    mut ui_state: ResMut<crate::editor_ui::EditorUiState>,
+) {
+    if !ui_state.show_osc_panel {
+        return;
+    }
+    let ctx = match contexts.ctx_mut() {
+        Ok(ctx) => ctx,
+        Err(_) => return,
+    };
+    egui::Window::new("OSC Control")
+        .open(&mut ui_state.show_osc_panel)
+        .show(&ctx, |ui| {
+            OscUI::render_osc_controls(ui, &mut *config, &*control);
+        });
 }
 
 /// UI component for OSC controls

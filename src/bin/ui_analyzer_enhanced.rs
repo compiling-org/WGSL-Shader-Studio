@@ -1,5 +1,5 @@
-use std::fs;
-use wgsl_shader_studio::ui_analyzer_enhanced::{UIAnalyzerEnhanced, FeatureStatus, Priority};
+use resolume_isf_shaders_rust_ffgl::ui_analyzer::{FeatureStatus, Priority};
+use resolume_isf_shaders_rust_ffgl::ui_analyzer_enhanced::UIAnalyzerEnhanced;
 
 fn main() {
     println!("🔍 WGSL Shader Studio - ENHANCED COMPREHENSIVE UI ANALYZER");
@@ -15,13 +15,11 @@ fn main() {
     println!("\n📊 Analysis complete!");
     println!("\n📝 GENERATING SURGICAL ANALYSIS REPORT...\n");
     
-    // Save report to file
     match std::fs::write("UI_AUDIT_REPORT_ENHANCED.md", &report) {
         Ok(_) => println!("✅ Enhanced report saved to: UI_AUDIT_REPORT_ENHANCED.md"),
         Err(e) => println!("❌ Failed to save report: {}", e),
     }
     
-    // Print surgical summary to console
     println!("\n📈 SURGICAL ANALYSIS SUMMARY:");
     println!("------------------------------");
     
@@ -60,7 +58,7 @@ fn main() {
     let functional = analyzer.get_features_by_status(FeatureStatus::Functional);
     if !functional.is_empty() {
         println!("\n✅ FUNCTIONAL FEATURES (WORKING):");
-        for feature in functional.iter().take(10) { // Show first 10
+        for feature in functional.iter().take(10) {
             println!("  - {} ({})", feature.name, feature.category);
         }
         if functional.len() > 10 {

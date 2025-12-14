@@ -3,7 +3,6 @@
 
 use bevy::prelude::*;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 /// Gesture types for shader control

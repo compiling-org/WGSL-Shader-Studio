@@ -163,7 +163,7 @@ impl AudioAnalyzer {
                 sample *= (0.7 + beat_envelope * 0.3); // Beat modulation
                 
                 // Add some noise for realism
-                let noise = (rand::random::<f32>() - 0.5) * 0.05;
+                let noise = 0.0; // rand::random::<f32>() - 0.5) * 0.05; // rand not available
                 sample += noise;
                 
                 samples.push(sample.clamp(-1.0, 1.0));

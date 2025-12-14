@@ -6,7 +6,7 @@ use thiserror::Error;
 use crate::wgsl_ast_parser::{AstNode, AstVisitor};
 use crate::shader_module_system::{ShaderModule, ModuleId};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ShaderLanguage {
     Wgsl,
     Glsl,
@@ -238,7 +238,7 @@ impl MultiFormatTranspiler {
         let mut result = transpiler.transpile(source, options)?;
 
         if options.optimize_code {
-            result = self.optimizer.optimize(Ok(result), options)??;
+            result = self.optimizer.optimize(Ok(result), options)?;
         }
 
         let transpile_time_ms = start_time.elapsed().as_secs_f64() * 1000.0;
@@ -374,7 +374,7 @@ impl WgslToGlslVisitor {
                 self.write_line("#version 450 core");
                 self.write_line("");
                 // Translation unit processing would go here
-                Ok(())
+                return Ok(());
             },
             AstNode::FunctionDecl { name, parameters, return_type, body, .. } => {
                 self.write_indent();
@@ -385,12 +385,13 @@ impl WgslToGlslVisitor {
                     if i > 0 {
                         self.write(", ");
                     }
-                    self.write(param)?;
+                    self.write(param);
                 }
                 
                 self.write(")");
                 if let Some(ret_type) = return_type {
-                    self.write(&format!(" -> {}", self.map_type(ret_type)));
+                    let mapped_type = self.map_type(ret_type);
+                    self.write(&format!(" -> {}", mapped_type));
                 }
                 self.write_line(" {");
                 
@@ -399,7 +400,7 @@ impl WgslToGlslVisitor {
                 self.indent_level -= 1;
                 
                 self.write_line("}");
-                Ok(())
+                return Ok(());
             }
             AstNode::StructDecl { name, members, .. } => {
                 self.write_indent();
@@ -412,27 +413,30 @@ impl WgslToGlslVisitor {
                 self.indent_level -= 1;
                 
                 self.write_line("}");
-                Ok(())
+                return Ok(());
             }
             AstNode::StructMember { name, type_name, .. } => {
                 self.write_indent();
-                self.write_line(&format!("{} {};", self.map_type(type_name), name));
-                Ok(())
+                let mapped_type = self.map_type(type_name);
+                self.write_line(&format!("{} {};", mapped_type, name));
+                return Ok(());
             }
             AstNode::GlobalVarDecl { name, type_name, initializer, .. } => {
                 self.write_indent();
-                self.write(&format!("{} {}", self.map_type(type_name), name));
+                let mapped_type = self.map_type(type_name);
+                self.write(&format!("{} {}", mapped_type, name));
                 if let Some(init) = initializer {
-                    self.write(&format!(" = {}", self.map_expression(init)));
+                    let mapped_init = self.map_expression(init);
+                    self.write(&format!(" = {}", mapped_init));
                 }
                 self.write_line(";");
-                Ok(())
+                return Ok(());
             }
             AstNode::BlockStatement(statements) => {
                 for stmt in statements {
                     self.visit_node(stmt)?;
                 }
-                Ok(())
+                return Ok(());
             }
             AstNode::ReturnStatement(expr) => {
                 self.write_indent();
@@ -441,12 +445,12 @@ impl WgslToGlslVisitor {
                 } else {
                     self.write_line("return;");
                 }
-                Ok(())
+                return Ok(());
             }
             AstNode::AssignmentStatement { target, value } => {
                 self.write_indent();
                 self.write_line(&format!("{} = {};", self.map_expression(target), self.map_expression(value)));
-                Ok(())
+                return Ok(());
             }
             AstNode::IfStatement { condition, then_branch, else_branch } => {
                 self.write_indent();
@@ -464,14 +468,13 @@ impl WgslToGlslVisitor {
                 }
                 
                 self.write_line("}");
-                Ok(())
+                return Ok(());
             }
             _ => {
                 self.add_warning(1, 1, format!("Unsupported AST node: {:?}", node), "transpiler");
-                Ok(())
+                return Ok(());
             }
         }
-        Ok(())
     }
 
     fn map_shader_stage(&self, name: &str) -> &str {

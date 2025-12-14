@@ -79,6 +79,26 @@ impl UIAnalyzer {
     pub fn get_partial_features_count(&self) -> usize {
         self.partial_features.len()
     }
+
+    pub fn get_broken_features_count(&self) -> usize {
+        self.features.iter().filter(|f| f.status == FeatureStatus::Broken).count()
+    }
+
+    pub fn get_missing_features_count(&self) -> usize {
+        self.features.iter().filter(|f| f.status == FeatureStatus::Missing).count()
+    }
+
+    pub fn get_features_by_status(&self, status: FeatureStatus) -> Vec<FeatureCheck> {
+        self.features.iter().filter(|f| f.status == status).cloned().collect()
+    }
+
+    pub fn get_features_by_status_and_priority(&self, status: FeatureStatus, priority: Priority) -> Vec<FeatureCheck> {
+        self.features
+            .iter()
+            .filter(|f| f.status == status && f.priority == priority)
+            .cloned()
+            .collect()
+    }
 }
 
 impl UIAnalyzer {

@@ -5,7 +5,7 @@
 //! Uses Rust-native naga library instead of JavaScript Lezer for compatibility.
 
 use std::collections::HashMap;
-use anyhow::{Result, bail};
+use std::result::Result as StdResult;
 use serde::{Serialize, Deserialize};
 
 /// WGSL AST Node types based on use.gpu patterns
@@ -58,7 +58,7 @@ pub struct FunctionNode {
 }
 
 /// Shader stage enumeration
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WgslShaderStage {
     Vertex,
     Fragment,
@@ -68,7 +68,7 @@ pub enum WgslShaderStage {
 }
 
 /// Struct definition node
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StructNode {
     pub name: String,
     pub members: Vec<StructMemberNode>,
@@ -76,7 +76,7 @@ pub struct StructNode {
 }
 
 /// Variable declaration node
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VariableNode {
     pub name: String,
     pub var_type: VarType,
@@ -88,7 +88,7 @@ pub struct VariableNode {
 }
 
 /// Variable type (var, let, const)
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum VarType {
     Var,
     Let,
@@ -96,7 +96,7 @@ pub enum VarType {
 }
 
 /// Type alias node
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeAliasNode {
     pub name: String,
     pub aliased_type: TypeNode,
@@ -104,7 +104,7 @@ pub struct TypeAliasNode {
 }
 
 /// Constant declaration node
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ConstantNode {
     pub name: String,
     pub data_type: Option<TypeNode>,
@@ -113,21 +113,21 @@ pub struct ConstantNode {
 }
 
 /// Attribute node (@attribute)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AttributeNode {
     pub name: String,
     pub arguments: Vec<ExpressionNode>,
 }
 
 /// Import statement node
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ImportNode {
     pub module_path: String,
     pub items: Vec<ImportItem>,
 }
 
 /// Import item (specific imports or wildcard)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ImportItem {
     Named(String),
     Aliased(String, String),
@@ -135,7 +135,7 @@ pub enum ImportItem {
 }
 
 /// Declaration node wrapper
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DeclarationNode {
     Function(FunctionNode),
     Struct(StructNode),
@@ -145,7 +145,7 @@ pub enum DeclarationNode {
 }
 
 /// Parameter node for functions
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ParameterNode {
     pub name: String,
     pub data_type: TypeNode,
@@ -154,7 +154,7 @@ pub struct ParameterNode {
 }
 
 /// Parameter direction (in, out, inout)
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum ParameterDirection {
     In,
     Out,
@@ -162,7 +162,7 @@ pub enum ParameterDirection {
 }
 
 /// Type node representing WGSL types
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TypeNode {
     Primitive(PrimitiveType),
     Vector(VectorType),
@@ -176,7 +176,7 @@ pub enum TypeNode {
 }
 
 /// Primitive scalar types
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum PrimitiveType {
     Bool,
     I32,
@@ -186,14 +186,14 @@ pub enum PrimitiveType {
 }
 
 /// Vector types
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct VectorType {
     pub component_type: PrimitiveType,
     pub size: VectorSize,
 }
 
 /// Vector size
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum VectorSize {
     Two,
     Three,
@@ -201,7 +201,7 @@ pub enum VectorSize {
 }
 
 /// Matrix types
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MatrixType {
     pub component_type: PrimitiveType,
     pub rows: u32,
@@ -209,21 +209,21 @@ pub struct MatrixType {
 }
 
 /// Array types
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ArrayType {
     pub element_type: Box<TypeNode>,
     pub size: Option<u32>,
 }
 
 /// Pointer types
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PointerType {
     pub storage_class: StorageClass,
     pub element_type: Box<TypeNode>,
 }
 
 /// Storage class for pointers
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum StorageClass {
     Function,
     Workgroup,
@@ -233,7 +233,7 @@ pub enum StorageClass {
 }
 
 /// Texture types
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TextureType {
     pub sample_type: TextureSampleType,
     pub dimension: TextureDimension,
@@ -242,7 +242,7 @@ pub struct TextureType {
 }
 
 /// Texture sample type
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum TextureSampleType {
     Float,
     Uint,
@@ -251,7 +251,7 @@ pub enum TextureSampleType {
 }
 
 /// Texture dimension
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum TextureDimension {
     One,
     Two,
@@ -260,21 +260,21 @@ pub enum TextureDimension {
 }
 
 /// Sampler types
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum SamplerType {
     Sampler,
     ComparisonSampler,
 }
 
 /// Atomic types
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum AtomicType {
     I32,
     U32,
 }
 
 /// Struct member node
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StructMemberNode {
     pub name: String,
     pub data_type: TypeNode,
@@ -282,7 +282,7 @@ pub struct StructMemberNode {
 }
 
 /// Statement node
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum StatementNode {
     Block(BlockNode),
     If(IfNode),
@@ -299,13 +299,13 @@ pub enum StatementNode {
 }
 
 /// Block statement
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BlockNode {
     pub statements: Vec<StatementNode>,
 }
 
 /// If statement
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IfNode {
     pub condition: ExpressionNode,
     pub then_block: Box<StatementNode>,
@@ -313,7 +313,7 @@ pub struct IfNode {
 }
 
 /// Switch statement
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SwitchNode {
     pub selector: ExpressionNode,
     pub cases: Vec<CaseNode>,
@@ -321,20 +321,20 @@ pub struct SwitchNode {
 }
 
 /// Case node for switch
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CaseNode {
     pub values: Vec<ExpressionNode>,
     pub body: Box<StatementNode>,
 }
 
 /// Loop statement
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct LoopNode {
     pub body: Box<StatementNode>,
 }
 
 /// For loop statement
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ForNode {
     pub initializer: Option<Box<StatementNode>>,
     pub condition: Option<ExpressionNode>,
@@ -343,14 +343,14 @@ pub struct ForNode {
 }
 
 /// While loop statement
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct WhileNode {
     pub condition: ExpressionNode,
     pub body: Box<StatementNode>,
 }
 
 /// Assignment statement
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AssignmentNode {
     pub left: ExpressionNode,
     pub operator: AssignmentOperator,
@@ -358,7 +358,7 @@ pub struct AssignmentNode {
 }
 
 /// Assignment operators
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum AssignmentOperator {
     Assign,
     AddAssign,
@@ -374,7 +374,7 @@ pub enum AssignmentOperator {
 }
 
 /// Expression node
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ExpressionNode {
     Literal(LiteralNode),
     Identifier(String),
@@ -388,7 +388,7 @@ pub enum ExpressionNode {
 }
 
 /// Literal value node
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum LiteralNode {
     Bool(bool),
     I32(i32),
@@ -398,7 +398,7 @@ pub enum LiteralNode {
 }
 
 /// Binary expression
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BinaryExpressionNode {
     pub left: Box<ExpressionNode>,
     pub operator: BinaryOperator,
@@ -406,7 +406,7 @@ pub struct BinaryExpressionNode {
 }
 
 /// Binary operators
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum BinaryOperator {
     Add,
     Subtract,
@@ -427,14 +427,14 @@ pub enum BinaryOperator {
 }
 
 /// Unary expression
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct UnaryExpressionNode {
     pub operator: UnaryOperator,
     pub operand: Box<ExpressionNode>,
 }
 
 /// Unary operators
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum UnaryOperator {
     Not,
     Negate,
@@ -442,35 +442,35 @@ pub enum UnaryOperator {
 }
 
 /// Function call expression
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FunctionCallNode {
     pub function_name: String,
     pub arguments: Vec<ExpressionNode>,
 }
 
 /// Field access expression
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FieldAccessNode {
     pub object: Box<ExpressionNode>,
     pub field: String,
 }
 
 /// Array access expression
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ArrayAccessNode {
     pub array: Box<ExpressionNode>,
     pub index: Box<ExpressionNode>,
 }
 
 /// Type constructor expression
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TypeConstructorNode {
     pub type_name: String,
     pub arguments: Vec<ExpressionNode>,
 }
 
 /// Select expression (ternary)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SelectNode {
     pub condition: Box<ExpressionNode>,
     pub true_expression: Box<ExpressionNode>,
@@ -478,7 +478,7 @@ pub struct SelectNode {
 }
 
 /// Symbol table entry
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SymbolEntry {
     pub name: String,
     pub symbol_type: SymbolType,
@@ -490,7 +490,7 @@ pub struct SymbolEntry {
 }
 
 /// Symbol type enumeration
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum SymbolType {
     Function,
     Variable,
@@ -501,7 +501,7 @@ pub enum SymbolType {
 }
 
 /// Binding information for resources
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct BindingInfo {
     pub group: u32,
     pub binding: u32,
@@ -570,6 +570,8 @@ pub struct WgslAstParser {
     warnings: Vec<ParseWarning>,
 }
 
+type Result<T> = StdResult<T, ParseError>;
+
 /// Parse error information
 #[derive(Debug, Clone)]
 pub struct ParseError {
@@ -594,6 +596,8 @@ impl std::fmt::Display for ParseError {
                })
     }
 }
+
+impl std::error::Error for ParseError {}
 
 /// Parse error types
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -681,7 +685,12 @@ impl WgslAstParser {
         // Check for shader stage requirements
         
         if !self.errors.is_empty() {
-            bail!("Parse errors: {:?}", self.errors);
+            return Err(ParseError {
+                message: format!("Parse errors: {:?}", self.errors),
+                line: 0,
+                column: 0,
+                error_type: ParseErrorType::SyntaxError,
+            });
         }
         
         Ok(())

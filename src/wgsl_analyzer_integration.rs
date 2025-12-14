@@ -293,13 +293,13 @@ impl DiagnosticRenderer {
                 // Severity icon
                 match diagnostic.severity {
                     DiagnosticSeverity::Error => {
-                        ui.colored(egui::Color32::RED, "●");
+                        ui.label(egui::RichText::new("●").color(egui::Color32::RED));
                     }
                     DiagnosticSeverity::Warning => {
-                        ui.colored(egui::Color32::YELLOW, "▲");
+                        ui.label(egui::RichText::new("▲").color(egui::Color32::YELLOW));
                     }
                     DiagnosticSeverity::Info => {
-                        ui.colored(egui::Color32::BLUE, "ℹ");
+                        ui.label(egui::RichText::new("ℹ").color(egui::Color32::BLUE));
                     }
                 }
                 
@@ -352,10 +352,10 @@ impl DiagnosticRenderer {
                 for diagnostic in line_diagnostics {
                     match diagnostic.severity {
                         DiagnosticSeverity::Error => {
-                            ui.colored(egui::Color32::RED, "●");
+                            ui.label(egui::RichText::new("●").color(egui::Color32::RED));
                         }
                         DiagnosticSeverity::Warning => {
-                            ui.colored(egui::Color32::YELLOW, "▲");
+                            ui.label(egui::RichText::new("▲").color(egui::Color32::YELLOW));
                         }
                         DiagnosticSeverity::Info => {
                             ui.colored(egui::Color32::BLUE, "ℹ");

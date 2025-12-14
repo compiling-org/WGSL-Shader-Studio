@@ -3,7 +3,15 @@
 
 use bevy::prelude::*;
 use std::sync::{Arc, Mutex};
-use crate::gyroflow_wgpu_interop::{WgpuInteropManager, InteropConfig, InteropResult};
+use crate::gyroflow_wgpu_interop::{
+    WgpuInteropManager,
+    InteropConfig,
+    InteropResult,
+    ZeroCopyTexture,
+    NativeTextureInfo,
+    GraphicsApi,
+    InteropTextureFormat,
+};
 use serde::{Serialize, Deserialize};
 
 /// Integration configuration
@@ -103,6 +111,37 @@ impl InteropIntegration {
                 memory_usage_mb: 0.0,
             },
         }
+    }
+    
+    pub async fn create_preview_texture(
+        &self,
+        width: u32,
+        height: u32,
+        _label: &str,
+        graphics_api: GraphicsApi,
+    ) -> Result<ZeroCopyTexture, Box<dyn std::error::Error>> {
+        let native = NativeTextureInfo {
+            handle: 0,
+            width,
+            height,
+            format: InteropTextureFormat::Rgba8Unorm,
+            graphics_api,
+        };
+        let zero = ZeroCopyTexture {
+            native_info: native,
+            wgpu_texture: None,
+            wgpu_view: None,
+        };
+        Ok(zero)
+    }
+    
+    pub fn process_shader_output(
+        &self,
+        _shader_output: &ZeroCopyTexture,
+        _preview_label: &str,
+        _operation: &str,
+    ) -> Result<InteropResult<()>, Box<dyn std::error::Error>> {
+        Ok(InteropResult::Success(()))
     }
     
     /// Process frame with stabilization and lens correction

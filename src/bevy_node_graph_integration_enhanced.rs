@@ -568,33 +568,6 @@ impl ShaderNodeGraph {
 }
 
 // System functions
-fn update_node_graph(
-    mut node_graph: ResMut<NodeGraphResource>,
-    time: Res<Time>,
-) {
-    // Update any time-dependent node parameters
-    for node in node_graph.graph.nodes.values_mut() {
-        if let ShaderNodeType::Time = node.node_type {
-            if let Some(time_param) = node.parameters.get_mut("time_scale") {
-                *time_param = time.elapsed_seconds();
-            }
-        }
-    }
-}
-
-fn draw_node_graph_ui(
-    mut node_graph: ResMut<NodeGraphResource>,
-    mut egui_ctx: EguiContexts,
-) {
-    let ctx = egui_ctx.ctx_mut();
-    
-    egui::Window::new("Shader Graph Editor")
-        .default_size([1200.0, 800.0])
-        .resizable(true)
-        .show(ctx, |ui| {
-            draw_node_graph_canvas(ui, &mut node_graph);
-        });
-}
 
 fn draw_node_graph_canvas(ui: &mut egui::Ui, node_graph: &mut NodeGraphResource) {
     let available_size = ui.available_size();
@@ -605,7 +578,7 @@ fn draw_node_graph_canvas(ui: &mut egui::Ui, node_graph: &mut NodeGraphResource)
         .show_viewport(ui, |ui, viewport| {
             // Draw grid if enabled
             if node_graph.show_grid {
-                draw_grid(ui, viewport, node_graph.grid_size);
+                draw_grid(ui, &viewport, node_graph.grid_size);
             }
             
             // Draw connections
@@ -670,11 +643,11 @@ fn draw_connections(ui: &mut egui::Ui, node_graph: &NodeGraphResource) {
             let control1 = from_pos + egui::Vec2::new(control_offset, 0.0);
             let control2 = to_pos - egui::Vec2::new(control_offset, 0.0);
             
-            painter.add(egui::Shape::CubicBezier(CubicBezierShape::from_points(
+            painter.add(egui::Shape::CubicBezier(CubicBezierShape::from_points_stroke(
                 [from_pos, control1, control2, to_pos],
                 false,
-                connection.color,
-                (2.0, connection.color),
+                egui::Color32::TRANSPARENT,
+                egui::Stroke::new(2.0, connection.color),
             )));
             
             // Draw connection points
@@ -684,24 +657,31 @@ fn draw_connections(ui: &mut egui::Ui, node_graph: &NodeGraphResource) {
     }
 }
 
-use egui::CubicBezierShape;
+use egui::epaint::CubicBezierShape;
 
 fn draw_nodes(ui: &mut egui::Ui, node_graph: &mut NodeGraphResource) {
-    // Extract the needed data before the mutable borrow
-    let snap_to_grid = node_graph.snap_to_grid;
-    let grid_size = node_graph.grid_size;
-    let drag_state = node_graph.drag_state.clone();
-    
     // Clone the node IDs to avoid borrowing issues
     let node_ids: Vec<_> = node_graph.graph.nodes.keys().cloned().collect();
     for node_id in node_ids {
         if let Some(node) = node_graph.graph.nodes.get_mut(&node_id) {
-            draw_single_node(ui, node, snap_to_grid, grid_size, drag_state.as_ref());
+            draw_single_node(
+                ui,
+                node,
+                node_graph.snap_to_grid,
+                node_graph.grid_size,
+                node_graph.drag_state.as_ref(),
+            );
         }
     }
 }
 
-fn draw_single_node(ui: &mut egui::Ui, node: &mut ShaderNode, node_graph: &NodeGraphResource) {
+fn draw_single_node(
+    ui: &mut egui::Ui,
+    node: &mut ShaderNode,
+    snap_to_grid: bool,
+    grid_size: f32,
+    drag_state: Option<&DragState>,
+) {
     let response = ui.allocate_ui_at_rect(
         egui::Rect::from_min_size(node.position, node.size),
         |ui| {
@@ -776,13 +756,13 @@ fn draw_single_node(ui: &mut egui::Ui, node: &mut ShaderNode, node_graph: &NodeG
     
     // Handle node dragging
     if response.response.dragged() {
-        if let Some(drag_state) = &node_graph.drag_state {
+        if let Some(_drag_state) = drag_state {
             let delta = response.response.drag_delta();
             node.position += delta;
             
-            if node_graph.snap_to_grid {
-                node.position.x = (node.position.x / node_graph.grid_size).round() * node_graph.grid_size;
-                node.position.y = (node.position.y / node_graph.grid_size).round() * node_graph.grid_size;
+            if snap_to_grid {
+                node.position.x = (node.position.x / grid_size).round() * grid_size;
+                node.position.y = (node.position.y / grid_size).round() * grid_size;
             }
         }
     }
@@ -811,7 +791,7 @@ fn draw_node_graph_toolbar(
     mut node_graph: ResMut<NodeGraphResource>,
     mut egui_ctx: EguiContexts,
 ) {
-    let ctx = egui_ctx.ctx_mut();
+    let ctx = egui_ctx.ctx_mut().expect("egui ctx");
     
     egui::TopBottomPanel::top("node_graph_toolbar")
         .show(ctx, |ui| {
@@ -917,7 +897,7 @@ fn handle_node_interactions(
         let selected: Vec<_> = node_graph.selected_nodes.iter().copied().collect();
         for node_id in selected {
             node_graph.graph.nodes.remove(&node_id);
-            node_graph.connections.retain(|conn| {
+            node_graph.graph.connections.retain(|conn| {
                 conn.from_node != node_id && conn.to_node != node_id
             });
         }
@@ -954,7 +934,7 @@ fn update_node_graph(
     for node in node_graph.graph.nodes.values_mut() {
         if let ShaderNodeType::Time = node.node_type {
             if let Some(time_param) = node.parameters.get_mut("time_scale") {
-                *time_param = time.elapsed_seconds();
+                *time_param = time.elapsed_secs();
             }
         }
     }
@@ -965,7 +945,7 @@ fn draw_node_graph_ui(
     mut node_graph: ResMut<NodeGraphResource>,
     mut egui_ctx: EguiContexts,
 ) {
-    let ctx = egui_ctx.ctx_mut();
+    let ctx = egui_ctx.ctx_mut().expect("egui ctx");
     
     egui::Window::new("Shader Graph Editor")
         .default_size([1400.0, 900.0])

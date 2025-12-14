@@ -2,7 +2,7 @@
 //! Compatible with OBS Studio, vMix, Wirecast, and other NDI-enabled applications
 
 use bevy::prelude::*;
-use bevy_egui::egui;
+use bevy_egui::{egui, EguiContexts};
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -203,7 +203,8 @@ impl Plugin for NdiOutputPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<NdiConfig>()
             .insert_resource(NdiOutput::new(NdiConfig::default()))
-            .add_systems(Update, update_ndi_output);
+            .add_systems(Update, update_ndi_output)
+            .add_systems(Update, ndi_ui_system);
     }
 }
 
@@ -216,6 +217,27 @@ fn update_ndi_output(
     if config.is_changed() {
         let _ = ndi_output.update_config(config.clone());
     }
+}
+
+/// UI system to render NDI controls within the main editor
+fn ndi_ui_system(
+    mut contexts: EguiContexts,
+    mut config: ResMut<NdiConfig>,
+    output: Res<NdiOutput>,
+    mut ui_state: ResMut<crate::editor_ui::EditorUiState>,
+) {
+    if !ui_state.show_ndi_panel {
+        return;
+    }
+    let ctx = match contexts.ctx_mut() {
+        Ok(ctx) => ctx,
+        Err(_) => return,
+    };
+    egui::Window::new("NDI Output")
+        .open(&mut ui_state.show_ndi_panel)
+        .show(&ctx, |ui| {
+            NdiUI::render_ndi_controls(ui, &mut *config, &*output);
+        });
 }
 
 /// UI component for NDI controls

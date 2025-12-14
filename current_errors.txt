@@ -1,34 +1,21 @@
-   Compiling wgsl-shader-studio v0.1.0 (C:\Users\kapil\compiling\WGSL-Shader-Studio)
 warning: unexpected `cfg` condition value: `eframe`
  --> src\gui.rs:1:8
   |
 1 | #![cfg(feature = "eframe")] // DISABLED - EFAME ONLY - DO NOT USE
   |        ^^^^^^^^^^^^^^^^^^
   |
-  = note: expected values for `feature` are: `default`, `gui`, `naga_integration`, and `networking`
+  = note: expected values for `feature` are: `default`, `gui`, and `networking`
   = help: consider adding `eframe` as a feature in `Cargo.toml`
   = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
   = note: `#[warn(unexpected_cfgs)]` on by default
-
-warning: unused import: `bevy_egui::egui::TextureHandle`
- --> src\bevy_app.rs:9:5
-  |
-9 | use bevy_egui::egui::TextureHandle;
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  |
-  = note: `#[warn(unused_imports)]` on by default
-
-warning: unused imports: `RenderParameters` and `ShaderRenderer`
-  --> src\bevy_app.rs:88:30
-   |
-88 | use crate::shader_renderer::{ShaderRenderer, RenderParameters};
-   |                              ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
 
 warning: unused import: `std::sync::mpsc`
  --> src\audio_system.rs:2:5
   |
 2 | use std::sync::mpsc;
   |     ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
 
 warning: unnecessary parentheses around assigned value
    --> src\audio_system.rs:163:27
@@ -43,17 +30,23 @@ help: remove these parentheses
 163 +                 sample *= 0.7 + beat_envelope * 0.3; // Beat modulation
     |
 
-warning: unused import: `Ignore`
- --> src\midi_system.rs:7:45
-  |
-7 | use midir::{MidiInput, MidiInputConnection, Ignore};
-  |                                             ^^^^^^
-
 warning: unused import: `FrameTimeDiagnosticsPlugin`
  --> src\performance_overlay.rs:2:24
   |
 2 | use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, DiagnosticsStore};
   |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Arc` and `Mutex`
+ --> src\gesture_control.rs:6:17
+  |
+6 | use std::sync::{Arc, Mutex};
+  |                 ^^^  ^^^^^
+
+warning: unused import: `bevy_egui::egui::TextureHandle`
+ --> src\shader_renderer.rs:3:5
+  |
+3 | use bevy_egui::egui::TextureHandle;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 warning: unused import: `crate::isf_converter::IsfShader`
  --> src\ffgl_plugin.rs:4:5
@@ -62,46 +55,10 @@ warning: unused import: `crate::isf_converter::IsfShader`
   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 warning: unused imports: `CStr` and `CString`
- --> src\ffgl_plugin.rs:9:16
+ --> src\ffgl_plugin.rs:8:16
   |
-9 | use std::ffi::{CStr, CString};
+8 | use std::ffi::{CStr, CString};
   |                ^^^^  ^^^^^^^
-
-warning: unused import: `std::sync::Arc`
- --> src\ndi_output.rs:6:5
-  |
-6 | use std::sync::Arc;
-  |     ^^^^^^^^^^^^^^
-
-warning: unused import: `std::sync::Mutex`
- --> src\ndi_output.rs:7:5
-  |
-7 | use std::sync::Mutex;
-  |     ^^^^^^^^^^^^^^^^
-
-warning: unused imports: `IpAddr`, `Ipv4Addr`, and `SocketAddr`
- --> src\ndi_output.rs:8:16
-  |
-8 | use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-  |                ^^^^^^  ^^^^^^^^  ^^^^^^^^^^
-
-warning: unused import: `SocketAddr`
- --> src\osc_control.rs:9:16
-  |
-9 | use std::net::{SocketAddr, UdpSocket};
-  |                ^^^^^^^^^^
-
-warning: unused import: `super::*`
-   --> src\audio_midi_integration.rs:221:9
-    |
-221 |     use super::*;
-    |         ^^^^^^^^
-
-warning: unused import: `crate::audio_system::AudioData`
-   --> src\editor_ui.rs:535:9
-    |
-535 |     use crate::audio_system::AudioData;
-    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 warning: unused import: `regex::Regex`
  --> src\isf_auto_converter.rs:5:5
@@ -151,6 +108,12 @@ warning: unused import: `bail`
 3 | use anyhow::{Result, Context, bail};
   |                               ^^^^
 
+warning: unused import: `crate::audio_system::AudioData`
+   --> src\editor_ui.rs:529:9
+    |
+529 |     use crate::audio_system::AudioData;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 warning: unused import: `bevy_egui::EguiContexts`
  --> src\simple_ui_auditor.rs:2:5
   |
@@ -181,6 +144,54 @@ warning: unused imports: `Arc` and `Mutex`
 4 | use std::sync::{Arc, Mutex};
   |                 ^^^  ^^^^^
 
+warning: unused import: `std::sync::Arc`
+ --> src\ndi_output.rs:6:5
+  |
+6 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Mutex`
+ --> src\ndi_output.rs:7:5
+  |
+7 | use std::sync::Mutex;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused imports: `IpAddr`, `Ipv4Addr`, and `SocketAddr`
+ --> src\ndi_output.rs:8:16
+  |
+8 | use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+  |                ^^^^^^  ^^^^^^^^  ^^^^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+ --> src\spout_syphon_output.rs:6:5
+  |
+6 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Mutex`
+ --> src\spout_syphon_output.rs:7:5
+  |
+7 | use std::sync::Mutex;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused import: `SocketAddr`
+ --> src\osc_control.rs:9:16
+  |
+9 | use std::net::{SocketAddr, UdpSocket};
+  |                ^^^^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+ --> src\dmx_lighting_control.rs:6:5
+  |
+6 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Mutex`
+ --> src\dmx_lighting_control.rs:7:5
+  |
+7 | use std::sync::Mutex;
+  |     ^^^^^^^^^^^^^^^^
+
 warning: unused import: `AstVisitor`
  --> src\shader_transpiler.rs:6:39
   |
@@ -192,6 +203,16 @@ warning: unused imports: `ModuleId` and `ShaderModule`
   |
 7 | use crate::shader_module_system::{ShaderModule, ModuleId};
   |                                   ^^^^^^^^^^^^  ^^^^^^^^
+
+warning: unexpected `cfg` condition value: `naga_integration`
+   --> src\wgsl_analyzer.rs:201:15
+    |
+201 |         #[cfg(feature = "naga_integration")]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default`, `gui`, and `networking`
+    = help: consider adding `naga_integration` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
 
 warning: unused imports: `Context` and `bail`
  --> src\advanced_shader_compilation.rs:6:22
@@ -205,25 +226,25 @@ warning: unused import: `PathBuf`
 2 | use std::path::{Path, PathBuf};
   |                       ^^^^^^^
 
+warning: use of deprecated type alias `bevy_egui::egui::Rounding`: Renamed to CornerRadius
+   --> src\bevy_node_graph_integration.rs:180:35
+    |
+180 | ...                   egui::Rounding::same(4),
+    |                             ^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated type alias `bevy_egui::egui::Rounding`: Renamed to CornerRadius
+   --> src\bevy_node_graph_integration.rs:185:35
+    |
+185 | ...                   egui::Rounding::same(4),
+    |                             ^^^^^^^^
+
 warning: use of deprecated function `bevy_egui::egui::show_tooltip`: Use `egui::Tooltip` instead
    --> src\wgsl_analyzer.rs:422:31
     |
 422 |                         egui::show_tooltip(
     |                               ^^^^^^^^^^^^
-    |
-    = note: `#[warn(deprecated)]` on by default
-
-warning: use of deprecated type alias `bevy_egui::egui::Rounding`: Renamed to CornerRadius
-   --> src\bevy_node_graph_integration.rs:189:35
-    |
-189 | ...                   egui::Rounding::same(4),
-    |                             ^^^^^^^^
-
-warning: use of deprecated type alias `bevy_egui::egui::Rounding`: Renamed to CornerRadius
-   --> src\bevy_node_graph_integration.rs:194:35
-    |
-194 | ...                   egui::Rounding::same(4),
-    |                             ^^^^^^^^
 
 warning: use of deprecated associated function `bevy_egui::egui::ComboBox::from_id_source`: Renamed from_id_salt
    --> src\screenshot_video_export.rs:478:33
@@ -237,96 +258,6 @@ warning: use of deprecated associated function `bevy_egui::egui::ComboBox::from_
 554 |                     egui::ComboBox::from_id_source("video_format")
     |                                     ^^^^^^^^^^^^^^
 
-warning: use of deprecated method `bevy_egui::egui::Ui::allocate_ui_at_rect`: Use `allocate_new_ui` instead
-   --> src\bevy_node_graph_integration_enhanced.rs:685:23
-    |
-685 |     let response = ui.allocate_ui_at_rect(
-    |                       ^^^^^^^^^^^^^^^^^^^
-
-warning: use of deprecated associated function `bevy_egui::egui::Frame::none`: Use `Frame::NONE` or `Frame::new()` instead.
-   --> src\bevy_node_graph_integration_enhanced.rs:688:38
-    |
-688 |             let frame = egui::Frame::none()
-    |                                      ^^^^
-
-warning: use of deprecated method `bevy_egui::egui::Frame::rounding`: Renamed to `corner_radius`
-   --> src\bevy_node_graph_integration_enhanced.rs:695:18
-    |
-695 |                 .rounding(8.0);
-    |                  ^^^^^^^^
-
-warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\bevy_node_graph_integration_enhanced.rs:806:28
-    |
-806 |                         ui.close_menu();
-    |                            ^^^^^^^^^^
-
-warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\bevy_node_graph_integration_enhanced.rs:810:28
-    |
-810 |                         ui.close_menu();
-    |                            ^^^^^^^^^^
-
-warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\bevy_node_graph_integration_enhanced.rs:814:28
-    |
-814 |                         ui.close_menu();
-    |                            ^^^^^^^^^^
-
-warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\bevy_node_graph_integration_enhanced.rs:821:28
-    |
-821 |                         ui.close_menu();
-    |                            ^^^^^^^^^^
-
-warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\bevy_node_graph_integration_enhanced.rs:825:28
-    |
-825 |                         ui.close_menu();
-    |                            ^^^^^^^^^^
-
-warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\bevy_node_graph_integration_enhanced.rs:829:28
-    |
-829 |                         ui.close_menu();
-    |                            ^^^^^^^^^^
-
-warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\bevy_node_graph_integration_enhanced.rs:836:28
-    |
-836 |                         ui.close_menu();
-    |                            ^^^^^^^^^^
-
-warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\bevy_node_graph_integration_enhanced.rs:843:28
-    |
-843 |                         ui.close_menu();
-    |                            ^^^^^^^^^^
-
-warning: unused variable: `scene_editor_state`
-   --> src\bevy_app.rs:113:5
-    |
-113 |     scene_editor_state: Res<SceneEditor3DState>,
-    |     ^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_scene_editor_state`
-    |
-    = note: `#[warn(unused_variables)]` on by default
-
-warning: unused variable: `performance_metrics`
-   --> src\bevy_app.rs:114:5
-    |
-114 |     performance_metrics: Res<PerformanceMetrics>,
-    |     ^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_performance_metrics`
-
-warning: variable does not need to be mutable
-   --> src\bevy_app.rs:275:5
-    |
-275 |     mut startup_gate: ResMut<UiStartupGate>
-    |     ----^^^^^^^^^^^^
-    |     |
-    |     help: remove this `mut`
-    |
-    = note: `#[warn(unused_mut)]` on by default
-
 warning: variable `phase` is assigned to, but never used
    --> src\audio_system.rs:134:17
     |
@@ -334,6 +265,7 @@ warning: variable `phase` is assigned to, but never used
     |                 ^^^^^
     |
     = note: consider using `_phase` instead
+    = note: `#[warn(unused_variables)]` on by default
 
 warning: unused variable: `i`
    --> src\audio_system.rs:144:17
@@ -353,273 +285,34 @@ warning: unused variable: `data`
 479 |         data: Arc<Mutex<EnhancedAudioData>>, 
     |         ^^^^ help: if this is intentional, prefix it with an underscore: `_data`
 
-warning: variable does not need to be mutable
-   --> src\midi_system.rs:419:5
-    |
-419 |     mut midi_system: ResMut<MidiSystem>,
-    |     ----^^^^^^^^^^^
-    |     |
-    |     help: remove this `mut`
-
 warning: unused variable: `time`
   --> src\performance_overlay.rs:88:5
    |
 88 |     time: Res<Time>,
    |     ^^^^ help: if this is intentional, prefix it with an underscore: `_time`
 
-warning: unused variable: `width`
-   --> src\gyroflow_interop_integration.rs:148:56
-    |
-148 |     pub fn process_frame(&mut self, frame_data: &[u8], width: u32, height: u32) -> InteropResult<Vec<u8>> {
-    |                                                        ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
-
-warning: unused variable: `height`
-   --> src\gyroflow_interop_integration.rs:148:68
-    |
-148 |     pub fn process_frame(&mut self, frame_data: &[u8], width: u32, height: u32) -> InteropResult<Vec<u8>> {
-    |                                                                    ^^^^^^ help: if this is intentional, prefix it with an underscore: `_height`
-
-warning: unused variable: `gyro_data`
-   --> src\gyroflow_interop_integration.rs:172:48
-    |
-172 |     pub fn apply_gyro_stabilization(&mut self, gyro_data: &[f32], timestamp: f64) -> InteropResult<()> {
-    |                                                ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_gyro_data`
-
-warning: unused variable: `timestamp`
-   --> src\gyroflow_interop_integration.rs:172:67
-    |
-172 |     pub fn apply_gyro_stabilization(&mut self, gyro_data: &[f32], timestamp: f64) -> InteropResult<()> {
-    |                                                                   ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_timestamp`
-
-warning: variable does not need to be mutable
-   --> src\gyroflow_interop_integration.rs:267:28
-    |
-267 | fn update_gyroflow_interop(mut interop_resource: ResMut<GyroflowInteropResource>) {
-    |                            ----^^^^^^^^^^^^^^^^
-    |                            |
-    |                            help: remove this `mut`
-
-warning: unused variable: `final_img`
-   --> src\screenshot_video_export.rs:347:13
-    |
-347 |         let final_img = match settings.format {
-    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_final_img`
-
-warning: unused variable: `exporter`
-   --> src\screenshot_video_export.rs:621:9
-    |
-621 |     let exporter = ScreenshotVideoExporter::new();
-    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_exporter`
-
-warning: unused variable: `last`
-   --> src\ndi_output.rs:158:44
-    |
-158 |             fps: if let (Some(start), Some(last)) = (self.start_time, self.last_frame_time) {
-    |                                            ^^^^ help: if this is intentional, prefix it with an underscore: `_last`
-
-warning: unused variable: `normalized_value`
-   --> src\audio_midi_integration.rs:204:17
-    |
-204 |             let normalized_value = *value as f32 / 127.0;
-    |                 ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_normalized_value`
-
-warning: unused variable: `ui_state`
-   --> src\audio_midi_integration.rs:194:9
-    |
-194 |     mut ui_state: ResMut<crate::editor_ui::EditorUiState>,
-    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_ui_state`
-
-warning: variable does not need to be mutable
-   --> src\audio_midi_integration.rs:194:5
-    |
-194 |     mut ui_state: ResMut<crate::editor_ui::EditorUiState>,
-    |     ----^^^^^^^^
-    |     |
-    |     help: remove this `mut`
-
-warning: unused variable: `last`
-   --> src\spout_syphon_output.rs:204:44
-    |
-204 |             fps: if let (Some(start), Some(last)) = (self.start_time, self.last_frame_time) {
-    |                                            ^^^^ help: if this is intentional, prefix it with an underscore: `_last`
-
-warning: unused variable: `resolution_node`
-   --> src\bevy_node_graph_integration_enhanced.rs:257:13
-    |
-257 |         let resolution_node = self.add_node(ShaderNodeType::Resolution, "Resolution",
-    |             ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_resolution_node`
-
-warning: unused variable: `i`
-   --> src\bevy_node_graph_integration_enhanced.rs:299:58
-    |
-299 |             inputs: inputs.into_iter().enumerate().map(|(i, name)| NodeInput {
-    |                                                          ^ help: if this is intentional, prefix it with an underscore: `_i`
-
-warning: unused variable: `i`
-   --> src\bevy_node_graph_integration_enhanced.rs:306:60
-    |
-306 |             outputs: outputs.into_iter().enumerate().map(|(i, name)| NodeOutput {
-    |                                                            ^ help: if this is intentional, prefix it with an underscore: `_i`
-
-warning: unused variable: `var_name`
-   --> src\bevy_node_graph_integration_enhanced.rs:479:14
-    |
-479 |         for (var_name, var_code) in node_vars {
-    |              ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_var_name`
-
-warning: unused variable: `available_size`
-   --> src\bevy_node_graph_integration_enhanced.rs:573:9
-    |
-573 |     let available_size = ui.available_size();
-    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_available_size`
-
-warning: unused variable: `i`
-   --> src\bevy_node_graph_integration_enhanced.rs:713:30
-    |
-713 |                         for (i, input) in node.inputs.iter().enumerate() {
-    |                              ^ help: if this is intentional, prefix it with an underscore: `_i`
-
-warning: unused variable: `i`
-   --> src\bevy_node_graph_integration_enhanced.rs:733:30
-    |
-733 |                         for (i, output) in node.outputs.iter().enumerate() {
-    |                              ^ help: if this is intentional, prefix it with an underscore: `_i`
-
-warning: unused variable: `mouse_input`
-   --> src\bevy_node_graph_integration_enhanced.rs:891:5
-    |
-891 |     mouse_input: Res<ButtonInput<MouseButton>>,
-    |     ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_mouse_input`
-
-warning: unused variable: `mapping`
-   --> src\dmx_lighting_control.rs:352:21
-    |
-352 |         if let Some(mapping) = self.mappings.iter().find(|m| m.parameter_name == parameter_name) {
-    |                     ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_mapping`
-
-warning: unused variable: `renderer`
-   --> src\editor_ui.rs:246:21
-    |
-246 |         if let Some(renderer) = self.global_renderer.renderer.lock().unwrap().as_mut() {
-    |                     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_renderer`
-
-warning: unused variable: `has_resolution`
-   --> src\editor_ui.rs:406:9
-    |
-406 |     let has_resolution = wgsl_code.contains("resolution") || wgsl_code.contains("Resolution");
-    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_has_resolution`
-
-warning: unused variable: `has_uv`
-   --> src\editor_ui.rs:407:9
-    |
-407 |     let has_uv = wgsl_code.contains("uv") || wgsl_code.contains("UV") || wgsl_code.contains("@location(0)");
-    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_has_uv`
-
-warning: value assigned to `r` is never read
-   --> src\editor_ui.rs:427:21
-    |
-427 |             let mut r: f32 = 0.0;
-    |                     ^
-    |
-    = help: maybe it is overwritten before being read?
-    = note: `#[warn(unused_assignments)]` on by default
-
-warning: value assigned to `g` is never read
-   --> src\editor_ui.rs:428:21
-    |
-428 |             let mut g: f32 = 0.0;
-    |                     ^
-    |
-    = help: maybe it is overwritten before being read?
-
-warning: value assigned to `b` is never read
-   --> src\editor_ui.rs:429:21
-    |
-429 |             let mut b: f32 = 0.0;
-    |                     ^
-    |
-    = help: maybe it is overwritten before being read?
-
-warning: unused variable: `video_exporter`
-   --> src\editor_ui.rs:313:5
-    |
-313 |     video_exporter: Option<&()> // ScreenshotVideoExporter commented out
-    |     ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_video_exporter`
-
-warning: unused variable: `prompt`
-   --> src\editor_ui.rs:724:36
-    |
-724 | fn generate_shader_with_wgsl_smith(prompt: &str) -> String {
-    |                                    ^^^^^^ help: if this is intentional, prefix it with an underscore: `_prompt`
-
-warning: unused variable: `mapping`
-    --> src\editor_ui.rs:1422:30
-     |
-1422 |             for (param_name, mapping) in mappings {
-     |                              ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_mapping`
-
-warning: unused variable: `code`
-    --> src\editor_ui.rs:2587:16
-     |
-2587 |     for (name, code) in test_cases {
-     |                ^^^^ help: if this is intentional, prefix it with an underscore: `_code`
-
-warning: unused variable: `texture_handle`
-    --> src\editor_ui.rs:2626:23
-     |
-2626 | fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
-     |                       ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_texture_handle`
-
-warning: unused variable: `ctx`
-    --> src\editor_ui.rs:2626:61
-     |
-2626 | fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
-     |                                                             ^^^ help: if this is intentional, prefix it with an underscore: `_ctx`
-
-warning: variable does not need to be mutable
-   --> src\scene_editor_3d.rs:200:5
-    |
-200 |     mut editor_state: ResMut<SceneEditor3DState>,
-    |     ----^^^^^^^^^^^^
-    |     |
-    |     help: remove this `mut`
-
-warning: unused variable: `time`
-   --> src\scene_editor_3d.rs:254:5
-    |
-254 |     time: Res<Time>,
-    |     ^^^^ help: if this is intentional, prefix it with an underscore: `_time`
-
-warning: variable does not need to be mutable
-   --> src\scene_editor_3d.rs:499:5
-    |
-499 |     mut editor_state: ResMut<SceneEditor3DState>,
-    |     ----^^^^^^^^^^^^
-    |     |
-    |     help: remove this `mut`
-
 warning: unused variable: `delta_time`
-   --> src\gesture_control.rs:151:13
+   --> src\gesture_control.rs:152:13
     |
-151 |         let delta_time = now.duration_since(self.last_update).as_secs_f32();
+152 |         let delta_time = now.duration_since(self.last_update).as_secs_f32();
     |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_delta_time`
 
 warning: unused variable: `hand_id`
-   --> src\gesture_control.rs:232:39
+   --> src\gesture_control.rs:233:39
     |
-232 |     fn calculate_palm_velocity(&self, hand_id: u32) -> (f32, f32, f32) {
+233 |     fn calculate_palm_velocity(&self, hand_id: u32) -> (f32, f32, f32) {
     |                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_hand_id`
 
 warning: unused variable: `output_buffer`
-    --> src\shader_renderer.rs:1189:13
+    --> src\shader_renderer.rs:1190:13
      |
-1189 |         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+1190 |         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
      |             ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_output_buffer`
 
 warning: unused variable: `shader_module`
-    --> src\shader_renderer.rs:1391:13
+    --> src\shader_renderer.rs:1392:13
      |
-1391 |         let shader_module = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+1392 |         let shader_module = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
      |             ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_shader_module`
 
 warning: unused variable: `handle`
@@ -659,6 +352,8 @@ warning: variable does not need to be mutable
    |             ----^^^^^^^^^
    |             |
    |             help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
 
 warning: unused variable: `struct_code`
    --> src\wgsl_reflect_integration.rs:444:29
@@ -714,6 +409,85 @@ warning: unused variable: `index`
 333 |         for (index, texture) in self.texture_declarations.iter().enumerate() {
     |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_index`
 
+warning: unused variable: `renderer`
+   --> src\editor_ui.rs:245:21
+    |
+245 |         if let Some(renderer) = self.global_renderer.renderer.lock().unwrap().as_mut() {
+    |                     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_renderer`
+
+warning: unused variable: `has_resolution`
+   --> src\editor_ui.rs:400:9
+    |
+400 |     let has_resolution = wgsl_code.contains("resolution") || wgsl_code.contains("Resolution");
+    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_has_resolution`
+
+warning: unused variable: `has_uv`
+   --> src\editor_ui.rs:401:9
+    |
+401 |     let has_uv = wgsl_code.contains("uv") || wgsl_code.contains("UV") || wgsl_code.contains("@location(0)");
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_has_uv`
+
+warning: value assigned to `r` is never read
+   --> src\editor_ui.rs:421:21
+    |
+421 |             let mut r: f32 = 0.0;
+    |                     ^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: value assigned to `g` is never read
+   --> src\editor_ui.rs:422:21
+    |
+422 |             let mut g: f32 = 0.0;
+    |                     ^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: value assigned to `b` is never read
+   --> src\editor_ui.rs:423:21
+    |
+423 |             let mut b: f32 = 0.0;
+    |                     ^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: unused variable: `video_exporter`
+   --> src\editor_ui.rs:312:5
+    |
+312 |     video_exporter: Option<&()> // ScreenshotVideoExporter commented out
+    |     ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_video_exporter`
+
+warning: unused variable: `prompt`
+   --> src\editor_ui.rs:706:36
+    |
+706 | fn generate_shader_with_wgsl_smith(prompt: &str) -> String {
+    |                                    ^^^^^^ help: if this is intentional, prefix it with an underscore: `_prompt`
+
+warning: unused variable: `mapping`
+    --> src\editor_ui.rs:1404:30
+     |
+1404 |             for (param_name, mapping) in mappings {
+     |                              ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_mapping`
+
+warning: unused variable: `code`
+    --> src\editor_ui.rs:2275:16
+     |
+2275 |     for (name, code) in test_cases {
+     |                ^^^^ help: if this is intentional, prefix it with an underscore: `_code`
+
+warning: unused variable: `texture_handle`
+    --> src\editor_ui.rs:2314:23
+     |
+2314 | fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
+     |                       ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_texture_handle`
+
+warning: unused variable: `ctx`
+    --> src\editor_ui.rs:2314:61
+     |
+2314 | fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
+     |                                                             ^^^ help: if this is intentional, prefix it with an underscore: `_ctx`
+
 warning: unused variable: `timeline_height`
    --> src\timeline.rs:413:17
     |
@@ -738,20 +512,6 @@ warning: unused variable: `scale`
 208 |     fn apply_responsive_scaling(self, scale: f32) -> Self {
     |                                       ^^^^^ help: if this is intentional, prefix it with an underscore: `_scale`
 
-warning: unused variable: `data`
-   --> src\visual_node_editor.rs:613:23
-    |
-613 |             if let Ok(data) = serde_json::from_str::<serde_json::Value>(clipboard_data) {
-    |                       ^^^^ help: if this is intentional, prefix it with an underscore: `_data`
-
-warning: variable does not need to be mutable
-  --> src\visual_node_editor_plugin.rs:24:5
-   |
-24 |     mut node_graph: ResMut<crate::bevy_node_graph_integration_enhanced::NodeGraphResource>,
-   |     ----^^^^^^^^^^
-   |     |
-   |     help: remove this `mut`
-
 warning: unused variable: `queue`
   --> src\gyroflow_wgpu_interop.rs:86:87
    |
@@ -769,6 +529,90 @@ warning: unused variable: `queue`
     |
 107 |     pub fn export_texture(&mut self, texture_id: u64, device: &Device, queue: &Queue) -> InteropResult<NativeTextureInfo> {
     |                                                                        ^^^^^ help: if this is intentional, prefix it with an underscore: `_queue`
+
+warning: unused variable: `width`
+   --> src\gyroflow_interop_integration.rs:109:56
+    |
+109 |     pub fn process_frame(&mut self, frame_data: &[u8], width: u32, height: u32) -> InteropResult<Vec<u8>> {
+    |                                                        ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+
+warning: unused variable: `height`
+   --> src\gyroflow_interop_integration.rs:109:68
+    |
+109 |     pub fn process_frame(&mut self, frame_data: &[u8], width: u32, height: u32) -> InteropResult<Vec<u8>> {
+    |                                                                    ^^^^^^ help: if this is intentional, prefix it with an underscore: `_height`
+
+warning: unused variable: `gyro_data`
+   --> src\gyroflow_interop_integration.rs:133:48
+    |
+133 |     pub fn apply_gyro_stabilization(&mut self, gyro_data: &[f32], timestamp: f64) -> InteropResult<()> {
+    |                                                ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_gyro_data`
+
+warning: unused variable: `timestamp`
+   --> src\gyroflow_interop_integration.rs:133:67
+    |
+133 |     pub fn apply_gyro_stabilization(&mut self, gyro_data: &[f32], timestamp: f64) -> InteropResult<()> {
+    |                                                                   ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_timestamp`
+
+warning: variable does not need to be mutable
+   --> src\gyroflow_interop_integration.rs:228:28
+    |
+228 | fn update_gyroflow_interop(mut interop_resource: ResMut<GyroflowInteropResource>) {
+    |                            ----^^^^^^^^^^^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+
+warning: unused variable: `final_img`
+   --> src\screenshot_video_export.rs:347:13
+    |
+347 |         let final_img = match settings.format {
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_final_img`
+
+warning: unused variable: `exporter`
+   --> src\screenshot_video_export.rs:621:9
+    |
+621 |     let exporter = ScreenshotVideoExporter::new();
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_exporter`
+
+warning: unused variable: `last`
+   --> src\ndi_output.rs:158:44
+    |
+158 |             fps: if let (Some(start), Some(last)) = (self.start_time, self.last_frame_time) {
+    |                                            ^^^^ help: if this is intentional, prefix it with an underscore: `_last`
+
+warning: unused variable: `last`
+   --> src\spout_syphon_output.rs:206:44
+    |
+206 |             fps: if let (Some(start), Some(last)) = (self.start_time, self.last_frame_time) {
+    |                                            ^^^^ help: if this is intentional, prefix it with an underscore: `_last`
+
+warning: unused variable: `mapping`
+   --> src\dmx_lighting_control.rs:354:21
+    |
+354 |         if let Some(mapping) = self.mappings.iter().find(|m| m.parameter_name == parameter_name) {
+    |                     ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_mapping`
+
+warning: variable does not need to be mutable
+   --> src\scene_editor_3d.rs:200:5
+    |
+200 |     mut editor_state: ResMut<SceneEditor3DState>,
+    |     ----^^^^^^^^^^^^
+    |     |
+    |     help: remove this `mut`
+
+warning: unused variable: `time`
+   --> src\scene_editor_3d.rs:254:5
+    |
+254 |     time: Res<Time>,
+    |     ^^^^ help: if this is intentional, prefix it with an underscore: `_time`
+
+warning: variable does not need to be mutable
+   --> src\scene_editor_3d.rs:499:5
+    |
+499 |     mut editor_state: ResMut<SceneEditor3DState>,
+    |     ----^^^^^^^^^^^^
+    |     |
+    |     help: remove this `mut`
 
 warning: unused variable: `options`
    --> src\shader_transpiler.rs:268:39
@@ -903,67 +747,23 @@ warning: field `sample_rate` is never read
    |
    = note: `#[warn(dead_code)]` on by default
 
-warning: field `parameter_cache` is never read
-  --> src\ffgl_plugin.rs:20:5
-   |
-16 | pub struct FfglPlugin {
-   |            ---------- field in this struct
-...
-20 |     parameter_cache: HashMap<String, f32>,
-   |     ^^^^^^^^^^^^^^^
-
-warning: field `0` is never read
-   --> src\ffgl_plugin.rs:220:40
-    |
-220 |         struct AudioMidiSystemResource(Arc<AudioMidiSystem>);
-    |                ----------------------- ^^^^^^^^^^^^^^^^^^^^
-    |                |
-    |                field in this struct
-    |
-    = help: consider removing this field
-    = note: `AudioMidiSystemResource` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
-
-warning: field `socket` is never read
-  --> src\osc_control.rs:71:5
-   |
-68 | pub struct OscControl {
-   |            ---------- field in this struct
-...
-71 |     socket: Option<Arc<Mutex<UdpSocket>>>,
-   |     ^^^^^^
-   |
-   = note: `OscControl` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
-
-warning: function `render_shader_to_texture` is never used
-   --> src\editor_ui.rs:528:4
-    |
-528 | fn render_shader_to_texture(
-    |    ^^^^^^^^^^^^^^^^^^^^^^^^
-
-warning: function `get_texture_pixels` is never used
-    --> src\editor_ui.rs:2626:4
-     |
-2626 | fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
-     |    ^^^^^^^^^^^^^^^^^^
-
-warning: field `x` is never read
-   --> src\scene_editor_3d.rs:369:5
-    |
-368 | struct SphericalCoords {
-    |        --------------- field in this struct
-369 |     x: f32, // radius
-    |     ^
-    |
-    = note: `SphericalCoords` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
-
 warning: field `time` is never read
-  --> src\shader_renderer.rs:85:5
+  --> src\shader_renderer.rs:86:5
    |
-78 | pub struct ShaderRenderer {
+79 | pub struct ShaderRenderer {
    |            -------------- field in this struct
 ...
-85 |     time: std::time::Instant,
+86 |     time: std::time::Instant,
    |     ^^^^
+
+warning: field `parameter_cache` is never read
+  --> src\ffgl_plugin.rs:19:5
+   |
+15 | pub struct FfglPlugin {
+   |            ---------- field in this struct
+...
+19 |     parameter_cache: HashMap<String, f32>,
+   |     ^^^^^^^^^^^^^^^
 
 warning: methods `parse_wgsl_for_uniforms`, `extract_group_binding`, `get_type_size`, and `get_type_alignment` are never used
    --> src\wgsl_bindgen_integration.rs:143:8
@@ -1217,14 +1017,17 @@ warning: multiple methods are never used
 241 |     fn convert_hlsl_texture_to_wgsl(&self, hlsl_texture_type: &str) -> String {
     |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-warning: field `node_positions` is never read
-  --> src\visual_node_editor.rs:13:5
-   |
- 6 | pub struct VisualNodeEditor {
-   |            ---------------- field in this struct
-...
-13 |     node_positions: HashMap<NodeId, (f32, f32)>,
-   |     ^^^^^^^^^^^^^^
+warning: function `render_shader_to_texture` is never used
+   --> src\editor_ui.rs:522:4
+    |
+522 | fn render_shader_to_texture(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `get_texture_pixels` is never used
+    --> src\editor_ui.rs:2314:4
+     |
+2314 | fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
+     |    ^^^^^^^^^^^^^^^^^^
 
 warning: fields `connection_start` and `selected_node` are never read
   --> src\visual_node_editor_adapter.rs:11:5
@@ -1245,6 +1048,27 @@ warning: associated function `actual_to_visual_kind` is never used
 ...
 62 |     fn actual_to_visual_kind(actual: &ActualNodeKind) -> Option<VisualNodeKind> {
    |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `socket` is never read
+  --> src\osc_control.rs:71:5
+   |
+68 | pub struct OscControl {
+   |            ---------- field in this struct
+...
+71 |     socket: Option<Arc<Mutex<UdpSocket>>>,
+   |     ^^^^^^
+   |
+   = note: `OscControl` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: field `x` is never read
+   --> src\scene_editor_3d.rs:369:5
+    |
+368 | struct SphericalCoords {
+    |        --------------- field in this struct
+369 |     x: f32, // radius
+    |     ^
+    |
+    = note: `SphericalCoords` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
 
 warning: fields `symbol_table`, `uniform_blocks`, `functions`, `texture_declarations`, `version`, and `profile` are never read
    --> src\advanced_shader_compilation.rs:142:5
@@ -1366,99 +1190,14 @@ warning: field `supported_formats` is never read
     |     ^^^^^^^^^^^^^^^^^
 
 warning: creating a mutable reference to mutable static
-   --> src\ffgl_plugin.rs:239:9
+   --> src\ffgl_plugin.rs:230:9
     |
-239 |         PLUGIN_INSTANCE.as_mut().unwrap() as *mut _ as *mut c_void
+230 |         PLUGIN_INSTANCE.as_mut().unwrap() as *mut _ as *mut c_void
     |         ^^^^^^^^^^^^^^^^^^^^^^^^ mutable reference to mutable static
     |
     = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/static-mut-references.html>
     = note: mutable references to mutable statics are dangerous; it's undefined behavior if any other pointer to the static is used or if any other reference is created for the static while the mutable reference lives
     = note: `#[warn(static_mut_refs)]` on by default
-
-warning: unused `std::result::Result` that must be used
-   --> src\screenshot_video_export.rs:181:9
-    |
-181 |         device.poll(wgpu::PollType::Wait);
-    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    |
-    = note: this `Result` may be an `Err` variant, which should be handled
-    = note: `#[warn(unused_must_use)]` on by default
-help: use `let _ = ...` to ignore the resulting value
-    |
-181 |         let _ = device.poll(wgpu::PollType::Wait);
-    |         +++++++
-
-warning: unused `std::result::Result` that must be used
-   --> src\screenshot_video_export.rs:315:9
-    |
-315 |         device.poll(wgpu::PollType::Wait);
-    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    |
-    = note: this `Result` may be an `Err` variant, which should be handled
-help: use `let _ = ...` to ignore the resulting value
-    |
-315 |         let _ = device.poll(wgpu::PollType::Wait);
-    |         +++++++
-
-warning: unused `std::result::Result` that must be used
-   --> src\bevy_node_graph_integration_enhanced.rs:278:9
-    |
-278 |         self.connect(time_node, 0, sin_node, 0);
-    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    |
-    = note: this `Result` may be an `Err` variant, which should be handled
-help: use `let _ = ...` to ignore the resulting value
-    |
-278 |         let _ = self.connect(time_node, 0, sin_node, 0);
-    |         +++++++
-
-warning: unused `std::result::Result` that must be used
-   --> src\bevy_node_graph_integration_enhanced.rs:279:9
-    |
-279 |         self.connect(sin_node, 0, color_mix_node, 2); // Use sin(time) as mix factor
-    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    |
-    = note: this `Result` may be an `Err` variant, which should be handled
-help: use `let _ = ...` to ignore the resulting value
-    |
-279 |         let _ = self.connect(sin_node, 0, color_mix_node, 2); // Use sin(time) as mix factor
-    |         +++++++
-
-warning: unused `std::result::Result` that must be used
-   --> src\bevy_node_graph_integration_enhanced.rs:280:9
-    |
-280 |         self.connect(uv_node, 0, color_mix_node, 0); // UV as first color
-    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    |
-    = note: this `Result` may be an `Err` variant, which should be handled
-help: use `let _ = ...` to ignore the resulting value
-    |
-280 |         let _ = self.connect(uv_node, 0, color_mix_node, 0); // UV as first color
-    |         +++++++
-
-warning: unused `std::result::Result` that must be used
-   --> src\bevy_node_graph_integration_enhanced.rs:281:9
-    |
-281 |         self.connect(time_node, 0, color_mix_node, 1); // Time as second color
-    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    |
-    = note: this `Result` may be an `Err` variant, which should be handled
-help: use `let _ = ...` to ignore the resulting value
-    |
-281 |         let _ = self.connect(time_node, 0, color_mix_node, 1); // Time as second color
-    |         +++++++
-
-warning: unused `std::result::Result` that must be used
-   --> src\bevy_node_graph_integration_enhanced.rs:282:9
-    |
-282 |         self.connect(color_mix_node, 0, output_node, 0);
-    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    |
-    = note: this `Result` may be an `Err` variant, which should be handled
-help: use `let _ = ...` to ignore the resulting value
-    |
-282 |         let _ = self.connect(color_mix_node, 0, output_node, 0);
-    |         +++++++
 
 warning: structure field `DEFAULT` should have a snake case name
   --> src\isf_auto_converter.rs:12:13
@@ -1564,3 +1303,483 @@ warning: structure field `PERSISTENT_BUFFERS` should have a snake case name
 45 |     pub PERSISTENT_BUFFERS: Option<Vec<String>>,
    |         ^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `persistent_buffers`
 
+warning: unused `std::result::Result` that must be used
+   --> src\screenshot_video_export.rs:181:9
+    |
+181 |         device.poll(wgpu::PollType::Wait);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+    = note: `#[warn(unused_must_use)]` on by default
+help: use `let _ = ...` to ignore the resulting value
+    |
+181 |         let _ = device.poll(wgpu::PollType::Wait);
+    |         +++++++
+
+warning: unused `std::result::Result` that must be used
+   --> src\screenshot_video_export.rs:315:9
+    |
+315 |         device.poll(wgpu::PollType::Wait);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+    |
+315 |         let _ = device.poll(wgpu::PollType::Wait);
+    |         +++++++
+
+warning: `wgsl-shader-studio` (lib) generated 170 warnings (run `cargo fix --lib -p wgsl-shader-studio` to apply 38 suggestions)
+warning: unused import: `StorageAccess`
+ --> src\bin\test_compute_pass.rs:1:99
+  |
+1 | use resolume_isf_shaders_rust_ffgl::compute_pass_integration::{ComputePassManager, TextureFormat, StorageAccess};
+  |                                                                                                   ^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+    Checking wgsl-shader-studio v0.1.0 (C:\Users\kapil\compiling\WGSL-Shader-Studio)
+warning: unused variable: `queue`
+  --> src\bin\test_shader_compile.rs:34:18
+   |
+34 |     let (device, queue) = adapter
+   |                  ^^^^^ help: if this is intentional, prefix it with an underscore: `_queue`
+   |
+   = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `render_pipeline`
+  --> src\bin\test_shader_compile.rs:55:9
+   |
+55 |     let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+   |         ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_render_pipeline`
+
+warning: unused import: `RenderParameters`
+ --> src\bin\test_wgpu.rs:1:71
+  |
+1 | use resolume_isf_shaders_rust_ffgl::shader_renderer::{ShaderRenderer, RenderParameters};
+  |                                                                       ^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: `wgsl-shader-studio` (bin "test_compute_pass") generated 1 warning (run `cargo fix --bin "test_compute_pass"` to apply 1 suggestion)
+warning: `wgsl-shader-studio` (bin "test_shader_compile") generated 2 warnings
+warning: `wgsl-shader-studio` (bin "test_wgpu") generated 1 warning (run `cargo fix --bin "test_wgpu"` to apply 1 suggestion)
+error: couldn't read `gui_test.rs`: The system cannot find the file specified. (os error 2)
+
+error: couldn't read `minimal_test.rs`: The system cannot find the file specified. (os error 2)
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `wgsl_shader_studio`
+ --> src\bin\ui_analyzer_enhanced.rs:2:5
+  |
+2 | use wgsl_shader_studio::ui_analyzer_enhanced::{UIAnalyzerEnhanced, FeatureStatus, Priority};
+  |     ^^^^^^^^^^^^^^^^^^ use of unresolved module or unlinked crate `wgsl_shader_studio`
+  |
+  = help: if you wanted to use a crate named `wgsl_shader_studio`, use `cargo add wgsl_shader_studio` to add it to your `Cargo.toml`
+
+warning: unused import: `std::fs`
+ --> src\bin\ui_analyzer_enhanced.rs:1:5
+  |
+1 | use std::fs;
+  |     ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+error: could not compile `wgsl-shader-studio` (bin "gui-test") due to 1 previous error
+warning: build failed, waiting for other jobs to finish...
+error: could not compile `wgsl-shader-studio` (bin "minimal-test") due to 1 previous error
+For more information about this error, try `rustc --explain E0433`.
+error: couldn't read `test_window.rs`: The system cannot find the file specified. (os error 2)
+
+error: couldn't read `simple_test.rs`: The system cannot find the file specified. (os error 2)
+
+error: couldn't read `minimal_gui_test.rs`: The system cannot find the file specified. (os error 2)
+
+error: could not compile `wgsl-shader-studio` (bin "simple-test") due to 1 previous error
+error: could not compile `wgsl-shader-studio` (bin "test-window") due to 1 previous error
+warning: `wgsl-shader-studio` (bin "ui-analyzer-enhanced") generated 1 warning
+error: could not compile `wgsl-shader-studio` (bin "ui-analyzer-enhanced") due to 1 previous error; 1 warning emitted
+error: could not compile `wgsl-shader-studio` (bin "minimal-gui-test") due to 1 previous error
+error[E0432]: unresolved import `resolume_isf_shaders_rust_ffgl::isf_conversion_tester`
+ --> src\bin\isf_conversion_test_runner.rs:5:37
+  |
+5 | use resolume_isf_shaders_rust_ffgl::isf_conversion_tester::IsfConversionTester;
+  |                                     ^^^^^^^^^^^^^^^^^^^^^ could not find `isf_conversion_tester` in `resolume_isf_shaders_rust_ffgl`
+
+For more information about this error, try `rustc --explain E0432`.
+error: could not compile `wgsl-shader-studio` (bin "isf-conversion-test-runner") due to 1 previous error
+error[E0432]: unresolved import `super::midi_system`
+  --> src\bevy_app.rs:65:12
+   |
+65 | use super::midi_system::{MidiSystem, MidiSystemPlugin};
+   |            ^^^^^^^^^^^ could not find `midi_system` in the crate root
+
+error[E0432]: unresolved import `super::performance_overlay`
+  --> src\bevy_app.rs:68:12
+   |
+68 | use super::performance_overlay::{PerformanceOverlayPlugin, PerformanceMetrics, performance_monitoring_system};
+   |            ^^^^^^^^^^^^^^^^^^^
+   |            |
+   |            unresolved import
+   |            help: a similar path exists: `resolume_isf_shaders_rust_ffgl::performance_overlay`
+
+error[E0432]: unresolved import `crate::ffgl_plugin`
+  --> src\bevy_app.rs:69:12
+   |
+69 | use crate::ffgl_plugin::FfglPlugin;
+   |            ^^^^^^^^^^^
+   |            |
+   |            unresolved import
+   |            help: a similar path exists: `resolume_isf_shaders_rust_ffgl::ffgl_plugin`
+
+error[E0432]: unresolved import `crate::gyroflow_interop_integration`
+  --> src\bevy_app.rs:70:12
+   |
+70 | use crate::gyroflow_interop_integration::GyroflowInteropPlugin;
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |            |
+   |            unresolved import
+   |            help: a similar path exists: `resolume_isf_shaders_rust_ffgl::gyroflow_interop_integration`
+
+error[E0432]: unresolved import `crate::ndi_output`
+  --> src\bevy_app.rs:72:12
+   |
+72 | use crate::ndi_output::NdiOutputPlugin;
+   |            ^^^^^^^^^^
+   |            |
+   |            unresolved import
+   |            help: a similar path exists: `resolume_isf_shaders_rust_ffgl::ndi_output`
+
+error[E0432]: unresolved import `crate::dmx_lighting_control`
+  --> src\bevy_app.rs:73:12
+   |
+73 | use crate::dmx_lighting_control::DmxLightingControlPlugin;
+   |            ^^^^^^^^^^^^^^^^^^^^
+   |            |
+   |            unresolved import
+   |            help: a similar path exists: `resolume_isf_shaders_rust_ffgl::dmx_lighting_control`
+
+error[E0432]: unresolved import `crate::osc_control`
+  --> src\bevy_app.rs:74:12
+   |
+74 | use crate::osc_control::OscControlPlugin;
+   |            ^^^^^^^^^^^
+   |            |
+   |            unresolved import
+   |            help: a similar path exists: `resolume_isf_shaders_rust_ffgl::osc_control`
+
+error[E0432]: unresolved import `crate::audio_midi_integration`
+  --> src\bevy_app.rs:75:12
+   |
+75 | use crate::audio_midi_integration::AudioMidiIntegrationPlugin;
+   |            ^^^^^^^^^^^^^^^^^^^^^^ could not find `audio_midi_integration` in the crate root
+
+error[E0432]: unresolved import `crate::wgsl_analyzer`
+  --> src\bevy_app.rs:76:12
+   |
+76 | use crate::wgsl_analyzer::WgslAnalyzerPlugin;
+   |            ^^^^^^^^^^^^^
+   |            |
+   |            unresolved import
+   |            help: a similar path exists: `resolume_isf_shaders_rust_ffgl::wgsl_analyzer`
+
+error[E0432]: unresolved import `crate::spout_syphon_output`
+  --> src\bevy_app.rs:77:12
+   |
+77 | use crate::spout_syphon_output::SpoutSyphonOutputPlugin;
+   |            ^^^^^^^^^^^^^^^^^^^
+   |            |
+   |            unresolved import
+   |            help: a similar path exists: `resolume_isf_shaders_rust_ffgl::spout_syphon_output`
+
+error[E0432]: unresolved imports `super::editor_ui::draw_editor_shader_browser_panel`, `super::editor_ui::draw_editor_parameter_panel`
+  --> src\bevy_app.rs:92:72
+   |
+92 | ...artupGate, draw_editor_menu, draw_editor_shader_browser_panel, draw_editor_parameter_panel, draw_editor_code_panel, draw_editor_centra...
+   |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |                                 |                                 |
+   |                                 |                                 no `draw_editor_parameter_panel` in `editor_ui`
+   |                                 |                                 help: a similar name exists in the module: `draw_editor_code_panel`
+   |                                 no `draw_editor_shader_browser_panel` in `editor_ui`
+
+error[E0432]: unresolved import `crate::bevy_node_graph_integration`
+  --> src\bevy_app.rs:98:12
+   |
+98 | use crate::bevy_node_graph_integration::BevyNodeGraphPlugin;
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |            |
+   |            unresolved import
+   |            help: a similar path exists: `resolume_isf_shaders_rust_ffgl::bevy_node_graph_integration`
+
+error[E0432]: unresolved imports `editor_ui::draw_editor_shader_browser_panel`, `editor_ui::draw_editor_parameter_panel`
+  --> src\main.rs:26:65
+   |
+26 | ...artupGate, draw_editor_menu, draw_editor_shader_browser_panel, draw_editor_parameter_panel, draw_editor_code_panel};
+   |                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |                                 |                                 |
+   |                                 |                                 no `draw_editor_parameter_panel` in `editor_ui`
+   |                                 |                                 help: a similar name exists in the module: `draw_editor_code_panel`
+   |                                 no `draw_editor_shader_browser_panel` in `editor_ui`
+
+error[E0412]: cannot find type `SceneEditor3DState` in this scope
+   --> src\bevy_app.rs:118:29
+    |
+118 |     scene_editor_state: Res<SceneEditor3DState>,
+    |                             ^^^^^^^^^^^^^^^^^^ not found in this scope
+    |
+help: consider importing one of these structs
+    |
+  1 + use crate::SceneEditor3DState;
+    |
+  1 + use resolume_isf_shaders_rust_ffgl::scene_editor_3d::SceneEditor3DState;
+    |
+
+error[E0425]: cannot find function `draw_midi_panel` in module `crate::editor_ui`
+   --> src\bevy_app.rs:245:27
+    |
+245 |         crate::editor_ui::draw_midi_panel(ctx, &mut *ui_state, &mut *midi_system);
+    |                           ^^^^^^^^^^^^^^^ not found in `crate::editor_ui`
+
+error[E0425]: cannot find function `draw_performance_overlay_panel` in module `crate::editor_ui`
+   --> src\bevy_app.rs:250:27
+    |
+250 |         crate::editor_ui::draw_performance_overlay_panel(ctx, &mut *ui_state);
+    |                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ not found in `crate::editor_ui`
+
+error[E0425]: cannot find function `draw_color_grading_panel` in module `crate::editor_ui`
+   --> src\bevy_app.rs:255:27
+    |
+255 |         crate::editor_ui::draw_color_grading_panel(ctx, &mut *ui_state);
+    |                           ^^^^^^^^^^^^^^^^^^^^^^^^ not found in `crate::editor_ui`
+
+error[E0425]: cannot find function `draw_osc_panel` in module `crate::editor_ui`
+   --> src\bevy_app.rs:260:27
+    |
+260 |         crate::editor_ui::draw_osc_panel(ctx, &mut *ui_state);
+    |                           ^^^^^^^^^^^^^^ not found in `crate::editor_ui`
+
+error[E0425]: cannot find function `draw_dmx_panel` in module `crate::editor_ui`
+   --> src\bevy_app.rs:265:27
+    |
+265 |         crate::editor_ui::draw_dmx_panel(ctx, &mut *ui_state);
+    |                           ^^^^^^^^^^^^^^ not found in `crate::editor_ui`
+
+error[E0425]: cannot find function `draw_compute_panel` in module `crate::editor_ui`
+   --> src\bevy_app.rs:270:27
+    |
+270 |         crate::editor_ui::draw_compute_panel(ctx, &mut *ui_state);
+    |                           ^^^^^^^^^^^^^^^^^^ not found in `crate::editor_ui`
+
+error[E0425]: cannot find function `draw_export_panel` in module `crate::editor_ui`
+   --> src\bevy_app.rs:275:27
+    |
+275 |         crate::editor_ui::draw_export_panel(ctx, &mut *ui_state);
+    |                           ^^^^^^^^^^^^^^^^^ not found in `crate::editor_ui`
+
+error[E0425]: cannot find function `draw_ndi_panel` in module `crate::editor_ui`
+   --> src\bevy_app.rs:280:27
+    |
+280 |         crate::editor_ui::draw_ndi_panel(ctx, &mut *ui_state);
+    |                           ^^^^^^^^^^^^^^ not found in `crate::editor_ui`
+
+error[E0425]: cannot find function `draw_spout_panel` in module `crate::editor_ui`
+   --> src\bevy_app.rs:285:27
+    |
+285 |         crate::editor_ui::draw_spout_panel(ctx, &mut *ui_state);
+    |                           ^^^^^^^^^^^^^^^^ not found in `crate::editor_ui`
+
+error[E0425]: cannot find function `draw_ffgl_panel` in module `crate::editor_ui`
+   --> src\bevy_app.rs:290:27
+    |
+290 |         crate::editor_ui::draw_ffgl_panel(ctx, &mut *ui_state);
+    |                           ^^^^^^^^^^^^^^^ not found in `crate::editor_ui`
+
+error[E0425]: cannot find function `draw_gyroflow_panel` in module `crate::editor_ui`
+   --> src\bevy_app.rs:295:27
+    |
+295 |         crate::editor_ui::draw_gyroflow_panel(ctx, &mut *ui_state);
+    |                           ^^^^^^^^^^^^^^^^^^^ not found in `crate::editor_ui`
+
+error[E0425]: cannot find function `draw_analyzer_panel` in module `crate::editor_ui`
+   --> src\bevy_app.rs:300:27
+    |
+300 |         crate::editor_ui::draw_analyzer_panel(ctx, &mut *ui_state);
+    |                           ^^^^^^^^^^^^^^^^^^^ not found in `crate::editor_ui`
+
+error[E0425]: cannot find function `draw_3d_scene_panel` in module `crate::editor_ui`
+   --> src\bevy_app.rs:312:27
+    |
+312 |         crate::editor_ui::draw_3d_scene_panel(ctx, &mut *ui_state);
+    |                           ^^^^^^^^^^^^^^^^^^^ not found in `crate::editor_ui`
+
+error[E0425]: cannot find value `SceneEditor3DPlugin` in this scope
+   --> src\bevy_app.rs:417:22
+    |
+417 |         .add_plugins(SceneEditor3DPlugin)
+    |                      ^^^^^^^^^^^^^^^^^^^ not found in this scope
+    |
+help: consider importing one of these unit structs
+    |
+  1 + use crate::SceneEditor3DPlugin;
+    |
+  1 + use resolume_isf_shaders_rust_ffgl::scene_editor_3d::SceneEditor3DPlugin;
+    |
+
+warning: unused import: `bevy_egui::egui::TextureHandle`
+ --> src\bevy_app.rs:9:5
+  |
+9 | use bevy_egui::egui::TextureHandle;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `GestureControlSystem`
+  --> src\bevy_app.rs:83:30
+   |
+83 | use super::gesture_control::{GestureControlSystem, GestureControlPlugin};
+   |                              ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ComputePassManager`
+  --> src\bevy_app.rs:86:83
+   |
+86 | use resolume_isf_shaders_rust_ffgl::compute_pass_integration::{ComputePassPlugin, ComputePassManager};
+   |                                                                                   ^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `RenderParameters` and `ShaderRenderer`
+  --> src\bevy_app.rs:95:30
+   |
+95 | use super::shader_renderer::{ShaderRenderer, RenderParameters};
+   |                              ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::mpsc`
+ --> src\audio_system.rs:2:5
+  |
+2 | use std::sync::mpsc;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unused imports: `DiagnosticSeverity`, `Diagnostic`, and `Diagnostics`
+ --> src\converter\mod.rs:7:23
+  |
+7 | pub use diagnostics::{Diagnostic, DiagnosticSeverity, Diagnostics};
+  |                       ^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^
+
+warning: unused imports: `FunctionInfo`, `GlobalVarInfo`, `ParameterInfo`, `ShaderType`, `UniformInfo`, and `WgslEmitter`
+ --> src\converter\mod.rs:8:19
+  |
+8 | pub use emitter::{WgslEmitter, UniformInfo, ShaderType, FunctionInfo, ParameterInfo, GlobalVarInfo};
+  |                   ^^^^^^^^^^^  ^^^^^^^^^^^  ^^^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^^^^^  ^^^^^^^^^^^^^
+
+warning: unused imports: `ISFInputType`, `ISFInput`, `ISFMetadata`, `ISFOutputType`, `ISFOutput`, `ISFPass`, and `ISFShader`
+  --> src\converter\mod.rs:11:26
+   |
+11 | pub use isf::{ISFParser, ISFShader, ISFMetadata, ISFInput, ISFInputType, ISFOutput, ISFOutputType, ISFPass};
+   |                          ^^^^^^^^^  ^^^^^^^^^^^  ^^^^^^^^  ^^^^^^^^^^^^  ^^^^^^^^^  ^^^^^^^^^^^^^  ^^^^^^^
+
+warning: unused imports: `EditorUiState`, `UiStartupGate`, `draw_editor_code_panel`, and `draw_editor_menu`
+  --> src\main.rs:26:17
+   |
+26 | ...::{EditorUiState, UiStartupGate, draw_editor_menu, draw_editor_shader_browser_panel, draw_editor_parameter_panel, draw_editor_code_panel};
+   |       ^^^^^^^^^^^^^  ^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^                                                                 ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `AudioAnalysisPlugin`
+  --> src\main.rs:27:35
+   |
+27 | use audio_system::{AudioAnalyzer, AudioAnalysisPlugin};
+   |                                   ^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `GestureControlPlugin` and `GestureControlSystem`
+  --> src\main.rs:28:23
+   |
+28 | use gesture_control::{GestureControlSystem, GestureControlPlugin};
+   |                       ^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `ComputePassPlugin`
+  --> src\main.rs:29:52
+   |
+29 | use compute_pass_integration::{ComputePassManager, ComputePassPlugin};
+   |                                                    ^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `SceneEditor3DPlugin`, `SceneEditor3DState`, `scene_3d_viewport_ui`, and `scene_editor_3d_ui`
+  --> src\main.rs:30:23
+   |
+30 | use scene_editor_3d::{SceneEditor3DState, SceneEditor3DPlugin, scene_editor_3d_ui, scene_3d_viewport_ui};
+   |                       ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `TimelineAnimation` and `TimelinePlugin`
+  --> src\main.rs:31:16
+   |
+31 | use timeline::{TimelinePlugin, TimelineAnimation};
+   |                ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `editor_ui_system as bevy_editor_ui_system`, `editor_ui_system`, and `setup_camera`
+  --> src\main.rs:32:16
+   |
+32 | use bevy_app::{setup_camera, editor_ui_system, editor_ui_system as bevy_editor_ui_system};
+   |                ^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `isf_loader::*`
+  --> src\main.rs:35:5
+   |
+35 | use isf_loader::*;
+   |     ^^^^^^^^^^^^^
+
+warning: unused import: `shader_converter::*`
+  --> src\main.rs:36:5
+   |
+36 | use shader_converter::*;
+   |     ^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `bevy_egui::egui::ComboBox::from_id_source`: Renamed from_id_salt
+   --> src\screenshot_video_export.rs:478:33
+    |
+478 |                 egui::ComboBox::from_id_source("screenshot_format")
+    |                                 ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: variable does not need to be mutable
+   --> src\bevy_app.rs:340:5
+    |
+340 |     mut startup_gate: ResMut<UiStartupGate>
+    |     ----^^^^^^^^^^^^
+    |     |
+    |     help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: unused variable: `data`
+   --> src\visual_node_editor.rs:613:23
+    |
+613 |             if let Ok(data) = serde_json::from_str::<serde_json::Value>(clipboard_data) {
+    |                       ^^^^ help: if this is intentional, prefix it with an underscore: `_data`
+
+warning: variable does not need to be mutable
+  --> src\wgsl_diagnostics.rs:34:13
+   |
+34 |         let mut validator = Validator::new(ValidationFlags::all(), Capabilities::all());
+   |             ----^^^^^^^^^
+   |             |
+   |             help: remove this `mut`
+
+warning: unused variable: `manager`
+   --> src\main.rs:120:13
+    |
+120 |     let mut manager = compute_manager.lock().unwrap();
+    |             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_manager`
+
+warning: unused variable: `compute_shader`
+   --> src\main.rs:123:9
+    |
+123 |     let compute_shader = r#"
+    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_compute_shader`
+
+warning: variable does not need to be mutable
+   --> src\main.rs:120:9
+    |
+120 |     let mut manager = compute_manager.lock().unwrap();
+    |         ----^^^^^^^
+    |         |
+    |         help: remove this `mut`
+
+Some errors have detailed explanations: E0412, E0425, E0432.
+For more information about an error, try `rustc --explain E0412`.
+warning: `wgsl-shader-studio` (bin "isf-shaders") generated 68 warnings (44 duplicates)
+error: could not compile `wgsl-shader-studio` (bin "isf-shaders") due to 28 previous errors; 68 warnings emitted

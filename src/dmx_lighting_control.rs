@@ -2,9 +2,7 @@
 //! Enables real-time lighting control via DMX512 protocol for stage lighting integration
 
 use bevy::prelude::*;
-use bevy_egui::egui;
-use std::sync::Arc;
-use std::sync::Mutex;
+use bevy_egui::{egui, EguiContexts};
 use std::collections::HashMap;
 
 /// DMX universe configuration (512 channels per universe)
@@ -445,7 +443,8 @@ impl Plugin for DmxLightingControlPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DmxConfig>()
             .insert_resource(DmxLightingControl::new(DmxConfig::default()))
-            .add_systems(Update, update_dmx_control);
+            .add_systems(Update, update_dmx_control)
+            .add_systems(Update, dmx_ui_system);
     }
 }
 
@@ -467,6 +466,27 @@ fn update_dmx_control(
             dmx_control.last_frame_time = std::time::Instant::now();
         }
     }
+}
+
+/// UI system to render DMX controls within the main editor
+fn dmx_ui_system(
+    mut contexts: EguiContexts,
+    mut config: ResMut<DmxConfig>,
+    mut control: ResMut<DmxLightingControl>,
+    mut ui_state: ResMut<crate::editor_ui::EditorUiState>,
+) {
+    if !ui_state.show_dmx_panel {
+        return;
+    }
+    let ctx = match contexts.ctx_mut() {
+        Ok(ctx) => ctx,
+        Err(_) => return,
+    };
+    egui::Window::new("DMX Lighting")
+        .open(&mut ui_state.show_dmx_panel)
+        .show(&ctx, |ui| {
+            DmxUI::render_dmx_controls(ui, &mut *config, &mut *control);
+        });
 }
 
 /// UI component for DMX controls

@@ -218,8 +218,8 @@ impl EnhancedWgslRenderPipeline {
             let interop_cfg = interop_config.unwrap_or_default();
             let integration_cfg = integration_config.unwrap_or_default();
             
-            let manager = Arc::new(WgpuInteropManager::new(interop_cfg).await?);
-            let integration = Arc::new(InteropIntegration::new(integration_cfg, interop_cfg).await?);
+            let manager = Arc::new(WgpuInteropManager::new(interop_cfg));
+            let integration = Arc::new(InteropIntegration::new(integration_cfg));
             
             (Some(manager), Some(integration))
         } else {
@@ -667,7 +667,7 @@ impl EnhancedWgslRenderPipeline {
         shader_output: &ZeroCopyTexture,
         preview_label: &str,
         operation: &str,
-    ) -> Result<InteropResult, Box<dyn std::error::Error>> {
+    ) -> Result<InteropResult<()>, Box<dyn std::error::Error>> {
         if let Some(ref integration) = self.interop_integration {
             integration.process_shader_output(shader_output, preview_label, operation)
         } else {

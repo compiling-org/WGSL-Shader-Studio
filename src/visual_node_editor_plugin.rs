@@ -21,44 +21,39 @@ fn visual_node_editor_ui(
     mut contexts: EguiContexts,
     mut state: ResMut<VisualNodeEditorState>,
     mut ui_state: ResMut<crate::editor_ui::EditorUiState>,
+    mut node_graph: ResMut<crate::bevy_node_graph_integration_enhanced::NodeGraphResource>,
 ) {
     if !state.show_node_editor {
         return;
     }
 
+    let ctx = match contexts.ctx_mut() {
+        Ok(ctx) => ctx,
+        Err(_) => return,
+    };
+
     egui::Window::new("Visual Node Editor")
         .default_size([600.0, 400.0])
         .resizable(true)
-        .show(contexts.ctx_mut(), |ui| {
+        .show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.toggle_value(&mut state.auto_compile, "Auto Compile");
                 if ui.button("Compile").clicked() {
-                    // Phase 3: Implement basic node graph compilation
-                    let compiled_shader = compile_node_graph_to_wgsl();
-                    ui_state.draft_code = compiled_shader;
-                    ui_state.code_changed = true;
+                    match node_graph.graph.generate_wgsl() {
+                        Ok(compiled_shader) => {
+                            ui_state.draft_code = compiled_shader;
+                            ui_state.code_changed = true;
+                        }
+                        Err(err) => {
+                            ui_state.compilation_error = format!("Node graph compile error: {}", err);
+                        }
+                    }
                 }
             });
 
             ui.separator();
 
-            ui.label("Node editor functionality will be implemented here");
-            ui.label("This is a placeholder for the visual node graph system");
-            
-            // Placeholder for node graph area
-            let response = ui.allocate_response(egui::Vec2::new(500.0, 300.0), egui::Sense::hover());
-            ui.painter_at(response.rect).rect_filled(
-                response.rect,
-                5.0,
-                egui::Color32::from_gray(30),
-            );
-            
-            ui.painter_at(response.rect).text(
-                response.rect.center(),
-                egui::Align2::CENTER_CENTER,
-                "Node Graph Canvas",
-                egui::FontId::proportional(16.0),
-                egui::Color32::GRAY,
-            );
+            ui.label("Use the Shader Graph Editor window to edit nodes.");
+            ui.label("This panel provides compile controls and status.");
         });
 }

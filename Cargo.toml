@@ -23,26 +23,6 @@ name = "ui-analyzer-enhanced"
 path = "src/bin/ui_analyzer_enhanced.rs"
 
 [[bin]]
-name = "test-window"
-path = "test_window.rs"
-
-[[bin]]
-name = "simple-test"
-path = "simple_test.rs"
-
-[[bin]]
-name = "gui-test"
-path = "gui_test.rs"
-
-[[bin]]
-name = "minimal-gui-test"
-path = "minimal_gui_test.rs"
-
-[[bin]]
-name = "minimal-test"
-path = "minimal_test.rs"
-
-[[bin]]
 name = "isf-conversion-test-runner"
 path = "src/bin/isf_conversion_test_runner.rs"
 
@@ -111,4 +91,5 @@ ringbuf = "0.4"
 default = ["gui"]
 gui = ["dep:bevy_egui"]
 networking = ["dep:tun-rs"]
+naga_integration = []
 

@@ -14,7 +14,7 @@ impl Plugin for PerformanceOverlayPlugin {
     }
 }
 
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct PerformanceMetrics {
     pub fps: f32,
     pub frame_time_ms: f32,
@@ -26,6 +26,23 @@ pub struct PerformanceMetrics {
     pub frame_count: u64,
     pub fps_history: Vec<f32>,
     pub max_history_size: usize,
+}
+
+impl Default for PerformanceMetrics {
+    fn default() -> Self {
+        Self {
+            fps: 0.0,
+            frame_time_ms: 0.0,
+            gpu_utilization: 0.0,
+            memory_usage_mb: 0.0,
+            shader_compilation_time_ms: 0.0,
+            audio_latency_ms: 0.0,
+            last_update: Instant::now(),
+            frame_count: 0,
+            fps_history: Vec::new(),
+            max_history_size: 100,
+        }
+    }
 }
 
 impl PerformanceMetrics {
@@ -71,15 +88,16 @@ fn update_performance_metrics(
     time: Res<Time>,
 ) {
     // Update FPS from Bevy diagnostics
-    if let Some(fps) = diagnostics.get(bevy::diagnostic::FrameTimeDiagnosticsPlugin::FPS) {
+    if let Some(fps) = diagnostics.get(&bevy::diagnostic::FrameTimeDiagnosticsPlugin::FPS) {
         if let Some(average) = fps.average() {
-            metrics.fps = average as f32;
-            metrics.add_fps_sample(metrics.fps);
+            let avg_fps = average as f32;
+            metrics.fps = avg_fps;
+            metrics.add_fps_sample(avg_fps);
         }
     }
     
     // Update frame time
-    if let Some(frame_time) = diagnostics.get(bevy::diagnostic::FrameTimeDiagnosticsPlugin::FRAME_TIME) {
+    if let Some(frame_time) = diagnostics.get(&bevy::diagnostic::FrameTimeDiagnosticsPlugin::FRAME_TIME) {
         if let Some(average) = frame_time.average() {
             metrics.frame_time_ms = (average * 1000.0) as f32;
         }
@@ -92,10 +110,10 @@ fn update_performance_metrics(
     metrics.memory_usage_mb = 150.0 + metrics.frame_time_ms * 5.0; // Rough estimate
     
     // Simulate shader compilation time (would track actual compilation)
-    metrics.shader_compilation_time_ms = 15.0 + (rand::random::<f32>() - 0.5) * 10.0;
+    metrics.shader_compilation_time_ms = 15.0; // + (rand::random::<f32>() - 0.5) * 10.0; // rand not available
     
     // Simulate audio latency (would measure actual audio pipeline)
-    metrics.audio_latency_ms = 5.0 + (rand::random::<f32>() - 0.5) * 3.0;
+    metrics.audio_latency_ms = 5.0; // + (rand::random::<f32>() - 0.5) * 3.0; // rand not available
     
     metrics.frame_count += 1;
     metrics.last_update = Instant::now();
@@ -106,6 +124,7 @@ fn draw_performance_overlay(
     metrics: Res<PerformanceMetrics>,
 ) {
     let ctx = contexts.ctx_mut();
+    let ctx_ref = ctx.unwrap();
     
     // Create a semi-transparent overlay window
     egui::Window::new("Performance Metrics")
@@ -113,7 +132,7 @@ fn draw_performance_overlay(
         .resizable(true)
         .default_pos([10.0, 10.0])
         .default_size([280.0, 200.0])
-        .show(ctx, |ui| {
+        .show(ctx_ref, |ui| {
             ui.heading("Live Performance Metrics");
             ui.separator();
             
@@ -188,8 +207,7 @@ fn draw_performance_overlay(
             for i in 0..=4 {
                 let y = rect.top() + rect.height() * (i as f32 / 4.0);
                 painter.line_segment(
-                    [rect.left(), y],
-                    [rect.right(), y],
+                    [egui::pos2(rect.left(), y), egui::pos2(rect.right(), y)],
                     egui::Stroke::new(1.0, egui::Color32::from_gray(60))
                 );
             }
@@ -216,8 +234,7 @@ fn draw_performance_overlay(
                     };
                     
                     painter.line_segment(
-                        [points[i-1].x, points[i-1].y],
-                        [points[i].x, points[i].y],
+                        [points[i-1], points[i]],
                         egui::Stroke::new(2.0, color)
                     );
                 }
@@ -226,8 +243,7 @@ fn draw_performance_overlay(
             // Draw 60 FPS reference line
             let target_y = rect.bottom() - (60.0 / 120.0) * rect.height();
             painter.line_segment(
-                [rect.left(), target_y],
-                [rect.right(), target_y],
+                [egui::pos2(rect.left(), target_y), egui::pos2(rect.right(), target_y)],
                 egui::Stroke::new(1.0, egui::Color32::from_rgb(100, 200, 255))
             );
             
@@ -249,28 +265,39 @@ fn draw_performance_overlay(
 /// System to monitor and log performance warnings
 pub fn performance_monitoring_system(
     metrics: Res<PerformanceMetrics>,
-    mut last_warning: Local<Instant>,
+    mut last_warning: Local<Option<Instant>>,
 ) {
     let now = Instant::now();
     
-    // Only check every 5 seconds to avoid spam
-    if now.duration_since(*last_warning) < Duration::from_secs(5) {
+    // Initialize if first run
+    if last_warning.is_none() {
+        *last_warning = Some(now);
         return;
+    }
+    
+    // Only check every 5 seconds to avoid spam
+    if let Some(last) = *last_warning {
+        if now.duration_since(last) < Duration::from_secs(5) {
+            return;
+        }
     }
     
     // Check for performance issues
     if metrics.fps < 20.0 {
         eprintln!("⚠️  PERFORMANCE WARNING: Very low FPS ({:.1}) detected!", metrics.fps);
-        *last_warning = now;
+        *last_warning = Some(now);
+        return;
     }
     
     if metrics.frame_time_ms > 100.0 {
         eprintln!("⚠️  PERFORMANCE WARNING: High frame time ({:.1}ms) detected!", metrics.frame_time_ms);
-        *last_warning = now;
+        *last_warning = Some(now);
+        return;
     }
     
     if metrics.gpu_utilization > 95.0 {
         eprintln!("⚠️  PERFORMANCE WARNING: Very high GPU utilization ({:.1}%) detected!", metrics.gpu_utilization);
-        *last_warning = now;
+        *last_warning = Some(now);
+        return;
     }
 }
