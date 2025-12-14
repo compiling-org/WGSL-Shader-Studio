@@ -1,6 +1,5 @@
 use wgpu::*;
 use wgpu::util::DeviceExt;
-use bevy_egui::egui::TextureHandle;
 use bytemuck::{Pod, Zeroable};
 
 use crate::audio_system::AudioData;
@@ -98,18 +97,18 @@ impl ShaderRenderer {
         println!("Initializing WGPU renderer...");
 
         let instance = Instance::new(&wgpu::InstanceDescriptor::default());
-        println!("✓ WGPU instance created");
+        println!("SUCCESS: WGPU instance created");
 
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions::default())
             .await
             .map_err(|e| format!("Failed to find a suitable GPU adapter: {}. Make sure you have a compatible graphics card and drivers installed.", e))?;
-        println!("✓ GPU adapter found: {:?}", adapter.get_info().name);
+        println!("SUCCESS: GPU adapter found: {:?}", adapter.get_info().name);
 
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor::default())
             .await?;
-        println!("✓ GPU device and queue created successfully");
+        println!("SUCCESS: GPU device and queue created successfully");
 
         let mut working_examples = Vec::new();
         ShaderRenderer::add_working_examples(&mut working_examples);
@@ -896,7 +895,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         } else if wgsl_code.contains("fn fs_main(") {
             "fs_main" // Legacy convention
         } else {
-            println!("⚠️  Warning: Could not detect fragment shader entry point, defaulting to 'main'");
+            println!("WARNING: Could not detect fragment shader entry point, defaulting to 'main'");
             "main"
         };
         println!("🔍 Detected fragment shader entry point: '{}'", fragment_entry_point);
@@ -927,7 +926,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
         let texture = self.device.create_texture(&texture_desc);
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        println!("✓ Output texture created: {}x{}", params.width, params.height);
+        println!("SUCCESS: Output texture created: {}x{}", params.width, params.height);
 
         // --- 2. Create Shader Module ---
         println!("Compiling WGSL shader...");
@@ -946,10 +945,10 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         });
         if let Some(err) = pollster::block_on(self.device.pop_error_scope()) {
             let msg = format!("WGSL validation error: {}", err);
-            println!("✗ {}", msg);
+            println!("ERROR: {}", msg);
             self.last_errors.push(msg);
         } else {
-            println!("✓ Shader compiled successfully");
+            println!("SUCCESS: Shader compiled successfully");
         }
 
         // --- 3. Create Uniform Buffer (FIXED: Proper alignment and validation) ---
@@ -966,7 +965,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
         // Validate uniform buffer size
         let uniform_size = std::mem::size_of::<Uniforms>() as wgpu::BufferAddress;
-        println!("✓ Uniform buffer size: {} bytes", uniform_size);
+        println!("SUCCESS: Uniform buffer size: {} bytes", uniform_size);
 
         let uniform_buffer = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Uniform Buffer"),
@@ -1149,10 +1148,10 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         });
         if let Some(err) = pollster::block_on(self.device.pop_error_scope()) {
             let msg = format!("Pipeline validation error: {}", err);
-            println!("✗ {}", msg);
+            println!("ERROR: {}", msg);
             self.last_errors.push(msg);
         } else {
-            println!("✓ Render pipeline created");
+            println!("SUCCESS: Render pipeline created");
         }
 
         // --- 6. Execute Render Pass (FIXED: Enhanced error handling) ---
@@ -1194,7 +1193,19 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             mapped_at_creation: false,
         });
 
-        // Copy texture to buffer for readback
+        // Copy texture to buffer for readback with proper alignment
+        let bytes_per_row = params.width * 4;
+        let aligned_bytes_per_row = ((bytes_per_row + 255) / 256) * 256; // Align to 256 bytes as required by WGPU
+        
+        // Recreate buffer with proper size if needed
+        let buffer_size = (aligned_bytes_per_row * params.height) as u64;
+        let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("Output Buffer Aligned"),
+            size: buffer_size,
+            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+
         encoder.copy_texture_to_buffer(
             wgpu::TexelCopyTextureInfo {
                 texture: &texture,
@@ -1206,7 +1217,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                 buffer: &output_buffer,
                 layout: wgpu::TexelCopyBufferLayout {
                     offset: 0,
-                    bytes_per_row: Some(params.width * 4),
+                    bytes_per_row: Some(aligned_bytes_per_row),
                     rows_per_image: Some(params.height),
                 },
             },
@@ -1240,14 +1251,22 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         match rx.recv_timeout(std::time::Duration::from_millis(50)) {
             Ok(Ok(())) => {
                 let data = buffer_slice.get_mapped_range();
-                let pixel_data = data.to_vec();
+                
+                // Extract actual pixel data, skipping alignment padding
+                let mut pixel_data = Vec::with_capacity((params.width * params.height * 4) as usize);
+                for y in 0..params.height {
+                    let row_start = (y * aligned_bytes_per_row) as usize;
+                    let row_end = row_start + (params.width * 4) as usize;
+                    pixel_data.extend_from_slice(&data[row_start..row_end]);
+                }
+                
                 drop(data);
                 output_buffer.unmap();
-                println!("✓ Successfully rendered {} pixels", pixel_data.len() / 4);
+                println!("SUCCESS: Successfully rendered {} pixels", pixel_data.len() / 4);
                 Ok(pixel_data)
             }
             Ok(Err(e)) => {
-                println!("✗ GPU buffer mapping failed: {:?}", e);
+                println!("ERROR: GPU buffer mapping failed: {:?}", e);
                 // Enhanced fallback with debug pattern
                 let pixel_count = (params.width * params.height) as usize;
                 let mut dummy_pixels = vec![0u8; pixel_count * 4];
@@ -1263,11 +1282,11 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                     }
                 }
                 
-                println!("⚠️ Using debug pattern fallback");
+                println!("WARNING: Using debug pattern fallback");
                 Ok(dummy_pixels)
             }
             Err(e) => {
-                println!("⚠️ Timeout or error receiving buffer mapping result: {:?}", e);
+                println!("WARNING: Timeout or error receiving buffer mapping result: {:?}", e);
                 // Return a simple pattern instead of hanging
                 let pixel_count = (params.width * params.height) as usize;
                 let mut dummy_pixels = vec![0u8; pixel_count * 4];
@@ -1283,7 +1302,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                     }
                 }
                 
-                println!("⚠️ Using timeout pattern fallback");
+                println!("WARNING: Using timeout pattern fallback");
                 Ok(dummy_pixels)
             }
         }
@@ -1320,14 +1339,14 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             audio_data: None,
         };
         
-        self.render_frame_with_params(wgsl_code, &render_params, parameter_values)
+        self.render_frame_with_params(wgsl_code, &render_params, parameter_values, render_params.audio_data.clone())
             .map_err(|e| {
                 let error_msg = format!("{:?}", e);
                 Box::new(std::io::Error::new(std::io::ErrorKind::Other, error_msg)) as Box<dyn std::error::Error>
             })
     }
     
-    pub fn render_frame_with_params(&mut self, wgsl_code: &str, params: &RenderParameters, parameter_values: Option<&[f32]>) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+    pub fn render_frame_with_params(&mut self, wgsl_code: &str, params: &RenderParameters, parameter_values: Option<&[f32]>, audio_data: Option<AudioData>) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         // Quick return for empty code to prevent hanging
         if wgsl_code.trim().is_empty() {
             let pixel_count = (params.width * params.height) as usize;
@@ -1342,7 +1361,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         } else if wgsl_code.contains("fn fs_main(") {
             "fs_main" // Legacy convention
         } else {
-            println!("⚠️  Warning: Could not detect fragment shader entry point, defaulting to 'main'");
+            println!("WARNING: Could not detect fragment shader entry point, defaulting to 'main'");
             "main"
         };
         println!("🔍 Detected fragment shader entry point: '{}'", fragment_entry_point);
@@ -1366,24 +1385,24 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
         let texture = self.device.create_texture(&texture_desc);
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-        println!("✓ Output texture created: {}x{}", params.width, params.height);
+        println!("SUCCESS: Output texture created: {}x{}", params.width, params.height);
 
         // --- 2. Parse Shader Code (FIXED: Robust parsing) ---
         let shader_module = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Fragment Shader"),
             source: wgpu::ShaderSource::Wgsl(wgsl_code.into()),
         });
-        println!("✓ Shader module created");
+        println!("SUCCESS: Shader module created");
 
-        // --- 3. Setup Uniforms (FIXED: Enhanced error handling) ---
+        // --- 3. Setup Uniforms (ENHANCED: Live audio metrics from AudioAnalyzer) ---
         let uniforms = Uniforms {
             time: params.time,
             resolution: [params.width as f32, params.height as f32],
             mouse: [0.0, 0.0],
-            audio_volume: 0.0,
-            audio_bass: 0.0,
-            audio_mid: 0.0,
-            audio_treble: 0.0,
+            audio_volume: audio_data.as_ref().map(|d| d.volume).unwrap_or(0.0),
+            audio_bass: audio_data.as_ref().map(|d| d.bass_level).unwrap_or(0.0),
+            audio_mid: audio_data.as_ref().map(|d| d.mid_level).unwrap_or(0.0),
+            audio_treble: audio_data.as_ref().map(|d| d.treble_level).unwrap_or(0.0),
             _padding: [0],
         };
 
@@ -1564,7 +1583,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         drop(data);
         output_buffer.unmap();
 
-        println!("✓ Rendering completed successfully");
+        println!("SUCCESS: Rendering completed successfully");
         Ok(result)
     }
 

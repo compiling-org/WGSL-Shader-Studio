@@ -268,7 +268,7 @@ impl WgslAnalyzer {
 /// System to analyze shaders and update diagnostics
 pub fn analyze_shader_system(
     mut analyzer: ResMut<WgslAnalyzer>,
-    editor_state: Res<crate::EditorState>,
+    editor_state: Res<crate::editor_ui::EditorUiState>,
 ) {
     if editor_state.code_changed {
         if let Some(current_file) = &editor_state.current_file {
@@ -293,18 +293,18 @@ impl DiagnosticRenderer {
                 // Severity icon
                 match diagnostic.severity {
                     DiagnosticSeverity::Error => {
-                        ui.colored(egui::Color32::RED, "●");
+                        ui.label(egui::RichText::new("●").color(egui::Color32::RED));
                     }
                     DiagnosticSeverity::Warning => {
-                        ui.colored(egui::Color32::YELLOW, "▲");
+                        ui.label(egui::RichText::new("▲").color(egui::Color32::YELLOW));
                     }
                     DiagnosticSeverity::Info => {
-                        ui.colored(egui::Color32::BLUE, "ℹ");
+                        ui.label(egui::RichText::new("ℹ").color(egui::Color32::BLUE));
                     }
                 }
                 
                 // Diagnostic message
-                ui.label(&diagnostic.message);
+                ui.label(diagnostic.message.as_str());
                 
                 // Position info
                 ui.weak(format!(
@@ -326,7 +326,7 @@ impl DiagnosticRenderer {
                 ui.horizontal(|ui| {
                     ui.add_space(20.0);
                     ui.weak("→");
-                    ui.label(&related.message);
+                    ui.label(related.message.as_str());
                     ui.weak(format!(
                         " ({}:{})",
                         related.range.start.line + 1,
@@ -352,10 +352,10 @@ impl DiagnosticRenderer {
                 for diagnostic in line_diagnostics {
                     match diagnostic.severity {
                         DiagnosticSeverity::Error => {
-                            ui.colored(egui::Color32::RED, "●");
+                            ui.label(egui::RichText::new("●").color(egui::Color32::RED));
                         }
                         DiagnosticSeverity::Warning => {
-                            ui.colored(egui::Color32::YELLOW, "▲");
+                            ui.label(egui::RichText::new("▲").color(egui::Color32::YELLOW));
                         }
                         DiagnosticSeverity::Info => {
                             ui.colored(egui::Color32::BLUE, "ℹ");
@@ -364,7 +364,7 @@ impl DiagnosticRenderer {
                     
                     if ui.add(egui::Button::new("").sense(egui::Sense::hover())).hovered() {
                         egui::show_tooltip(ui.ctx(), egui::Id::new(&diagnostic.code), |ui| {
-                            ui.label(&diagnostic.message);
+                            ui.label(diagnostic.message.as_str());
                             ui.weak(format!("Code: {}", diagnostic.code));
                             match diagnostic.source {
                                 DiagnosticSource::WgslAnalyzer => ui.weak("Source: WGSL-Analyzer"),

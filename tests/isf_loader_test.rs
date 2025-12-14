@@ -1,6 +1,6 @@
 //! Integration tests for ISF loader functionality
 
-use wgsl_shader_studio::isf_loader::*;
+use resolume_isf_shaders_rust_ffgl::isf_loader::*;
 use std::fs;
 use std::path::Path;
 

@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_egui::egui;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -339,16 +340,16 @@ impl DiagnosticRenderer {
                         // Severity icon
                         match diagnostic.severity {
                             DiagnosticSeverity::Error => {
-                                ui.colored(egui::Color32::RED, "●");
+                                ui.colored_label(egui::Color32::RED, "●");
                             }
                             DiagnosticSeverity::Warning => {
-                                ui.colored(egui::Color32::YELLOW, "▲");
+                                ui.colored_label(egui::Color32::YELLOW, "▲");
                             }
                             DiagnosticSeverity::Info => {
-                                ui.colored(egui::Color32::BLUE, "ℹ");
+                                ui.colored_label(egui::Color32::BLUE, "ℹ");
                             }
                             DiagnosticSeverity::Hint => {
-                                ui.colored(egui::Color32::GRAY, "💡");
+                                ui.colored_label(egui::Color32::GRAY, "💡");
                             }
                         }
                         
@@ -404,28 +405,32 @@ impl DiagnosticRenderer {
                 for diagnostic in line_diagnostics {
                     match diagnostic.severity {
                         DiagnosticSeverity::Error => {
-                            ui.colored(egui::Color32::RED, "●");
+                            ui.colored_label(egui::Color32::RED, "●");
                         }
                         DiagnosticSeverity::Warning => {
-                            ui.colored(egui::Color32::YELLOW, "▲");
+                            ui.colored_label(egui::Color32::YELLOW, "▲");
                         }
                         DiagnosticSeverity::Info => {
-                            ui.colored(egui::Color32::BLUE, "ℹ");
+                            ui.colored_label(egui::Color32::BLUE, "ℹ");
                         }
                         DiagnosticSeverity::Hint => {
-                            ui.colored(egui::Color32::GRAY, "💡");
+                            ui.colored_label(egui::Color32::GRAY, "💡");
                         }
                     }
                     
                     if ui.add(egui::Button::new("").sense(egui::Sense::hover())).hovered() {
-                        egui::show_tooltip(ui.ctx(), egui::Id::new(&diagnostic.code), |ui| {
+                        egui::show_tooltip(
+                            ui.ctx(),
+                            egui::LayerId::new(egui::Order::Tooltip, egui::Id::new("wgsl_analyzer_tooltip")),
+                            egui::Id::new(&diagnostic.code),
+                            |ui| {
                             ui.label(&diagnostic.message);
                             ui.weak(format!("Code: {}", diagnostic.code));
                             ui.weak(format!("Line: {}:{}", diagnostic.line, diagnostic.column));
                             match diagnostic.source {
-                                DiagnosticSource::WgslAnalyzer => ui.weak("Source: WGSL-Analyzer"),
-                                DiagnosticSource::Naga => ui.weak("Source: Naga"),
-                                DiagnosticSource::Custom => ui.weak("Source: Custom"),
+                                DiagnosticSource::WgslAnalyzer => { ui.weak("Source: WGSL-Analyzer"); }
+                                DiagnosticSource::Naga => { ui.weak("Source: Naga"); }
+                                DiagnosticSource::Custom => { ui.weak("Source: Custom"); }
                             }
                             
                             if !diagnostic.related_info.is_empty() {
@@ -435,7 +440,8 @@ impl DiagnosticRenderer {
                                     ui.weak(format!("  → {}", related.message));
                                 }
                             }
-                        });
+                            }
+                        );
                     }
                 }
             });
@@ -450,20 +456,20 @@ impl DiagnosticRenderer {
         
         ui.horizontal(|ui| {
             if error_count > 0 {
-                ui.colored(egui::Color32::RED, format!("● {} errors", error_count));
+                ui.colored_label(egui::Color32::RED, format!("● {} errors", error_count));
             }
             if warning_count > 0 {
-                ui.colored(egui::Color32::YELLOW, format!("▲ {} warnings", warning_count));
+                ui.colored_label(egui::Color32::YELLOW, format!("▲ {} warnings", warning_count));
             }
             if info_count > 0 {
-                ui.colored(egui::Color32::BLUE, format!("ℹ {} info", info_count));
+                ui.colored_label(egui::Color32::BLUE, format!("ℹ {} info", info_count));
             }
             if hint_count > 0 {
-                ui.colored(egui::Color32::GRAY, format!("💡 {} hints", hint_count));
+                ui.colored_label(egui::Color32::GRAY, format!("💡 {} hints", hint_count));
             }
             
             if diagnostics.is_empty() {
-                ui.colored(egui::Color32::GREEN, "✓ No issues");
+                ui.colored_label(egui::Color32::GREEN, "✓ No issues");
             }
         });
     }
@@ -472,11 +478,11 @@ impl DiagnosticRenderer {
 /// System to analyze shaders in real-time
 pub fn analyze_shader_system(
     mut analyzer: ResMut<WgslAnalyzer>,
-    editor_state: Res<crate::EditorState>,
+    editor_state: Res<crate::editor_ui::EditorUiState>,
 ) {
     if analyzer.real_time_analysis && editor_state.code_changed {
-        if let Some(current_file) = &editor_state.current_file {
-            analyzer.analyze_shader(current_file, &editor_state.code);
+        if !editor_state.current_file.is_empty() {
+            analyzer.analyze_shader(&editor_state.current_file, &editor_state.code);
         }
     }
 }

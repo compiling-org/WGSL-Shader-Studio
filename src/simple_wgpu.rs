@@ -71,10 +71,10 @@ impl SimpleWgpuRenderer {
 /// System to initialize the WGPU renderer
 pub fn initialize_simple_wgpu_system(
     mut renderer: ResMut<SimpleWgpuRenderer>,
-    mut startup_timer: Local<Instant>,
+    time: Res<Time>,
 ) {
     // Only initialize after a short delay
-    if startup_timer.elapsed().as_millis() < 100 {
+    if time.elapsed().as_millis() < 100 {
         return;
     }
     

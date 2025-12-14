@@ -1,0 +1,3216 @@
+    Checking wgsl-shader-studio v0.1.0 (C:\Users\kapil\compiling\WGSL-Shader-Studio)
+warning: unexpected `cfg` condition value: `eframe`
+ --> src\gui.rs:1:8
+  |
+1 | #![cfg(feature = "eframe")] // DISABLED - EFAME ONLY - DO NOT USE
+  |        ^^^^^^^^^^^^^^^^^^
+  |
+  = note: expected values for `feature` are: `default`, `gui`, and `networking`
+  = help: consider adding `eframe` as a feature in `Cargo.toml`
+  = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+  = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unused import: `std::sync::mpsc`
+ --> src\audio_system.rs:2:5
+  |
+2 | use std::sync::mpsc;
+  |     ^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused imports: `Arc` and `Mutex`
+ --> src\gesture_control.rs:6:17
+  |
+6 | use std::sync::{Arc, Mutex};
+  |                 ^^^  ^^^^^
+
+warning: unused import: `bevy_egui::egui::TextureHandle`
+ --> src\shader_renderer.rs:3:5
+  |
+3 | use bevy_egui::egui::TextureHandle;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::isf_converter::IsfShader`
+ --> src\ffgl_plugin.rs:4:5
+  |
+4 | use crate::isf_converter::IsfShader;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `CStr` and `CString`
+ --> src\ffgl_plugin.rs:8:16
+  |
+8 | use std::ffi::{CStr, CString};
+  |                ^^^^  ^^^^^^^
+
+warning: unused import: `regex::Regex`
+ --> src\isf_auto_converter.rs:5:5
+  |
+5 | use regex::Regex;
+  |     ^^^^^^^^^^^^
+
+warning: unused import: `anyhow`
+ --> src\wgsl_reflect_integration.rs:1:22
+  |
+1 | use anyhow::{Result, anyhow};
+  |                      ^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> src\wgsl_reflect_integration.rs:2:5
+  |
+2 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> src\converter\diagnostics.rs:1:5
+  |
+1 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `DiagnosticSeverity`
+ --> src\converter\emitter.rs:3:50
+  |
+3 | use crate::converter::diagnostics::{Diagnostics, DiagnosticSeverity};
+  |                                                  ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Context`
+ --> src\converter\glsl.rs:2:22
+  |
+2 | use anyhow::{Result, Context, bail};
+  |                      ^^^^^^^
+
+warning: unused import: `Context`
+ --> src\converter\hlsl.rs:2:22
+  |
+2 | use anyhow::{Result, Context, bail};
+  |                      ^^^^^^^
+
+warning: unused import: `bail`
+ --> src\converter\isf.rs:3:31
+  |
+3 | use anyhow::{Result, Context, bail};
+  |                               ^^^^
+
+warning: unused import: `bevy_egui::EguiContexts`
+ --> src\simple_ui_auditor.rs:2:5
+  |
+2 | use bevy_egui::EguiContexts;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Response`
+   --> src\timeline.rs:341:32
+    |
+341 | use bevy_egui::egui::{Color32, Response, RichText, Ui};
+    |                                ^^^^^^^^
+
+warning: unused import: `std::process::Command`
+ --> src\ui_analyzer.rs:3:5
+  |
+3 | use std::process::Command;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `SystemTime` and `UNIX_EPOCH`
+ --> src\ui_analyzer.rs:4:17
+  |
+4 | use std::time::{SystemTime, UNIX_EPOCH};
+  |                 ^^^^^^^^^^  ^^^^^^^^^^
+
+warning: unused imports: `Arc` and `Mutex`
+ --> src\gyroflow_wgpu_interop.rs:4:17
+  |
+4 | use std::sync::{Arc, Mutex};
+  |                 ^^^  ^^^^^
+
+warning: unused import: `std::sync::Arc`
+ --> src\ndi_output.rs:6:5
+  |
+6 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Mutex`
+ --> src\ndi_output.rs:7:5
+  |
+7 | use std::sync::Mutex;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused imports: `IpAddr`, `Ipv4Addr`, and `SocketAddr`
+ --> src\ndi_output.rs:8:16
+  |
+8 | use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+  |                ^^^^^^  ^^^^^^^^  ^^^^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+ --> src\spout_syphon_output.rs:6:5
+  |
+6 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Mutex`
+ --> src\spout_syphon_output.rs:7:5
+  |
+7 | use std::sync::Mutex;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused import: `SocketAddr`
+ --> src\osc_control.rs:9:16
+  |
+9 | use std::net::{SocketAddr, UdpSocket};
+  |                ^^^^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+ --> src\dmx_lighting_control.rs:6:5
+  |
+6 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Mutex`
+ --> src\dmx_lighting_control.rs:7:5
+  |
+7 | use std::sync::Mutex;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused import: `AstVisitor`
+ --> src\shader_transpiler.rs:6:39
+  |
+6 | use crate::wgsl_ast_parser::{AstNode, AstVisitor};
+  |                                       ^^^^^^^^^^
+
+warning: unused imports: `ModuleId` and `ShaderModule`
+ --> src\shader_transpiler.rs:7:35
+  |
+7 | use crate::shader_module_system::{ShaderModule, ModuleId};
+  |                                   ^^^^^^^^^^^^  ^^^^^^^^
+
+warning: unexpected `cfg` condition value: `naga_integration`
+   --> src\wgsl_analyzer.rs:201:15
+    |
+201 |         #[cfg(feature = "naga_integration")]
+    |               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: expected values for `feature` are: `default`, `gui`, and `networking`
+    = help: consider adding `naga_integration` as a feature in `Cargo.toml`
+    = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+
+warning: unused imports: `Context` and `bail`
+ --> src\advanced_shader_compilation.rs:6:22
+  |
+6 | use anyhow::{Result, Context, bail};
+  |                      ^^^^^^^  ^^^^
+
+warning: unused import: `PathBuf`
+ --> src\shader_module_system.rs:2:23
+  |
+2 | use std::path::{Path, PathBuf};
+  |                       ^^^^^^^
+
+warning: use of deprecated function `bevy_egui::egui::show_tooltip_at_pointer`: Use `egui::Tooltip` instead
+   --> src\timeline.rs:490:54
+    |
+490 | ...                   bevy_egui::egui::show_tooltip_at_pointer(ui.ctx(), bevy_egui::egui::Id::new((track_name, i)), |ui| {
+    |                                        ^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated function `bevy_egui::egui::show_tooltip`: Use `egui::Tooltip` instead
+   --> src\wgsl_analyzer.rs:422:31
+    |
+422 |                         egui::show_tooltip(ui.ctx(), egui::Id::new(&diagnostic.code), |ui| {
+    |                               ^^^^^^^^^^^^
+
+error[E0277]: `EditorUiState` is not a `Resource`
+   --> src\wgsl_analyzer.rs:476:19
+    |
+476 |     editor_state: Res<crate::editor_ui::EditorUiState>,
+    |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ invalid `Resource`
+    |
+    = help: the trait `bevy::prelude::Resource` is not implemented for `EditorUiState`
+    = note: consider annotating `EditorUiState` with `#[derive(Resource)]`
+    = help: the following other types implement trait `bevy::prelude::Resource`:
+              AccessibilityRequested
+              AccumulatedMouseMotion
+              AccumulatedMouseScroll
+              AppTypeRegistry
+              AssetProcessor
+              AssetServer
+              AssetSourceBuilders
+              AtmosphereSamplers
+            and 299 others
+note: required by a bound in `bevy::prelude::Res`
+   --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_ecs-0.17.3\src\change_detection.rs:637:32
+    |
+637 | pub struct Res<'w, T: ?Sized + Resource> {
+    |                                ^^^^^^^^ required by this bound in `Res`
+
+error[E0061]: this function takes 1 argument but 2 arguments were supplied
+   --> src\editor_ui.rs:174:30
+    |
+174 |                     ui.image(egui::load::SizedTexture::from_handle(tex, size));
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ ---  ---- unexpected argument #2 of type `bevy_egui::egui::Vec2`
+    |                                                                    |
+    |                                                                    expected `&TextureHandle`, found `TextureHandle`
+    |
+note: associated function defined here
+   --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\egui-0.33.2\src\load.rs:461:12
+    |
+461 |     pub fn from_handle(handle: &TextureHandle) -> Self {
+    |            ^^^^^^^^^^^
+help: consider borrowing here
+    |
+174 |                     ui.image(egui::load::SizedTexture::from_handle(&tex, size));
+    |                                                                    +
+help: remove the extra argument
+    |
+174 -                     ui.image(egui::load::SizedTexture::from_handle(tex, size));
+174 +                     ui.image(egui::load::SizedTexture::from_handle(/* &TextureHandle */));
+    |
+
+warning: use of deprecated method `bevy_egui::egui::DragValue::<'a>::clamp_range`: Use `range` instead
+   --> src\timeline.rs:380:18
+    |
+380 |                 .clamp_range(0.1..=5.0)
+    |                  ^^^^^^^^^^^
+
+error[E0282]: type annotations needed
+   --> src\timeline.rs:490:132
+    |
+490 | ...                   bevy_egui::egui::show_tooltip_at_pointer(ui.ctx(), bevy_egui::egui::Id::new((track_name, i)), |ui| {
+    |                                                                                                                      ^^
+491 | ...                       ui.label(format!("Time: {:.2}s\nValue: {:.3}", keyframe.time, keyframe.value));
+    |                           -- type must be known at this point
+    |
+help: consider giving this closure parameter an explicit type
+    |
+490 |                                     bevy_egui::egui::show_tooltip_at_pointer(ui.ctx(), bevy_egui::egui::Id::new((track_name, i)), |ui: /* Type */| {
+    |                                                                                                                                      ++++++++++++
+
+error[E0061]: this function takes 4 arguments but 3 arguments were supplied
+   --> src\timeline.rs:490:37
+    |
+490 |    ...                   bevy_egui::egui::show_tooltip_at_pointer(ui.ctx(), bevy_egui::egui::Id::new((track_name, i)), |ui| {
+    |  ________________________^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-__________-----------------------------------------__-
+    | |                                                                |          |
+    | | _______________________________________________________________|          argument #2 of type `LayerId` is missing
+    | ||
+491 | || ...                       ui.label(format!("Time: {:.2}s\nValue: {:.3}", keyframe.time, keyframe.value));
+492 | || ...                   });
+    | ||_______________________-- argument #4 is missing
+    | |________________________|
+    |                          unexpected argument #3
+    |
+note: function defined here
+   --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\egui-0.33.2\src\containers\old_popup.rs:58:8
+    |
+ 58 | pub fn show_tooltip_at_pointer<R>(
+    |        ^^^^^^^^^^^^^^^^^^^^^^^
+help: did you mean
+    |
+490 -                                     bevy_egui::egui::show_tooltip_at_pointer(ui.ctx(), bevy_egui::egui::Id::new((track_name, i)), |ui| {
+491 -                                         ui.label(format!("Time: {:.2}s\nValue: {:.3}", keyframe.time, keyframe.value));
+492 -                                     });
+490 +                                     bevy_egui::egui::show_tooltip_at_pointer(ui.ctx(), /* LayerId */, bevy_egui::egui::Id::new((track_name, i)), /* add_contents */);
+    |
+
+warning: use of deprecated method `bevy_egui::egui::DragValue::<'a>::clamp_range`: Use `range` instead
+   --> src\timeline.rs:515:22
+    |
+515 |                     .clamp_range(0.0..=timeline.timeline.loop_end));
+    |                      ^^^^^^^^^^^
+
+warning: use of deprecated method `bevy_egui::egui::DragValue::<'a>::clamp_range`: Use `range` instead
+   --> src\timeline.rs:519:22
+    |
+519 |                     .clamp_range(timeline.timeline.loop_start..=timeline.timeline.duration));
+    |                      ^^^^^^^^^^^
+
+warning: use of deprecated method `bevy_egui::egui::DragValue::<'a>::clamp_range`: Use `range` instead
+   --> src\timeline.rs:530:22
+    |
+530 |                     .clamp_range(0.01..=1.0)
+    |                      ^^^^^^^^^^^
+
+warning: use of deprecated method `bevy_egui::egui::DragValue::<'a>::clamp_range`: Use `range` instead
+   --> src\timeline.rs:612:14
+    |
+612 |             .clamp_range(1.0..=300.0)
+    |              ^^^^^^^^^^^
+
+error[E0308]: mismatched types
+   --> src\bevy_node_graph_integration.rs:379:15
+    |
+379 |         .show(ctx, |ui| {
+    |          ---- ^^^ expected `&Context`, found `Result<&mut Context, QuerySingleError>`
+    |          |
+    |          arguments to this method are incorrect
+    |
+    = note: expected reference `&bevy_egui::egui::Context`
+                    found enum `std::result::Result<&mut bevy_egui::egui::Context, QuerySingleError>`
+note: method defined here
+   --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\egui-0.33.2\src\containers\window.rs:417:12
+    |
+417 |     pub fn show<R>(
+    |            ^^^^
+help: consider using `Result::expect` to unwrap the `std::result::Result<&mut bevy_egui::egui::Context, QuerySingleError>` value, panicking if the value is a `Result::Err`
+    |
+379 |         .show(ctx.expect("REASON"), |ui| {
+    |                  +++++++++++++++++
+
+warning: use of deprecated associated function `bevy_egui::egui::ComboBox::from_id_source`: Renamed from_id_salt
+   --> src\screenshot_video_export.rs:478:33
+    |
+478 |                 egui::ComboBox::from_id_source("screenshot_format")
+    |                                 ^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `bevy_egui::egui::ComboBox::from_id_source`: Renamed from_id_salt
+   --> src\screenshot_video_export.rs:554:37
+    |
+554 |                     egui::ComboBox::from_id_source("video_format")
+    |                                     ^^^^^^^^^^^^^^
+
+error[E0277]: the `?` operator can only be applied to values that implement `Try`
+   --> src\shader_transpiler.rs:241:22
+    |
+241 |             result = self.optimizer.optimize(Ok(result), options)??;
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the `?` operator cannot be applied to type `TranspilerOutput`
+    |
+    = help: the trait `Try` is not implemented for `TranspilerOutput`
+
+error[E0308]: mismatched types
+   --> src\shader_transpiler.rs:377:17
+    |
+372 | /         match node {
+373 | |             AstNode::Module(_) => {
+374 | |                 self.write_line("#version 450 core");
+375 | |                 self.write_line("");
+376 | |                 // Translation unit processing would go here
+377 | |                 Ok(())
+    | |                 ^^^^^^ expected `()`, found `Result<(), _>`
+...   |
+473 | |         }
+    | |_________- expected this to be `()`
+    |
+    = note: expected unit type `()`
+                    found enum `std::result::Result<(), _>`
+help: you might have meant to return this value
+    |
+377 |                 return Ok(())
+    |                 ++++++
+
+error[E0277]: the `?` operator can only be applied to values that implement `Try`
+   --> src\shader_transpiler.rs:388:21
+    |
+388 |                     self.write(param)?;
+    |                     ^^^^^^^^^^^^^^^^^^ the `?` operator cannot be applied to type `()`
+    |
+    = help: the trait `Try` is not implemented for `()`
+
+error[E0308]: mismatched types
+   --> src\shader_transpiler.rs:402:17
+    |
+372 | /         match node {
+373 | |             AstNode::Module(_) => {
+374 | |                 self.write_line("#version 450 core");
+375 | |                 self.write_line("");
+...   |
+402 | |                 Ok(())
+    | |                 ^^^^^^ expected `()`, found `Result<(), _>`
+...   |
+473 | |         }
+    | |_________- expected this to be `()`
+    |
+    = note: expected unit type `()`
+                    found enum `std::result::Result<(), _>`
+help: you might have meant to return this value
+    |
+402 |                 return Ok(())
+    |                 ++++++
+
+error[E0308]: mismatched types
+   --> src\shader_transpiler.rs:415:17
+    |
+372 | /         match node {
+373 | |             AstNode::Module(_) => {
+374 | |                 self.write_line("#version 450 core");
+375 | |                 self.write_line("");
+...   |
+415 | |                 Ok(())
+    | |                 ^^^^^^ expected `()`, found `Result<(), _>`
+...   |
+473 | |         }
+    | |_________- expected this to be `()`
+    |
+    = note: expected unit type `()`
+                    found enum `std::result::Result<(), _>`
+help: you might have meant to return this value
+    |
+415 |                 return Ok(())
+    |                 ++++++
+
+error[E0308]: mismatched types
+   --> src\shader_transpiler.rs:420:17
+    |
+372 | /         match node {
+373 | |             AstNode::Module(_) => {
+374 | |                 self.write_line("#version 450 core");
+375 | |                 self.write_line("");
+...   |
+420 | |                 Ok(())
+    | |                 ^^^^^^ expected `()`, found `Result<(), _>`
+...   |
+473 | |         }
+    | |_________- expected this to be `()`
+    |
+    = note: expected unit type `()`
+                    found enum `std::result::Result<(), _>`
+help: you might have meant to return this value
+    |
+420 |                 return Ok(())
+    |                 ++++++
+
+error[E0308]: mismatched types
+   --> src\shader_transpiler.rs:429:17
+    |
+372 | /         match node {
+373 | |             AstNode::Module(_) => {
+374 | |                 self.write_line("#version 450 core");
+375 | |                 self.write_line("");
+...   |
+429 | |                 Ok(())
+    | |                 ^^^^^^ expected `()`, found `Result<(), _>`
+...   |
+473 | |         }
+    | |_________- expected this to be `()`
+    |
+    = note: expected unit type `()`
+                    found enum `std::result::Result<(), _>`
+help: you might have meant to return this value
+    |
+429 |                 return Ok(())
+    |                 ++++++
+
+error[E0308]: mismatched types
+   --> src\shader_transpiler.rs:435:17
+    |
+372 | /         match node {
+373 | |             AstNode::Module(_) => {
+374 | |                 self.write_line("#version 450 core");
+375 | |                 self.write_line("");
+...   |
+435 | |                 Ok(())
+    | |                 ^^^^^^ expected `()`, found `Result<(), _>`
+...   |
+473 | |         }
+    | |_________- expected this to be `()`
+    |
+    = note: expected unit type `()`
+                    found enum `std::result::Result<(), _>`
+help: you might have meant to return this value
+    |
+435 |                 return Ok(())
+    |                 ++++++
+
+error[E0308]: mismatched types
+   --> src\shader_transpiler.rs:444:17
+    |
+372 | /         match node {
+373 | |             AstNode::Module(_) => {
+374 | |                 self.write_line("#version 450 core");
+375 | |                 self.write_line("");
+...   |
+444 | |                 Ok(())
+    | |                 ^^^^^^ expected `()`, found `Result<(), _>`
+...   |
+473 | |         }
+    | |_________- expected this to be `()`
+    |
+    = note: expected unit type `()`
+                    found enum `std::result::Result<(), _>`
+help: you might have meant to return this value
+    |
+444 |                 return Ok(())
+    |                 ++++++
+
+error[E0308]: mismatched types
+   --> src\shader_transpiler.rs:449:17
+    |
+372 | /         match node {
+373 | |             AstNode::Module(_) => {
+374 | |                 self.write_line("#version 450 core");
+375 | |                 self.write_line("");
+...   |
+449 | |                 Ok(())
+    | |                 ^^^^^^ expected `()`, found `Result<(), _>`
+...   |
+473 | |         }
+    | |_________- expected this to be `()`
+    |
+    = note: expected unit type `()`
+                    found enum `std::result::Result<(), _>`
+help: you might have meant to return this value
+    |
+449 |                 return Ok(())
+    |                 ++++++
+
+error[E0308]: mismatched types
+   --> src\shader_transpiler.rs:467:17
+    |
+372 | /         match node {
+373 | |             AstNode::Module(_) => {
+374 | |                 self.write_line("#version 450 core");
+375 | |                 self.write_line("");
+...   |
+467 | |                 Ok(())
+    | |                 ^^^^^^ expected `()`, found `Result<(), _>`
+...   |
+473 | |         }
+    | |_________- expected this to be `()`
+    |
+    = note: expected unit type `()`
+                    found enum `std::result::Result<(), _>`
+help: you might have meant to return this value
+    |
+467 |                 return Ok(())
+    |                 ++++++
+
+error[E0308]: mismatched types
+   --> src\shader_transpiler.rs:471:17
+    |
+372 | /         match node {
+373 | |             AstNode::Module(_) => {
+374 | |                 self.write_line("#version 450 core");
+375 | |                 self.write_line("");
+...   |
+471 | |                 Ok(())
+    | |                 ^^^^^^ expected `()`, found `Result<(), _>`
+472 | |             }
+473 | |         }
+    | |_________- expected this to be `()`
+    |
+    = note: expected unit type `()`
+                    found enum `std::result::Result<(), _>`
+help: you might have meant to return this value
+    |
+471 |                 return Ok(())
+    |                 ++++++
+
+error[E0599]: no method named `colored` found for mutable reference `&mut bevy_egui::egui::Ui` in the current scope
+   --> src\wgsl_analyzer.rs:343:36
+    |
+343 | ...                   ui.colored(egui::Color32::RED, "●");
+    |                          ^^^^^^^
+    |
+help: there is a method `colored_label` with a similar name
+    |
+343 |                                 ui.colored_label(egui::Color32::RED, "●");
+    |                                           ++++++
+
+error[E0599]: no method named `colored` found for mutable reference `&mut bevy_egui::egui::Ui` in the current scope
+   --> src\wgsl_analyzer.rs:346:36
+    |
+346 | ...                   ui.colored(egui::Color32::YELLOW, "▲");
+    |                          ^^^^^^^
+    |
+help: there is a method `colored_label` with a similar name
+    |
+346 |                                 ui.colored_label(egui::Color32::YELLOW, "▲");
+    |                                           ++++++
+
+error[E0599]: no method named `colored` found for mutable reference `&mut bevy_egui::egui::Ui` in the current scope
+   --> src\wgsl_analyzer.rs:349:36
+    |
+349 | ...                   ui.colored(egui::Color32::BLUE, "ℹ");
+    |                          ^^^^^^^
+    |
+help: there is a method `colored_label` with a similar name
+    |
+349 |                                 ui.colored_label(egui::Color32::BLUE, "ℹ");
+    |                                           ++++++
+
+error[E0599]: no method named `colored` found for mutable reference `&mut bevy_egui::egui::Ui` in the current scope
+   --> src\wgsl_analyzer.rs:352:36
+    |
+352 | ...                   ui.colored(egui::Color32::GRAY, "💡");
+    |                          ^^^^^^^
+    |
+help: there is a method `colored_label` with a similar name
+    |
+352 |                                 ui.colored_label(egui::Color32::GRAY, "💡");
+    |                                           ++++++
+
+error[E0599]: no method named `colored` found for mutable reference `&mut bevy_egui::egui::Ui` in the current scope
+   --> src\wgsl_analyzer.rs:408:32
+    |
+408 | ...                   ui.colored(egui::Color32::RED, "●");
+    |                          ^^^^^^^
+    |
+help: there is a method `colored_label` with a similar name
+    |
+408 |                             ui.colored_label(egui::Color32::RED, "●");
+    |                                       ++++++
+
+error[E0599]: no method named `colored` found for mutable reference `&mut bevy_egui::egui::Ui` in the current scope
+   --> src\wgsl_analyzer.rs:411:32
+    |
+411 | ...                   ui.colored(egui::Color32::YELLOW, "▲");
+    |                          ^^^^^^^
+    |
+help: there is a method `colored_label` with a similar name
+    |
+411 |                             ui.colored_label(egui::Color32::YELLOW, "▲");
+    |                                       ++++++
+
+error[E0599]: no method named `colored` found for mutable reference `&mut bevy_egui::egui::Ui` in the current scope
+   --> src\wgsl_analyzer.rs:414:32
+    |
+414 | ...                   ui.colored(egui::Color32::BLUE, "ℹ");
+    |                          ^^^^^^^
+    |
+help: there is a method `colored_label` with a similar name
+    |
+414 |                             ui.colored_label(egui::Color32::BLUE, "ℹ");
+    |                                       ++++++
+
+error[E0599]: no method named `colored` found for mutable reference `&mut bevy_egui::egui::Ui` in the current scope
+   --> src\wgsl_analyzer.rs:417:32
+    |
+417 | ...                   ui.colored(egui::Color32::GRAY, "💡");
+    |                          ^^^^^^^
+    |
+help: there is a method `colored_label` with a similar name
+    |
+417 |                             ui.colored_label(egui::Color32::GRAY, "💡");
+    |                                       ++++++
+
+error[E0061]: this function takes 4 arguments but 3 arguments were supplied
+   --> src\wgsl_analyzer.rs:422:25
+    |
+422 |                            egui::show_tooltip(ui.ctx(), egui::Id::new(&diagnostic.code), |ui| {
+    |  __________________________^^^^^^^^^^^^^^^^^^-__________-------------------------------__-
+    | |                                            |          |
+    | | ___________________________________________|          argument #2 of type `LayerId` is missing
+    | ||
+423 | ||                             ui.label(&diagnostic.message);
+424 | ||                             ui.weak(format!("Code: {}", diagnostic.code));
+425 | ||                             ui.weak(format!("Line: {}:{}", diagnostic.line, diagnostic.column));
+...   ||
+439 | ||                         });
+    | ||_________________________-- argument #4 is missing
+    | |__________________________|
+    |                            unexpected argument #3
+    |
+note: function defined here
+   --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\egui-0.33.2\src\containers\old_popup.rs:31:8
+    |
+ 31 | pub fn show_tooltip<R>(
+    |        ^^^^^^^^^^^^
+help: did you mean
+    |
+422 -                         egui::show_tooltip(ui.ctx(), egui::Id::new(&diagnostic.code), |ui| {
+423 -                             ui.label(&diagnostic.message);
+424 -                             ui.weak(format!("Code: {}", diagnostic.code));
+425 -                             ui.weak(format!("Line: {}:{}", diagnostic.line, diagnostic.column));
+426 -                             match diagnostic.source {
+427 -                                 DiagnosticSource::WgslAnalyzer => ui.weak("Source: WGSL-Analyzer"),
+428 -                                 DiagnosticSource::Naga => ui.weak("Source: Naga"),
+429 -                                 DiagnosticSource::Custom => ui.weak("Source: Custom"),
+430 -                             }
+431 -                             
+432 -                             if !diagnostic.related_info.is_empty() {
+433 -                                 ui.separator();
+434 -                                 ui.label("Related:");
+435 -                                 for related in &diagnostic.related_info {
+436 -                                     ui.weak(format!("  → {}", related.message));
+437 -                                 }
+438 -                             }
+439 -                         });
+422 +                         egui::show_tooltip(ui.ctx(), /* LayerId */, egui::Id::new(&diagnostic.code), /* add_contents */);
+    |
+
+error[E0599]: no method named `colored` found for mutable reference `&mut bevy_egui::egui::Ui` in the current scope
+   --> src\wgsl_analyzer.rs:454:20
+    |
+454 |                 ui.colored(egui::Color32::RED, format!("● {} errors", error_count));
+    |                    ^^^^^^^
+    |
+help: there is a method `colored_label` with a similar name
+    |
+454 |                 ui.colored_label(egui::Color32::RED, format!("● {} errors", error_count));
+    |                           ++++++
+
+error[E0609]: no field `code_changed` on type `bevy::prelude::Res<'_, EditorUiState>`
+   --> src\wgsl_analyzer.rs:478:52
+    |
+478 |     if analyzer.real_time_analysis && editor_state.code_changed {
+    |                                                    ^^^^^^^^^^^^ unknown field
+
+error[E0609]: no field `current_file` on type `bevy::prelude::Res<'_, EditorUiState>`
+   --> src\wgsl_analyzer.rs:479:51
+    |
+479 |         if let Some(current_file) = &editor_state.current_file {
+    |                                                   ^^^^^^^^^^^^ unknown field
+
+error[E0609]: no field `code` on type `bevy::prelude::Res<'_, EditorUiState>`
+   --> src\wgsl_analyzer.rs:480:65
+    |
+480 |             analyzer.analyze_shader(current_file, &editor_state.code);
+    |                                                                 ^^^^ unknown field
+
+error[E0277]: `fn(ResMut<'a, WgslAnalyzer>, Res<'b, ...>) {analyze_shader_system}` does not describe a valid system configuration
+   --> src\wgsl_analyzer.rs:491:34
+    |
+491 |             .add_systems(Update, analyze_shader_system);
+    |              -----------         ^^^^^^^^^^^^^^^^^^^^^ invalid system configuration
+    |              |
+    |              required by a bound introduced by this call
+    |
+    = help: the trait `bevy::prelude::IntoSystem<(), (), _>` is not implemented for fn item `fn(ResMut<'a, WgslAnalyzer>, Res<'b, ...>) {analyze_shader_system}`
+    = help: the following other types implement trait `bevy::prelude::IntoSystem<In, Out, Marker>`:
+              `IntoAdapterSystem<Func, S>` implements `bevy::prelude::IntoSystem<<Func as Adapt<<S as bevy::prelude::IntoSystem<I, O, M>>::System>>::In, <Func as Adapt<<S as bevy::prelude::IntoSystem<I, O, M>>::System>>::Out, (IsAdapterSystemMarker, I, O, M)>`
+              `IntoPipeSystem<A, B>` implements `bevy::prelude::IntoSystem<IA, OB, (IsPipeSystemMarker, OA, IB, MA, MB)>`
+    = note: required for `fn(ResMut<'a, WgslAnalyzer>, Res<'b, ...>) {analyze_shader_system}` to implement `IntoScheduleConfigs<Box<(dyn bevy::prelude::System<In = (), Out = ()> + 'static)>, _>`
+note: required by a bound in `bevy::prelude::App::add_systems`
+   --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_app-0.17.3\src\app.rs:321:23
+    |
+318 |     pub fn add_systems<M>(
+    |            ----------- required by a bound in this associated function
+...
+321 |         systems: impl IntoScheduleConfigs<ScheduleSystem, M>,
+    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `App::add_systems`
+    = note: the full name for the type has been written to 'C:\Users\kapil\compiling\WGSL-Shader-Studio\target\debug\deps\resolume_isf_shaders_rust_ffgl-c834b3c55bd04c99.long-type-7103574154246913842.txt'
+    = note: consider using `--verbose` to print the full type name to the console
+
+error[E0277]: the trait bound `StructNode: serde::Serialize` is not satisfied
+   --> src\wgsl_ast_parser.rs:12:35
+    |
+ 12 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    |                                   ^^^^^^^^^ the trait `_::_serde::Serialize` is not implemented for `StructNode`
+...
+ 17 |     Struct(StructNode),
+    |            ---------- required by a bound introduced by this call
+    |
+    = note: for local types consider adding `#[derive(serde::Serialize)]` to your `StructNode` type
+    = note: for types from other crates check whether the crate offers a `serde` feature flag
+    = help: the following other types implement trait `_::_serde::Serialize`:
+              &'a T
+              &'a mut T
+              ()
+              (T,)
+              (T0, T1)
+              (T0, T1, T2)
+              (T0, T1, T2, T3)
+              (T0, T1, T2, T3, T4)
+            and 652 others
+note: required by a bound in `serialize_newtype_variant`
+   --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\ser\mod.rs:958:21
+    |
+950 |     fn serialize_newtype_variant<T>(
+    |        ------------------------- required by a bound in this associated function
+...
+958 |         T: ?Sized + Serialize;
+    |                     ^^^^^^^^^ required by this bound in `Serializer::serialize_newtype_variant`
+    = note: this error originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `wgsl_ast_parser::VariableNode: serde::Serialize` is not satisfied
+   --> src\wgsl_ast_parser.rs:12:35
+    |
+ 12 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    |                                   ^^^^^^^^^ the trait `_::_serde::Serialize` is not implemented for `wgsl_ast_parser::VariableNode`
+...
+ 20 |     Variable(VariableNode),
+    |              ------------ required by a bound introduced by this call
+    |
+    = note: for local types consider adding `#[derive(serde::Serialize)]` to your `wgsl_ast_parser::VariableNode` type
+    = note: for types from other crates check whether the crate offers a `serde` feature flag
+    = help: the following other types implement trait `_::_serde::Serialize`:
+              &'a T
+              &'a mut T
+              ()
+              (T,)
+              (T0, T1)
+              (T0, T1, T2)
+              (T0, T1, T2, T3)
+              (T0, T1, T2, T3, T4)
+            and 652 others
+note: required by a bound in `serialize_newtype_variant`
+   --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\ser\mod.rs:958:21
+    |
+950 |     fn serialize_newtype_variant<T>(
+    |        ------------------------- required by a bound in this associated function
+...
+958 |         T: ?Sized + Serialize;
+    |                     ^^^^^^^^^ required by this bound in `Serializer::serialize_newtype_variant`
+    = note: this error originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `TypeAliasNode: serde::Serialize` is not satisfied
+   --> src\wgsl_ast_parser.rs:12:35
+    |
+ 12 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    |                                   ^^^^^^^^^ the trait `_::_serde::Serialize` is not implemented for `TypeAliasNode`
+...
+ 21 |     TypeAlias(TypeAliasNode),
+    |               ------------- required by a bound introduced by this call
+    |
+    = note: for local types consider adding `#[derive(serde::Serialize)]` to your `TypeAliasNode` type
+    = note: for types from other crates check whether the crate offers a `serde` feature flag
+    = help: the following other types implement trait `_::_serde::Serialize`:
+              &'a T
+              &'a mut T
+              ()
+              (T,)
+              (T0, T1)
+              (T0, T1, T2)
+              (T0, T1, T2, T3)
+              (T0, T1, T2, T3, T4)
+            and 652 others
+note: required by a bound in `serialize_newtype_variant`
+   --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\ser\mod.rs:958:21
+    |
+950 |     fn serialize_newtype_variant<T>(
+    |        ------------------------- required by a bound in this associated function
+...
+958 |         T: ?Sized + Serialize;
+    |                     ^^^^^^^^^ required by this bound in `Serializer::serialize_newtype_variant`
+    = note: this error originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `ConstantNode: serde::Serialize` is not satisfied
+   --> src\wgsl_ast_parser.rs:12:35
+    |
+ 12 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    |                                   ^^^^^^^^^ the trait `_::_serde::Serialize` is not implemented for `ConstantNode`
+...
+ 23 |     Constant(ConstantNode),
+    |              ------------ required by a bound introduced by this call
+    |
+    = note: for local types consider adding `#[derive(serde::Serialize)]` to your `ConstantNode` type
+    = note: for types from other crates check whether the crate offers a `serde` feature flag
+    = help: the following other types implement trait `_::_serde::Serialize`:
+              &'a T
+              &'a mut T
+              ()
+              (T,)
+              (T0, T1)
+              (T0, T1, T2)
+              (T0, T1, T2, T3)
+              (T0, T1, T2, T3, T4)
+            and 652 others
+note: required by a bound in `serialize_newtype_variant`
+   --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\ser\mod.rs:958:21
+    |
+950 |     fn serialize_newtype_variant<T>(
+    |        ------------------------- required by a bound in this associated function
+...
+958 |         T: ?Sized + Serialize;
+    |                     ^^^^^^^^^ required by this bound in `Serializer::serialize_newtype_variant`
+    = note: this error originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `AttributeNode: serde::Serialize` is not satisfied
+   --> src\wgsl_ast_parser.rs:12:35
+    |
+ 12 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    |                                   ^^^^^^^^^ the trait `_::_serde::Serialize` is not implemented for `AttributeNode`
+...
+ 25 |     Attribute(AttributeNode),
+    |               ------------- required by a bound introduced by this call
+    |
+    = note: for local types consider adding `#[derive(serde::Serialize)]` to your `AttributeNode` type
+    = note: for types from other crates check whether the crate offers a `serde` feature flag
+    = help: the following other types implement trait `_::_serde::Serialize`:
+              &'a T
+              &'a mut T
+              ()
+              (T,)
+              (T0, T1)
+              (T0, T1, T2)
+              (T0, T1, T2, T3)
+              (T0, T1, T2, T3, T4)
+            and 652 others
+note: required by a bound in `serialize_newtype_variant`
+   --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\ser\mod.rs:958:21
+    |
+950 |     fn serialize_newtype_variant<T>(
+    |        ------------------------- required by a bound in this associated function
+...
+958 |         T: ?Sized + Serialize;
+    |                     ^^^^^^^^^ required by this bound in `Serializer::serialize_newtype_variant`
+    = note: this error originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `StatementNode: serde::Serialize` is not satisfied
+   --> src\wgsl_ast_parser.rs:12:35
+    |
+ 12 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    |                                   ^^^^^^^^^ the trait `_::_serde::Serialize` is not implemented for `StatementNode`
+...
+ 26 |     Statement(StatementNode),
+    |               ------------- required by a bound introduced by this call
+    |
+    = note: for local types consider adding `#[derive(serde::Serialize)]` to your `StatementNode` type
+    = note: for types from other crates check whether the crate offers a `serde` feature flag
+    = help: the following other types implement trait `_::_serde::Serialize`:
+              &'a T
+              &'a mut T
+              ()
+              (T,)
+              (T0, T1)
+              (T0, T1, T2)
+              (T0, T1, T2, T3)
+              (T0, T1, T2, T3, T4)
+            and 652 others
+note: required by a bound in `serialize_newtype_variant`
+   --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\ser\mod.rs:958:21
+    |
+950 |     fn serialize_newtype_variant<T>(
+    |        ------------------------- required by a bound in this associated function
+...
+958 |         T: ?Sized + Serialize;
+    |                     ^^^^^^^^^ required by this bound in `Serializer::serialize_newtype_variant`
+    = note: this error originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `ExpressionNode: serde::Serialize` is not satisfied
+   --> src\wgsl_ast_parser.rs:12:35
+    |
+ 12 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+    |                                   ^^^^^^^^^ the trait `_::_serde::Serialize` is not implemented for `ExpressionNode`
+...
+ 27 |     Expression(ExpressionNode),
+    |                -------------- required by a bound introduced by this call
+    |
+    = note: for local types consider adding `#[derive(serde::Serialize)]` to your `ExpressionNode` type
+    = note: for types from other crates check whether the crate offers a `serde` feature flag
+    = help: the following other types implement trait `_::_serde::Serialize`:
+              &'a T
+              &'a mut T
+              ()
+              (T,)
+              (T0, T1)
+              (T0, T1, T2)
+              (T0, T1, T2, T3)
+              (T0, T1, T2, T3, T4)
+            and 652 others
+note: required by a bound in `serialize_newtype_variant`
+   --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\ser\mod.rs:958:21
+    |
+950 |     fn serialize_newtype_variant<T>(
+    |        ------------------------- required by a bound in this associated function
+...
+958 |         T: ?Sized + Serialize;
+    |                     ^^^^^^^^^ required by this bound in `Serializer::serialize_newtype_variant`
+    = note: this error originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `StructNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:17:12
+     |
+  17 |     Struct(StructNode),
+     |            ^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `StructNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `StructNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+note: required by a bound in `newtype_variant`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:2182:12
+     |
+2180 |     fn newtype_variant<T>(self) -> Result<T, Self::Error>
+     |        --------------- required by a bound in this associated function
+2181 |     where
+2182 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `VariantAccess::newtype_variant`
+
+error[E0277]: the trait bound `wgsl_ast_parser::VariableNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:20:14
+     |
+  20 |     Variable(VariableNode),
+     |              ^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `wgsl_ast_parser::VariableNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `wgsl_ast_parser::VariableNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+note: required by a bound in `newtype_variant`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:2182:12
+     |
+2180 |     fn newtype_variant<T>(self) -> Result<T, Self::Error>
+     |        --------------- required by a bound in this associated function
+2181 |     where
+2182 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `VariantAccess::newtype_variant`
+
+error[E0277]: the trait bound `TypeAliasNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:21:15
+     |
+  21 |     TypeAlias(TypeAliasNode),
+     |               ^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `TypeAliasNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `TypeAliasNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+note: required by a bound in `newtype_variant`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:2182:12
+     |
+2180 |     fn newtype_variant<T>(self) -> Result<T, Self::Error>
+     |        --------------- required by a bound in this associated function
+2181 |     where
+2182 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `VariantAccess::newtype_variant`
+
+error[E0277]: the trait bound `ConstantNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:23:14
+     |
+  23 |     Constant(ConstantNode),
+     |              ^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ConstantNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ConstantNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+note: required by a bound in `newtype_variant`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:2182:12
+     |
+2180 |     fn newtype_variant<T>(self) -> Result<T, Self::Error>
+     |        --------------- required by a bound in this associated function
+2181 |     where
+2182 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `VariantAccess::newtype_variant`
+
+error[E0277]: the trait bound `AttributeNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:25:15
+     |
+  25 |     Attribute(AttributeNode),
+     |               ^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `AttributeNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `AttributeNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+note: required by a bound in `newtype_variant`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:2182:12
+     |
+2180 |     fn newtype_variant<T>(self) -> Result<T, Self::Error>
+     |        --------------- required by a bound in this associated function
+2181 |     where
+2182 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `VariantAccess::newtype_variant`
+
+error[E0277]: the trait bound `StatementNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:26:15
+     |
+  26 |     Statement(StatementNode),
+     |               ^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `StatementNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `StatementNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+note: required by a bound in `newtype_variant`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:2182:12
+     |
+2180 |     fn newtype_variant<T>(self) -> Result<T, Self::Error>
+     |        --------------- required by a bound in this associated function
+2181 |     where
+2182 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `VariantAccess::newtype_variant`
+
+error[E0277]: the trait bound `ExpressionNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:27:16
+     |
+  27 |     Expression(ExpressionNode),
+     |                ^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ExpressionNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ExpressionNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+note: required by a bound in `newtype_variant`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:2182:12
+     |
+2180 |     fn newtype_variant<T>(self) -> Result<T, Self::Error>
+     |        --------------- required by a bound in this associated function
+2181 |     where
+2182 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `VariantAccess::newtype_variant`
+
+error[E0277]: the trait bound `ImportNode: serde::Serialize` is not satisfied
+    --> src\wgsl_ast_parser.rs:39:35
+     |
+  39 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+     |                                   ^^^^^^^^^ the trait `_::_serde::Serialize` is not implemented for `ImportNode`
+...
+  42 |     pub imports: Vec<ImportNode>,
+     |     --- required by a bound introduced by this call
+     |
+     = note: for local types consider adding `#[derive(serde::Serialize)]` to your `ImportNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `_::_serde::Serialize`:
+               &'a T
+               &'a mut T
+               ()
+               (T,)
+               (T0, T1)
+               (T0, T1, T2)
+               (T0, T1, T2, T3)
+               (T0, T1, T2, T3, T4)
+             and 652 others
+     = note: required for `std::vec::Vec<ImportNode>` to implement `_::_serde::Serialize`
+note: required by a bound in `_::_serde::ser::SerializeStruct::serialize_field`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\ser\mod.rs:1917:21
+     |
+1915 |     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
+     |        --------------- required by a bound in this associated function
+1916 |     where
+1917 |         T: ?Sized + Serialize;
+     |                     ^^^^^^^^^ required by this bound in `SerializeStruct::serialize_field`
+     = note: this error originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `wgsl_ast_parser::DeclarationNode: serde::Serialize` is not satisfied
+    --> src\wgsl_ast_parser.rs:39:35
+     |
+  39 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+     |                                   ^^^^^^^^^ the trait `_::_serde::Serialize` is not implemented for `wgsl_ast_parser::DeclarationNode`
+...
+  43 |     pub declarations: Vec<DeclarationNode>,
+     |     --- required by a bound introduced by this call
+     |
+     = note: for local types consider adding `#[derive(serde::Serialize)]` to your `wgsl_ast_parser::DeclarationNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `_::_serde::Serialize`:
+               &'a T
+               &'a mut T
+               ()
+               (T,)
+               (T0, T1)
+               (T0, T1, T2)
+               (T0, T1, T2, T3)
+               (T0, T1, T2, T3, T4)
+             and 652 others
+     = note: required for `std::vec::Vec<wgsl_ast_parser::DeclarationNode>` to implement `_::_serde::Serialize`
+note: required by a bound in `_::_serde::ser::SerializeStruct::serialize_field`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\ser\mod.rs:1917:21
+     |
+1915 |     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
+     |        --------------- required by a bound in this associated function
+1916 |     where
+1917 |         T: ?Sized + Serialize;
+     |                     ^^^^^^^^^ required by this bound in `SerializeStruct::serialize_field`
+     = note: this error originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `AttributeNode: serde::Serialize` is not satisfied
+    --> src\wgsl_ast_parser.rs:39:35
+     |
+  39 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+     |                                   ^^^^^^^^^ the trait `_::_serde::Serialize` is not implemented for `AttributeNode`
+...
+  45 |     pub attributes: Vec<AttributeNode>,
+     |     --- required by a bound introduced by this call
+     |
+     = note: for local types consider adding `#[derive(serde::Serialize)]` to your `AttributeNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `_::_serde::Serialize`:
+               &'a T
+               &'a mut T
+               ()
+               (T,)
+               (T0, T1)
+               (T0, T1, T2)
+               (T0, T1, T2, T3)
+               (T0, T1, T2, T3, T4)
+             and 652 others
+     = note: required for `std::vec::Vec<AttributeNode>` to implement `_::_serde::Serialize`
+note: required by a bound in `_::_serde::ser::SerializeStruct::serialize_field`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\ser\mod.rs:1917:21
+     |
+1915 |     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
+     |        --------------- required by a bound in this associated function
+1916 |     where
+1917 |         T: ?Sized + Serialize;
+     |                     ^^^^^^^^^ required by this bound in `SerializeStruct::serialize_field`
+     = note: this error originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `ImportNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:42:18
+     |
+  42 |     pub imports: Vec<ImportNode>,
+     |                  ^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ImportNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ImportNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+     = note: required for `std::vec::Vec<ImportNode>` to implement `Deserialize<'_>`
+note: required by a bound in `next_element`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1771:12
+     |
+1769 |     fn next_element<T>(&mut self) -> Result<Option<T>, Self::Error>
+     |        ------------ required by a bound in this associated function
+1770 |     where
+1771 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `SeqAccess::next_element`
+
+error[E0277]: the trait bound `wgsl_ast_parser::DeclarationNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:43:23
+     |
+  43 |     pub declarations: Vec<DeclarationNode>,
+     |                       ^^^^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `wgsl_ast_parser::DeclarationNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `wgsl_ast_parser::DeclarationNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+     = note: required for `std::vec::Vec<wgsl_ast_parser::DeclarationNode>` to implement `Deserialize<'_>`
+note: required by a bound in `next_element`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1771:12
+     |
+1769 |     fn next_element<T>(&mut self) -> Result<Option<T>, Self::Error>
+     |        ------------ required by a bound in this associated function
+1770 |     where
+1771 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `SeqAccess::next_element`
+
+error[E0277]: the trait bound `AttributeNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:45:21
+     |
+  45 |     pub attributes: Vec<AttributeNode>,
+     |                     ^^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `AttributeNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `AttributeNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+     = note: required for `std::vec::Vec<AttributeNode>` to implement `Deserialize<'_>`
+note: required by a bound in `next_element`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1771:12
+     |
+1769 |     fn next_element<T>(&mut self) -> Result<Option<T>, Self::Error>
+     |        ------------ required by a bound in this associated function
+1770 |     where
+1771 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `SeqAccess::next_element`
+
+error[E0277]: the trait bound `ImportNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:42:18
+     |
+  42 |     pub imports: Vec<ImportNode>,
+     |                  ^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ImportNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ImportNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+     = note: required for `std::vec::Vec<ImportNode>` to implement `Deserialize<'_>`
+note: required by a bound in `next_value`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1916:12
+     |
+1914 |     fn next_value<V>(&mut self) -> Result<V, Self::Error>
+     |        ---------- required by a bound in this associated function
+1915 |     where
+1916 |         V: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `MapAccess::next_value`
+
+error[E0277]: the trait bound `wgsl_ast_parser::DeclarationNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:43:23
+     |
+  43 |     pub declarations: Vec<DeclarationNode>,
+     |                       ^^^^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `wgsl_ast_parser::DeclarationNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `wgsl_ast_parser::DeclarationNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+     = note: required for `std::vec::Vec<wgsl_ast_parser::DeclarationNode>` to implement `Deserialize<'_>`
+note: required by a bound in `next_value`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1916:12
+     |
+1914 |     fn next_value<V>(&mut self) -> Result<V, Self::Error>
+     |        ---------- required by a bound in this associated function
+1915 |     where
+1916 |         V: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `MapAccess::next_value`
+
+error[E0277]: the trait bound `AttributeNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:45:21
+     |
+  45 |     pub attributes: Vec<AttributeNode>,
+     |                     ^^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `AttributeNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `AttributeNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+     = note: required for `std::vec::Vec<AttributeNode>` to implement `Deserialize<'_>`
+note: required by a bound in `next_value`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1916:12
+     |
+1914 |     fn next_value<V>(&mut self) -> Result<V, Self::Error>
+     |        ---------- required by a bound in this associated function
+1915 |     where
+1916 |         V: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `MapAccess::next_value`
+
+error[E0277]: the trait bound `ImportNode: serde::Deserialize<'de>` is not satisfied
+  --> src\wgsl_ast_parser.rs:39:46
+   |
+39 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+   |                                              ^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ImportNode`
+   |
+   = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ImportNode` type
+   = note: for types from other crates check whether the crate offers a `serde` feature flag
+   = help: the following other types implement trait `Deserialize<'de>`:
+             &'a [u8]
+             &'a bevy::bevy_asset::ron::value::RawValue
+             &'a serde_json::value::RawValue
+             &'a std::path::Path
+             &'a str
+             ()
+             (T,)
+             (T0, T1)
+           and 678 others
+   = note: required for `std::vec::Vec<ImportNode>` to implement `Deserialize<'_>`
+note: required by a bound in `_::_serde::__private228::de::missing_field`
+  --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:26:8
+   |
+24 | pub fn missing_field<'de, V, E>(field: &'static str) -> Result<V, E>
+   |        ------------- required by a bound in this function
+25 | where
+26 |     V: Deserialize<'de>,
+   |        ^^^^^^^^^^^^^^^^ required by this bound in `missing_field`
+   = note: this error originates in the derive macro `Deserialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `wgsl_ast_parser::DeclarationNode: serde::Deserialize<'de>` is not satisfied
+  --> src\wgsl_ast_parser.rs:39:46
+   |
+39 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+   |                                              ^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `wgsl_ast_parser::DeclarationNode`
+   |
+   = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `wgsl_ast_parser::DeclarationNode` type
+   = note: for types from other crates check whether the crate offers a `serde` feature flag
+   = help: the following other types implement trait `Deserialize<'de>`:
+             &'a [u8]
+             &'a bevy::bevy_asset::ron::value::RawValue
+             &'a serde_json::value::RawValue
+             &'a std::path::Path
+             &'a str
+             ()
+             (T,)
+             (T0, T1)
+           and 678 others
+   = note: required for `std::vec::Vec<wgsl_ast_parser::DeclarationNode>` to implement `Deserialize<'_>`
+note: required by a bound in `_::_serde::__private228::de::missing_field`
+  --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:26:8
+   |
+24 | pub fn missing_field<'de, V, E>(field: &'static str) -> Result<V, E>
+   |        ------------- required by a bound in this function
+25 | where
+26 |     V: Deserialize<'de>,
+   |        ^^^^^^^^^^^^^^^^ required by this bound in `missing_field`
+   = note: this error originates in the derive macro `Deserialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `AttributeNode: serde::Deserialize<'de>` is not satisfied
+  --> src\wgsl_ast_parser.rs:39:46
+   |
+39 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+   |                                              ^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `AttributeNode`
+   |
+   = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `AttributeNode` type
+   = note: for types from other crates check whether the crate offers a `serde` feature flag
+   = help: the following other types implement trait `Deserialize<'de>`:
+             &'a [u8]
+             &'a bevy::bevy_asset::ron::value::RawValue
+             &'a serde_json::value::RawValue
+             &'a std::path::Path
+             &'a str
+             ()
+             (T,)
+             (T0, T1)
+           and 678 others
+   = note: required for `std::vec::Vec<AttributeNode>` to implement `Deserialize<'_>`
+note: required by a bound in `_::_serde::__private228::de::missing_field`
+  --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:26:8
+   |
+24 | pub fn missing_field<'de, V, E>(field: &'static str) -> Result<V, E>
+   |        ------------- required by a bound in this function
+25 | where
+26 |     V: Deserialize<'de>,
+   |        ^^^^^^^^^^^^^^^^ required by this bound in `missing_field`
+   = note: this error originates in the derive macro `Deserialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `ParameterNode: serde::Serialize` is not satisfied
+    --> src\wgsl_ast_parser.rs:49:35
+     |
+  49 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+     |                                   ^^^^^^^^^ the trait `_::_serde::Serialize` is not implemented for `ParameterNode`
+...
+  52 |     pub parameters: Vec<ParameterNode>,
+     |     --- required by a bound introduced by this call
+     |
+     = note: for local types consider adding `#[derive(serde::Serialize)]` to your `ParameterNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `_::_serde::Serialize`:
+               &'a T
+               &'a mut T
+               ()
+               (T,)
+               (T0, T1)
+               (T0, T1, T2)
+               (T0, T1, T2, T3)
+               (T0, T1, T2, T3, T4)
+             and 652 others
+     = note: required for `std::vec::Vec<ParameterNode>` to implement `_::_serde::Serialize`
+note: required by a bound in `_::_serde::ser::SerializeStruct::serialize_field`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\ser\mod.rs:1917:21
+     |
+1915 |     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
+     |        --------------- required by a bound in this associated function
+1916 |     where
+1917 |         T: ?Sized + Serialize;
+     |                     ^^^^^^^^^ required by this bound in `SerializeStruct::serialize_field`
+     = note: this error originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `TypeNode: serde::Serialize` is not satisfied
+    --> src\wgsl_ast_parser.rs:49:35
+     |
+  49 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+     |                                   ^^^^^^^^^ the trait `_::_serde::Serialize` is not implemented for `TypeNode`
+...
+  53 |     pub return_type: Option<TypeNode>,
+     |     --- required by a bound introduced by this call
+     |
+     = note: for local types consider adding `#[derive(serde::Serialize)]` to your `TypeNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `_::_serde::Serialize`:
+               &'a T
+               &'a mut T
+               ()
+               (T,)
+               (T0, T1)
+               (T0, T1, T2)
+               (T0, T1, T2, T3)
+               (T0, T1, T2, T3, T4)
+             and 652 others
+     = note: required for `std::option::Option<TypeNode>` to implement `_::_serde::Serialize`
+note: required by a bound in `_::_serde::ser::SerializeStruct::serialize_field`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\ser\mod.rs:1917:21
+     |
+1915 |     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
+     |        --------------- required by a bound in this associated function
+1916 |     where
+1917 |         T: ?Sized + Serialize;
+     |                     ^^^^^^^^^ required by this bound in `SerializeStruct::serialize_field`
+     = note: this error originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `BlockNode: serde::Serialize` is not satisfied
+    --> src\wgsl_ast_parser.rs:49:35
+     |
+  49 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+     |                                   ^^^^^^^^^ the trait `_::_serde::Serialize` is not implemented for `BlockNode`
+...
+  54 |     pub body: Option<BlockNode>,
+     |     --- required by a bound introduced by this call
+     |
+     = note: for local types consider adding `#[derive(serde::Serialize)]` to your `BlockNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `_::_serde::Serialize`:
+               &'a T
+               &'a mut T
+               ()
+               (T,)
+               (T0, T1)
+               (T0, T1, T2)
+               (T0, T1, T2, T3)
+               (T0, T1, T2, T3, T4)
+             and 652 others
+     = note: required for `std::option::Option<BlockNode>` to implement `_::_serde::Serialize`
+note: required by a bound in `_::_serde::ser::SerializeStruct::serialize_field`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\ser\mod.rs:1917:21
+     |
+1915 |     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
+     |        --------------- required by a bound in this associated function
+1916 |     where
+1917 |         T: ?Sized + Serialize;
+     |                     ^^^^^^^^^ required by this bound in `SerializeStruct::serialize_field`
+     = note: this error originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `AttributeNode: serde::Serialize` is not satisfied
+    --> src\wgsl_ast_parser.rs:49:35
+     |
+  49 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+     |                                   ^^^^^^^^^ the trait `_::_serde::Serialize` is not implemented for `AttributeNode`
+...
+  55 |     pub attributes: Vec<AttributeNode>,
+     |     --- required by a bound introduced by this call
+     |
+     = note: for local types consider adding `#[derive(serde::Serialize)]` to your `AttributeNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `_::_serde::Serialize`:
+               &'a T
+               &'a mut T
+               ()
+               (T,)
+               (T0, T1)
+               (T0, T1, T2)
+               (T0, T1, T2, T3)
+               (T0, T1, T2, T3, T4)
+             and 652 others
+     = note: required for `std::vec::Vec<AttributeNode>` to implement `_::_serde::Serialize`
+note: required by a bound in `_::_serde::ser::SerializeStruct::serialize_field`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\ser\mod.rs:1917:21
+     |
+1915 |     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
+     |        --------------- required by a bound in this associated function
+1916 |     where
+1917 |         T: ?Sized + Serialize;
+     |                     ^^^^^^^^^ required by this bound in `SerializeStruct::serialize_field`
+     = note: this error originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `WgslShaderStage: serde::Serialize` is not satisfied
+    --> src\wgsl_ast_parser.rs:49:35
+     |
+  49 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+     |                                   ^^^^^^^^^ the trait `_::_serde::Serialize` is not implemented for `WgslShaderStage`
+...
+  56 |     pub stage: Option<WgslShaderStage>,
+     |     --- required by a bound introduced by this call
+     |
+     = note: for local types consider adding `#[derive(serde::Serialize)]` to your `WgslShaderStage` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `_::_serde::Serialize`:
+               &'a T
+               &'a mut T
+               ()
+               (T,)
+               (T0, T1)
+               (T0, T1, T2)
+               (T0, T1, T2, T3)
+               (T0, T1, T2, T3, T4)
+             and 652 others
+     = note: required for `std::option::Option<WgslShaderStage>` to implement `_::_serde::Serialize`
+note: required by a bound in `_::_serde::ser::SerializeStruct::serialize_field`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\ser\mod.rs:1917:21
+     |
+1915 |     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
+     |        --------------- required by a bound in this associated function
+1916 |     where
+1917 |         T: ?Sized + Serialize;
+     |                     ^^^^^^^^^ required by this bound in `SerializeStruct::serialize_field`
+     = note: this error originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `ParameterNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:52:21
+     |
+  52 |     pub parameters: Vec<ParameterNode>,
+     |                     ^^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ParameterNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ParameterNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+     = note: required for `std::vec::Vec<ParameterNode>` to implement `Deserialize<'_>`
+note: required by a bound in `next_element`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1771:12
+     |
+1769 |     fn next_element<T>(&mut self) -> Result<Option<T>, Self::Error>
+     |        ------------ required by a bound in this associated function
+1770 |     where
+1771 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `SeqAccess::next_element`
+
+error[E0277]: the trait bound `TypeNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:53:22
+     |
+  53 |     pub return_type: Option<TypeNode>,
+     |                      ^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `TypeNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `TypeNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+     = note: required for `std::option::Option<TypeNode>` to implement `Deserialize<'_>`
+note: required by a bound in `next_element`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1771:12
+     |
+1769 |     fn next_element<T>(&mut self) -> Result<Option<T>, Self::Error>
+     |        ------------ required by a bound in this associated function
+1770 |     where
+1771 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `SeqAccess::next_element`
+
+error[E0277]: the trait bound `BlockNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:54:15
+     |
+  54 |     pub body: Option<BlockNode>,
+     |               ^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `BlockNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `BlockNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+     = note: required for `std::option::Option<BlockNode>` to implement `Deserialize<'_>`
+note: required by a bound in `next_element`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1771:12
+     |
+1769 |     fn next_element<T>(&mut self) -> Result<Option<T>, Self::Error>
+     |        ------------ required by a bound in this associated function
+1770 |     where
+1771 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `SeqAccess::next_element`
+
+error[E0277]: the trait bound `AttributeNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:55:21
+     |
+  55 |     pub attributes: Vec<AttributeNode>,
+     |                     ^^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `AttributeNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `AttributeNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+     = note: required for `std::vec::Vec<AttributeNode>` to implement `Deserialize<'_>`
+note: required by a bound in `next_element`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1771:12
+     |
+1769 |     fn next_element<T>(&mut self) -> Result<Option<T>, Self::Error>
+     |        ------------ required by a bound in this associated function
+1770 |     where
+1771 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `SeqAccess::next_element`
+
+error[E0277]: the trait bound `WgslShaderStage: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:56:16
+     |
+  56 |     pub stage: Option<WgslShaderStage>,
+     |                ^^^^^^^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `WgslShaderStage`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `WgslShaderStage` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+     = note: required for `std::option::Option<WgslShaderStage>` to implement `Deserialize<'_>`
+note: required by a bound in `next_element`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1771:12
+     |
+1769 |     fn next_element<T>(&mut self) -> Result<Option<T>, Self::Error>
+     |        ------------ required by a bound in this associated function
+1770 |     where
+1771 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `SeqAccess::next_element`
+
+error[E0277]: the trait bound `ParameterNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:52:21
+     |
+  52 |     pub parameters: Vec<ParameterNode>,
+     |                     ^^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ParameterNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ParameterNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+     = note: required for `std::vec::Vec<ParameterNode>` to implement `Deserialize<'_>`
+note: required by a bound in `next_value`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1916:12
+     |
+1914 |     fn next_value<V>(&mut self) -> Result<V, Self::Error>
+     |        ---------- required by a bound in this associated function
+1915 |     where
+1916 |         V: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `MapAccess::next_value`
+
+error[E0277]: the trait bound `TypeNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:53:22
+     |
+  53 |     pub return_type: Option<TypeNode>,
+     |                      ^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `TypeNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `TypeNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+     = note: required for `std::option::Option<TypeNode>` to implement `Deserialize<'_>`
+note: required by a bound in `next_value`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1916:12
+     |
+1914 |     fn next_value<V>(&mut self) -> Result<V, Self::Error>
+     |        ---------- required by a bound in this associated function
+1915 |     where
+1916 |         V: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `MapAccess::next_value`
+
+error[E0277]: the trait bound `BlockNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:54:15
+     |
+  54 |     pub body: Option<BlockNode>,
+     |               ^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `BlockNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `BlockNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+     = note: required for `std::option::Option<BlockNode>` to implement `Deserialize<'_>`
+note: required by a bound in `next_value`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1916:12
+     |
+1914 |     fn next_value<V>(&mut self) -> Result<V, Self::Error>
+     |        ---------- required by a bound in this associated function
+1915 |     where
+1916 |         V: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `MapAccess::next_value`
+
+error[E0277]: the trait bound `AttributeNode: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:55:21
+     |
+  55 |     pub attributes: Vec<AttributeNode>,
+     |                     ^^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `AttributeNode`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `AttributeNode` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+     = note: required for `std::vec::Vec<AttributeNode>` to implement `Deserialize<'_>`
+note: required by a bound in `next_value`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1916:12
+     |
+1914 |     fn next_value<V>(&mut self) -> Result<V, Self::Error>
+     |        ---------- required by a bound in this associated function
+1915 |     where
+1916 |         V: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `MapAccess::next_value`
+
+error[E0277]: the trait bound `WgslShaderStage: serde::Deserialize<'de>` is not satisfied
+    --> src\wgsl_ast_parser.rs:56:16
+     |
+  56 |     pub stage: Option<WgslShaderStage>,
+     |                ^^^^^^^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `WgslShaderStage`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `WgslShaderStage` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 678 others
+     = note: required for `std::option::Option<WgslShaderStage>` to implement `Deserialize<'_>`
+note: required by a bound in `next_value`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1916:12
+     |
+1914 |     fn next_value<V>(&mut self) -> Result<V, Self::Error>
+     |        ---------- required by a bound in this associated function
+1915 |     where
+1916 |         V: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `MapAccess::next_value`
+
+error[E0277]: the trait bound `ParameterNode: serde::Deserialize<'de>` is not satisfied
+  --> src\wgsl_ast_parser.rs:49:46
+   |
+49 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+   |                                              ^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ParameterNode`
+   |
+   = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ParameterNode` type
+   = note: for types from other crates check whether the crate offers a `serde` feature flag
+   = help: the following other types implement trait `Deserialize<'de>`:
+             &'a [u8]
+             &'a bevy::bevy_asset::ron::value::RawValue
+             &'a serde_json::value::RawValue
+             &'a std::path::Path
+             &'a str
+             ()
+             (T,)
+             (T0, T1)
+           and 678 others
+   = note: required for `std::vec::Vec<ParameterNode>` to implement `Deserialize<'_>`
+note: required by a bound in `_::_serde::__private228::de::missing_field`
+  --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:26:8
+   |
+24 | pub fn missing_field<'de, V, E>(field: &'static str) -> Result<V, E>
+   |        ------------- required by a bound in this function
+25 | where
+26 |     V: Deserialize<'de>,
+   |        ^^^^^^^^^^^^^^^^ required by this bound in `missing_field`
+   = note: this error originates in the derive macro `Deserialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `TypeNode: serde::Deserialize<'de>` is not satisfied
+  --> src\wgsl_ast_parser.rs:49:46
+   |
+49 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+   |                                              ^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `TypeNode`
+   |
+   = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `TypeNode` type
+   = note: for types from other crates check whether the crate offers a `serde` feature flag
+   = help: the following other types implement trait `Deserialize<'de>`:
+             &'a [u8]
+             &'a bevy::bevy_asset::ron::value::RawValue
+             &'a serde_json::value::RawValue
+             &'a std::path::Path
+             &'a str
+             ()
+             (T,)
+             (T0, T1)
+           and 678 others
+   = note: required for `std::option::Option<TypeNode>` to implement `Deserialize<'_>`
+note: required by a bound in `_::_serde::__private228::de::missing_field`
+  --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:26:8
+   |
+24 | pub fn missing_field<'de, V, E>(field: &'static str) -> Result<V, E>
+   |        ------------- required by a bound in this function
+25 | where
+26 |     V: Deserialize<'de>,
+   |        ^^^^^^^^^^^^^^^^ required by this bound in `missing_field`
+   = note: this error originates in the derive macro `Deserialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `BlockNode: serde::Deserialize<'de>` is not satisfied
+  --> src\wgsl_ast_parser.rs:49:46
+   |
+49 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+   |                                              ^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `BlockNode`
+   |
+   = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `BlockNode` type
+   = note: for types from other crates check whether the crate offers a `serde` feature flag
+   = help: the following other types implement trait `Deserialize<'de>`:
+             &'a [u8]
+             &'a bevy::bevy_asset::ron::value::RawValue
+             &'a serde_json::value::RawValue
+             &'a std::path::Path
+             &'a str
+             ()
+             (T,)
+             (T0, T1)
+           and 678 others
+   = note: required for `std::option::Option<BlockNode>` to implement `Deserialize<'_>`
+note: required by a bound in `_::_serde::__private228::de::missing_field`
+  --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:26:8
+   |
+24 | pub fn missing_field<'de, V, E>(field: &'static str) -> Result<V, E>
+   |        ------------- required by a bound in this function
+25 | where
+26 |     V: Deserialize<'de>,
+   |        ^^^^^^^^^^^^^^^^ required by this bound in `missing_field`
+   = note: this error originates in the derive macro `Deserialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `AttributeNode: serde::Deserialize<'de>` is not satisfied
+  --> src\wgsl_ast_parser.rs:49:46
+   |
+49 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+   |                                              ^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `AttributeNode`
+   |
+   = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `AttributeNode` type
+   = note: for types from other crates check whether the crate offers a `serde` feature flag
+   = help: the following other types implement trait `Deserialize<'de>`:
+             &'a [u8]
+             &'a bevy::bevy_asset::ron::value::RawValue
+             &'a serde_json::value::RawValue
+             &'a std::path::Path
+             &'a str
+             ()
+             (T,)
+             (T0, T1)
+           and 678 others
+   = note: required for `std::vec::Vec<AttributeNode>` to implement `Deserialize<'_>`
+note: required by a bound in `_::_serde::__private228::de::missing_field`
+  --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:26:8
+   |
+24 | pub fn missing_field<'de, V, E>(field: &'static str) -> Result<V, E>
+   |        ------------- required by a bound in this function
+25 | where
+26 |     V: Deserialize<'de>,
+   |        ^^^^^^^^^^^^^^^^ required by this bound in `missing_field`
+   = note: this error originates in the derive macro `Deserialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `WgslShaderStage: serde::Deserialize<'de>` is not satisfied
+  --> src\wgsl_ast_parser.rs:49:46
+   |
+49 | #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+   |                                              ^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `WgslShaderStage`
+   |
+   = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `WgslShaderStage` type
+   = note: for types from other crates check whether the crate offers a `serde` feature flag
+   = help: the following other types implement trait `Deserialize<'de>`:
+             &'a [u8]
+             &'a bevy::bevy_asset::ron::value::RawValue
+             &'a serde_json::value::RawValue
+             &'a std::path::Path
+             &'a str
+             ()
+             (T,)
+             (T0, T1)
+           and 678 others
+   = note: required for `std::option::Option<WgslShaderStage>` to implement `Deserialize<'_>`
+note: required by a bound in `_::_serde::__private228::de::missing_field`
+  --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:26:8
+   |
+24 | pub fn missing_field<'de, V, E>(field: &'static str) -> Result<V, E>
+   |        ------------- required by a bound in this function
+25 | where
+26 |     V: Deserialize<'de>,
+   |        ^^^^^^^^^^^^^^^^ required by this bound in `missing_field`
+   = note: this error originates in the derive macro `Deserialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `ModuleId: serde::Serialize` is not satisfied
+    --> src\shader_module_system.rs:15:24
+     |
+  15 | #[derive(Debug, Clone, Serialize, Deserialize)]
+     |                        ^^^^^^^^^ the trait `_::_serde::Serialize` is not implemented for `ModuleId`
+  16 | pub struct ShaderModule {
+  17 |     pub id: ModuleId,
+     |     --- required by a bound introduced by this call
+     |
+     = note: for local types consider adding `#[derive(serde::Serialize)]` to your `ModuleId` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `_::_serde::Serialize`:
+               &'a T
+               &'a mut T
+               ()
+               (T,)
+               (T0, T1)
+               (T0, T1, T2)
+               (T0, T1, T2, T3)
+               (T0, T1, T2, T3, T4)
+             and 652 others
+note: required by a bound in `_::_serde::ser::SerializeStruct::serialize_field`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\ser\mod.rs:1917:21
+     |
+1915 |     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
+     |        --------------- required by a bound in this associated function
+1916 |     where
+1917 |         T: ?Sized + Serialize;
+     |                     ^^^^^^^^^ required by this bound in `SerializeStruct::serialize_field`
+     = note: this error originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `CompiledShader: serde::Serialize` is not satisfied
+    --> src\shader_module_system.rs:15:24
+     |
+  15 | #[derive(Debug, Clone, Serialize, Deserialize)]
+     |                        ^^^^^^^^^ the trait `_::_serde::Serialize` is not implemented for `CompiledShader`
+...
+  21 |     pub compiled: Option<CompiledShader>,
+     |     --- required by a bound introduced by this call
+     |
+     = note: for local types consider adding `#[derive(serde::Serialize)]` to your `CompiledShader` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `_::_serde::Serialize`:
+               &'a T
+               &'a mut T
+               ()
+               (T,)
+               (T0, T1)
+               (T0, T1, T2)
+               (T0, T1, T2, T3)
+               (T0, T1, T2, T3, T4)
+             and 652 others
+     = note: required for `std::option::Option<CompiledShader>` to implement `_::_serde::Serialize`
+note: required by a bound in `_::_serde::ser::SerializeStruct::serialize_field`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\ser\mod.rs:1917:21
+     |
+1915 |     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
+     |        --------------- required by a bound in this associated function
+1916 |     where
+1917 |         T: ?Sized + Serialize;
+     |                     ^^^^^^^^^ required by this bound in `SerializeStruct::serialize_field`
+     = note: this error originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `std::time::Instant: serde::Serialize` is not satisfied
+    --> src\shader_module_system.rs:15:24
+     |
+  15 | #[derive(Debug, Clone, Serialize, Deserialize)]
+     |                        ^^^^^^^^^ the trait `_::_serde::Serialize` is not implemented for `std::time::Instant`
+...
+  25 |     pub last_modified: Instant,
+     |     --- required by a bound introduced by this call
+     |
+     = note: for local types consider adding `#[derive(serde::Serialize)]` to your `std::time::Instant` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `_::_serde::Serialize`:
+               &'a T
+               &'a mut T
+               ()
+               (T,)
+               (T0, T1)
+               (T0, T1, T2)
+               (T0, T1, T2, T3)
+               (T0, T1, T2, T3, T4)
+             and 652 others
+note: required by a bound in `_::_serde::ser::SerializeStruct::serialize_field`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\ser\mod.rs:1917:21
+     |
+1915 |     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
+     |        --------------- required by a bound in this associated function
+1916 |     where
+1917 |         T: ?Sized + Serialize;
+     |                     ^^^^^^^^^ required by this bound in `SerializeStruct::serialize_field`
+     = note: this error originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `ModuleId: serde::Deserialize<'de>` is not satisfied
+    --> src\shader_module_system.rs:17:13
+     |
+  17 |     pub id: ModuleId,
+     |             ^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ModuleId`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ModuleId` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 668 others
+note: required by a bound in `next_element`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1771:12
+     |
+1769 |     fn next_element<T>(&mut self) -> Result<Option<T>, Self::Error>
+     |        ------------ required by a bound in this associated function
+1770 |     where
+1771 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `SeqAccess::next_element`
+
+error[E0277]: the trait bound `CompiledShader: serde::Deserialize<'de>` is not satisfied
+    --> src\shader_module_system.rs:21:19
+     |
+  21 |     pub compiled: Option<CompiledShader>,
+     |                   ^^^^^^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `CompiledShader`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `CompiledShader` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 668 others
+     = note: required for `std::option::Option<CompiledShader>` to implement `Deserialize<'_>`
+note: required by a bound in `next_element`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1771:12
+     |
+1769 |     fn next_element<T>(&mut self) -> Result<Option<T>, Self::Error>
+     |        ------------ required by a bound in this associated function
+1770 |     where
+1771 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `SeqAccess::next_element`
+
+error[E0277]: the trait bound `ModuleId: serde::Deserialize<'de>` is not satisfied
+    --> src\shader_module_system.rs:22:23
+     |
+  22 |     pub dependencies: HashSet<ModuleId>,
+     |                       ^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ModuleId`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ModuleId` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 668 others
+     = note: required for `std::collections::HashSet<ModuleId>` to implement `Deserialize<'_>`
+note: required by a bound in `next_element`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1771:12
+     |
+1769 |     fn next_element<T>(&mut self) -> Result<Option<T>, Self::Error>
+     |        ------------ required by a bound in this associated function
+1770 |     where
+1771 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `SeqAccess::next_element`
+
+error[E0277]: the trait bound `std::time::Instant: serde::Deserialize<'de>` is not satisfied
+    --> src\shader_module_system.rs:25:24
+     |
+  25 |     pub last_modified: Instant,
+     |                        ^^^^^^^ the trait `Deserialize<'_>` is not implemented for `std::time::Instant`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `std::time::Instant` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 668 others
+note: required by a bound in `next_element`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1771:12
+     |
+1769 |     fn next_element<T>(&mut self) -> Result<Option<T>, Self::Error>
+     |        ------------ required by a bound in this associated function
+1770 |     where
+1771 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `SeqAccess::next_element`
+
+error[E0277]: the trait bound `ModuleId: serde::Deserialize<'de>` is not satisfied
+    --> src\shader_module_system.rs:17:13
+     |
+  17 |     pub id: ModuleId,
+     |             ^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ModuleId`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ModuleId` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 668 others
+note: required by a bound in `next_value`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1916:12
+     |
+1914 |     fn next_value<V>(&mut self) -> Result<V, Self::Error>
+     |        ---------- required by a bound in this associated function
+1915 |     where
+1916 |         V: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `MapAccess::next_value`
+
+error[E0277]: the trait bound `CompiledShader: serde::Deserialize<'de>` is not satisfied
+    --> src\shader_module_system.rs:21:19
+     |
+  21 |     pub compiled: Option<CompiledShader>,
+     |                   ^^^^^^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `CompiledShader`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `CompiledShader` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 668 others
+     = note: required for `std::option::Option<CompiledShader>` to implement `Deserialize<'_>`
+note: required by a bound in `next_value`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1916:12
+     |
+1914 |     fn next_value<V>(&mut self) -> Result<V, Self::Error>
+     |        ---------- required by a bound in this associated function
+1915 |     where
+1916 |         V: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `MapAccess::next_value`
+
+error[E0277]: the trait bound `ModuleId: serde::Deserialize<'de>` is not satisfied
+    --> src\shader_module_system.rs:22:23
+     |
+  22 |     pub dependencies: HashSet<ModuleId>,
+     |                       ^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ModuleId`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ModuleId` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 668 others
+     = note: required for `std::collections::HashSet<ModuleId>` to implement `Deserialize<'_>`
+note: required by a bound in `next_value`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1916:12
+     |
+1914 |     fn next_value<V>(&mut self) -> Result<V, Self::Error>
+     |        ---------- required by a bound in this associated function
+1915 |     where
+1916 |         V: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `MapAccess::next_value`
+
+error[E0277]: the trait bound `std::time::Instant: serde::Deserialize<'de>` is not satisfied
+    --> src\shader_module_system.rs:25:24
+     |
+  25 |     pub last_modified: Instant,
+     |                        ^^^^^^^ the trait `Deserialize<'_>` is not implemented for `std::time::Instant`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `std::time::Instant` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 668 others
+note: required by a bound in `next_value`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1916:12
+     |
+1914 |     fn next_value<V>(&mut self) -> Result<V, Self::Error>
+     |        ---------- required by a bound in this associated function
+1915 |     where
+1916 |         V: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `MapAccess::next_value`
+
+error[E0277]: the trait bound `ModuleId: serde::Deserialize<'de>` is not satisfied
+  --> src\shader_module_system.rs:15:35
+   |
+15 | #[derive(Debug, Clone, Serialize, Deserialize)]
+   |                                   ^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ModuleId`
+   |
+   = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ModuleId` type
+   = note: for types from other crates check whether the crate offers a `serde` feature flag
+   = help: the following other types implement trait `Deserialize<'de>`:
+             &'a [u8]
+             &'a bevy::bevy_asset::ron::value::RawValue
+             &'a serde_json::value::RawValue
+             &'a std::path::Path
+             &'a str
+             ()
+             (T,)
+             (T0, T1)
+           and 668 others
+note: required by a bound in `_::_serde::__private228::de::missing_field`
+  --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:26:8
+   |
+24 | pub fn missing_field<'de, V, E>(field: &'static str) -> Result<V, E>
+   |        ------------- required by a bound in this function
+25 | where
+26 |     V: Deserialize<'de>,
+   |        ^^^^^^^^^^^^^^^^ required by this bound in `missing_field`
+   = note: this error originates in the derive macro `Deserialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `CompiledShader: serde::Deserialize<'de>` is not satisfied
+  --> src\shader_module_system.rs:15:35
+   |
+15 | #[derive(Debug, Clone, Serialize, Deserialize)]
+   |                                   ^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `CompiledShader`
+   |
+   = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `CompiledShader` type
+   = note: for types from other crates check whether the crate offers a `serde` feature flag
+   = help: the following other types implement trait `Deserialize<'de>`:
+             &'a [u8]
+             &'a bevy::bevy_asset::ron::value::RawValue
+             &'a serde_json::value::RawValue
+             &'a std::path::Path
+             &'a str
+             ()
+             (T,)
+             (T0, T1)
+           and 668 others
+   = note: required for `std::option::Option<CompiledShader>` to implement `Deserialize<'_>`
+note: required by a bound in `_::_serde::__private228::de::missing_field`
+  --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:26:8
+   |
+24 | pub fn missing_field<'de, V, E>(field: &'static str) -> Result<V, E>
+   |        ------------- required by a bound in this function
+25 | where
+26 |     V: Deserialize<'de>,
+   |        ^^^^^^^^^^^^^^^^ required by this bound in `missing_field`
+   = note: this error originates in the derive macro `Deserialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `std::time::Instant: serde::Deserialize<'de>` is not satisfied
+  --> src\shader_module_system.rs:15:35
+   |
+15 | #[derive(Debug, Clone, Serialize, Deserialize)]
+   |                                   ^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `std::time::Instant`
+   |
+   = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `std::time::Instant` type
+   = note: for types from other crates check whether the crate offers a `serde` feature flag
+   = help: the following other types implement trait `Deserialize<'de>`:
+             &'a [u8]
+             &'a bevy::bevy_asset::ron::value::RawValue
+             &'a serde_json::value::RawValue
+             &'a std::path::Path
+             &'a str
+             ()
+             (T,)
+             (T0, T1)
+           and 668 others
+note: required by a bound in `_::_serde::__private228::de::missing_field`
+  --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:26:8
+   |
+24 | pub fn missing_field<'de, V, E>(field: &'static str) -> Result<V, E>
+   |        ------------- required by a bound in this function
+25 | where
+26 |     V: Deserialize<'de>,
+   |        ^^^^^^^^^^^^^^^^ required by this bound in `missing_field`
+   = note: this error originates in the derive macro `Deserialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `ModuleId: serde::Serialize` is not satisfied
+    --> src\shader_module_system.rs:29:24
+     |
+  29 | #[derive(Debug, Clone, Serialize, Deserialize)]
+     |                        ^^^^^^^^^ the trait `_::_serde::Serialize` is not implemented for `ModuleId`
+...
+  32 |     pub modules: HashMap<ModuleId, ShaderModule>,
+     |     --- required by a bound introduced by this call
+     |
+     = note: for local types consider adding `#[derive(serde::Serialize)]` to your `ModuleId` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `_::_serde::Serialize`:
+               &'a T
+               &'a mut T
+               ()
+               (T,)
+               (T0, T1)
+               (T0, T1, T2)
+               (T0, T1, T2, T3)
+               (T0, T1, T2, T3, T4)
+             and 652 others
+     = note: required for `std::collections::HashMap<ModuleId, shader_module_system::ShaderModule>` to implement `_::_serde::Serialize`
+note: required by a bound in `_::_serde::ser::SerializeStruct::serialize_field`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\ser\mod.rs:1917:21
+     |
+1915 |     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
+     |        --------------- required by a bound in this associated function
+1916 |     where
+1917 |         T: ?Sized + Serialize;
+     |                     ^^^^^^^^^ required by this bound in `SerializeStruct::serialize_field`
+     = note: this error originates in the derive macro `Serialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `ModuleId: serde::Deserialize<'de>` is not satisfied
+    --> src\shader_module_system.rs:32:18
+     |
+  32 |     pub modules: HashMap<ModuleId, ShaderModule>,
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ModuleId`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ModuleId` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 668 others
+     = note: required for `std::collections::HashMap<ModuleId, shader_module_system::ShaderModule>` to implement `Deserialize<'_>`
+note: required by a bound in `next_element`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1771:12
+     |
+1769 |     fn next_element<T>(&mut self) -> Result<Option<T>, Self::Error>
+     |        ------------ required by a bound in this associated function
+1770 |     where
+1771 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `SeqAccess::next_element`
+
+error[E0277]: the trait bound `ModuleId: serde::Deserialize<'de>` is not satisfied
+    --> src\shader_module_system.rs:33:23
+     |
+  33 |     pub entry_points: HashSet<ModuleId>,
+     |                       ^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ModuleId`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ModuleId` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 668 others
+     = note: required for `std::collections::HashSet<ModuleId>` to implement `Deserialize<'_>`
+note: required by a bound in `next_element`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1771:12
+     |
+1769 |     fn next_element<T>(&mut self) -> Result<Option<T>, Self::Error>
+     |        ------------ required by a bound in this associated function
+1770 |     where
+1771 |         T: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `SeqAccess::next_element`
+
+error[E0277]: the trait bound `ModuleId: serde::Deserialize<'de>` is not satisfied
+    --> src\shader_module_system.rs:32:18
+     |
+  32 |     pub modules: HashMap<ModuleId, ShaderModule>,
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ModuleId`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ModuleId` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 668 others
+     = note: required for `std::collections::HashMap<ModuleId, shader_module_system::ShaderModule>` to implement `Deserialize<'_>`
+note: required by a bound in `next_value`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1916:12
+     |
+1914 |     fn next_value<V>(&mut self) -> Result<V, Self::Error>
+     |        ---------- required by a bound in this associated function
+1915 |     where
+1916 |         V: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `MapAccess::next_value`
+
+error[E0277]: the trait bound `ModuleId: serde::Deserialize<'de>` is not satisfied
+    --> src\shader_module_system.rs:33:23
+     |
+  33 |     pub entry_points: HashSet<ModuleId>,
+     |                       ^^^^^^^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ModuleId`
+     |
+     = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ModuleId` type
+     = note: for types from other crates check whether the crate offers a `serde` feature flag
+     = help: the following other types implement trait `Deserialize<'de>`:
+               &'a [u8]
+               &'a bevy::bevy_asset::ron::value::RawValue
+               &'a serde_json::value::RawValue
+               &'a std::path::Path
+               &'a str
+               ()
+               (T,)
+               (T0, T1)
+             and 668 others
+     = note: required for `std::collections::HashSet<ModuleId>` to implement `Deserialize<'_>`
+note: required by a bound in `next_value`
+    --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde_core-1.0.228\src\de\mod.rs:1916:12
+     |
+1914 |     fn next_value<V>(&mut self) -> Result<V, Self::Error>
+     |        ---------- required by a bound in this associated function
+1915 |     where
+1916 |         V: Deserialize<'de>,
+     |            ^^^^^^^^^^^^^^^^ required by this bound in `MapAccess::next_value`
+
+error[E0277]: the trait bound `ModuleId: serde::Deserialize<'de>` is not satisfied
+  --> src\shader_module_system.rs:29:35
+   |
+29 | #[derive(Debug, Clone, Serialize, Deserialize)]
+   |                                   ^^^^^^^^^^^ the trait `Deserialize<'_>` is not implemented for `ModuleId`
+   |
+   = note: for local types consider adding `#[derive(serde::Deserialize)]` to your `ModuleId` type
+   = note: for types from other crates check whether the crate offers a `serde` feature flag
+   = help: the following other types implement trait `Deserialize<'de>`:
+             &'a [u8]
+             &'a bevy::bevy_asset::ron::value::RawValue
+             &'a serde_json::value::RawValue
+             &'a std::path::Path
+             &'a str
+             ()
+             (T,)
+             (T0, T1)
+           and 668 others
+   = note: required for `std::collections::HashMap<ModuleId, shader_module_system::ShaderModule>` to implement `Deserialize<'_>`
+note: required by a bound in `_::_serde::__private228::de::missing_field`
+  --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:26:8
+   |
+24 | pub fn missing_field<'de, V, E>(field: &'static str) -> Result<V, E>
+   |        ------------- required by a bound in this function
+25 | where
+26 |     V: Deserialize<'de>,
+   |        ^^^^^^^^^^^^^^^^ required by this bound in `missing_field`
+   = note: this error originates in the derive macro `Deserialize` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: the method `as_dyn_error` exists for reference `&wgsl_ast_parser::ParseError`, but its trait bounds were not satisfied
+   --> src\shader_module_system.rs:73:18
+    |
+ 73 |     ParseError(#[from] ParseError),
+    |                  ^^^^ method cannot be called on `&wgsl_ast_parser::ParseError` due to unsatisfied trait bounds
+    |
+   ::: src\wgsl_ast_parser.rs:575:1
+    |
+575 | pub struct ParseError {
+    | --------------------- doesn't satisfy `wgsl_ast_parser::ParseError: AsDynError<'_>` or `wgsl_ast_parser::ParseError: StdError`
+    |
+    = note: the following trait bounds were not satisfied:
+            `wgsl_ast_parser::ParseError: StdError`
+            which is required by `wgsl_ast_parser::ParseError: AsDynError<'_>`
+            `&wgsl_ast_parser::ParseError: StdError`
+            which is required by `&wgsl_ast_parser::ParseError: AsDynError<'_>`
+note: the trait `StdError` must be implemented
+   --> C:\Users\kapil\.rustup\toolchains\stable-x86_64-pc-windows-msvc\lib/rustlib/src/rust\library\core\src\error.rs:53:1
+    |
+ 53 | pub trait Error: Debug + Display {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following traits define an item `as_dyn_error`, perhaps you need to implement one of them:
+            candidate #1: `AsDynError`
+            candidate #2: `thiserror::aserror::AsDynError`
+
+error[E0599]: the method `as_display` exists for reference `&ModuleId`, but its trait bounds were not satisfied
+    --> src\shader_module_system.rs:63:13
+     |
+  13 | pub struct ModuleId(pub String);
+     | ------------------- doesn't satisfy `ModuleId: std::fmt::Display`
+...
+  63 |     #[error("Module not found: {0}")]
+     |             ^^^^^^^^^^^^^^^^^^^^^^^ method cannot be called on `&ModuleId` due to unsatisfied trait bounds
+     |
+     = note: the following trait bounds were not satisfied:
+             `ModuleId: std::fmt::Display`
+             which is required by `&ModuleId: AsDisplay<'_>`
+note: the trait `std::fmt::Display` must be implemented
+    --> C:\Users\kapil\.rustup\toolchains\stable-x86_64-pc-windows-msvc\lib/rustlib/src/rust\library\core\src\fmt\mod.rs:1006:1
+     |
+1006 | pub trait Display: PointeeSized {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+     = help: items from traits can only be used if the trait is implemented and in scope
+     = note: the following traits define an item `as_display`, perhaps you need to implement one of them:
+             candidate #1: `AsDisplay`
+             candidate #2: `thiserror::display::AsDisplay`
+
+error[E0277]: `?` couldn't convert the error to `ModuleSystemError`
+   --> src\shader_module_system.rs:128:45
+    |
+128 |         let ast = self.parser.parse(&source)?;
+    |                               --------------^ the trait `From<anyhow::Error>` is not implemented for `ModuleSystemError`
+    |                               |
+    |                               this can't be annotated with `?` because it has type `Result<_, anyhow::Error>`
+    |
+note: `ModuleSystemError` needs to implement `From<anyhow::Error>`
+   --> src\shader_module_system.rs:62:1
+    |
+ 62 | pub enum ModuleSystemError {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+    = help: the following other types implement trait `From<T>`:
+              `ModuleSystemError` implements `From<ShaderCompilationError>`
+              `ModuleSystemError` implements `From<std::io::Error>`
+              `ModuleSystemError` implements `From<wgsl_ast_parser::ParseError>`
+
+error[E0308]: mismatched types
+   --> src\shader_module_system.rs:129:47
+    |
+129 |         self.extract_module_info(&mut module, &ast)?;
+    |              -------------------              ^^^^ expected `&AstNode`, found `&ModuleNode`
+    |              |
+    |              arguments to this method are incorrect
+    |
+    = note: expected reference `&AstNode`
+               found reference `&wgsl_ast_parser::ModuleNode`
+note: method defined here
+   --> src\shader_module_system.rs:238:8
+    |
+238 |     fn extract_module_info(&self, module: &mut ShaderModule, ast: &AstNode) -> ModuleResult<()> {
+    |        ^^^^^^^^^^^^^^^^^^^                                   -------------
+
+error[E0308]: mismatched types
+   --> src\shader_module_system.rs:130:27
+    |
+130 |         module.ast = Some(ast);
+    |                      ---- ^^^ expected `AstNode`, found `ModuleNode`
+    |                      |
+    |                      arguments to this enum variant are incorrect
+    |
+help: the type constructed contains `wgsl_ast_parser::ModuleNode` due to the type of the argument passed
+   --> src\shader_module_system.rs:130:22
+    |
+130 |         module.ast = Some(ast);
+    |                      ^^^^^---^
+    |                           |
+    |                           this argument influences the type of `Some`
+note: tuple variant defined here
+   --> C:\Users\kapil\.rustup\toolchains\stable-x86_64-pc-windows-msvc\lib/rustlib/src/rust\library\core\src\option.rs:601:5
+    |
+601 |     Some(#[stable(feature = "rust1", since = "1.0.0")] T),
+    |     ^^^^
+help: try wrapping the expression in `wgsl_ast_parser::AstNode::Module`
+    |
+130 |         module.ast = Some(wgsl_ast_parser::AstNode::Module(ast));
+    |                           +++++++++++++++++++++++++++++++++   +
+
+error[E0599]: no method named `extract_declaration_info` found for reference `&ShaderModuleSystem` in the current scope
+   --> src\shader_module_system.rs:242:26
+    |
+242 |                     self.extract_declaration_info(module, declaration)?;
+    |                          ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: there is a method `extract_item_info` with a similar name
+    |
+242 -                     self.extract_declaration_info(module, declaration)?;
+242 +                     self.extract_item_info(module, declaration)?;
+    |
+
+error[E0277]: `?` couldn't convert the error to `ModuleSystemError`
+   --> src\shader_module_system.rs:332:39
+    |
+332 |             .compile(&combined_source)?;
+    |              -------------------------^ the trait `From<anyhow::Error>` is not implemented for `ModuleSystemError`
+    |              |
+    |              this can't be annotated with `?` because it has type `Result<_, anyhow::Error>`
+    |
+note: `ModuleSystemError` needs to implement `From<anyhow::Error>`
+   --> src\shader_module_system.rs:62:1
+    |
+ 62 | pub enum ModuleSystemError {
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    = note: the question mark operation (`?`) implicitly performs a conversion on the error value using the `From` trait
+    = help: the following other types implement trait `From<T>`:
+              `ModuleSystemError` implements `From<ShaderCompilationError>`
+              `ModuleSystemError` implements `From<std::io::Error>`
+              `ModuleSystemError` implements `From<wgsl_ast_parser::ParseError>`
+
+warning: unused variable: `data`
+   --> src\audio_system.rs:118:29
+    |
+118 |     fn audio_capture_thread(data: Arc<Mutex<AudioData>>, audio_buffer: Arc<Mutex<Vec<f32>>>) {
+    |                             ^^^^ help: if this is intentional, prefix it with an underscore: `_data`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `data`
+   --> src\audio_system.rs:434:9
+    |
+434 |         data: Arc<Mutex<EnhancedAudioData>>, 
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_data`
+
+warning: unused variable: `delta_time`
+   --> src\gesture_control.rs:152:13
+    |
+152 |         let delta_time = now.duration_since(self.last_update).as_secs_f32();
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_delta_time`
+
+warning: unused variable: `hand_id`
+   --> src\gesture_control.rs:233:39
+    |
+233 |     fn calculate_palm_velocity(&self, hand_id: u32) -> (f32, f32, f32) {
+    |                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_hand_id`
+
+warning: unused variable: `output_buffer`
+    --> src\shader_renderer.rs:1190:13
+     |
+1190 |         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+     |             ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_output_buffer`
+
+warning: unused variable: `shader_module`
+    --> src\shader_renderer.rs:1392:13
+     |
+1392 |         let shader_module = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+     |             ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_shader_module`
+
+warning: unused variable: `audio_data`
+    --> src\shader_renderer.rs:1350:126
+     |
+1350 | ..._values: Option<&[f32]>, audio_data: Option<AudioData>) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
+     |                             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_audio_data`
+
+warning: unused variable: `handle`
+  --> src\wgsl_bindgen_integration.rs:58:14
+   |
+58 |         for (handle, var) in module.global_variables.iter() {
+   |              ^^^^^^ help: if this is intentional, prefix it with an underscore: `_handle`
+
+warning: unused variable: `scalar`
+   --> src\wgsl_bindgen_integration.rs:134:48
+    |
+134 |             TypeInner::Matrix { columns, rows, scalar } => {
+    |                                                ^^^^^^ help: try ignoring the field: `scalar: _`
+
+warning: unused variable: `struct_name`
+   --> src\wgsl_bindgen_integration.rs:160:35
+    |
+160 |             else if let Some((ref struct_name, group, binding)) = current_struct {
+    |                                   ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_struct_name`
+
+warning: unused variable: `group`
+   --> src\wgsl_bindgen_integration.rs:160:48
+    |
+160 |             else if let Some((ref struct_name, group, binding)) = current_struct {
+    |                                                ^^^^^ help: if this is intentional, prefix it with an underscore: `_group`
+
+warning: unused variable: `binding`
+   --> src\wgsl_bindgen_integration.rs:160:55
+    |
+160 |             else if let Some((ref struct_name, group, binding)) = current_struct {
+    |                                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_binding`
+
+warning: variable does not need to be mutable
+  --> src\wgsl_diagnostics.rs:34:13
+   |
+34 |         let mut validator = Validator::new(ValidationFlags::all(), Capabilities::all());
+   |             ----^^^^^^^^^
+   |             |
+   |             help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` on by default
+
+warning: unused variable: `struct_code`
+   --> src\wgsl_reflect_integration.rs:444:29
+    |
+444 |     fn parse_uniform_struct(struct_code: &str) -> Result<()> {
+    |                             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_struct_code`
+
+warning: unused variable: `line`
+   --> src\wgsl_reflect_integration.rs:450:34
+    |
+450 |     fn parse_texture_declaration(line: &str) -> Option<TextureInfo> {
+    |                                  ^^^^ help: if this is intentional, prefix it with an underscore: `_line`
+
+warning: unused variable: `line`
+   --> src\wgsl_reflect_integration.rs:456:34
+    |
+456 |     fn parse_sampler_declaration(line: &str) -> Option<SamplerInfo> {
+    |                                  ^^^^ help: if this is intentional, prefix it with an underscore: `_line`
+
+warning: unused variable: `line`
+   --> src\wgsl_reflect_integration.rs:462:41
+    |
+462 |     fn parse_storage_buffer_declaration(line: &str) -> Option<StorageBufferInfo> {
+    |                                         ^^^^ help: if this is intentional, prefix it with an underscore: `_line`
+
+warning: unused variable: `glsl_source`
+  --> src\converter\glsl.rs:99:40
+   |
+99 |     fn generate_simple_wgsl(&mut self, glsl_source: &str, file_path: &str) -> Result<String> {
+   |                                        ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_glsl_source`
+
+warning: unused variable: `hlsl_source`
+   --> src\converter\hlsl.rs:263:40
+    |
+263 |     fn generate_simple_wgsl(&mut self, hlsl_source: &str, file_path: &str) -> Result<String> {
+    |                                        ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_hlsl_source`
+
+warning: unused variable: `index`
+   --> src\converter\hlsl.rs:301:14
+    |
+301 |         for (index, cbuffer) in self.constant_buffers.iter().enumerate() {
+    |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_index`
+
+warning: unused variable: `index`
+   --> src\converter\hlsl.rs:318:14
+    |
+318 |         for (index, texture) in self.texture_declarations.iter().enumerate() {
+    |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_index`
+
+warning: unused variable: `index`
+   --> src\converter\hlsl.rs:333:14
+    |
+333 |         for (index, texture) in self.texture_declarations.iter().enumerate() {
+    |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_index`
+
+warning: unused variable: `scale`
+   --> src\backend_systems.rs:208:39
+    |
+208 |     fn apply_responsive_scaling(self, scale: f32) -> Self {
+    |                                       ^^^^^ help: if this is intentional, prefix it with an underscore: `_scale`
+
+warning: unused variable: `queue`
+  --> src\gyroflow_wgpu_interop.rs:86:87
+   |
+86 |     pub fn import_texture(&mut self, native_info: NativeTextureInfo, device: &Device, queue: &Queue) -> InteropResult<u64> {
+   |                                                                                       ^^^^^ help: if this is intentional, prefix it with an underscore: `_queue`
+
+warning: unused variable: `device`
+   --> src\gyroflow_wgpu_interop.rs:107:55
+    |
+107 |     pub fn export_texture(&mut self, texture_id: u64, device: &Device, queue: &Queue) -> InteropResult<NativeTextureInfo> {
+    |                                                       ^^^^^^ help: if this is intentional, prefix it with an underscore: `_device`
+
+warning: unused variable: `queue`
+   --> src\gyroflow_wgpu_interop.rs:107:72
+    |
+107 |     pub fn export_texture(&mut self, texture_id: u64, device: &Device, queue: &Queue) -> InteropResult<NativeTextureInfo> {
+    |                                                                        ^^^^^ help: if this is intentional, prefix it with an underscore: `_queue`
+
+warning: unused variable: `width`
+   --> src\gyroflow_interop_integration.rs:109:56
+    |
+109 |     pub fn process_frame(&mut self, frame_data: &[u8], width: u32, height: u32) -> InteropResult<Vec<u8>> {
+    |                                                        ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+
+warning: unused variable: `height`
+   --> src\gyroflow_interop_integration.rs:109:68
+    |
+109 |     pub fn process_frame(&mut self, frame_data: &[u8], width: u32, height: u32) -> InteropResult<Vec<u8>> {
+    |                                                                    ^^^^^^ help: if this is intentional, prefix it with an underscore: `_height`
+
+warning: unused variable: `gyro_data`
+   --> src\gyroflow_interop_integration.rs:133:48
+    |
+133 |     pub fn apply_gyro_stabilization(&mut self, gyro_data: &[f32], timestamp: f64) -> InteropResult<()> {
+    |                                                ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_gyro_data`
+
+warning: unused variable: `timestamp`
+   --> src\gyroflow_interop_integration.rs:133:67
+    |
+133 |     pub fn apply_gyro_stabilization(&mut self, gyro_data: &[f32], timestamp: f64) -> InteropResult<()> {
+    |                                                                   ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_timestamp`
+
+warning: variable does not need to be mutable
+   --> src\gyroflow_interop_integration.rs:228:28
+    |
+228 | fn update_gyroflow_interop(mut interop_resource: ResMut<GyroflowInteropResource>) {
+    |                            ----^^^^^^^^^^^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+
+warning: unused variable: `value`
+   --> src\bevy_node_graph_integration.rs:359:38
+    |
+359 |             ShaderNodeType::Constant(value) => {
+    |                                      ^^^^^ help: if this is intentional, prefix it with an underscore: `_value`
+
+warning: unused variable: `time`
+   --> src\bevy_node_graph_integration.rs:351:5
+    |
+351 |     time: Res<Time>,
+    |     ^^^^ help: if this is intentional, prefix it with an underscore: `_time`
+
+warning: unused variable: `final_img`
+   --> src\screenshot_video_export.rs:347:13
+    |
+347 |         let final_img = match settings.format {
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_final_img`
+
+warning: unused variable: `exporter`
+   --> src\screenshot_video_export.rs:621:9
+    |
+621 |     let exporter = ScreenshotVideoExporter::new();
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_exporter`
+
+warning: unused variable: `last`
+   --> src\ndi_output.rs:158:44
+    |
+158 |             fps: if let (Some(start), Some(last)) = (self.start_time, self.last_frame_time) {
+    |                                            ^^^^ help: if this is intentional, prefix it with an underscore: `_last`
+
+warning: unused variable: `last`
+   --> src\spout_syphon_output.rs:206:44
+    |
+206 |             fps: if let (Some(start), Some(last)) = (self.start_time, self.last_frame_time) {
+    |                                            ^^^^ help: if this is intentional, prefix it with an underscore: `_last`
+
+warning: unused variable: `mapping`
+   --> src\dmx_lighting_control.rs:354:21
+    |
+354 |         if let Some(mapping) = self.mappings.iter().find(|m| m.parameter_name == parameter_name) {
+    |                     ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_mapping`
+
+warning: variable does not need to be mutable
+   --> src\scene_editor_3d.rs:200:5
+    |
+200 |     mut editor_state: ResMut<SceneEditor3DState>,
+    |     ----^^^^^^^^^^^^
+    |     |
+    |     help: remove this `mut`
+
+warning: unused variable: `time`
+   --> src\scene_editor_3d.rs:254:5
+    |
+254 |     time: Res<Time>,
+    |     ^^^^ help: if this is intentional, prefix it with an underscore: `_time`
+
+warning: variable does not need to be mutable
+   --> src\scene_editor_3d.rs:499:5
+    |
+499 |     mut editor_state: ResMut<SceneEditor3DState>,
+    |     ----^^^^^^^^^^^^
+    |     |
+    |     help: remove this `mut`
+
+warning: unused variable: `options`
+   --> src\shader_transpiler.rs:268:39
+    |
+268 |     fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    |                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_options`
+
+warning: unused variable: `source`
+   --> src\shader_transpiler.rs:299:31
+    |
+299 |     fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
+    |                               ^^^^^^ help: if this is intentional, prefix it with an underscore: `_source`
+
+warning: unused variable: `ast`
+   --> src\shader_transpiler.rs:325:38
+    |
+325 |     fn extract_uniform_blocks(&self, ast: &AstNode, metadata: &mut TranspilerMetadata) -> TranspilerResult<()> {
+    |                                      ^^^ help: if this is intentional, prefix it with an underscore: `_ast`
+
+warning: unused variable: `metadata`
+   --> src\shader_transpiler.rs:325:53
+    |
+325 |     fn extract_uniform_blocks(&self, ast: &AstNode, metadata: &mut TranspilerMetadata) -> TranspilerResult<()> {
+    |                                                     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_metadata`
+
+warning: unused variable: `ast`
+   --> src\shader_transpiler.rs:330:40
+    |
+330 |     fn extract_texture_bindings(&self, ast: &AstNode, metadata: &mut TranspilerMetadata) -> TranspilerResult<()> {
+    |                                        ^^^ help: if this is intentional, prefix it with an underscore: `_ast`
+
+warning: unused variable: `metadata`
+   --> src\shader_transpiler.rs:330:55
+    |
+330 |     fn extract_texture_bindings(&self, ast: &AstNode, metadata: &mut TranspilerMetadata) -> TranspilerResult<()> {
+    |                                                       ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_metadata`
+
+warning: unused variable: `options`
+   --> src\shader_transpiler.rs:550:39
+    |
+550 |     fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    |                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_options`
+
+warning: unused variable: `source`
+   --> src\shader_transpiler.rs:581:31
+    |
+581 |     fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
+    |                               ^^^^^^ help: if this is intentional, prefix it with an underscore: `_source`
+
+warning: unused variable: `options`
+   --> src\shader_transpiler.rs:692:39
+    |
+692 |     fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    |                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_options`
+
+warning: unused variable: `source`
+   --> src\shader_transpiler.rs:738:31
+    |
+738 |     fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
+    |                               ^^^^^^ help: if this is intentional, prefix it with an underscore: `_source`
+
+warning: unused variable: `options`
+   --> src\shader_transpiler.rs:777:39
+    |
+777 |     fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    |                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_options`
+
+warning: unused variable: `source`
+   --> src\shader_transpiler.rs:823:31
+    |
+823 |     fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
+    |                               ^^^^^^ help: if this is intentional, prefix it with an underscore: `_source`
+
+warning: unused variable: `language`
+   --> src\shader_transpiler.rs:871:38
+    |
+871 |     fn validate_syntax(source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
+    |                                      ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_language`
+
+warning: unused variable: `language`
+   --> src\shader_transpiler.rs:878:41
+    |
+878 |     fn validate_semantics(source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
+    |                                         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_language`
+
+warning: unused variable: `options`
+   --> src\shader_transpiler.rs:900:72
+    |
+900 |     pub fn optimize(&self, result: TranspilerResult<TranspilerOutput>, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    |                                                                        ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_options`
+
+warning: unused variable: `hlsl_source`
+   --> src\advanced_shader_compilation.rs:495:39
+    |
+495 |     pub fn convert_to_wgsl(&mut self, hlsl_source: &str, name: &str) -> Result<String> {
+    |                                       ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_hlsl_source`
+
+warning: unused variable: `isf_source`
+   --> src\advanced_shader_compilation.rs:519:39
+    |
+519 |     pub fn convert_to_wgsl(&mut self, isf_source: &str, name: &str) -> Result<String> {
+    |                                       ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_isf_source`
+
+warning: unused variable: `source`
+   --> src\wgsl_ast_parser.rs:657:32
+    |
+657 |     fn parse_module(&mut self, source: &str) -> Result<ModuleNode> {
+    |                                ^^^^^^ help: if this is intentional, prefix it with an underscore: `_source`
+
+warning: variable does not need to be mutable
+   --> src\wgsl_ast_parser.rs:658:13
+    |
+658 |         let mut module = ModuleNode {
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `module`
+   --> src\wgsl_ast_parser.rs:677:35
+    |
+677 |     fn validate_module(&mut self, module: &ModuleNode) -> Result<()> {
+    |                                   ^^^^^^ help: if this is intentional, prefix it with an underscore: `_module`
+
+Some errors have detailed explanations: E0061, E0277, E0282, E0308, E0599, E0609.
+For more information about an error, try `rustc --explain E0061`.
+warning: `wgsl-shader-studio` (lib) generated 102 warnings
+error: could not compile `wgsl-shader-studio` (lib) due to 104 previous errors; 102 warnings emitted

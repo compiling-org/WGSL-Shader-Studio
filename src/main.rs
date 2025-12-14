@@ -1,39 +1,18 @@
 //! Standalone application for testing ISF shaders
 
-#[cfg(feature = "gui")]
-mod bevy_app;
-#[cfg(feature = "gui")]
-mod audio_system;
+// GUI and audio modules are provided by the library crate
 
-// Direct module imports for the binary
-mod isf_loader;
-mod shader_converter;
-mod gesture_control;
-mod shader_renderer;
-mod editor_ui;
-mod visual_node_editor;
-mod visual_node_editor_adapter;
-mod node_graph;
-mod timeline;
-mod isf_converter;
-mod converter;
-mod compute_pass_integration;
-mod screenshot_video_export;
-mod scene_editor_3d;
-mod wgsl_diagnostics;
+// Use library modules instead of re-declaring them locally
+use resolume_isf_shaders_rust_ffgl::node_graph;
+use resolume_isf_shaders_rust_ffgl::isf_converter;
+use resolume_isf_shaders_rust_ffgl::wgsl_diagnostics;
 
 // Import the specific types we need
-use editor_ui::{EditorUiState, draw_editor_menu, draw_editor_side_panels, draw_editor_code_panel};
-use audio_system::{AudioAnalyzer, AudioAnalysisPlugin};
-use gesture_control::{GestureControlSystem, GestureControlPlugin};
-use compute_pass_integration::{ComputePassManager, ComputePassPlugin};
-use scene_editor_3d::{SceneEditor3DState, SceneEditor3DPlugin, scene_editor_3d_ui, scene_3d_viewport_ui};
-use timeline::{TimelinePlugin, TimelineAnimation};
-use bevy_app::{setup_camera, editor_ui_system, editor_ui_system as bevy_editor_ui_system};
+use resolume_isf_shaders_rust_ffgl::audio_system::AudioAnalyzer;
+use resolume_isf_shaders_rust_ffgl::compute_pass_integration::ComputePassManager;
 
 // Re-export for easier access
-use isf_loader::*;
-use shader_converter::*;
+use resolume_isf_shaders_rust_ffgl::isf_loader::IsfShader;
 use std::env;
 use std::process;
 
@@ -69,41 +48,10 @@ fn main() {
 
 #[cfg(feature = "gui")]
 fn run_gui() {
-    use bevy::prelude::*;
-    use bevy::window::WindowResolution;
+    println!("Starting WGSL Shader Studio with corrected panel hierarchy...");
     
-    println!("Starting Bevy app with egui integration and space_editor 3D scene management...");
-    
-    // Create the Bevy app with all necessary plugins and systems
-    let mut app = App::new();
-    
-    // Add default plugins with window settings
-    app.add_plugins(DefaultPlugins.set(WindowPlugin {
-        primary_window: Some(Window {
-            title: "WGSL Shader Studio".to_string(),
-            resolution: WindowResolution::new(1280, 720),
-            ..default()
-        }),
-        ..default()
-    }));
-    
-    // Add egui plugin
-    app.add_plugins(bevy_egui::EguiPlugin::default());
-    
-    // Add our custom systems and resources
-    app.init_resource::<EditorUiState>()
-        .init_resource::<AudioAnalyzer>()
-        .init_resource::<ComputePassManager>()
-        .init_resource::<GestureControlSystem>()
-        .init_resource::<SceneEditor3DState>()
-        .add_plugins(SceneEditor3DPlugin)
-        .add_systems(Startup, setup_camera)
-        .add_systems(Update, bevy_editor_ui_system)
-        .add_systems(Update, scene_editor_3d_ui)
-        .add_systems(Update, scene_3d_viewport_ui);
-    
-    println!("Running Bevy app with space_editor 3D scene management...");
-    app.run();
+    // Use the proper bevy_app module that has the corrected panel hierarchy
+    resolume_isf_shaders_rust_ffgl::bevy_app::run_app();
 }
 
 fn run_cli() {
@@ -118,6 +66,10 @@ fn run_cli() {
         println!("       {} --test-compute", args[0]);
         println!("       {} --test-audio", args[0]);
         println!("       {} --test-nodes", args[0]);
+        println!("       {} --glsl-to-wgsl <input.glsl>", args[0]);
+        println!("       {} --hlsl-to-wgsl <input.hlsl>", args[0]);
+        println!("       {} --wgsl-to-glsl <input.wgsl>", args[0]);
+        println!("       {} --wgsl-to-hlsl <input.wgsl>", args[0]);
         process::exit(1);
     }
     
@@ -134,6 +86,102 @@ fn run_cli() {
             println!("Testing node graph system...");
             test_node_graph();
         }
+        "--glsl-to-wgsl" => {
+            if args.len() < 3 {
+                println!("Missing input file");
+                process::exit(1);
+            }
+            let input = &args[2];
+            match std::fs::read_to_string(input) {
+                Ok(src) => {
+                    match resolume_isf_shaders_rust_ffgl::shader_converter::glsl_to_wgsl(&src) {
+                        Ok(out) => {
+                            let out_path = format!("{}.wgsl", input);
+                            if let Err(e) = std::fs::write(&out_path, out) {
+                                println!("Failed to write output: {}", e);
+                            } else {
+                                println!("Converted to {}", out_path);
+                            }
+                        }
+                        Err(e) => println!("Conversion error: {}", e),
+                    }
+                }
+                Err(e) => println!("Failed to read {}: {}", input, e),
+            }
+        }
+        "--hlsl-to-wgsl" => {
+            if args.len() < 3 {
+                println!("Missing input file");
+                process::exit(1);
+            }
+            let input = &args[2];
+            match std::fs::read_to_string(input) {
+                Ok(src) => {
+                    let transpiler = resolume_isf_shaders_rust_ffgl::shader_transpiler::MultiFormatTranspiler::new();
+                    let mut options = resolume_isf_shaders_rust_ffgl::shader_transpiler::TranspilerOptions::default();
+                    options.source_language = resolume_isf_shaders_rust_ffgl::shader_transpiler::ShaderLanguage::Hlsl;
+                    options.target_language = resolume_isf_shaders_rust_ffgl::shader_transpiler::ShaderLanguage::Wgsl;
+                    match transpiler.transpile(&src, &options) {
+                        Ok(res) => {
+                            let out_path = format!("{}.wgsl", input);
+                            if let Err(e) = std::fs::write(&out_path, res.source_code) {
+                                println!("Failed to write output: {}", e);
+                            } else {
+                                println!("Converted to {}", out_path);
+                            }
+                        }
+                        Err(e) => println!("Conversion error: {}", e),
+                    }
+                }
+                Err(e) => println!("Failed to read {}: {}", input, e),
+            }
+        }
+        "--wgsl-to-glsl" => {
+            if args.len() < 3 {
+                println!("Missing input file");
+                process::exit(1);
+            }
+            let input = &args[2];
+            match std::fs::read_to_string(input) {
+                Ok(src) => {
+                    match resolume_isf_shaders_rust_ffgl::shader_converter::wgsl_to_glsl(&src) {
+                        Ok(out) => {
+                            let out_path = format!("{}.glsl", input);
+                            if let Err(e) = std::fs::write(&out_path, out) {
+                                println!("Failed to write output: {}", e);
+                            } else {
+                                println!("Converted to {}", out_path);
+                            }
+                        }
+                        Err(e) => println!("Conversion error: {}", e),
+                    }
+                }
+                Err(e) => println!("Failed to read {}: {}", input, e),
+            }
+        }
+        "--wgsl-to-hlsl" => {
+            if args.len() < 3 {
+                println!("Missing input file");
+                process::exit(1);
+            }
+            let input = &args[2];
+            match std::fs::read_to_string(input) {
+                Ok(src) => {
+                    match resolume_isf_shaders_rust_ffgl::shader_converter::wgsl_to_hlsl(&src) {
+                        Ok(out) => {
+                            let out_path = format!("{}.hlsl", input);
+                            if let Err(e) = std::fs::write(&out_path, out) {
+                                println!("Failed to write output: {}", e);
+                            } else {
+                                println!("Converted to {}", out_path);
+                            }
+                        }
+                        Err(e) => println!("Conversion error: {}", e),
+                    }
+                }
+                Err(e) => println!("Failed to read {}: {}", input, e),
+            }
+        }
         file_path => {
             println!("Processing shader file: {}", file_path);
             process_shader_file(file_path);
@@ -148,10 +196,10 @@ fn test_compute_pass() {
     let compute_manager = Arc::new(Mutex::new(ComputePassManager::default()));
     
     // Test basic compute pass creation
-    let mut manager = compute_manager.lock().unwrap();
+    let _manager = compute_manager.lock().unwrap();
     
     // Create a simple compute shader
-    let compute_shader = r#"
+    let _compute_shader = r#"
         @group(0) @binding(0) var<storage, read_write> data: array<f32>;
         
         @compute @workgroup_size(64)
@@ -216,7 +264,7 @@ fn process_shader_file(file_path: &str) {
             // Check if it's an ISF file
             if file_path.to_lowercase().ends_with(".fs") {
                 println!("Detected ISF shader format");
-                match isf_loader::IsfShader::parse(file_path, &content) {
+                match IsfShader::parse(file_path, &content) {
                     Ok(isf_shader) => {
                         println!("ISF shader parsed successfully");
                         println!("Shader name: {}", isf_shader.name);

@@ -1,7 +1,11 @@
 //! FFGL plugin interface implementation
 
-use crate::{ResolumeIsfShadersRustFfgl, IsfShader, ShaderValue};
+// FIXED: Removed invalid imports - these don't exist in root crate
+use crate::isf_converter::IsfShader;
+use crate::ShaderValue;
 use crate::audio_system::AudioMidiSystem;
+use bevy::prelude::Resource;
+use crate::ResolumeIsfShadersRustFfgl;
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_void, c_int, c_uint, c_float};
 use std::ptr;
@@ -207,6 +211,14 @@ impl FfglPlugin {
     /// Get list of available shaders
     pub fn get_available_shaders(&self) -> Vec<String> {
         self.plugin.shaders.keys().cloned().collect()
+    }
+}
+
+impl bevy::prelude::Plugin for FfglPlugin {
+    fn build(&self, app: &mut bevy::prelude::App) {
+        #[derive(Resource, Clone)]
+        struct AudioMidiSystemResource(Arc<AudioMidiSystem>);
+        app.insert_resource(AudioMidiSystemResource(self.audio_midi_system.clone()));
     }
 }
 

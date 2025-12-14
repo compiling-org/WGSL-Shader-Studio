@@ -1,8 +1,17 @@
 //! Gyroflow Interop Integration Module
 //! Advanced video processing and stabilization integration
 
+use bevy::prelude::*;
 use std::sync::{Arc, Mutex};
-use crate::gyroflow_wgpu_interop::{WgpuInteropManager, InteropConfig, InteropResult, InteropStats};
+use crate::gyroflow_wgpu_interop::{
+    WgpuInteropManager,
+    InteropConfig,
+    InteropResult,
+    ZeroCopyTexture,
+    NativeTextureInfo,
+    GraphicsApi,
+    InteropTextureFormat,
+};
 use serde::{Serialize, Deserialize};
 
 /// Integration configuration
@@ -104,6 +113,37 @@ impl InteropIntegration {
         }
     }
     
+    pub async fn create_preview_texture(
+        &self,
+        width: u32,
+        height: u32,
+        _label: &str,
+        graphics_api: GraphicsApi,
+    ) -> Result<ZeroCopyTexture, Box<dyn std::error::Error>> {
+        let native = NativeTextureInfo {
+            handle: 0,
+            width,
+            height,
+            format: InteropTextureFormat::Rgba8Unorm,
+            graphics_api,
+        };
+        let zero = ZeroCopyTexture {
+            native_info: native,
+            wgpu_texture: None,
+            wgpu_view: None,
+        };
+        Ok(zero)
+    }
+    
+    pub fn process_shader_output(
+        &self,
+        _shader_output: &ZeroCopyTexture,
+        _preview_label: &str,
+        _operation: &str,
+    ) -> Result<InteropResult<()>, Box<dyn std::error::Error>> {
+        Ok(InteropResult::Success(()))
+    }
+    
     /// Process frame with stabilization and lens correction
     pub fn process_frame(&mut self, frame_data: &[u8], width: u32, height: u32) -> InteropResult<Vec<u8>> {
         let start_time = std::time::Instant::now();
@@ -195,4 +235,40 @@ impl InteropIntegration {
     pub fn get_interop_manager(&self) -> Arc<Mutex<WgpuInteropManager>> {
         self.interop_manager.clone()
     }
+}
+
+/// Bevy plugin for Gyroflow interop integration
+pub struct GyroflowInteropPlugin;
+
+impl Plugin for GyroflowInteropPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<GyroflowInteropResource>()
+            .add_systems(Update, update_gyroflow_interop);
+    }
+}
+
+/// Resource for managing Gyroflow interop state
+#[derive(Resource)]
+pub struct GyroflowInteropResource {
+    pub interop: InteropIntegration,
+    pub enabled: bool,
+}
+
+impl Default for GyroflowInteropResource {
+    fn default() -> Self {
+        Self {
+            interop: InteropIntegration::new(InteropIntegrationConfig::default()),
+            enabled: false,
+        }
+    }
+}
+
+/// System to update Gyroflow interop
+fn update_gyroflow_interop(mut interop_resource: ResMut<GyroflowInteropResource>) {
+    if !interop_resource.enabled {
+        return;
+    }
+    
+    // Update interop state if needed
+    // This could include processing frames, updating settings, etc.
 }

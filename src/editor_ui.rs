@@ -9,8 +9,8 @@ use crate::timeline::{TimelineAnimation, InterpolationType, PlaybackState};
 use crate::shader_renderer::ShaderRenderer;
 use crate::audio_system::AudioAnalyzer;
 use crate::compute_pass_integration::{ComputePassManager, TextureFormat};
+use crate::midi_system::MidiSystem;
 // use crate::screenshot_video_export::{ScreenshotVideoExporter, VideoExportSettings};
-// use crate::scene_editor_3d::SceneEditor3DState;
 
 // Temporarily commented out to fix compilation - will be restored when visual node editor is fully integrated
 // use crate::visual_node_editor_adapter::NodeEditorAdapter;
@@ -53,7 +53,21 @@ pub struct EditorUiState {
     pub show_diagnostics_panel: bool,
     pub show_compute_panel: bool,
     pub show_3d_scene_panel: bool,
+    pub show_spout_panel: bool,
+    pub show_ffgl_panel: bool,
+    pub show_gyroflow_panel: bool,
+    pub show_analyzer_panel: bool,
+    pub show_isf_converter: bool,
+    pub show_wgsl_analyzer: bool,
+    pub show_performance: bool,
+    pub show_performance_overlay: bool,
+    pub show_color_grading_panel: bool,
+    pub show_osc_panel: bool,
+    pub show_dmx_panel: bool,
+    pub show_export_panel: bool,
+    pub show_ndi_panel: bool,
     pub fps: f32,
+    pub time: f64,
     // Preview pipeline mode
     pub pipeline_mode: PipelineMode,
     // Theme settings
@@ -68,6 +82,9 @@ pub struct EditorUiState {
     pub selected_category: Option<String>,
     // Code editor buffer
     pub draft_code: String,
+    pub current_file: String,
+    pub code: String,
+    pub code_changed: bool,
     pub apply_requested: bool,
     pub auto_apply: bool,
     // Node graph and project state
@@ -84,6 +101,8 @@ pub struct EditorUiState {
     pub quick_param_b: f32,
     // Global shader renderer
     pub global_renderer: GlobalShaderRenderer,
+    pub wgpu_initialized: bool,
+    pub compilation_error: String,
     // Parameter values storage for shader rendering
     pub parameter_values: std::collections::HashMap<String, f32>,
     // WGSLSmith AI fields
@@ -120,11 +139,6 @@ pub struct EditorUiState {
     pub light_intensity: f32,
     pub ambient_light_color: [f32; 3],
     pub ambient_light_intensity: f32,
-    // WGPU integration status
-    pub wgpu_initialized: bool,
-    pub compilation_error: String,
-    // Time parameter for animation
-    pub time: f64,
 }
 
 impl Default for EditorUiState {
@@ -134,16 +148,30 @@ impl Default for EditorUiState {
             show_parameter_panel: true,
             show_preview: true,
             show_code_editor: true,
-            show_node_studio: false,
-            show_timeline: false,
-            show_audio_panel: false,
-            show_midi_panel: false,
-            show_gesture_panel: false,
-            show_wgslsmith_panel: false,
-            show_diagnostics_panel: false,
-            show_compute_panel: false,
-            show_3d_scene_panel: false,
+            show_node_studio: true,
+            show_timeline: true,
+            show_audio_panel: true,
+            show_midi_panel: true,
+            show_gesture_panel: true,
+            show_wgslsmith_panel: true,
+            show_diagnostics_panel: true,
+            show_compute_panel: true,
+            show_3d_scene_panel: true,
+            show_spout_panel: false,
+            show_ffgl_panel: false,
+            show_gyroflow_panel: false,
+            show_analyzer_panel: true,
+            show_isf_converter: true,
+            show_wgsl_analyzer: true,
+            show_performance: true,
+            show_performance_overlay: false,
+            show_color_grading_panel: false,
+            show_osc_panel: false,
+            show_dmx_panel: false,
+            show_export_panel: false,
+            show_ndi_panel: false,
             fps: 0.0,
+            time: 0.0,
             pipeline_mode: PipelineMode::default(),
             dark_mode: true,
             theme_preference: ThemePreference::default(),
@@ -154,6 +182,9 @@ impl Default for EditorUiState {
             selected_shader: None,
             selected_category: None,
             draft_code: default_wgsl_template(),
+            current_file: String::new(),
+            code: default_wgsl_template(),
+            code_changed: false,
             apply_requested: false,
             auto_apply: false,
             node_graph: NodeGraph::default(),
@@ -167,6 +198,8 @@ impl Default for EditorUiState {
             quick_param_a: 0.5,
             quick_param_b: 0.5,
             global_renderer: GlobalShaderRenderer::default(),
+            wgpu_initialized: false,
+            compilation_error: String::new(),
             parameter_values: std::collections::HashMap::new(),
             wgsl_smith_prompt: String::new(),
             wgsl_smith_generated: String::new(),
@@ -200,18 +233,9 @@ impl Default for EditorUiState {
             light_intensity: 1.0,
             ambient_light_color: [0.2, 0.2, 0.2],
             ambient_light_intensity: 0.3,
-            // WGPU integration status
-            wgpu_initialized: false,
-            compilation_error: String::new(),
-            // Time parameter for animation
-            time: 0.0,
         }
     }
 }
-
-//
-
-/// Helper that draws the main central preview panel using a provided egui context
 
 impl EditorUiState {
     /// Set a parameter value for shader rendering
@@ -286,7 +310,7 @@ fn compile_and_render_shader(
     global_renderer: &GlobalShaderRenderer,
     parameter_values: &std::collections::HashMap<String, f32>,
     audio_analyzer: Option<&crate::audio_system::AudioAnalyzer>,
-    video_exporter: Option<&()>
+    video_exporter: Option<&()> // ScreenshotVideoExporter commented out
 ) -> Result<egui::TextureHandle, String> {
     if wgsl_code.trim().is_empty() {
         return Err("Empty shader code".to_string());
@@ -336,7 +360,12 @@ fn compile_and_render_shader(
             param_array[index] = value;
         }
         
-        match renderer.render_frame_with_params(wgsl_code, &params, Some(&param_array)) {
+        match renderer.render_frame_with_params(
+            wgsl_code,
+            &params,
+            Some(&param_array),
+            None::<crate::audio_system::AudioData>,
+        ) {
             Ok(pixel_data) => {
                 // Create texture from pixel data
                 let texture = egui_ctx.load_texture(
@@ -352,12 +381,10 @@ fn compile_and_render_shader(
                 );
                 
                 // Capture frame for video recording if active
-                if let Some(exporter) = video_exporter {
-                    // For now, we'll capture the pixel data directly
-                    // In a real implementation, we'd need access to the WGPU texture
-                    // Video export functionality temporarily disabled
-                    // let _ = exporter.capture_frame_data(&pixel_data, params.width, params.height);
-                }
+                // Video export functionality temporarily disabled for compilation
+                // if let Some(exporter) = video_exporter {
+                //     let _ = exporter.capture_frame_data(&pixel_data, params.width, params.height);
+                // }
                 
                 return Ok(texture);
             }
@@ -564,7 +591,6 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
                 ui.checkbox(&mut ui_state.show_gesture_panel, "Gestures");
                 ui.checkbox(&mut ui_state.show_wgslsmith_panel, "WGSLSmith");
                 ui.checkbox(&mut ui_state.show_compute_panel, "Compute Passes");
-                ui.checkbox(&mut ui_state.show_3d_scene_panel, "3D Scene Editor");
             });
             
             ui.menu_button("View", |ui| {
@@ -584,19 +610,30 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
                     ui.close_kind(egui::UiKind::Menu);
                 }
             });
+            
+            ui.menu_button("Integrations", |ui| {
+                ui.checkbox(&mut ui_state.show_osc_panel, "OSC");
+                ui.checkbox(&mut ui_state.show_ndi_panel, "NDI");
+                ui.checkbox(&mut ui_state.show_spout_panel, "Spout/Syphon");
+                ui.checkbox(&mut ui_state.show_ffgl_panel, "FFGL");
+                ui.checkbox(&mut ui_state.show_gyroflow_panel, "Gyroflow");
+                ui.checkbox(&mut ui_state.show_export_panel, "Export");
+                ui.checkbox(&mut ui_state.show_analyzer_panel, "Analyzer");
+                ui.checkbox(&mut ui_state.show_performance_overlay, "Performance Overlay");
+                ui.close_kind(egui::UiKind::Menu);
+            });
 
             ui.separator();
             ui.menu_button("Import/Convert", |ui| {
-                // ISF conversion temporarily disabled for compilation
-                // if ui.button("Import ISF (.fs) → WGSL into editor").clicked() {
-                //     import_isf_into_editor(ui_state);
-                //     ui.close_kind(egui::UiKind::Menu);
-                // }
-                // if ui.button("Batch convert ISF directory → WGSL").clicked() {
-                //     batch_convert_isf_directory();
-                //     ui.close_kind(egui::UiKind::Menu);
-                // }
-                // ui.separator();
+                if ui.button("Import ISF (.fs) → WGSL into editor").clicked() {
+                    import_isf_into_editor(ui_state);
+                    ui.close_kind(egui::UiKind::Menu);
+                }
+                if ui.button("Batch convert ISF directory → WGSL").clicked() {
+                    batch_convert_isf_directory();
+                    ui.close_kind(egui::UiKind::Menu);
+                }
+                ui.separator();
                 if ui.button("Current buffer: GLSL → WGSL").clicked() {
                     convert_current_glsl_to_wgsl(ui_state);
                     ui.close_kind(egui::UiKind::Menu);
@@ -615,11 +652,10 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
                     ui.close_kind(egui::UiKind::Menu);
                 }
                 ui.separator();
-                // Transpiler temporarily disabled
-                // if ui.button("Multi-language Transpiler").clicked() {
-                //     show_transpiler_panel(ui_state);
-                //     ui.close_kind(egui::UiKind::Menu);
-                // }
+                if ui.button("Multi-language Transpiler").clicked() {
+                    show_transpiler_panel(ui_state);
+                    ui.close_kind(egui::UiKind::Menu);
+                }
             });
 
             ui.separator();
@@ -723,11 +759,9 @@ pub fn draw_editor_side_panels(
     audio_analyzer: &AudioAnalyzer, 
     gesture_control: &mut crate::gesture_control::GestureControlSystem,
     compute_pass_manager: &mut ComputePassManager,
-    video_exporter: Option<&()>,
-    editor_state: Option<&()>,
-    global_renderer: Option<&GlobalShaderRenderer>
+    video_exporter: Option<&()> // ScreenshotVideoExporter commented out
 ) {
-    // CRITICAL FIX: Use proper panel hierarchy - NO CentralPanel here to avoid conflicts
+    // FIX: Use proper panel hierarchy to avoid CentralPanel conflicts
     
     // Left panel - Shader Browser
     if ui_state.show_shader_browser {
@@ -759,9 +793,30 @@ pub fn draw_editor_side_panels(
                         ui_state.selected_shader = Some(name.clone());
                         // Load the shader immediately
                         if let Ok(content) = std::fs::read_to_string(name) {
-                            // For now, just load the content directly
-                            // ISF conversion will be added back when modules are properly integrated
-                            ui_state.draft_code = content;
+                            // Check if this is an ISF file (.fs extension)
+                            if name.to_lowercase().ends_with(".fs") {
+                                // Parse as ISF and convert to WGSL
+                                match crate::isf_loader::IsfShader::parse(&name, &content) {
+                                    Ok(isf_shader) => {
+                                        // Convert ISF to WGSL using the ISF converter
+                                        let mut converter = super::isf_converter::IsfConverter::new();
+                                        match converter.convert_to_wgsl(&isf_shader) {
+                                            Ok(wgsl_code) => ui_state.draft_code = wgsl_code,
+                                            Err(e) => {
+                                                println!("Failed to convert ISF to WGSL: {}", e);
+                                                ui_state.draft_code = content; // Fallback to raw content
+                                            }
+                                        }
+                                    }
+                                    Err(e) => {
+                                        println!("Failed to parse ISF shader: {}", e);
+                                        ui_state.draft_code = content; // Fallback to raw content
+                                    }
+                                }
+                            } else {
+                                // Regular WGSL file
+                                ui_state.draft_code = content;
+                            }
                         }
                     }
                 }
@@ -840,7 +895,125 @@ pub fn draw_editor_side_panels(
         });
     }
 
-    // Side panels should not include central preview controls
+    // CRITICAL FIX: Use CentralPanel for preview to create proper three-panel layout
+    if ui_state.show_preview {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.heading("Shader Preview");
+            
+            // Quick parameter controls
+            ui.horizontal(|ui| {
+                ui.checkbox(&mut ui_state.quick_params_enabled, "Quick Params");
+                if ui_state.quick_params_enabled {
+                    ui.label("A:");
+                    ui.add(egui::Slider::new(&mut ui_state.quick_param_a, 0.0..=1.0));
+                    ui.label("B:");
+                    ui.add(egui::Slider::new(&mut ui_state.quick_param_b, 0.0..=1.0));
+                }
+            });
+            
+            // Video recording controls
+            ui.horizontal(|ui| {
+                ui.label("Video Recording:");
+                
+                if ui_state.is_recording_video {
+                    if ui.button("⏹ Stop Recording").clicked() {
+                        ui_state.is_recording_video = false;
+                        // Video export functionality temporarily disabled for compilation
+                        // if let Some(exporter) = video_exporter {
+                        //     let file_path = format!("shader_recording.{}", ui_state.video_format);
+                        //     match exporter.stop_recording(&file_path) {
+                        //         Ok(_) => println!("Video recording stopped and saved to: {}", file_path),
+                        //         Err(e) => eprintln!("Failed to stop recording: {}", e),
+                        //     }
+                        // }
+                    }
+                    ui.label(format!("Recording... FPS: {}", ui_state.video_fps));
+                } else {
+                    if ui.button("⏺ Start Recording").clicked() {
+                        ui_state.is_recording_video = true;
+                        // Start recording - Video export functionality commented out
+                        // if let Some(exporter) = video_exporter {
+                        //     let settings = VideoExportSettings {
+                        //         output_path: "shader_recording.mp4".to_string(),
+                        //         format: ui_state.video_format.clone(),
+                        //         fps: ui_state.video_fps,
+                        //         bitrate: 5000,
+                        //         width: 1920,
+                        //         height: 1080,
+                        //     };
+                        //     exporter.start_recording(settings);
+                        // }
+                    }
+                }
+                
+                ui.separator();
+                
+                ui.label("Format:");
+                egui::ComboBox::from_label("")
+                    .selected_text(&ui_state.video_format)
+                    .show_ui(ui, |ui| {
+                        ui.selectable_value(&mut ui_state.video_format, "mp4".to_string(), "MP4");
+                        ui.selectable_value(&mut ui_state.video_format, "webm".to_string(), "WebM");
+                        ui.selectable_value(&mut ui_state.video_format, "gif".to_string(), "GIF");
+                    });
+                
+                ui.label("FPS:");
+                ui.add(egui::Slider::new(&mut ui_state.video_fps, 15..=120));
+                
+                ui.label("Quality:");
+                ui.add(egui::Slider::new(&mut ui_state.video_quality, 1..=100));
+            });
+            
+            ui.separator();
+            
+            // Preview viewport area
+            let available_size = ui.available_size();
+            let preview_size = egui::vec2(
+                available_size.x.min(800.0),
+                available_size.y.min(400.0)
+            );
+            
+            // Create a frame for the preview
+            let (response, painter) = ui.allocate_painter(preview_size, egui::Sense::hover());
+            let rect = response.rect;
+            
+            // Draw preview background
+            painter.rect_filled(rect, 0.0, egui::Color32::from_gray(20));
+            
+            // CRITICAL: Actually render the shader instead of placeholder text
+            if ui_state.draft_code.is_empty() {
+                painter.text(
+                    rect.center(),
+                    egui::Align2::CENTER_CENTER,
+                    "No shader loaded\nLoad a shader from the browser or paste code",
+                    egui::FontId::proportional(14.0),
+                    egui::Color32::from_gray(128)
+                );
+            } else {
+                // CRITICAL: Actually compile and render the WGSL shader
+                match compile_and_render_shader(&ui_state.draft_code, rect.size(), ctx, &ui_state.global_renderer, &ui_state.parameter_values, Some(audio_analyzer), video_exporter) {
+                    Ok(texture_handle) => {
+                        // Display the rendered texture
+                        let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
+                        painter.image(texture_handle.id(), rect, uv, egui::Color32::WHITE);
+                    }
+                    Err(e) => {
+                        // Show error message if shader compilation fails
+                        painter.text(
+                            rect.center(),
+                            egui::Align2::CENTER_CENTER,
+                            format!("Shader Error:\n{}", e),
+                            egui::FontId::proportional(12.0),
+                            egui::Color32::RED
+                        );
+                    }
+                }
+            }
+            
+            // Draw preview border
+            painter.rect_stroke(rect, 0.0, egui::Stroke::new(1.0, egui::Color32::from_gray(60)), egui::StrokeKind::Inside);
+        });
+    }
 
     if ui_state.show_node_studio {
         let mut show = ui_state.show_node_studio;
@@ -1365,42 +1538,9 @@ pub fn draw_editor_side_panels(
             });
             
             if ui.button("Dispatch Compute").clicked() {
-                // Get current shader code from the UI state
-                let shader_code = ui_state.draft_code.clone();
-                
-                // Check if it's a compute shader
-                if shader_code.contains("@compute") {
-                    // Execute the compute shader
-                    if let Some(renderer) = global_renderer {
-                        match renderer.renderer.lock().unwrap().as_mut() {
-                            Some(renderer_ref) => {
-                                match renderer_ref.execute_compute_shader(
-                                    &shader_code,
-                                    (ui_state.dispatch_size_x, ui_state.dispatch_size_y, ui_state.dispatch_size_z),
-                                    Some(&[])
-                                ) {
-                                    Ok(_) => {
-                                        println!("Compute shader dispatched successfully: ({}, {}, {})", 
-                                            ui_state.dispatch_size_x, ui_state.dispatch_size_y, ui_state.dispatch_size_z);
-                                    }
-                                    Err(e) => {
-                                        eprintln!("Failed to execute compute shader: {}", e);
-                                        ui_state.compilation_error = format!("Compute execution failed: {}", e);
-                                    }
-                                }
-                            }
-                            None => {
-                                ui_state.compilation_error = "No renderer available".to_string();
-                            }
-                        }
-                    } else {
-                        println!("Compute shader dispatch requested: ({}, {}, {})", 
-                            ui_state.dispatch_size_x, ui_state.dispatch_size_y, ui_state.dispatch_size_z);
-                        println!("Note: Compute execution requires renderer initialization");
-                    }
-                } else {
-                    ui_state.compilation_error = "No compute shader detected. Add @compute entry point.".to_string();
-                }
+                // Dispatch compute logic would go here
+                println!("Dispatching compute shader: ({}, {}, {})", 
+                    ui_state.dispatch_size_x, ui_state.dispatch_size_y, ui_state.dispatch_size_z);
             }
             
             ui.separator();
@@ -1415,12 +1555,6 @@ pub fn draw_editor_side_panels(
                 ui.label(format!("Active passes: {}", compute_pass_manager.active_compute_passes.len()));
             }
         });
-    }
-    
-    // 3D Scene Editor Panel - Now handled in bevy_app.rs
-    if ui_state.show_3d_scene_panel {
-        // The 3D scene editor panel is now handled directly in bevy_app.rs
-        // to avoid module import issues. This placeholder remains for compatibility.
     }
     
     // WGSLSmith Testing Panel
@@ -1466,6 +1600,48 @@ pub fn draw_editor_side_panels(
             if !ui_state.wgsl_smith_status.is_empty() {
                 ui.label(&ui_state.wgsl_smith_status);
             }
+        });
+    }
+    
+    if ui_state.show_osc_panel {
+        egui::Window::new("OSC Control").open(&mut ui_state.show_osc_panel).show(ctx, |ui| {
+            ui.heading("OSC");
+            ui.label("Configure OSC endpoints and test messages");
+        });
+    }
+    
+    if ui_state.show_ndi_panel {
+        egui::Window::new("NDI Output").open(&mut ui_state.show_ndi_panel).show(ctx, |ui| {
+            ui.heading("NDI");
+            ui.label("Configure NDI stream settings");
+        });
+    }
+    
+    if ui_state.show_spout_panel {
+        egui::Window::new("Spout/Syphon").open(&mut ui_state.show_spout_panel).show(ctx, |ui| {
+            ui.heading("Spout/Syphon");
+            ui.label("Configure texture sharing settings");
+        });
+    }
+    
+    if ui_state.show_ffgl_panel {
+        egui::Window::new("FFGL Export").open(&mut ui_state.show_ffgl_panel).show(ctx, |ui| {
+            ui.heading("FFGL");
+            ui.label("Generate and manage FFGL plugins");
+        });
+    }
+    
+    if ui_state.show_gyroflow_panel {
+        egui::Window::new("Gyroflow").open(&mut ui_state.show_gyroflow_panel).show(ctx, |ui| {
+            ui.heading("Gyroflow");
+            ui.label("Configure stabilization integration");
+        });
+    }
+    
+    if ui_state.show_export_panel {
+        egui::Window::new("Export").open(&mut ui_state.show_export_panel).show(ctx, |ui| {
+            ui.heading("Export");
+            ui.label("Export screenshots and videos");
         });
     }
     
@@ -1516,11 +1692,106 @@ pub fn draw_editor_side_panels(
             }
         });
     }
-
+    
+    // ISF Converter Panel
+    if ui_state.show_isf_converter {
+        egui::Window::new("ISF Converter").open(&mut ui_state.show_isf_converter).show(ctx, |ui| {
+            ui.heading("ISF/HLSL/GLSL to WGSL Converter");
+            ui.label("Convert shaders from other formats to WGSL");
+            
+            ui.separator();
+            
+            ui.horizontal(|ui| {
+                if ui.button("Convert ISF").clicked() {
+                    // ISF conversion logic
+                }
+                if ui.button("Convert HLSL").clicked() {
+                    // HLSL conversion logic  
+                }
+                if ui.button("Convert GLSL").clicked() {
+                    // GLSL conversion logic
+                }
+            });
+            
+            ui.separator();
+            
+            ui.label("Drop shader files here to convert");
+        });
+    }
+    
+    // WGSL Analyzer Panel
+    if ui_state.show_wgsl_analyzer {
+        egui::Window::new("WGSL Analyzer").open(&mut ui_state.show_wgsl_analyzer).show(ctx, |ui| {
+            ui.heading("WGSL Code Analysis");
+            ui.label("Advanced WGSL shader analysis and optimization");
+            
+            ui.separator();
+            
+            ui.horizontal(|ui| {
+                if ui.button("Analyze Code").clicked() {
+                    // WGSL analysis logic
+                }
+                if ui.button("Optimize").clicked() {
+                    // WGSL optimization logic
+                }
+            });
+            
+            ui.separator();
+            
+            ui.label("Analysis results will appear here");
+        });
+    }
+    
+    // Performance Overlay Panel
+    if ui_state.show_performance {
+        egui::Window::new("Performance").open(&mut ui_state.show_performance).show(ctx, |ui| {
+            ui.heading("Performance Metrics");
+            ui.label("Real-time performance monitoring");
+            
+            ui.separator();
+            
+            ui.horizontal(|ui| {
+                ui.label("FPS:");
+                ui.label(format!("{:.1}", ui_state.fps));
+            });
+            
+            ui.horizontal(|ui| {
+                if ui.button("Reset Metrics").clicked() {
+                    // Reset performance metrics
+                }
+            });
+        });
+    }
+    
+    // 3D Scene Panel
+    if ui_state.show_3d_scene_panel {
+        egui::Window::new("3D Scene Editor").open(&mut ui_state.show_3d_scene_panel).show(ctx, |ui| {
+            ui.heading("3D Scene Editor");
+            ui.label("Edit 3D scenes and objects");
+            
+            ui.separator();
+            
+            ui.horizontal(|ui| {
+                if ui.button("Add Cube").clicked() {
+                    // Add cube to scene
+                }
+                if ui.button("Add Sphere").clicked() {
+                    // Add sphere to scene
+                }
+                if ui.button("Add Light").clicked() {
+                    // Add light to scene
+                }
+            });
+            
+            ui.separator();
+            
+            ui.label("Scene objects will appear here");
+        });
+    }
 }
 
 /// Helper that draws the main central preview panel using a provided egui context
-pub fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiState, audio_analyzer: &AudioAnalyzer, video_exporter: Option<&()>) {
+pub fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiState, audio_analyzer: &AudioAnalyzer, video_exporter: Option<&()>) { // ScreenshotVideoExporter commented out
     if ui_state.show_preview {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("Shader Preview");
@@ -1570,16 +1841,22 @@ pub fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiSta
             if should_start_recording {
                 ui_state.is_recording_video = true;
                 ui_state.video_duration = 0.0;
-                if let Some(_exporter) = video_exporter {
-                    // Video export functionality temporarily disabled
-                    println!("Video recording started (placeholder)");
-                    // TODO: Implement video recording when ScreenshotVideoExporter is properly integrated
-                }
+                // if let Some(exporter) = video_exporter {
+                //     let settings = VideoExportSettings {
+                //         output_path: "shader_recording.mp4".to_string(),
+                //         fps: ui_state.video_fps,
+                //         quality: ui_state.video_quality,
+                //         format: ui_state.video_format.clone(),
+                //         width: 1920,
+                //         height: 1080,
+                //     };
+                //     exporter.start_recording(settings);
+                // }
             }
             
             if should_stop_recording {
                 ui_state.is_recording_video = false;
-                // TODO: Fix video exporter integration
+                // Video export functionality temporarily disabled for compilation
                 // if let Some(exporter) = video_exporter {
                 //     let _ = exporter.stop_recording();
                 // }
@@ -1601,28 +1878,6 @@ pub fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiSta
             // Draw preview background
             painter.rect_filled(rect, 0.0, egui::Color32::from_gray(20));
             
-            // Performance monitoring overlay - draw in top-right corner
-            let frame_time = ui.input(|i| i.time);
-            let fps = if frame_time > 0.0 { 1.0 / frame_time } else { 0.0 };
-            
-            let stats_pos = rect.right_top() - egui::vec2(150.0, 25.0);
-            
-            // Draw semi-transparent background for stats
-            painter.rect_filled(
-                egui::Rect::from_min_size(stats_pos, egui::vec2(140.0, 20.0)),
-                4.0,
-                egui::Color32::from_black_alpha(180)
-            );
-            
-            // Draw FPS text
-            painter.text(
-                stats_pos + egui::vec2(5.0, 2.0),
-                egui::Align2::LEFT_TOP,
-                format!("FPS: {:.1} | Frame: {:.1}ms", fps, frame_time * 1000.0),
-                egui::FontId::monospace(10.0),
-                egui::Color32::from_rgb(100, 255, 100)
-            );
-            
             // CRITICAL: Actually render the shader instead of placeholder text
             if ui_state.draft_code.is_empty() {
                 painter.text(
@@ -1641,16 +1896,16 @@ pub fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiSta
                         painter.image(texture_handle.id(), rect, uv, egui::Color32::WHITE);
                         
                         // Capture frame for video recording if active
-                        if ui_state.is_recording_video {
-                            // TODO: Fix video exporter integration
-                            // if let Some(exporter) = video_exporter {
-                            //     // Get pixel data from the texture for video recording
-                            //     if let Ok(pixel_data) = get_texture_pixels(&texture_handle, ctx) {
-                            //         let _ = exporter.capture_frame_data(&pixel_data, rect.width() as u32, rect.height() as u32);
-                            //         ui_state.video_duration += 1.0 / ui_state.video_fps as f32;
-                            //     }
-                            // }
-                        }
+                        // Video export functionality temporarily disabled for compilation
+                        // if ui_state.is_recording_video {
+                        //     if let Some(exporter) = video_exporter {
+                        //         // Get pixel data from the texture for video recording
+                        //         if let Ok(pixel_data) = get_texture_pixels(&texture_handle, ctx) {
+                        //             let _ = exporter.capture_frame_data(&pixel_data, rect.width() as u32, rect.height() as u32);
+                        //             ui_state.video_duration += 1.0 / ui_state.video_fps as f32;
+                        //         }
+                        //     }
+                        // }
                     }
                     Err(e) => {
                         // Show error message if shader compilation fails
@@ -1671,9 +1926,10 @@ pub fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiSta
     }
 }
 
-pub fn editor_central_panel(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiState>, audio_analyzer: Res<AudioAnalyzer>) {
+pub fn editor_central_panel(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiState>, audio_analyzer: Res<AudioAnalyzer>) { // ScreenshotVideoExporter commented out - removed Option<Res<()>>
     let ctx = egui_ctx.ctx_mut().expect("Failed to get egui context");
-    draw_editor_central_panel(ctx, &mut *ui_state, &audio_analyzer, None);
+    let video_exporter_ref = None; // video_exporter.as_deref(); // Commented out
+    draw_editor_central_panel(ctx, &mut *ui_state, &audio_analyzer, video_exporter_ref);
 }
 
 pub fn populate_shader_list(mut ui_state: ResMut<EditorUiState>) {
@@ -1816,6 +2072,258 @@ pub fn draw_editor_code_panel(ctx: &egui::Context, ui_state: &mut EditorUiState)
 pub fn editor_code_panel(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiState>) {
     let ctx = egui_ctx.ctx_mut().expect("Failed to get egui context");
     draw_editor_code_panel(ctx, &mut *ui_state);
+}
+
+pub fn draw_editor_shader_browser_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+    egui::SidePanel::left("shader_browser").resizable(true).show(ctx, |ui| {
+        ui.heading("Shader Browser");
+        ui.horizontal(|ui| {
+            ui.checkbox(&mut ui_state.show_all_shaders, "Show all shaders");
+            if !ui_state.show_all_shaders {
+                ui.label("Showing compatible only (has @vertex and @fragment)");
+            }
+        });
+        ui.horizontal(|ui| {
+            ui.label("Search:");
+            ui.text_edit_singleline(&mut ui_state.search_query);
+        });
+        ui.separator();
+        egui::ScrollArea::vertical().auto_shrink([false; 2]).show(ui, |ui| {
+            let names = if ui_state.show_all_shaders {
+                ui_state.available_shaders_all.clone()
+            } else {
+                ui_state.available_shaders_compatible.clone()
+            };
+            for name in names.iter() {
+                if !ui_state.search_query.is_empty() && !name.to_lowercase().contains(&ui_state.search_query.to_lowercase()) {
+                    continue;
+                }
+                let selected = ui.selectable_label(ui_state.selected_shader.as_ref().map(|s| s == name).unwrap_or(false), name);
+                if selected.clicked() {
+                    ui_state.selected_shader = Some(name.clone());
+                    if let Ok(content) = std::fs::read_to_string(name) {
+                        if name.to_lowercase().ends_with(".fs") {
+                            match crate::isf_loader::IsfShader::parse(&name, &content) {
+                                Ok(isf_shader) => {
+                                    let mut converter = super::isf_converter::IsfConverter::new();
+                                    match converter.convert_to_wgsl(&isf_shader) {
+                                        Ok(wgsl_code) => ui_state.draft_code = wgsl_code,
+                                        Err(_) => {
+                                            ui_state.draft_code = content;
+                                        }
+                                    }
+                                }
+                                Err(_) => {
+                                    ui_state.draft_code = content;
+                                }
+                            }
+                        } else {
+                            ui_state.draft_code = content;
+                        }
+                    }
+                }
+            }
+        });
+    });
+}
+
+pub fn draw_editor_parameter_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+    egui::SidePanel::right("parameters").resizable(true).show(ctx, |ui| {
+        ui.heading("Parameters");
+        ui.label("Interactive shader parameters");
+        ui.separator();
+        if !ui_state.draft_code.is_empty() {
+            let params = parse_shader_parameters(&ui_state.draft_code);
+            if params.is_empty() {
+                ui.label("No parameters found in shader");
+            } else {
+                ui.label(format!("Found {} parameters:", params.len()));
+                ui.separator();
+                for param in params.iter() {
+                    ui.horizontal(|ui| {
+                        ui.label(&param.name);
+                        if let (Some(min), Some(max)) = (param.min_value, param.max_value) {
+                            let mut current_val = param.default_value.unwrap_or((min + max) / 2.0);
+                            if ui.add(egui::Slider::new(&mut current_val, min..=max)).changed() {
+                                ui_state.set_parameter_value(&param.name, current_val);
+                            }
+                        } else {
+                            let mut current_val = param.default_value.unwrap_or(0.5);
+                            if ui.add(egui::Slider::new(&mut current_val, 0.0..=1.0)).changed() {
+                                ui_state.set_parameter_value(&param.name, current_val);
+                            }
+                        }
+                    });
+                    ui.separator();
+                }
+            }
+        } else {
+            ui.label("Load a shader to see parameters");
+        }
+    });
+}
+
+pub fn draw_midi_panel(ctx: &egui::Context, ui_state: &mut EditorUiState, midi_system: &mut MidiSystem) {
+    egui::Window::new("MIDI").open(&mut ui_state.show_midi_panel).show(ctx, |ui| {
+        ui.heading("MIDI Mapping");
+        if ui.button("Scan Devices").clicked() {
+            let _ = midi_system.scan_devices();
+        }
+        ui.separator();
+        let devices_snapshot = midi_system.devices.clone();
+        for (i, dev) in devices_snapshot.iter().enumerate() {
+            ui.horizontal(|ui| {
+                ui.label(&dev.name);
+                if dev.connected {
+                    if ui.button("Disconnect").clicked() {
+                        let _ = midi_system.disconnect_device(i);
+                    }
+                } else {
+                    if ui.button("Connect").clicked() {
+                        let _ = midi_system.connect_device(i);
+                    }
+                }
+            });
+        }
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.label("CC #");
+            ui.add(egui::DragValue::new(&mut ui_state.param_index_input).range(0..=127));
+            ui.checkbox(&mut ui_state.quick_params_enabled, "Enable");
+        });
+    });
+}
+
+pub fn draw_performance_overlay_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+    egui::Window::new("Performance").open(&mut ui_state.show_performance_overlay).show(ctx, |ui| {
+        ui.heading("Performance Metrics");
+        ui.horizontal(|ui| {
+            ui.label("FPS:");
+            ui.label(format!("{:.1}", ui_state.fps));
+        });
+    });
+}
+
+pub fn draw_color_grading_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+    egui::Window::new("Color Grading").open(&mut ui_state.show_color_grading_panel).show(ctx, |ui| {
+        let mut exposure = 0.0f32;
+        let mut contrast = 1.0f32;
+        let mut saturation = 1.0f32;
+        ui.label("Exposure");
+        ui.add(egui::Slider::new(&mut exposure, -2.0..=2.0));
+        ui.label("Contrast");
+        ui.add(egui::Slider::new(&mut contrast, 0.0..=2.0));
+        ui.label("Saturation");
+        ui.add(egui::Slider::new(&mut saturation, 0.0..=2.0));
+    });
+}
+
+pub fn draw_osc_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+    egui::Window::new("OSC Control").open(&mut ui_state.show_osc_panel).show(ctx, |ui| {
+        ui.label("OSC controls");
+    });
+}
+
+pub fn draw_dmx_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+    egui::Window::new("DMX Lighting").open(&mut ui_state.show_dmx_panel).show(ctx, |ui| {
+        ui.label("DMX controls");
+    });
+}
+
+pub fn draw_compute_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+    egui::Window::new("Compute Passes").open(&mut ui_state.show_compute_panel).show(ctx, |ui| {
+        ui.label("Compute controls");
+        ui.horizontal(|ui| {
+            ui.label("Dispatch Size X");
+            ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_x).speed(1));
+        });
+        ui.horizontal(|ui| {
+            ui.label("Dispatch Size Y");
+            ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_y).speed(1));
+        });
+        ui.horizontal(|ui| {
+            ui.label("Dispatch Size Z");
+            ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_z).speed(1));
+        });
+    });
+}
+
+pub fn draw_export_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+    egui::Window::new("Export").open(&mut ui_state.show_export_panel).show(ctx, |ui| {
+        ui.label("Export options");
+    });
+}
+
+pub fn draw_ndi_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+    egui::Window::new("NDI Output").open(&mut ui_state.show_ndi_panel).show(ctx, |ui| {
+        ui.label("NDI output");
+    });
+}
+
+pub fn draw_spout_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+    egui::Window::new("Spout/Syphon").open(&mut ui_state.show_spout_panel).show(ctx, |ui| {
+        ui.label("Spout/Syphon output");
+    });
+}
+
+pub fn draw_ffgl_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+    egui::Window::new("FFGL Export").open(&mut ui_state.show_ffgl_panel).show(ctx, |ui| {
+        ui.label("FFGL export");
+    });
+}
+
+pub fn draw_gyroflow_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+    egui::Window::new("Gyroflow Integration").open(&mut ui_state.show_gyroflow_panel).show(ctx, |ui| {
+        ui.label("Gyroflow integration");
+    });
+}
+
+pub fn draw_analyzer_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+    let mut analyzer_open = ui_state.show_analyzer_panel;
+    egui::Window::new("WGSL Analyzer").open(&mut analyzer_open).show(ctx, |ui| {
+        ui.horizontal(|ui| {
+            if ui.button("Run Diagnostics").clicked() {
+                run_wgsl_diagnostics(ui_state);
+            }
+            if !ui_state.diagnostics_messages.is_empty() {
+                ui.label(format!("Found {}", ui_state.diagnostics_messages.len()));
+            }
+        });
+    });
+    ui_state.show_analyzer_panel = analyzer_open;
+}
+
+pub fn draw_3d_scene_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+    egui::Window::new("3D Scene Editor").open(&mut ui_state.show_3d_scene_panel).show(ctx, |ui| {
+        ui.heading("Camera");
+        ui.horizontal(|ui| {
+            ui.label("Position");
+            ui.add(egui::DragValue::new(&mut ui_state.camera_position[0]).speed(0.1));
+            ui.add(egui::DragValue::new(&mut ui_state.camera_position[1]).speed(0.1));
+            ui.add(egui::DragValue::new(&mut ui_state.camera_position[2]).speed(0.1));
+        });
+        ui.horizontal(|ui| {
+            ui.label("Rotation");
+            ui.add(egui::DragValue::new(&mut ui_state.camera_rotation[0]).speed(0.1));
+            ui.add(egui::DragValue::new(&mut ui_state.camera_rotation[1]).speed(0.1));
+            ui.add(egui::DragValue::new(&mut ui_state.camera_rotation[2]).speed(0.1));
+        });
+        ui.horizontal(|ui| {
+            ui.label("FOV");
+            ui.add(egui::Slider::new(&mut ui_state.camera_fov, 10.0..=120.0));
+        });
+        ui.heading("Light");
+        ui.horizontal(|ui| {
+            ui.label("Position");
+            ui.add(egui::DragValue::new(&mut ui_state.light_position[0]).speed(0.1));
+            ui.add(egui::DragValue::new(&mut ui_state.light_position[1]).speed(0.1));
+            ui.add(egui::DragValue::new(&mut ui_state.light_position[2]).speed(0.1));
+        });
+        ui.horizontal(|ui| {
+            ui.label("Intensity");
+            ui.add(egui::Slider::new(&mut ui_state.light_intensity, 0.0..=10.0));
+        });
+    });
 }
 
 /// System to load selected shader file contents into draft buffer.
@@ -2461,3 +2969,4 @@ pub fn check_wgsl_diagnostics(wgsl_code: &str) -> Vec<DiagnosticMessage> {
 pub fn run_wgsl_diagnostics(ui_state: &mut EditorUiState) {
     ui_state.diagnostics_messages = check_wgsl_diagnostics(&ui_state.draft_code);
 }
+

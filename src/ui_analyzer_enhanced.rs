@@ -1,125 +1,71 @@
-use std::collections::{HashMap, HashSet};
-use std::path::Path;
-use std::fs;
-use std::process::Command;
+use crate::ui_analyzer::{UIAnalyzer, FeatureCheck, FeatureStatus, Priority};
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum FeatureStatus {
-    Missing,
-    Broken,
-    Partial,
-    Functional,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Priority {
-    Critical,
-    High,
-    Medium,
-    Low,
-}
-
-#[derive(Debug, Clone)]
-pub struct FeatureCheck {
-    pub name: String,
-    pub category: String,
-    pub description: String,
-    pub status: FeatureStatus,
-    pub details: Vec<String>,
-    pub priority: Priority,
-    pub dependencies: Vec<String>,
-    pub file_locations: Vec<String>,
-    pub test_commands: Vec<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct DiagnosticIssue {
-    pub severity: String,
-    pub category: String,
-    pub description: String,
-    pub location: String,
-    pub suggested_fix: String,
-    pub related_files: Vec<String>,
+pub struct AnalysisSummary {
+    pub total_features: usize,
+    pub functional_count: usize,
+    pub broken_count: usize,
+    pub missing_count: usize,
+    pub completion_percentage: f32,
 }
 
 pub struct UIAnalyzerEnhanced {
-    features: Vec<FeatureCheck>,
-    diagnostic_issues: Vec<DiagnosticIssue>,
-    missing_features: Vec<String>,
-    broken_features: Vec<String>,
-    partial_features: Vec<String>,
-    functional_features: Vec<String>,
+    inner: UIAnalyzer,
 }
 
 impl UIAnalyzerEnhanced {
     pub fn new() -> Self {
-        let mut analyzer = Self {
-            features: Vec::new(),
-            diagnostic_issues: Vec::new(),
-            missing_features: Vec::new(),
-            broken_features: Vec::new(),
-            partial_features: Vec::new(),
-            functional_features: Vec::new(),
-        };
-        
-        analyzer.initialize_comprehensive_checks();
-        analyzer
+        Self { inner: UIAnalyzer::new() }
     }
 
-    fn initialize_comprehensive_checks(&mut self) {
-        // CORE RENDERING SYSTEMS
-        self.features.push(FeatureCheck {
-            name: "WGPU Integration".to_string(),
-            category: "Core Rendering".to_string(),
-            description: "Direct WebGPU rendering in GUI viewport with high-performance pipeline".to_string(),
-            status: FeatureStatus::Missing,
-            details: vec!["Requires wgpu device initialization".to_string(), "Surface creation for viewport".to_string(), "Render pipeline setup".to_string()],
-            priority: Priority::Critical,
-            dependencies: vec!["wgpu".to_string(), "bevy".to_string(), "bevy_egui".to_string()],
-            file_locations: vec!["src/bevy_app.rs".to_string(), "src/shader_renderer.rs".to_string()],
-            test_commands: vec!["cargo check --lib".to_string(), "cargo test wgpu".to_string()],
-        });
+    pub fn analyze_current_codebase(&mut self) {
+        self.inner.analyze_current_state();
+    }
 
-        self.features.push(FeatureCheck {
-            name: "Live Shader Preview".to_string(),
-            category: "Core Rendering".to_string(),
-            description: "Real-time shader rendering with parameter updates and smooth animation".to_string(),
-            status: FeatureStatus::Missing,
-            details: vec!["Shader compilation pipeline".to_string(), "Uniform buffer updates".to_string(), "Frame timing control".to_string()],
-            priority: Priority::Critical,
-            dependencies: vec!["WGPU Integration".to_string(), "Shader Compilation".to_string()],
-            file_locations: vec!["src/editor_ui.rs".to_string(), "src/shader_renderer.rs".to_string()],
-            test_commands: vec!["cargo run --example shader_preview".to_string()],
-        });
+    pub fn get_features_by_status(&self, status: FeatureStatus) -> Vec<FeatureCheck> {
+        self.inner.get_features_by_status(status)
+    }
 
-        self.features.push(FeatureCheck {
-            name: "Performance Monitoring".to_string(),
-            category: "Core Rendering".to_string(),
-            description: "FPS counters, render time tracking with overlay display".to_string(),
-            status: FeatureStatus::Missing,
-            details: vec!["FPS calculation system".to_string(), "Frame time measurement".to_string(), "Overlay rendering".to_string()],
-            priority: Priority::High,
-            dependencies: vec!["WGPU Integration".to_string()],
-            file_locations: vec!["src/editor_ui.rs".to_string()],
-            test_commands: vec!["cargo run --release".to_string()],
-        });
+    pub fn get_features_by_status_and_priority(&self, status: FeatureStatus, priority: Priority) -> Vec<FeatureCheck> {
+        self.inner.get_features_by_status_and_priority(status, priority)
+    }
 
-        // UI LAYOUT & PANELS
-        self.features.push(FeatureCheck {
-            name: "Three-Panel Layout".to_string(),
-            category: "UI Layout".to_string(),
-            description: "Professional three-panel workspace (Center preview, Right controls, Bottom editor)".to_string(),
-            status: FeatureStatus::Broken,
-            details: vec!["Panel docking system".to_string(), "Resizable panels".to_string(), "Panel visibility toggles".to_string()],
-            priority: Priority::Critical,
-            dependencies: vec!["bevy_egui".to_string()],
-            file_locations: vec!["src/editor_ui.rs".to_string()],
-            test_commands: vec!["cargo run --bin layout_test".to_string()],
-        });
+    pub fn get_summary(&self) -> AnalysisSummary {
+        let total = self.inner.get_total_features();
+        let functional = self.inner.get_functional_features_count();
+        let broken = self.inner.get_broken_features_count();
+        let missing = self.inner.get_missing_features_count();
+        let completion = if total > 0 { (functional as f32 / total as f32) * 100.0 } else { 0.0 };
+        AnalysisSummary {
+            total_features: total,
+            functional_count: functional,
+            broken_count: broken,
+            missing_count: missing,
+            completion_percentage: completion,
+        }
+    }
 
-        self.features.push(FeatureCheck {
-            name: "Shader Browser Panel".to_string(),
-            category: "UI Layout".to_string(),
-            description: "ISF shader library with search, categories, and favorites".to_string(),
-            status: FeatureStatus::Missing,
-            details: vec![
+    pub fn generate_detailed_report(&self) -> String {
+        let mut out = String::new();
+        out.push_str("WGSL Shader Studio - Enhanced UI Analyzer Report\n");
+        out.push_str("================================================\n\n");
+        let summary = self.get_summary();
+        out.push_str(&format!("Total Features: {}\n", summary.total_features));
+        out.push_str(&format!("Functional: {}\n", summary.functional_count));
+        out.push_str(&format!("Broken: {}\n", summary.broken_count));
+        out.push_str(&format!("Missing: {}\n", summary.missing_count));
+        out.push_str(&format!("Completion: {:.1}%\n\n", summary.completion_percentage));
+        out.push_str("Detailed Features:\n");
+        for status in [FeatureStatus::Functional, FeatureStatus::Partial, FeatureStatus::Broken, FeatureStatus::Missing] {
+            let list = self.get_features_by_status(status.clone());
+            if list.is_empty() { continue; }
+            out.push_str(&format!("\n{:?}:\n", status));
+            for f in list {
+                out.push_str(&format!("- {} ({})\n", f.name, f.category));
+                for d in f.details {
+                    out.push_str(&format!("  • {}\n", d));
+                }
+            }
+        }
+        out
+    }
+}

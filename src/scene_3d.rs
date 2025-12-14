@@ -125,6 +125,7 @@ pub struct SpotLightConfig {
 }
 
 /// 3D scene manager that handles camera, lighting, and scene entities
+#[derive(Resource)]
 pub struct Scene3DManager {
     pub config: Scene3DConfig,
     pub camera_entity: Option<Entity>,

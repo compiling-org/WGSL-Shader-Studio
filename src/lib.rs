@@ -8,6 +8,28 @@ use serde::{Deserialize, Serialize};
 
 // Expose integration modules used by the UI and app
 pub mod compute_pass_integration;
+pub mod bevy_app;
+pub mod audio_system;
+pub mod midi_system;
+pub mod performance_overlay;
+pub mod ffgl_plugin;
+pub mod gyroflow_interop_integration;
+pub mod screenshot_video_export;
+pub mod ndi_output;
+pub mod osc_control;
+pub mod audio_midi_integration;
+pub mod wgsl_analyzer;
+pub mod spout_syphon_output;
+pub mod bevy_node_graph_integration_enhanced;
+pub mod dmx_lighting_control;
+pub mod editor_ui;
+pub mod bevy_node_graph_integration;
+pub mod scene_editor_3d;
+pub mod gesture_control;
+pub mod shader_converter;
+pub mod shader_renderer;
+pub mod isf_loader;
+pub mod isf_converter;
 
 // Re-export new integration modules
 
@@ -337,42 +359,41 @@ mod tests {
 }
 
 // Module declarations
-pub mod audio_system;
-// EMERGENCY BYPASS: Create audio module alias for corrupted build system
-pub use audio_system as audio;
-pub mod gesture_control;
-pub mod shader_converter;
-pub mod shader_renderer;
-// pub mod real_shader_renderer;
-// pub mod wgpu_renderer;
-pub mod isf_loader;
-pub mod isf_converter;
-pub mod ffgl_plugin;
+// Keep unique module declarations only; duplicates are defined above
 pub mod ui;
 #[cfg(feature = "gui")]
 pub mod gui;
 pub mod wgsl_bindgen_integration;
 pub mod wgsl_diagnostics;
 pub mod isf_auto_converter;
-pub mod isf_conversion_tester;
+// pub mod isf_conversion_tester;
 pub mod wgsl_reflect_integration;
-pub mod wgslsmith_integration;
-pub mod converter; // Add comprehensive converter module
-pub mod editor_ui;
+// pub mod wgslsmith_integration;
+pub mod converter;
 pub mod simple_ui_auditor;
 pub mod node_graph;
 pub mod timeline;
 pub mod ui_analyzer;
+pub mod ui_analyzer_enhanced;
+
+// Re-export UI analyzer types for external use
+pub use ui_analyzer::{UIAnalyzer, FeatureCheck, FeatureStatus, Priority, WgpuDiagnostics, UiStateDiagnostics};
+pub use ui_analyzer_enhanced::{UIAnalyzerEnhanced, AnalysisSummary};
+
 pub mod backend_systems;
-// pub mod visual_node_editor;
+pub mod visual_node_editor;
+pub mod visual_node_editor_plugin;
 pub mod visual_node_editor_adapter;
 pub mod gyroflow_wgpu_interop;
-pub mod gyroflow_interop_integration;
+pub mod shader_transpiler;
+pub mod advanced_shader_compilation;
+pub mod wgsl_ast_parser;
+pub mod shader_module_system;
 
 // Re-export main types for easier use
-pub use audio_system::*;
-pub use gesture_control::*;
 pub use shader_converter::*;
 pub use shader_renderer::*;
 pub use isf_loader::*;
 pub use ffgl_plugin::*;
+
+// Types are already defined in this module, no need to re-export

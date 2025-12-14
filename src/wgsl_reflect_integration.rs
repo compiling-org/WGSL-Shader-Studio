@@ -2,6 +2,13 @@ use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
+/// Analyze WGSL shader and return reflection information
+pub fn analyze_shader_reflection(wgsl_code: &str) -> Result<WgslReflectAnalyzer> {
+    let mut analyzer = WgslReflectAnalyzer::new();
+    analyzer.analyze_shader(wgsl_code)?;
+    Ok(analyzer)
+}
+
 /// WGSL reflection analysis using wgsl_reflect
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WgslReflectAnalyzer {

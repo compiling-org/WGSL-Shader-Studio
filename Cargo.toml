@@ -19,28 +19,16 @@ name = "ui-analyzer"
 path = "src/bin/ui_analyzer.rs"
 
 [[bin]]
-name = "test-window"
-path = "test_window.rs"
-
-[[bin]]
-name = "simple-test"
-path = "simple_test.rs"
-
-[[bin]]
-name = "gui-test"
-path = "gui_test.rs"
-
-[[bin]]
-name = "minimal-gui-test"
-path = "minimal_gui_test.rs"
-
-[[bin]]
-name = "minimal-test"
-path = "minimal_test.rs"
+name = "ui-analyzer-enhanced"
+path = "src/bin/ui_analyzer_enhanced.rs"
 
 [[bin]]
 name = "isf-conversion-test-runner"
 path = "src/bin/isf_conversion_test_runner.rs"
+
+[[bin]]
+name = "integration_test"
+path = "src/bin/integration_test.rs"
 
 [lib]
 name = "resolume_isf_shaders_rust_ffgl"
@@ -70,13 +58,12 @@ rfd = "0.15.4"
 rustfft = "6.4.1"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
-thiserror = "1.0"
+thiserror = "2.0"
 wgpu = "26.0.1"
 winit = "0.30.12"
 bytemuck = { version = "1.15", features = ["derive"] }
 regex = "1.10"
 naga = { version = "26.0.0", features = ["wgsl-in"] }
-wgsl_bindgen = "0.14.0"
 convert_case = "0.6.0"
 chrono = { version = "0.4", features = ["serde"] }
 walkdir = "2.4"
@@ -104,4 +91,5 @@ ringbuf = "0.4"
 default = ["gui"]
 gui = ["dep:bevy_egui"]
 networking = ["dep:tun-rs"]
+naga_integration = []
 

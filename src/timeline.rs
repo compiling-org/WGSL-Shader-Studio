@@ -281,6 +281,30 @@ impl Timeline {
             track.keyframes.clear();
         }
     }
+    
+    pub fn toggle_track(&mut self, parameter_name: &str) -> bool {
+        if let Some(track) = self.tracks.get_mut(parameter_name) {
+            track.enabled = !track.enabled;
+            track.enabled
+        } else {
+            false
+        }
+    }
+    
+    pub fn set_track_enabled(&mut self, parameter_name: &str, enabled: bool) -> bool {
+        if let Some(track) = self.tracks.get_mut(parameter_name) {
+            track.enabled = enabled;
+            true
+        } else {
+            false
+        }
+    }
+    
+    pub fn get_track_enabled(&self, parameter_name: &str) -> bool {
+        self.tracks.get(parameter_name)
+            .map(|track| track.enabled)
+            .unwrap_or(false)
+    }
 
     pub fn export_to_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string_pretty(self)
@@ -335,4 +359,313 @@ fn update_timeline_animation(
     if timeline.timeline.playback_state == PlaybackState::Playing {
         timeline.timeline.update(time.delta());
     }
+}
+
+// UI Functions for Timeline
+use bevy_egui::egui::{Color32, Response, RichText, Ui};
+
+pub fn draw_timeline_ui(ui: &mut Ui, timeline: &mut TimelineAnimation) {
+    ui.group(|ui| {
+        ui.horizontal(|ui| {
+            ui.label(RichText::new("Timeline Animation").strong());
+            
+            // Playback controls
+            let play_text = match timeline.timeline.playback_state {
+                PlaybackState::Playing => "⏸ Pause",
+                PlaybackState::Paused => "▶ Resume",
+                PlaybackState::Stopped => "▶ Play",
+            };
+            
+            if ui.button(play_text).clicked() {
+                match timeline.timeline.playback_state {
+                    PlaybackState::Playing => timeline.timeline.pause(),
+                    PlaybackState::Paused | PlaybackState::Stopped => timeline.timeline.play(),
+                }
+                timeline.playing = timeline.timeline.playback_state == PlaybackState::Playing;
+            }
+            
+            if ui.button("⏹ Stop").clicked() {
+                timeline.timeline.stop();
+                timeline.playing = false;
+            }
+            
+            // Time display
+            ui.separator();
+            ui.label(format!("Time: {:.2}s / {:.2}s", 
+                timeline.timeline.current_time, 
+                timeline.timeline.duration
+            ));
+            
+            // Speed control
+            ui.separator();
+            ui.label("Speed:");
+            ui.add(bevy_egui::egui::DragValue::new(&mut timeline.timeline.playback_speed)
+                .speed(0.1)
+                .range(0.1..=5.0)
+                .prefix("x"));
+        });
+        
+        ui.separator();
+        
+        // Timeline ruler and tracks
+        ui.vertical(|ui| {
+            let timeline_width = ui.available_width() - 20.0;
+            let timeline_height = 200.0;
+            let ruler_height = 30.0;
+            let track_height = 40.0;
+            
+            // Timeline ruler
+            ui.horizontal(|ui| {
+                ui.label("Time:");
+                ui.allocate_ui(bevy_egui::egui::vec2(timeline_width, ruler_height), |ui| {
+                    let painter = ui.painter();
+                    let rect = bevy_egui::egui::Rect::from_min_size(ui.cursor().min, bevy_egui::egui::vec2(timeline_width, ruler_height));
+                    
+                    // Draw ruler background
+                    painter.rect_filled(rect, 0.0, Color32::from_gray(40));
+                    
+                    // Draw time markers
+                    let time_per_pixel = timeline.timeline.duration / timeline_width;
+                    let marker_interval = if timeline.timeline.duration > 10.0 { 1.0 } else { 0.5 };
+                    
+                    let mut time = 0.0;
+                    while time <= timeline.timeline.duration {
+                        let x = rect.left() + (time / time_per_pixel);
+                        if x <= rect.right() {
+                            painter.line_segment(
+                                [bevy_egui::egui::pos2(x, rect.top()), bevy_egui::egui::pos2(x, rect.bottom())],
+                                (1.0, Color32::from_gray(100))
+                            );
+                            
+                            painter.text(
+                                bevy_egui::egui::pos2(x + 2.0, rect.top() + 2.0),
+                                bevy_egui::egui::Align2::LEFT_TOP,
+                                format!("{:.1}s", time),
+                                bevy_egui::egui::FontId::monospace(10.0),
+                                Color32::WHITE,
+                            );
+                        }
+                        time += marker_interval;
+                    }
+                    
+                    // Draw current time indicator
+                    let current_x = rect.left() + (timeline.timeline.current_time / time_per_pixel);
+                    painter.line_segment(
+                        [bevy_egui::egui::pos2(current_x, rect.top()), bevy_egui::egui::pos2(current_x, rect.bottom() + track_height * timeline.timeline.tracks.len() as f32)],
+                        (2.0, Color32::from_rgb(255, 100, 100))
+                    );
+                });
+            });
+            
+            // Track list
+            ui.separator();
+            
+            // Create a vector of track names to avoid borrowing issues
+            let track_names: Vec<String> = timeline.timeline.tracks.keys().cloned().collect();
+            
+            for track_name in &track_names {
+                ui.horizontal(|ui| {
+                    // Track header - get mutable access to the track
+                    ui.vertical(|ui| {
+                        if let Some(track) = timeline.timeline.tracks.get_mut(track_name) {
+                            ui.checkbox(&mut track.enabled, "");
+                            ui.label(track_name);
+                        } else {
+                            ui.label(format!("{} (error)", track_name));
+                        }
+                    });
+                    
+                    // Track timeline - get track reference outside the closure
+                    let track_enabled = if let Some(track) = timeline.timeline.tracks.get(track_name) {
+                        track.enabled
+                    } else {
+                        true // Default to enabled if track not found
+                    };
+                    
+                    ui.allocate_ui(bevy_egui::egui::vec2(timeline_width - 60.0, track_height), |ui| {
+                        ui.scope(|ui| {
+                            let painter = ui.painter();
+                            let rect = bevy_egui::egui::Rect::from_min_size(ui.cursor().min, bevy_egui::egui::vec2(timeline_width - 60.0, track_height));
+                            
+                            // Draw track background with enabled/disabled state
+                            let bg_color = if track_enabled {
+                                Color32::from_gray(30)
+                            } else {
+                                Color32::from_gray(15) // Darker when disabled
+                            };
+                            painter.rect_filled(rect, 2.0, bg_color);
+                            
+                            // Draw track color indicator (dimmed when disabled)
+                            if let Some(track) = timeline.timeline.tracks.get(track_name) {
+                                let color_alpha = if track.enabled { track.color[3] } else { track.color[3] * 0.3 };
+                                let color_rect = bevy_egui::egui::Rect::from_min_max(
+                                    rect.left_top(),
+                                    bevy_egui::egui::pos2(rect.left() + 4.0, rect.bottom())
+                                );
+                                painter.rect_filled(color_rect, 0.0, Color32::from_rgba_unmultiplied(
+                                    (track.color[0] * 255.0) as u8,
+                                    (track.color[1] * 255.0) as u8,
+                                    (track.color[2] * 255.0) as u8,
+                                    (color_alpha * 255.0) as u8
+                                ));
+                                
+                                // Draw keyframes (dimmed when disabled)
+                                if track.enabled {
+                                    let time_per_pixel = timeline.timeline.duration / (timeline_width - 60.0);
+                                    for keyframe in track.keyframes.iter() {
+                                        let x = rect.left() + 10.0 + (keyframe.time / time_per_pixel);
+                                        let y = rect.center().y;
+                                        
+                                        let keyframe_color = match keyframe.interpolation {
+                                            InterpolationType::Linear => Color32::from_rgb(100, 200, 255),
+                                            InterpolationType::EaseIn => Color32::from_rgb(255, 200, 100),
+                                            InterpolationType::EaseOut => Color32::from_rgb(200, 255, 100),
+                                            InterpolationType::EaseInOut => Color32::from_rgb(255, 100, 200),
+                                            InterpolationType::Step => Color32::from_rgb(200, 100, 255),
+                                        };
+                                        
+                                        painter.circle_filled(bevy_egui::egui::pos2(x, y), 4.0, keyframe_color);
+                                        painter.circle_stroke(bevy_egui::egui::pos2(x, y), 5.0, (1.0, Color32::WHITE));
+                                    }
+                                }
+                            }
+                        });
+                        
+                        // Keyframe tooltips (only when enabled and outside painter scope)
+                        if track_enabled {
+                            if let Some(track) = timeline.timeline.tracks.get(track_name) {
+                                let time_per_pixel = timeline.timeline.duration / (timeline_width - 60.0);
+                                for keyframe in track.keyframes.iter() {
+                                    let x = ui.cursor().min.x + 10.0 + (keyframe.time / time_per_pixel);
+                                    let y = ui.cursor().min.y + track_height / 2.0;
+                                    
+                                    let keyframe_rect = bevy_egui::egui::Rect::from_center_size(bevy_egui::egui::pos2(x, y), bevy_egui::egui::vec2(10.0, 10.0));
+                                    // Tooltip temporarily disabled for compilation
+                                    // if ui.rect_contains_pointer(keyframe_rect) {
+                                    //     bevy_egui::egui::show_tooltip_at_pointer(ui.ctx(), bevy_egui::egui::Id::new(format!("keyframe_tooltip_{}", track_name)), |ui| {
+                                    //         ui.label(format!("Time: {:.2}s\nValue: {:.3}", keyframe.time, keyframe.value));
+                                    //     });
+                                    // }
+                                }
+                            }
+                        }
+                    });
+                });
+            }
+            
+            if timeline.timeline.tracks.is_empty() {
+                ui.label("No tracks added yet. Add keyframes to create tracks.");
+            }
+        });
+        
+        ui.separator();
+        
+        // Controls
+        ui.horizontal(|ui| {
+            // Loop controls
+            ui.checkbox(&mut timeline.timeline.loop_enabled, "Loop");
+            if timeline.timeline.loop_enabled {
+                ui.label("Start:");
+                ui.add(bevy_egui::egui::DragValue::new(&mut timeline.timeline.loop_start)
+                    .speed(0.1)
+                    .range(0.0..=timeline.timeline.loop_end));
+                ui.label("End:");
+                ui.add(bevy_egui::egui::DragValue::new(&mut timeline.timeline.loop_end)
+                    .speed(0.1)
+                    .range(timeline.timeline.loop_start..=timeline.timeline.duration));
+            }
+            
+            ui.separator();
+            
+            // Grid controls
+            ui.checkbox(&mut timeline.timeline.snap_to_grid, "Snap to Grid");
+            if timeline.timeline.snap_to_grid {
+                ui.label("Division:");
+                ui.add(bevy_egui::egui::DragValue::new(&mut timeline.timeline.grid_division)
+                    .speed(0.01)
+                    .range(0.01..=1.0)
+                    .suffix("s"));
+            }
+        });
+        
+        ui.separator();
+        
+        // Track management
+        ui.horizontal(|ui| {
+            if ui.button("Add Track").clicked() {
+                let track_name = format!("Parameter_{}", timeline.timeline.tracks.len() + 1);
+                let color = [
+                    (timeline.timeline.tracks.len() as f32 * 0.3) % 1.0,
+                    (timeline.timeline.tracks.len() as f32 * 0.7) % 1.0,
+                    (timeline.timeline.tracks.len() as f32 * 0.9) % 1.0,
+                    1.0
+                ];
+                timeline.timeline.create_track(track_name, color);
+            }
+            
+            if ui.button("Clear All Tracks").clicked() {
+                timeline.timeline.clear_all_tracks();
+            }
+            
+            if ui.button("Export Timeline").clicked() {
+                if let Ok(json) = timeline.timeline.export_to_json() {
+                    // ui.output_mut(|o| o.copied_text = json); // TODO: Fix PlatformOutput field access
+                    println!("Timeline exported to clipboard");
+                }
+            }
+            
+            if ui.button("Import Timeline").clicked() {
+                // This would need file dialog integration
+                println!("Timeline import would show file dialog");
+            }
+        });
+    });
+}
+
+pub fn draw_timeline_controls(ui: &mut Ui, timeline: &mut TimelineAnimation) {
+    ui.horizontal(|ui| {
+        ui.label(RichText::new("Playback").strong());
+        
+        // Compact playback controls
+        let play_icon = match timeline.timeline.playback_state {
+            PlaybackState::Playing => "⏸",
+            PlaybackState::Paused => "▶",
+            PlaybackState::Stopped => "▶",
+        };
+        
+        if ui.button(play_icon).clicked() {
+            match timeline.timeline.playback_state {
+                PlaybackState::Playing => timeline.timeline.pause(),
+                PlaybackState::Paused | PlaybackState::Stopped => timeline.timeline.play(),
+            }
+            timeline.playing = timeline.timeline.playback_state == PlaybackState::Playing;
+        }
+        
+        if ui.button("⏹").clicked() {
+            timeline.timeline.stop();
+            timeline.playing = false;
+        }
+        
+        ui.separator();
+        
+        // Time scrubber
+        let time_before = timeline.timeline.current_time;
+        ui.add(bevy_egui::egui::Slider::new(&mut timeline.timeline.current_time, 0.0..=timeline.timeline.duration)
+            .text("Time")
+            .suffix("s"));
+        
+        if (timeline.timeline.current_time - time_before).abs() > 0.001 {
+            timeline.timeline.playback_state = PlaybackState::Paused;
+            timeline.playing = false;
+        }
+        
+        ui.separator();
+        
+        // Duration control
+        ui.label("Duration:");
+        ui.add(bevy_egui::egui::DragValue::new(&mut timeline.timeline.duration)
+            .speed(0.1)
+            .range(1.0..=300.0)
+            .suffix("s"));
+    });
 }

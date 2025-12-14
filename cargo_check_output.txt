@@ -1,0 +1,198 @@
+    Checking wgsl-shader-studio v0.1.0 (C:\Users\kapil\compiling\WGSL-Shader-Studio)
+error: prefix `available` is unknown
+    --> src\editor_ui.rs:3694:44
+     |
+3694 |         println!("Shader Module System not available");
+     |                                            ^^^^^^^^^ unknown prefix
+     |
+     = note: prefixed identifiers and literals are reserved since Rust 2021
+help: consider inserting whitespace here
+     |
+3694 |         println!("Shader Module System not available ");
+     |                                                     +
+
+error: unknown start of token: \u{2713}
+    --> src\editor_ui.rs:3725:27
+     |
+3725 |                 println!("✓ Shader module loaded successfully");
+     |                           ^
+
+error: prefix `successfully` is unknown
+    --> src\editor_ui.rs:3725:50
+     |
+3725 |                 println!("✓ Shader module loaded successfully");
+     |                                                  ^^^^^^^^^^^^ unknown prefix
+     |
+     = note: prefixed identifiers and literals are reserved since Rust 2021
+help: consider inserting whitespace here
+     |
+3725 |                 println!("✓ Shader module loaded successfully ");
+     |                                                              +
+
+error: prefix `characters` is unknown
+    --> src\editor_ui.rs:3730:47
+     |
+3730 |                 println!("  Source length: {} characters", module.source.len());
+     |                                               ^^^^^^^^^^ unknown prefix
+     |
+     = note: prefixed identifiers and literals are reserved since Rust 2021
+help: consider inserting whitespace here
+     |
+3730 |                 println!("  Source length: {} characters ", module.source.len());
+     |                                                         +
+
+error: unknown start of token: \u{2717}
+    --> src\editor_ui.rs:3733:27
+     |
+3733 |                 println!("✗ Failed to load shader module: {}", e);
+     |                           ^
+
+error: prefix `available` is unknown
+    --> src\editor_ui.rs:3742:44
+     |
+3742 |         println!("Shader Module System not available");
+     |                                            ^^^^^^^^^ unknown prefix
+     |
+     = note: prefixed identifiers and literals are reserved since Rust 2021
+help: consider inserting whitespace here
+     |
+3742 |         println!("Shader Module System not available ");
+     |                                                     +
+
+error: unknown start of token: \u{2713}
+    --> src\editor_ui.rs:3800:32
+     |
+3800 |             Ok(_) => println!("✓ Math module loaded"),
+     |                                ^
+
+error: prefix `loaded` is unknown
+    --> src\editor_ui.rs:3800:46
+     |
+3800 |             Ok(_) => println!("✓ Math module loaded"),
+     |                                              ^^^^^^ unknown prefix
+     |
+     = note: prefixed identifiers and literals are reserved since Rust 2021
+help: consider inserting whitespace here
+     |
+3800 |             Ok(_) => println!("✓ Math module loaded "),
+     |                                                    +
+
+error: unknown start of token: \u{2717}
+    --> src\editor_ui.rs:3802:27
+     |
+3802 |                 println!("✗ Failed to load math module: {}", e);
+     |                           ^
+
+error: unknown start of token: \u{2713}
+    --> src\editor_ui.rs:3808:32
+     |
+3808 |             Ok(_) => println!("✓ Utils module loaded"),
+     |                                ^
+
+error: prefix `loaded` is unknown
+    --> src\editor_ui.rs:3808:47
+     |
+3808 |             Ok(_) => println!("✓ Utils module loaded"),
+     |                                               ^^^^^^ unknown prefix
+     |
+     = note: prefixed identifiers and literals are reserved since Rust 2021
+help: consider inserting whitespace here
+     |
+3808 |             Ok(_) => println!("✓ Utils module loaded "),
+     |                                                     +
+
+error: unknown start of token: \u{2717}
+    --> src\editor_ui.rs:3810:27
+     |
+3810 |                 println!("✗ Failed to load utils module: {}", e);
+     |                           ^
+
+error: unknown start of token: \u{2713}
+    --> src\editor_ui.rs:3816:32
+     |
+3816 |             Ok(_) => println!("✓ Main module loaded"),
+     |                                ^
+
+error: prefix `loaded` is unknown
+    --> src\editor_ui.rs:3816:46
+     |
+3816 |             Ok(_) => println!("✓ Main module loaded"),
+     |                                              ^^^^^^ unknown prefix
+     |
+     = note: prefixed identifiers and literals are reserved since Rust 2021
+help: consider inserting whitespace here
+     |
+3816 |             Ok(_) => println!("✓ Main module loaded "),
+     |                                                    +
+
+error: unknown start of token: \u{2717}
+    --> src\editor_ui.rs:3818:27
+     |
+3818 |                 println!("✗ Failed to load main module: {}", e);
+     |                           ^
+
+error: unknown start of token: \u{2713}
+    --> src\editor_ui.rs:3827:31
+     |
+3827 |                     println!("✓ Dependency resolution successful");
+     |                               ^
+
+error: prefix `successful` is unknown
+    --> src\editor_ui.rs:3827:55
+     |
+3827 |                     println!("✓ Dependency resolution successful");
+     |                                                       ^^^^^^^^^^ unknown prefix
+     |
+     = note: prefixed identifiers and literals are reserved since Rust 2021
+help: consider inserting whitespace here
+     |
+3827 |                     println!("✓ Dependency resolution successful ");
+     |                                                                 +
+
+error: unknown start of token: \
+    --> src\editor_ui.rs:3837:31
+     |
+3837 |                     println!("\nTesting circular dependency detection...");
+     |                               ^
+
+error: unknown start of token: \u{2717}
+    --> src\editor_ui.rs:3855:44
+     |
+3855 |                         Ok(_) => println!("✗ Circular dependency not detected (this is a problem)"),
+     |                                            ^
+
+error: unknown start of token: \u{2713}
+    --> src\editor_ui.rs:3857:39
+     |
+3857 | ...                   println!("✓ Circular dependency detected: {}", e);
+     |                                 ^
+
+error: prefix `behavior` is unknown
+    --> src\editor_ui.rs:3858:62
+     |
+3858 | ...                   println!("  This is the expected behavior");
+     |                                                        ^^^^^^^^ unknown prefix
+     |
+     = note: prefixed identifiers and literals are reserved since Rust 2021
+help: consider inserting whitespace here
+     |
+3858 |                             println!("  This is the expected behavior ");
+     |                                                                      +
+
+error: unknown start of token: \u{2717}
+    --> src\editor_ui.rs:3863:31
+     |
+3863 |                     println!("✗ Dependency resolution failed: {}", e);
+     |                               ^
+
+error[E0765]: unterminated double quote string
+    --> src\editor_ui.rs:3863:65
+     |
+3863 |                       println!("✗ Dependency resolution failed: {}", e);
+     |  _________________________________________________________________^
+...    |
+3868 | | }
+     | |_^
+
+For more information about this error, try `rustc --explain E0765`.
+error: could not compile `wgsl-shader-studio` (lib) due to 23 previous errors

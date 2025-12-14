@@ -1,0 +1,1604 @@
+   Compiling wgsl-shader-studio v0.1.0 (C:\Users\kapil\compiling\WGSL-Shader-Studio)
+warning: unexpected `cfg` condition value: `eframe`
+ --> src\gui.rs:1:8
+  |
+1 | #![cfg(feature = "eframe")] // DISABLED - EFAME ONLY - DO NOT USE
+  |        ^^^^^^^^^^^^^^^^^^
+  |
+  = note: expected values for `feature` are: `default`, `gui`, `naga_integration`, and `networking`
+  = help: consider adding `eframe` as a feature in `Cargo.toml`
+  = note: see <https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html> for more information about checking conditional configuration
+  = note: `#[warn(unexpected_cfgs)]` on by default
+
+warning: unused import: `bevy_egui::egui::TextureHandle`
+ --> src\bevy_app.rs:9:5
+  |
+9 | use bevy_egui::egui::TextureHandle;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused imports: `RenderParameters` and `ShaderRenderer`
+  --> src\bevy_app.rs:88:30
+   |
+88 | use crate::shader_renderer::{ShaderRenderer, RenderParameters};
+   |                              ^^^^^^^^^^^^^^  ^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::mpsc`
+ --> src\audio_system.rs:2:5
+  |
+2 | use std::sync::mpsc;
+  |     ^^^^^^^^^^^^^^^
+
+warning: unnecessary parentheses around assigned value
+   --> src\audio_system.rs:163:27
+    |
+163 |                 sample *= (0.7 + beat_envelope * 0.3); // Beat modulation
+    |                           ^                         ^
+    |
+    = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+    |
+163 -                 sample *= (0.7 + beat_envelope * 0.3); // Beat modulation
+163 +                 sample *= 0.7 + beat_envelope * 0.3; // Beat modulation
+    |
+
+warning: unused import: `Ignore`
+ --> src\midi_system.rs:7:45
+  |
+7 | use midir::{MidiInput, MidiInputConnection, Ignore};
+  |                                             ^^^^^^
+
+warning: unused import: `FrameTimeDiagnosticsPlugin`
+ --> src\performance_overlay.rs:2:24
+  |
+2 | use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, DiagnosticsStore};
+  |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::isf_converter::IsfShader`
+ --> src\ffgl_plugin.rs:4:5
+  |
+4 | use crate::isf_converter::IsfShader;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `CStr` and `CString`
+ --> src\ffgl_plugin.rs:9:16
+  |
+9 | use std::ffi::{CStr, CString};
+  |                ^^^^  ^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+ --> src\ndi_output.rs:6:5
+  |
+6 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Mutex`
+ --> src\ndi_output.rs:7:5
+  |
+7 | use std::sync::Mutex;
+  |     ^^^^^^^^^^^^^^^^
+
+warning: unused imports: `IpAddr`, `Ipv4Addr`, and `SocketAddr`
+ --> src\ndi_output.rs:8:16
+  |
+8 | use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+  |                ^^^^^^  ^^^^^^^^  ^^^^^^^^^^
+
+warning: unused import: `SocketAddr`
+ --> src\osc_control.rs:9:16
+  |
+9 | use std::net::{SocketAddr, UdpSocket};
+  |                ^^^^^^^^^^
+
+warning: unused import: `super::*`
+   --> src\audio_midi_integration.rs:221:9
+    |
+221 |     use super::*;
+    |         ^^^^^^^^
+
+warning: unused import: `crate::audio_system::AudioData`
+   --> src\editor_ui.rs:535:9
+    |
+535 |     use crate::audio_system::AudioData;
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `regex::Regex`
+ --> src\isf_auto_converter.rs:5:5
+  |
+5 | use regex::Regex;
+  |     ^^^^^^^^^^^^
+
+warning: unused import: `anyhow`
+ --> src\wgsl_reflect_integration.rs:1:22
+  |
+1 | use anyhow::{Result, anyhow};
+  |                      ^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> src\wgsl_reflect_integration.rs:2:5
+  |
+2 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> src\converter\diagnostics.rs:1:5
+  |
+1 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `DiagnosticSeverity`
+ --> src\converter\emitter.rs:3:50
+  |
+3 | use crate::converter::diagnostics::{Diagnostics, DiagnosticSeverity};
+  |                                                  ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Context`
+ --> src\converter\glsl.rs:2:22
+  |
+2 | use anyhow::{Result, Context, bail};
+  |                      ^^^^^^^
+
+warning: unused import: `Context`
+ --> src\converter\hlsl.rs:2:22
+  |
+2 | use anyhow::{Result, Context, bail};
+  |                      ^^^^^^^
+
+warning: unused import: `bail`
+ --> src\converter\isf.rs:3:31
+  |
+3 | use anyhow::{Result, Context, bail};
+  |                               ^^^^
+
+warning: unused import: `bevy_egui::EguiContexts`
+ --> src\simple_ui_auditor.rs:2:5
+  |
+2 | use bevy_egui::EguiContexts;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Response`
+   --> src\timeline.rs:365:32
+    |
+365 | use bevy_egui::egui::{Color32, Response, RichText, Ui};
+    |                                ^^^^^^^^
+
+warning: unused import: `std::process::Command`
+ --> src\ui_analyzer.rs:3:5
+  |
+3 | use std::process::Command;
+  |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `SystemTime` and `UNIX_EPOCH`
+ --> src\ui_analyzer.rs:4:17
+  |
+4 | use std::time::{SystemTime, UNIX_EPOCH};
+  |                 ^^^^^^^^^^  ^^^^^^^^^^
+
+warning: unused imports: `Arc` and `Mutex`
+ --> src\gyroflow_wgpu_interop.rs:4:17
+  |
+4 | use std::sync::{Arc, Mutex};
+  |                 ^^^  ^^^^^
+
+warning: unused import: `AstVisitor`
+ --> src\shader_transpiler.rs:6:39
+  |
+6 | use crate::wgsl_ast_parser::{AstNode, AstVisitor};
+  |                                       ^^^^^^^^^^
+
+warning: unused imports: `ModuleId` and `ShaderModule`
+ --> src\shader_transpiler.rs:7:35
+  |
+7 | use crate::shader_module_system::{ShaderModule, ModuleId};
+  |                                   ^^^^^^^^^^^^  ^^^^^^^^
+
+warning: unused imports: `Context` and `bail`
+ --> src\advanced_shader_compilation.rs:6:22
+  |
+6 | use anyhow::{Result, Context, bail};
+  |                      ^^^^^^^  ^^^^
+
+warning: unused import: `PathBuf`
+ --> src\shader_module_system.rs:2:23
+  |
+2 | use std::path::{Path, PathBuf};
+  |                       ^^^^^^^
+
+warning: use of deprecated function `bevy_egui::egui::show_tooltip`: Use `egui::Tooltip` instead
+   --> src\wgsl_analyzer.rs:422:31
+    |
+422 |                         egui::show_tooltip(
+    |                               ^^^^^^^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated type alias `bevy_egui::egui::Rounding`: Renamed to CornerRadius
+   --> src\bevy_node_graph_integration.rs:189:35
+    |
+189 | ...                   egui::Rounding::same(4),
+    |                             ^^^^^^^^
+
+warning: use of deprecated type alias `bevy_egui::egui::Rounding`: Renamed to CornerRadius
+   --> src\bevy_node_graph_integration.rs:194:35
+    |
+194 | ...                   egui::Rounding::same(4),
+    |                             ^^^^^^^^
+
+warning: use of deprecated associated function `bevy_egui::egui::ComboBox::from_id_source`: Renamed from_id_salt
+   --> src\screenshot_video_export.rs:478:33
+    |
+478 |                 egui::ComboBox::from_id_source("screenshot_format")
+    |                                 ^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `bevy_egui::egui::ComboBox::from_id_source`: Renamed from_id_salt
+   --> src\screenshot_video_export.rs:554:37
+    |
+554 |                     egui::ComboBox::from_id_source("video_format")
+    |                                     ^^^^^^^^^^^^^^
+
+warning: use of deprecated method `bevy_egui::egui::Ui::allocate_ui_at_rect`: Use `allocate_new_ui` instead
+   --> src\bevy_node_graph_integration_enhanced.rs:685:23
+    |
+685 |     let response = ui.allocate_ui_at_rect(
+    |                       ^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated associated function `bevy_egui::egui::Frame::none`: Use `Frame::NONE` or `Frame::new()` instead.
+   --> src\bevy_node_graph_integration_enhanced.rs:688:38
+    |
+688 |             let frame = egui::Frame::none()
+    |                                      ^^^^
+
+warning: use of deprecated method `bevy_egui::egui::Frame::rounding`: Renamed to `corner_radius`
+   --> src\bevy_node_graph_integration_enhanced.rs:695:18
+    |
+695 |                 .rounding(8.0);
+    |                  ^^^^^^^^
+
+warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> src\bevy_node_graph_integration_enhanced.rs:806:28
+    |
+806 |                         ui.close_menu();
+    |                            ^^^^^^^^^^
+
+warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> src\bevy_node_graph_integration_enhanced.rs:810:28
+    |
+810 |                         ui.close_menu();
+    |                            ^^^^^^^^^^
+
+warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> src\bevy_node_graph_integration_enhanced.rs:814:28
+    |
+814 |                         ui.close_menu();
+    |                            ^^^^^^^^^^
+
+warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> src\bevy_node_graph_integration_enhanced.rs:821:28
+    |
+821 |                         ui.close_menu();
+    |                            ^^^^^^^^^^
+
+warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> src\bevy_node_graph_integration_enhanced.rs:825:28
+    |
+825 |                         ui.close_menu();
+    |                            ^^^^^^^^^^
+
+warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> src\bevy_node_graph_integration_enhanced.rs:829:28
+    |
+829 |                         ui.close_menu();
+    |                            ^^^^^^^^^^
+
+warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> src\bevy_node_graph_integration_enhanced.rs:836:28
+    |
+836 |                         ui.close_menu();
+    |                            ^^^^^^^^^^
+
+warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> src\bevy_node_graph_integration_enhanced.rs:843:28
+    |
+843 |                         ui.close_menu();
+    |                            ^^^^^^^^^^
+
+warning: unused variable: `scene_editor_state`
+   --> src\bevy_app.rs:113:5
+    |
+113 |     scene_editor_state: Res<SceneEditor3DState>,
+    |     ^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_scene_editor_state`
+    |
+    = note: `#[warn(unused_variables)]` on by default
+
+warning: unused variable: `performance_metrics`
+   --> src\bevy_app.rs:114:5
+    |
+114 |     performance_metrics: Res<PerformanceMetrics>,
+    |     ^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_performance_metrics`
+
+warning: variable does not need to be mutable
+   --> src\bevy_app.rs:275:5
+    |
+275 |     mut startup_gate: ResMut<UiStartupGate>
+    |     ----^^^^^^^^^^^^
+    |     |
+    |     help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` on by default
+
+warning: variable `phase` is assigned to, but never used
+   --> src\audio_system.rs:134:17
+    |
+134 |         let mut phase = 0.0f32;
+    |                 ^^^^^
+    |
+    = note: consider using `_phase` instead
+
+warning: unused variable: `i`
+   --> src\audio_system.rs:144:17
+    |
+144 |             for i in 0..buffer_size {
+    |                 ^ help: if this is intentional, prefix it with an underscore: `_i`
+
+warning: unused variable: `data`
+   --> src\audio_system.rs:130:29
+    |
+130 |     fn audio_capture_thread(data: Arc<Mutex<AudioData>>, audio_buffer: Arc<Mutex<Vec<f32>>>) {
+    |                             ^^^^ help: if this is intentional, prefix it with an underscore: `_data`
+
+warning: unused variable: `data`
+   --> src\audio_system.rs:479:9
+    |
+479 |         data: Arc<Mutex<EnhancedAudioData>>, 
+    |         ^^^^ help: if this is intentional, prefix it with an underscore: `_data`
+
+warning: variable does not need to be mutable
+   --> src\midi_system.rs:419:5
+    |
+419 |     mut midi_system: ResMut<MidiSystem>,
+    |     ----^^^^^^^^^^^
+    |     |
+    |     help: remove this `mut`
+
+warning: unused variable: `time`
+  --> src\performance_overlay.rs:88:5
+   |
+88 |     time: Res<Time>,
+   |     ^^^^ help: if this is intentional, prefix it with an underscore: `_time`
+
+warning: unused variable: `width`
+   --> src\gyroflow_interop_integration.rs:148:56
+    |
+148 |     pub fn process_frame(&mut self, frame_data: &[u8], width: u32, height: u32) -> InteropResult<Vec<u8>> {
+    |                                                        ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+
+warning: unused variable: `height`
+   --> src\gyroflow_interop_integration.rs:148:68
+    |
+148 |     pub fn process_frame(&mut self, frame_data: &[u8], width: u32, height: u32) -> InteropResult<Vec<u8>> {
+    |                                                                    ^^^^^^ help: if this is intentional, prefix it with an underscore: `_height`
+
+warning: unused variable: `gyro_data`
+   --> src\gyroflow_interop_integration.rs:172:48
+    |
+172 |     pub fn apply_gyro_stabilization(&mut self, gyro_data: &[f32], timestamp: f64) -> InteropResult<()> {
+    |                                                ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_gyro_data`
+
+warning: unused variable: `timestamp`
+   --> src\gyroflow_interop_integration.rs:172:67
+    |
+172 |     pub fn apply_gyro_stabilization(&mut self, gyro_data: &[f32], timestamp: f64) -> InteropResult<()> {
+    |                                                                   ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_timestamp`
+
+warning: variable does not need to be mutable
+   --> src\gyroflow_interop_integration.rs:267:28
+    |
+267 | fn update_gyroflow_interop(mut interop_resource: ResMut<GyroflowInteropResource>) {
+    |                            ----^^^^^^^^^^^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+
+warning: unused variable: `final_img`
+   --> src\screenshot_video_export.rs:347:13
+    |
+347 |         let final_img = match settings.format {
+    |             ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_final_img`
+
+warning: unused variable: `exporter`
+   --> src\screenshot_video_export.rs:621:9
+    |
+621 |     let exporter = ScreenshotVideoExporter::new();
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_exporter`
+
+warning: unused variable: `last`
+   --> src\ndi_output.rs:158:44
+    |
+158 |             fps: if let (Some(start), Some(last)) = (self.start_time, self.last_frame_time) {
+    |                                            ^^^^ help: if this is intentional, prefix it with an underscore: `_last`
+
+warning: unused variable: `normalized_value`
+   --> src\audio_midi_integration.rs:204:17
+    |
+204 |             let normalized_value = *value as f32 / 127.0;
+    |                 ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_normalized_value`
+
+warning: unused variable: `ui_state`
+   --> src\audio_midi_integration.rs:194:9
+    |
+194 |     mut ui_state: ResMut<crate::editor_ui::EditorUiState>,
+    |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_ui_state`
+
+warning: variable does not need to be mutable
+   --> src\audio_midi_integration.rs:194:5
+    |
+194 |     mut ui_state: ResMut<crate::editor_ui::EditorUiState>,
+    |     ----^^^^^^^^
+    |     |
+    |     help: remove this `mut`
+
+warning: unused variable: `last`
+   --> src\spout_syphon_output.rs:204:44
+    |
+204 |             fps: if let (Some(start), Some(last)) = (self.start_time, self.last_frame_time) {
+    |                                            ^^^^ help: if this is intentional, prefix it with an underscore: `_last`
+
+warning: unused variable: `resolution_node`
+   --> src\bevy_node_graph_integration_enhanced.rs:257:13
+    |
+257 |         let resolution_node = self.add_node(ShaderNodeType::Resolution, "Resolution",
+    |             ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_resolution_node`
+
+warning: unused variable: `i`
+   --> src\bevy_node_graph_integration_enhanced.rs:299:58
+    |
+299 |             inputs: inputs.into_iter().enumerate().map(|(i, name)| NodeInput {
+    |                                                          ^ help: if this is intentional, prefix it with an underscore: `_i`
+
+warning: unused variable: `i`
+   --> src\bevy_node_graph_integration_enhanced.rs:306:60
+    |
+306 |             outputs: outputs.into_iter().enumerate().map(|(i, name)| NodeOutput {
+    |                                                            ^ help: if this is intentional, prefix it with an underscore: `_i`
+
+warning: unused variable: `var_name`
+   --> src\bevy_node_graph_integration_enhanced.rs:479:14
+    |
+479 |         for (var_name, var_code) in node_vars {
+    |              ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_var_name`
+
+warning: unused variable: `available_size`
+   --> src\bevy_node_graph_integration_enhanced.rs:573:9
+    |
+573 |     let available_size = ui.available_size();
+    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_available_size`
+
+warning: unused variable: `i`
+   --> src\bevy_node_graph_integration_enhanced.rs:713:30
+    |
+713 |                         for (i, input) in node.inputs.iter().enumerate() {
+    |                              ^ help: if this is intentional, prefix it with an underscore: `_i`
+
+warning: unused variable: `i`
+   --> src\bevy_node_graph_integration_enhanced.rs:733:30
+    |
+733 |                         for (i, output) in node.outputs.iter().enumerate() {
+    |                              ^ help: if this is intentional, prefix it with an underscore: `_i`
+
+warning: unused variable: `mouse_input`
+   --> src\bevy_node_graph_integration_enhanced.rs:891:5
+    |
+891 |     mouse_input: Res<ButtonInput<MouseButton>>,
+    |     ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_mouse_input`
+
+warning: unused variable: `mapping`
+   --> src\dmx_lighting_control.rs:352:21
+    |
+352 |         if let Some(mapping) = self.mappings.iter().find(|m| m.parameter_name == parameter_name) {
+    |                     ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_mapping`
+
+warning: unused variable: `renderer`
+   --> src\editor_ui.rs:246:21
+    |
+246 |         if let Some(renderer) = self.global_renderer.renderer.lock().unwrap().as_mut() {
+    |                     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_renderer`
+
+warning: unused variable: `has_resolution`
+   --> src\editor_ui.rs:406:9
+    |
+406 |     let has_resolution = wgsl_code.contains("resolution") || wgsl_code.contains("Resolution");
+    |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_has_resolution`
+
+warning: unused variable: `has_uv`
+   --> src\editor_ui.rs:407:9
+    |
+407 |     let has_uv = wgsl_code.contains("uv") || wgsl_code.contains("UV") || wgsl_code.contains("@location(0)");
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_has_uv`
+
+warning: value assigned to `r` is never read
+   --> src\editor_ui.rs:427:21
+    |
+427 |             let mut r: f32 = 0.0;
+    |                     ^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` on by default
+
+warning: value assigned to `g` is never read
+   --> src\editor_ui.rs:428:21
+    |
+428 |             let mut g: f32 = 0.0;
+    |                     ^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: value assigned to `b` is never read
+   --> src\editor_ui.rs:429:21
+    |
+429 |             let mut b: f32 = 0.0;
+    |                     ^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: unused variable: `video_exporter`
+   --> src\editor_ui.rs:313:5
+    |
+313 |     video_exporter: Option<&()> // ScreenshotVideoExporter commented out
+    |     ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_video_exporter`
+
+warning: unused variable: `prompt`
+   --> src\editor_ui.rs:724:36
+    |
+724 | fn generate_shader_with_wgsl_smith(prompt: &str) -> String {
+    |                                    ^^^^^^ help: if this is intentional, prefix it with an underscore: `_prompt`
+
+warning: unused variable: `mapping`
+    --> src\editor_ui.rs:1422:30
+     |
+1422 |             for (param_name, mapping) in mappings {
+     |                              ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_mapping`
+
+warning: unused variable: `code`
+    --> src\editor_ui.rs:2587:16
+     |
+2587 |     for (name, code) in test_cases {
+     |                ^^^^ help: if this is intentional, prefix it with an underscore: `_code`
+
+warning: unused variable: `texture_handle`
+    --> src\editor_ui.rs:2626:23
+     |
+2626 | fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
+     |                       ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_texture_handle`
+
+warning: unused variable: `ctx`
+    --> src\editor_ui.rs:2626:61
+     |
+2626 | fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
+     |                                                             ^^^ help: if this is intentional, prefix it with an underscore: `_ctx`
+
+warning: variable does not need to be mutable
+   --> src\scene_editor_3d.rs:200:5
+    |
+200 |     mut editor_state: ResMut<SceneEditor3DState>,
+    |     ----^^^^^^^^^^^^
+    |     |
+    |     help: remove this `mut`
+
+warning: unused variable: `time`
+   --> src\scene_editor_3d.rs:254:5
+    |
+254 |     time: Res<Time>,
+    |     ^^^^ help: if this is intentional, prefix it with an underscore: `_time`
+
+warning: variable does not need to be mutable
+   --> src\scene_editor_3d.rs:499:5
+    |
+499 |     mut editor_state: ResMut<SceneEditor3DState>,
+    |     ----^^^^^^^^^^^^
+    |     |
+    |     help: remove this `mut`
+
+warning: unused variable: `delta_time`
+   --> src\gesture_control.rs:151:13
+    |
+151 |         let delta_time = now.duration_since(self.last_update).as_secs_f32();
+    |             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_delta_time`
+
+warning: unused variable: `hand_id`
+   --> src\gesture_control.rs:232:39
+    |
+232 |     fn calculate_palm_velocity(&self, hand_id: u32) -> (f32, f32, f32) {
+    |                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_hand_id`
+
+warning: unused variable: `output_buffer`
+    --> src\shader_renderer.rs:1189:13
+     |
+1189 |         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+     |             ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_output_buffer`
+
+warning: unused variable: `shader_module`
+    --> src\shader_renderer.rs:1391:13
+     |
+1391 |         let shader_module = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+     |             ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_shader_module`
+
+warning: unused variable: `handle`
+  --> src\wgsl_bindgen_integration.rs:58:14
+   |
+58 |         for (handle, var) in module.global_variables.iter() {
+   |              ^^^^^^ help: if this is intentional, prefix it with an underscore: `_handle`
+
+warning: unused variable: `scalar`
+   --> src\wgsl_bindgen_integration.rs:134:48
+    |
+134 |             TypeInner::Matrix { columns, rows, scalar } => {
+    |                                                ^^^^^^ help: try ignoring the field: `scalar: _`
+
+warning: unused variable: `struct_name`
+   --> src\wgsl_bindgen_integration.rs:160:35
+    |
+160 |             else if let Some((ref struct_name, group, binding)) = current_struct {
+    |                                   ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_struct_name`
+
+warning: unused variable: `group`
+   --> src\wgsl_bindgen_integration.rs:160:48
+    |
+160 |             else if let Some((ref struct_name, group, binding)) = current_struct {
+    |                                                ^^^^^ help: if this is intentional, prefix it with an underscore: `_group`
+
+warning: unused variable: `binding`
+   --> src\wgsl_bindgen_integration.rs:160:55
+    |
+160 |             else if let Some((ref struct_name, group, binding)) = current_struct {
+    |                                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_binding`
+
+warning: variable does not need to be mutable
+  --> src\wgsl_diagnostics.rs:34:13
+   |
+34 |         let mut validator = Validator::new(ValidationFlags::all(), Capabilities::all());
+   |             ----^^^^^^^^^
+   |             |
+   |             help: remove this `mut`
+
+warning: unused variable: `struct_code`
+   --> src\wgsl_reflect_integration.rs:444:29
+    |
+444 |     fn parse_uniform_struct(struct_code: &str) -> Result<()> {
+    |                             ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_struct_code`
+
+warning: unused variable: `line`
+   --> src\wgsl_reflect_integration.rs:450:34
+    |
+450 |     fn parse_texture_declaration(line: &str) -> Option<TextureInfo> {
+    |                                  ^^^^ help: if this is intentional, prefix it with an underscore: `_line`
+
+warning: unused variable: `line`
+   --> src\wgsl_reflect_integration.rs:456:34
+    |
+456 |     fn parse_sampler_declaration(line: &str) -> Option<SamplerInfo> {
+    |                                  ^^^^ help: if this is intentional, prefix it with an underscore: `_line`
+
+warning: unused variable: `line`
+   --> src\wgsl_reflect_integration.rs:462:41
+    |
+462 |     fn parse_storage_buffer_declaration(line: &str) -> Option<StorageBufferInfo> {
+    |                                         ^^^^ help: if this is intentional, prefix it with an underscore: `_line`
+
+warning: unused variable: `glsl_source`
+  --> src\converter\glsl.rs:99:40
+   |
+99 |     fn generate_simple_wgsl(&mut self, glsl_source: &str, file_path: &str) -> Result<String> {
+   |                                        ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_glsl_source`
+
+warning: unused variable: `hlsl_source`
+   --> src\converter\hlsl.rs:263:40
+    |
+263 |     fn generate_simple_wgsl(&mut self, hlsl_source: &str, file_path: &str) -> Result<String> {
+    |                                        ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_hlsl_source`
+
+warning: unused variable: `index`
+   --> src\converter\hlsl.rs:301:14
+    |
+301 |         for (index, cbuffer) in self.constant_buffers.iter().enumerate() {
+    |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_index`
+
+warning: unused variable: `index`
+   --> src\converter\hlsl.rs:318:14
+    |
+318 |         for (index, texture) in self.texture_declarations.iter().enumerate() {
+    |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_index`
+
+warning: unused variable: `index`
+   --> src\converter\hlsl.rs:333:14
+    |
+333 |         for (index, texture) in self.texture_declarations.iter().enumerate() {
+    |              ^^^^^ help: if this is intentional, prefix it with an underscore: `_index`
+
+warning: unused variable: `timeline_height`
+   --> src\timeline.rs:413:17
+    |
+413 |             let timeline_height = 200.0;
+    |                 ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_timeline_height`
+
+warning: unused variable: `keyframe_rect`
+   --> src\timeline.rs:542:41
+    |
+542 | ...   let keyframe_rect = bevy_egui::egui::Rect::from_center_size(bevy_egui::egui::pos2(x, y), bevy_egui::egui::vec2(10.0, 10.0));
+    |           ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_keyframe_rect`
+
+warning: unused variable: `json`
+   --> src\timeline.rs:611:27
+    |
+611 |                 if let Ok(json) = timeline.timeline.export_to_json() {
+    |                           ^^^^ help: if this is intentional, prefix it with an underscore: `_json`
+
+warning: unused variable: `scale`
+   --> src\backend_systems.rs:208:39
+    |
+208 |     fn apply_responsive_scaling(self, scale: f32) -> Self {
+    |                                       ^^^^^ help: if this is intentional, prefix it with an underscore: `_scale`
+
+warning: unused variable: `data`
+   --> src\visual_node_editor.rs:613:23
+    |
+613 |             if let Ok(data) = serde_json::from_str::<serde_json::Value>(clipboard_data) {
+    |                       ^^^^ help: if this is intentional, prefix it with an underscore: `_data`
+
+warning: variable does not need to be mutable
+  --> src\visual_node_editor_plugin.rs:24:5
+   |
+24 |     mut node_graph: ResMut<crate::bevy_node_graph_integration_enhanced::NodeGraphResource>,
+   |     ----^^^^^^^^^^
+   |     |
+   |     help: remove this `mut`
+
+warning: unused variable: `queue`
+  --> src\gyroflow_wgpu_interop.rs:86:87
+   |
+86 |     pub fn import_texture(&mut self, native_info: NativeTextureInfo, device: &Device, queue: &Queue) -> InteropResult<u64> {
+   |                                                                                       ^^^^^ help: if this is intentional, prefix it with an underscore: `_queue`
+
+warning: unused variable: `device`
+   --> src\gyroflow_wgpu_interop.rs:107:55
+    |
+107 |     pub fn export_texture(&mut self, texture_id: u64, device: &Device, queue: &Queue) -> InteropResult<NativeTextureInfo> {
+    |                                                       ^^^^^^ help: if this is intentional, prefix it with an underscore: `_device`
+
+warning: unused variable: `queue`
+   --> src\gyroflow_wgpu_interop.rs:107:72
+    |
+107 |     pub fn export_texture(&mut self, texture_id: u64, device: &Device, queue: &Queue) -> InteropResult<NativeTextureInfo> {
+    |                                                                        ^^^^^ help: if this is intentional, prefix it with an underscore: `_queue`
+
+warning: unused variable: `options`
+   --> src\shader_transpiler.rs:268:39
+    |
+268 |     fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    |                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_options`
+
+warning: unused variable: `source`
+   --> src\shader_transpiler.rs:299:31
+    |
+299 |     fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
+    |                               ^^^^^^ help: if this is intentional, prefix it with an underscore: `_source`
+
+warning: unused variable: `ast`
+   --> src\shader_transpiler.rs:325:38
+    |
+325 |     fn extract_uniform_blocks(&self, ast: &AstNode, metadata: &mut TranspilerMetadata) -> TranspilerResult<()> {
+    |                                      ^^^ help: if this is intentional, prefix it with an underscore: `_ast`
+
+warning: unused variable: `metadata`
+   --> src\shader_transpiler.rs:325:53
+    |
+325 |     fn extract_uniform_blocks(&self, ast: &AstNode, metadata: &mut TranspilerMetadata) -> TranspilerResult<()> {
+    |                                                     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_metadata`
+
+warning: unused variable: `ast`
+   --> src\shader_transpiler.rs:330:40
+    |
+330 |     fn extract_texture_bindings(&self, ast: &AstNode, metadata: &mut TranspilerMetadata) -> TranspilerResult<()> {
+    |                                        ^^^ help: if this is intentional, prefix it with an underscore: `_ast`
+
+warning: unused variable: `metadata`
+   --> src\shader_transpiler.rs:330:55
+    |
+330 |     fn extract_texture_bindings(&self, ast: &AstNode, metadata: &mut TranspilerMetadata) -> TranspilerResult<()> {
+    |                                                       ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_metadata`
+
+warning: unused variable: `options`
+   --> src\shader_transpiler.rs:553:39
+    |
+553 |     fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    |                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_options`
+
+warning: unused variable: `source`
+   --> src\shader_transpiler.rs:584:31
+    |
+584 |     fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
+    |                               ^^^^^^ help: if this is intentional, prefix it with an underscore: `_source`
+
+warning: unused variable: `options`
+   --> src\shader_transpiler.rs:695:39
+    |
+695 |     fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    |                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_options`
+
+warning: unused variable: `source`
+   --> src\shader_transpiler.rs:741:31
+    |
+741 |     fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
+    |                               ^^^^^^ help: if this is intentional, prefix it with an underscore: `_source`
+
+warning: unused variable: `options`
+   --> src\shader_transpiler.rs:780:39
+    |
+780 |     fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    |                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_options`
+
+warning: unused variable: `source`
+   --> src\shader_transpiler.rs:826:31
+    |
+826 |     fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
+    |                               ^^^^^^ help: if this is intentional, prefix it with an underscore: `_source`
+
+warning: unused variable: `language`
+   --> src\shader_transpiler.rs:874:38
+    |
+874 |     fn validate_syntax(source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
+    |                                      ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_language`
+
+warning: unused variable: `language`
+   --> src\shader_transpiler.rs:881:41
+    |
+881 |     fn validate_semantics(source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
+    |                                         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_language`
+
+warning: unused variable: `options`
+   --> src\shader_transpiler.rs:903:72
+    |
+903 |     pub fn optimize(&self, result: TranspilerResult<TranspilerOutput>, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    |                                                                        ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_options`
+
+warning: unused variable: `hlsl_source`
+   --> src\advanced_shader_compilation.rs:495:39
+    |
+495 |     pub fn convert_to_wgsl(&mut self, hlsl_source: &str, name: &str) -> Result<String> {
+    |                                       ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_hlsl_source`
+
+warning: unused variable: `isf_source`
+   --> src\advanced_shader_compilation.rs:519:39
+    |
+519 |     pub fn convert_to_wgsl(&mut self, isf_source: &str, name: &str) -> Result<String> {
+    |                                       ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_isf_source`
+
+warning: unused variable: `source`
+   --> src\wgsl_ast_parser.rs:661:32
+    |
+661 |     fn parse_module(&mut self, source: &str) -> Result<ModuleNode> {
+    |                                ^^^^^^ help: if this is intentional, prefix it with an underscore: `_source`
+
+warning: variable does not need to be mutable
+   --> src\wgsl_ast_parser.rs:662:13
+    |
+662 |         let mut module = ModuleNode {
+    |             ----^^^^^^
+    |             |
+    |             help: remove this `mut`
+
+warning: unused variable: `module`
+   --> src\wgsl_ast_parser.rs:681:35
+    |
+681 |     fn validate_module(&mut self, module: &ModuleNode) -> Result<()> {
+    |                                   ^^^^^^ help: if this is intentional, prefix it with an underscore: `_module`
+
+warning: field `sample_rate` is never read
+  --> src\audio_system.rs:52:5
+   |
+47 | pub struct AudioAnalyzer {
+   |            ------------- field in this struct
+...
+52 |     sample_rate: u32,
+   |     ^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field `parameter_cache` is never read
+  --> src\ffgl_plugin.rs:20:5
+   |
+16 | pub struct FfglPlugin {
+   |            ---------- field in this struct
+...
+20 |     parameter_cache: HashMap<String, f32>,
+   |     ^^^^^^^^^^^^^^^
+
+warning: field `0` is never read
+   --> src\ffgl_plugin.rs:220:40
+    |
+220 |         struct AudioMidiSystemResource(Arc<AudioMidiSystem>);
+    |                ----------------------- ^^^^^^^^^^^^^^^^^^^^
+    |                |
+    |                field in this struct
+    |
+    = help: consider removing this field
+    = note: `AudioMidiSystemResource` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
+
+warning: field `socket` is never read
+  --> src\osc_control.rs:71:5
+   |
+68 | pub struct OscControl {
+   |            ---------- field in this struct
+...
+71 |     socket: Option<Arc<Mutex<UdpSocket>>>,
+   |     ^^^^^^
+   |
+   = note: `OscControl` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: function `render_shader_to_texture` is never used
+   --> src\editor_ui.rs:528:4
+    |
+528 | fn render_shader_to_texture(
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: function `get_texture_pixels` is never used
+    --> src\editor_ui.rs:2626:4
+     |
+2626 | fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
+     |    ^^^^^^^^^^^^^^^^^^
+
+warning: field `x` is never read
+   --> src\scene_editor_3d.rs:369:5
+    |
+368 | struct SphericalCoords {
+    |        --------------- field in this struct
+369 |     x: f32, // radius
+    |     ^
+    |
+    = note: `SphericalCoords` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `time` is never read
+  --> src\shader_renderer.rs:85:5
+   |
+78 | pub struct ShaderRenderer {
+   |            -------------- field in this struct
+...
+85 |     time: std::time::Instant,
+   |     ^^^^
+
+warning: methods `parse_wgsl_for_uniforms`, `extract_group_binding`, `get_type_size`, and `get_type_alignment` are never used
+   --> src\wgsl_bindgen_integration.rs:143:8
+    |
+ 32 | impl WgslBindgenAnalyzer {
+    | ------------------------ methods in this implementation
+...
+143 |     fn parse_wgsl_for_uniforms(&self, wgsl_code: &str) -> Result<Vec<UniformLayout>> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^
+...
+214 |     fn extract_group_binding(&self, line: &str) -> Option<(u32, u32)> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+...
+238 |     fn get_type_size(&self, wgsl_type: &str) -> usize {
+    |        ^^^^^^^^^^^^^
+...
+251 |     fn get_type_alignment(&self, wgsl_type: &str) -> usize {
+    |        ^^^^^^^^^^^^^^^^^^
+
+warning: method `offset_to_line_column` is never used
+  --> src\wgsl_diagnostics.rs:97:8
+   |
+32 | impl WgslDiagnostics {
+   | -------------------- method in this implementation
+...
+97 |     fn offset_to_line_column(&self, offset: usize) -> (usize, usize) {
+   |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `symbol_table` is never read
+ --> src\converter\glsl.rs:8:5
+  |
+6 | pub struct GLSLConverter {
+  |            ------------- field in this struct
+7 |     diagnostics: Diagnostics,
+8 |     symbol_table: HashMap<String, SymbolInfo>,
+  |     ^^^^^^^^^^^^
+
+warning: fields `glsl_type`, `storage_class`, `line`, and `column` are never read
+  --> src\converter\glsl.rs:16:5
+   |
+14 | struct SymbolInfo {
+   |        ---------- fields in this struct
+15 |     name: String,
+16 |     glsl_type: String,
+   |     ^^^^^^^^^
+17 |     wgsl_type: String,
+18 |     storage_class: StorageClass,
+   |     ^^^^^^^^^^^^^
+19 |     line: usize,
+   |     ^^^^
+20 |     column: usize,
+   |     ^^^^^^
+   |
+   = note: `SymbolInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `body`, `line`, and `column` are never read
+  --> src\converter\glsl.rs:36:5
+   |
+32 | struct FunctionInfo {
+   |        ------------ fields in this struct
+...
+36 |     body: String,
+   |     ^^^^
+37 |     line: usize,
+   |     ^^^^
+38 |     column: usize,
+   |     ^^^^^^
+   |
+   = note: `FunctionInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `glsl_type` and `storage_class` are never read
+  --> src\converter\glsl.rs:44:5
+   |
+42 | struct ParameterInfo {
+   |        ------------- fields in this struct
+43 |     name: String,
+44 |     glsl_type: String,
+   |     ^^^^^^^^^
+45 |     wgsl_type: String,
+46 |     storage_class: StorageClass,
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `ParameterInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: variants `Uniform`, `Storage`, `Function`, `Private`, and `Workgroup` are never constructed
+  --> src\converter\glsl.rs:51:5
+   |
+50 | enum StorageClass {
+   |      ------------ variants in this enum
+51 |     Uniform,
+   |     ^^^^^^^
+52 |     Storage,
+   |     ^^^^^^^
+53 |     Function,
+   |     ^^^^^^^^
+54 |     Private,
+   |     ^^^^^^^
+55 |     Workgroup,
+   |     ^^^^^^^^^
+   |
+   = note: `StorageClass` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `symbol_table` is never read
+ --> src\converter\hlsl.rs:8:5
+  |
+6 | pub struct HLSLConverter {
+  |            ------------- field in this struct
+7 |     diagnostics: Diagnostics,
+8 |     symbol_table: HashMap<String, SymbolInfo>,
+  |     ^^^^^^^^^^^^
+
+warning: fields `hlsl_type`, `storage_class`, `line`, `column`, and `semantic` are never read
+  --> src\converter\hlsl.rs:17:5
+   |
+15 | struct SymbolInfo {
+   |        ---------- fields in this struct
+16 |     name: String,
+17 |     hlsl_type: String,
+   |     ^^^^^^^^^
+18 |     wgsl_type: String,
+19 |     storage_class: StorageClass,
+   |     ^^^^^^^^^^^^^
+20 |     line: usize,
+   |     ^^^^
+21 |     column: usize,
+   |     ^^^^^^
+22 |     semantic: Option<String>, // HLSL semantic (e.g., POSITION, TEXCOORD0)
+   |     ^^^^^^^^
+   |
+   = note: `SymbolInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `hlsl_type` and `is_comparison` are never read
+  --> src\converter\hlsl.rs:36:5
+   |
+34 | struct TextureInfo {
+   |        ----------- fields in this struct
+35 |     name: String,
+36 |     hlsl_type: String,
+   |     ^^^^^^^^^
+...
+40 |     is_comparison: bool,
+   |     ^^^^^^^^^^^^^
+   |
+   = note: `TextureInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `body`, `line`, `column`, and `shader_type` are never read
+  --> src\converter\hlsl.rs:48:5
+   |
+44 | struct FunctionInfo {
+   |        ------------ fields in this struct
+...
+48 |     body: String,
+   |     ^^^^
+49 |     line: usize,
+   |     ^^^^
+50 |     column: usize,
+   |     ^^^^^^
+51 |     shader_type: Option<ShaderType>, // Vertex, Pixel, Compute
+   |     ^^^^^^^^^^^
+   |
+   = note: `FunctionInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `hlsl_type`, `storage_class`, and `semantic` are never read
+  --> src\converter\hlsl.rs:57:5
+   |
+55 | struct ParameterInfo {
+   |        ------------- fields in this struct
+56 |     name: String,
+57 |     hlsl_type: String,
+   |     ^^^^^^^^^
+58 |     wgsl_type: String,
+59 |     storage_class: StorageClass,
+   |     ^^^^^^^^^^^^^
+60 |     semantic: Option<String>,
+   |     ^^^^^^^^
+   |
+   = note: `ParameterInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: multiple variants are never constructed
+  --> src\converter\hlsl.rs:65:5
+   |
+64 | enum StorageClass {
+   |      ------------ variants in this enum
+65 |     Uniform,
+   |     ^^^^^^^
+66 |     Storage,
+   |     ^^^^^^^
+67 |     Function,
+   |     ^^^^^^^^
+68 |     Private,
+   |     ^^^^^^^
+69 |     Workgroup,
+   |     ^^^^^^^^^
+70 |     Input,
+   |     ^^^^^
+71 |     Output,
+   |     ^^^^^^
+   |
+   = note: `StorageClass` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: variants `Vertex`, `Pixel`, and `Compute` are never constructed
+  --> src\converter\hlsl.rs:76:5
+   |
+75 | enum ShaderType {
+   |      ---------- variants in this enum
+76 |     Vertex,
+   |     ^^^^^^
+77 |     Pixel,
+   |     ^^^^^
+78 |     Compute,
+   |     ^^^^^^^
+   |
+   = note: `ShaderType` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: multiple methods are never used
+   --> src\converter\hlsl.rs:123:8
+    |
+ 81 | impl HLSLConverter {
+    | ------------------ methods in this implementation
+...
+123 |     fn collect_parse_errors(&mut self, _tree: &str, _source: &str, _file_path: &str) {
+    |        ^^^^^^^^^^^^^^^^^^^^
+...
+129 |     fn walk_for_errors(&mut self, _node: &str, _source: &str, _file_path: &str) {
+    |        ^^^^^^^^^^^^^^^
+...
+135 |     fn analyze_ast(&mut self, _tree: &str, _source: &str, _file_path: &str) -> Result<()> {
+    |        ^^^^^^^^^^^
+...
+142 |     fn find_declarations(&mut self, _node: &str, _source: &str, _file_path: &str) -> Result<()> {
+    |        ^^^^^^^^^^^^^^^^^
+...
+149 |     fn find_functions(&mut self, _node: &str, _source: &str, _file_path: &str) -> Result<()> {
+    |        ^^^^^^^^^^^^^^
+...
+156 |     fn find_constant_buffers(&mut self, _node: &str, _source: &str, _file_path: &str) -> Result<()> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+...
+163 |     fn parse_cbuffer_body(&mut self, _body_node: &str, _source: &str, _file_path: &str) -> Result<Vec<SymbolInfo>> {
+    |        ^^^^^^^^^^^^^^^^^^
+...
+170 |     fn find_texture_declarations(&mut self, _node: &str, _source: &str, _file_path: &str) -> Result<()> {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^
+...
+177 |     fn find_semantics(&mut self, _node: &str, _source: &str, _file_path: &str) -> Result<()> {
+    |        ^^^^^^^^^^^^^^
+...
+184 |     fn determine_shader_type(&self, function_name: &str) -> Option<ShaderType> {
+    |        ^^^^^^^^^^^^^^^^^^^^^
+...
+241 |     fn convert_hlsl_texture_to_wgsl(&self, hlsl_texture_type: &str) -> String {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `node_positions` is never read
+  --> src\visual_node_editor.rs:13:5
+   |
+ 6 | pub struct VisualNodeEditor {
+   |            ---------------- field in this struct
+...
+13 |     node_positions: HashMap<NodeId, (f32, f32)>,
+   |     ^^^^^^^^^^^^^^
+
+warning: fields `connection_start` and `selected_node` are never read
+  --> src\visual_node_editor_adapter.rs:11:5
+   |
+ 9 | pub struct NodeEditorAdapter {
+   |            ----------------- fields in this struct
+10 |     node_positions: HashMap<NodeId, (f32, f32)>,
+11 |     connection_start: Option<(NodeId, PortId, bool)>,
+   |     ^^^^^^^^^^^^^^^^
+12 |     selected_node: Option<NodeId>,
+   |     ^^^^^^^^^^^^^
+
+warning: associated function `actual_to_visual_kind` is never used
+  --> src\visual_node_editor_adapter.rs:62:8
+   |
+33 | impl NodeEditorAdapter {
+   | ---------------------- associated function in this implementation
+...
+62 |     fn actual_to_visual_kind(actual: &ActualNodeKind) -> Option<VisualNodeKind> {
+   |        ^^^^^^^^^^^^^^^^^^^^^
+
+warning: fields `symbol_table`, `uniform_blocks`, `functions`, `texture_declarations`, `version`, and `profile` are never read
+   --> src\advanced_shader_compilation.rs:142:5
+    |
+141 | pub struct GLSLConverter {
+    |            ------------- fields in this struct
+142 |     symbol_table: HashMap<String, SymbolInfo>,
+    |     ^^^^^^^^^^^^
+143 |     uniform_blocks: Vec<UniformBlock>,
+    |     ^^^^^^^^^^^^^^
+144 |     functions: HashMap<String, FunctionInfo>,
+    |     ^^^^^^^^^
+145 |     texture_declarations: Vec<TextureDeclaration>,
+    |     ^^^^^^^^^^^^^^^^^^^^
+146 |     version: String,
+    |     ^^^^^^^
+147 |     profile: String,
+    |     ^^^^^^^
+
+warning: fields `constant_buffers`, `texture_declarations`, `sampler_states`, `functions`, `semantics`, and `shader_model` are never read
+   --> src\advanced_shader_compilation.rs:152:5
+    |
+151 | pub struct HLSLConverter {
+    |            ------------- fields in this struct
+152 |     constant_buffers: Vec<ConstantBuffer>,
+    |     ^^^^^^^^^^^^^^^^
+153 |     texture_declarations: Vec<TextureDeclaration>,
+    |     ^^^^^^^^^^^^^^^^^^^^
+154 |     sampler_states: Vec<SamplerState>,
+    |     ^^^^^^^^^^^^^^
+155 |     functions: HashMap<String, FunctionInfo>,
+    |     ^^^^^^^^^
+156 |     semantics: HashMap<String, String>,
+    |     ^^^^^^^^^
+157 |     shader_model: String,
+    |     ^^^^^^^^^^^^
+
+warning: fields `input_mappings`, `pass_configurations`, `persistent_buffers`, `imported_textures`, and `isf_version` are never read
+   --> src\advanced_shader_compilation.rs:162:5
+    |
+161 | pub struct ISFConverter {
+    |            ------------ fields in this struct
+162 |     input_mappings: HashMap<String, IsfInputMapping>,
+    |     ^^^^^^^^^^^^^^
+163 |     pass_configurations: Vec<IsfPass>,
+    |     ^^^^^^^^^^^^^^^^^^^
+164 |     persistent_buffers: Vec<String>,
+    |     ^^^^^^^^^^^^^^^^^^
+165 |     imported_textures: Vec<String>,
+    |     ^^^^^^^^^^^^^^^^^
+166 |     isf_version: String,
+    |     ^^^^^^^^^^^
+
+warning: fields `name` and `wgsl_type` are never read
+   --> src\advanced_shader_compilation.rs:534:21
+    |
+534 | struct SymbolInfo { name: String, wgsl_type: String }
+    |        ----------   ^^^^          ^^^^^^^^^
+    |        |
+    |        fields in this struct
+    |
+    = note: `SymbolInfo` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `name` and `members` are never read
+   --> src\advanced_shader_compilation.rs:536:23
+    |
+536 | struct UniformBlock { name: String, members: Vec<SymbolInfo> }
+    |        ------------   ^^^^          ^^^^^^^
+    |        |
+    |        fields in this struct
+    |
+    = note: `UniformBlock` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `name` and `wgsl_type` are never read
+   --> src\advanced_shader_compilation.rs:538:29
+    |
+538 | struct TextureDeclaration { name: String, wgsl_type: String }
+    |        ------------------   ^^^^          ^^^^^^^^^
+    |        |
+    |        fields in this struct
+    |
+    = note: `TextureDeclaration` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: fields `name` and `members` are never read
+   --> src\advanced_shader_compilation.rs:540:25
+    |
+540 | struct ConstantBuffer { name: String, members: Vec<SymbolInfo> }
+    |        --------------   ^^^^          ^^^^^^^
+    |        |
+    |        fields in this struct
+    |
+    = note: `ConstantBuffer` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: field `name` is never read
+   --> src\advanced_shader_compilation.rs:542:23
+    |
+542 | struct SamplerState { name: String }
+    |        ------------   ^^^^
+    |        |
+    |        field in this struct
+    |
+    = note: `SamplerState` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
+
+warning: method `extract_item_info` is never used
+   --> src\shader_module_system.rs:283:8
+    |
+110 | impl ShaderModuleSystem {
+    | ----------------------- method in this implementation
+...
+283 |     fn extract_item_info(&self, module: &mut ShaderModule, item: &AstNode) -> ModuleResult<()> {
+    |        ^^^^^^^^^^^^^^^^^
+
+warning: field `supported_formats` is never read
+   --> src\shader_module_system.rs:418:5
+    |
+417 | pub struct BundleLoader {
+    |            ------------ field in this struct
+418 |     supported_formats: Arc<RwLock<HashSet<String>>>,
+    |     ^^^^^^^^^^^^^^^^^
+
+warning: creating a mutable reference to mutable static
+   --> src\ffgl_plugin.rs:239:9
+    |
+239 |         PLUGIN_INSTANCE.as_mut().unwrap() as *mut _ as *mut c_void
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^ mutable reference to mutable static
+    |
+    = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/static-mut-references.html>
+    = note: mutable references to mutable statics are dangerous; it's undefined behavior if any other pointer to the static is used or if any other reference is created for the static while the mutable reference lives
+    = note: `#[warn(static_mut_refs)]` on by default
+
+warning: unused `std::result::Result` that must be used
+   --> src\screenshot_video_export.rs:181:9
+    |
+181 |         device.poll(wgpu::PollType::Wait);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+    = note: `#[warn(unused_must_use)]` on by default
+help: use `let _ = ...` to ignore the resulting value
+    |
+181 |         let _ = device.poll(wgpu::PollType::Wait);
+    |         +++++++
+
+warning: unused `std::result::Result` that must be used
+   --> src\screenshot_video_export.rs:315:9
+    |
+315 |         device.poll(wgpu::PollType::Wait);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+    |
+315 |         let _ = device.poll(wgpu::PollType::Wait);
+    |         +++++++
+
+warning: unused `std::result::Result` that must be used
+   --> src\bevy_node_graph_integration_enhanced.rs:278:9
+    |
+278 |         self.connect(time_node, 0, sin_node, 0);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+    |
+278 |         let _ = self.connect(time_node, 0, sin_node, 0);
+    |         +++++++
+
+warning: unused `std::result::Result` that must be used
+   --> src\bevy_node_graph_integration_enhanced.rs:279:9
+    |
+279 |         self.connect(sin_node, 0, color_mix_node, 2); // Use sin(time) as mix factor
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+    |
+279 |         let _ = self.connect(sin_node, 0, color_mix_node, 2); // Use sin(time) as mix factor
+    |         +++++++
+
+warning: unused `std::result::Result` that must be used
+   --> src\bevy_node_graph_integration_enhanced.rs:280:9
+    |
+280 |         self.connect(uv_node, 0, color_mix_node, 0); // UV as first color
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+    |
+280 |         let _ = self.connect(uv_node, 0, color_mix_node, 0); // UV as first color
+    |         +++++++
+
+warning: unused `std::result::Result` that must be used
+   --> src\bevy_node_graph_integration_enhanced.rs:281:9
+    |
+281 |         self.connect(time_node, 0, color_mix_node, 1); // Time as second color
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+    |
+281 |         let _ = self.connect(time_node, 0, color_mix_node, 1); // Time as second color
+    |         +++++++
+
+warning: unused `std::result::Result` that must be used
+   --> src\bevy_node_graph_integration_enhanced.rs:282:9
+    |
+282 |         self.connect(color_mix_node, 0, output_node, 0);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+    |
+282 |         let _ = self.connect(color_mix_node, 0, output_node, 0);
+    |         +++++++
+
+warning: structure field `DEFAULT` should have a snake case name
+  --> src\isf_auto_converter.rs:12:13
+   |
+12 |     Float { DEFAULT: f32, MIN: f32, MAX: f32 },
+   |             ^^^^^^^ help: convert the identifier to snake case: `default`
+   |
+   = note: `#[warn(non_snake_case)]` on by default
+
+warning: structure field `MIN` should have a snake case name
+  --> src\isf_auto_converter.rs:12:27
+   |
+12 |     Float { DEFAULT: f32, MIN: f32, MAX: f32 },
+   |                           ^^^ help: convert the identifier to snake case: `min`
+
+warning: structure field `MAX` should have a snake case name
+  --> src\isf_auto_converter.rs:12:37
+   |
+12 |     Float { DEFAULT: f32, MIN: f32, MAX: f32 },
+   |                                     ^^^ help: convert the identifier to snake case: `max`
+
+warning: structure field `DEFAULT` should have a snake case name
+  --> src\isf_auto_converter.rs:14:12
+   |
+14 |     Bool { DEFAULT: bool },
+   |            ^^^^^^^ help: convert the identifier to snake case: `default`
+
+warning: structure field `DEFAULT` should have a snake case name
+  --> src\isf_auto_converter.rs:16:13
+   |
+16 |     Color { DEFAULT: [f32; 4] },
+   |             ^^^^^^^ help: convert the identifier to snake case: `default`
+
+warning: structure field `DEFAULT` should have a snake case name
+  --> src\isf_auto_converter.rs:18:15
+   |
+18 |     Point2D { DEFAULT: [f32; 2], MIN: [f32; 2], MAX: [f32; 2] },
+   |               ^^^^^^^ help: convert the identifier to snake case: `default`
+
+warning: structure field `MIN` should have a snake case name
+  --> src\isf_auto_converter.rs:18:34
+   |
+18 |     Point2D { DEFAULT: [f32; 2], MIN: [f32; 2], MAX: [f32; 2] },
+   |                                  ^^^ help: convert the identifier to snake case: `min`
+
+warning: structure field `MAX` should have a snake case name
+  --> src\isf_auto_converter.rs:18:49
+   |
+18 |     Point2D { DEFAULT: [f32; 2], MIN: [f32; 2], MAX: [f32; 2] },
+   |                                                 ^^^ help: convert the identifier to snake case: `max`
+
+warning: structure field `NAME` should have a snake case name
+  --> src\isf_auto_converter.rs:30:9
+   |
+30 |     pub NAME: String,
+   |         ^^^^ help: convert the identifier to snake case: `name`
+
+warning: structure field `NAME` should have a snake case name
+  --> src\isf_auto_converter.rs:38:9
+   |
+38 |     pub NAME: String,
+   |         ^^^^ help: convert the identifier to snake case: `name`
+
+warning: structure field `DESCRIPTION` should have a snake case name
+  --> src\isf_auto_converter.rs:39:9
+   |
+39 |     pub DESCRIPTION: Option<String>,
+   |         ^^^^^^^^^^^ help: convert the identifier to snake case: `description`
+
+warning: structure field `CREDIT` should have a snake case name
+  --> src\isf_auto_converter.rs:40:9
+   |
+40 |     pub CREDIT: Option<String>,
+   |         ^^^^^^ help: convert the identifier to snake case: `credit`
+
+warning: structure field `ISFVSN` should have a snake case name
+  --> src\isf_auto_converter.rs:41:9
+   |
+41 |     pub ISFVSN: Option<String>,
+   |         ^^^^^^ help: convert the identifier to snake case: `isfvsn`
+
+warning: structure field `VSN` should have a snake case name
+  --> src\isf_auto_converter.rs:42:9
+   |
+42 |     pub VSN: Option<String>,
+   |         ^^^ help: convert the identifier to snake case: `vsn`
+
+warning: structure field `INPUTS` should have a snake case name
+  --> src\isf_auto_converter.rs:43:9
+   |
+43 |     pub INPUTS: Option<Vec<IsfInput>>,
+   |         ^^^^^^ help: convert the identifier to snake case: `inputs`
+
+warning: structure field `PASSES` should have a snake case name
+  --> src\isf_auto_converter.rs:44:9
+   |
+44 |     pub PASSES: Option<Vec<HashMap<String, serde_json::Value>>>,
+   |         ^^^^^^ help: convert the identifier to snake case: `passes`
+
+warning: structure field `PERSISTENT_BUFFERS` should have a snake case name
+  --> src\isf_auto_converter.rs:45:9
+   |
+45 |     pub PERSISTENT_BUFFERS: Option<Vec<String>>,
+   |         ^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `persistent_buffers`
+
+warning: `wgsl-shader-studio` (lib) generated 202 warnings (run `cargo fix --lib -p wgsl-shader-studio` to apply 40 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 57.90s
+     Running `target\debug\ui-analyzer.exe`
+🔍 WGSL Shader Studio - Comprehensive UI Analyzer
+==================================================
+
+🔄 Running comprehensive analysis...
+📊 Analysis complete!
+
+📝 Generating detailed report...
+
+✅ Report saved to: UI_AUDIT_REPORT.md
+
+📈 SUMMARY:
+-----------
+Total Features Required: 27
+Critical Missing: 3
+High Priority Missing: 6
+Critical Broken: 1
+Functional Features: 2
+Partial Features: 2
+
+🚨 CRITICAL MISSING FEATURES:
+  - Live Shader Preview (Core Rendering)
+  - Shader Browser Panel (UI Layout)
+  - Shader Compilation (Shader Systems)
+
+💥 CRITICAL BROKEN FEATURES:
+  - Three-Panel Layout (UI Layout)
+
+📋 NEXT STEPS:
+1. Fix critical missing features first
+2. Repair broken critical features
+3. Implement high priority missing features
+4. Complete partial features
+5. Test all functionality
+
+📄 Full detailed report available in: UI_AUDIT_REPORT.md
