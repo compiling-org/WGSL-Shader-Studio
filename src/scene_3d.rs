@@ -166,7 +166,7 @@ impl Scene3DManager {
             },
             VisibleEntities::default(),
             Frustum::default(),
-            Camera::default(),
+            Camera { order: 1, ..Default::default() },
         )).id();
         
         self.camera_entity = Some(camera_entity);

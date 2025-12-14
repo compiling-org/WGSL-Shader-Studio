@@ -1,12 +1,13 @@
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
 use bevy::window::{PresentMode, WindowResolution};
+// ClearColorConfig import not available in Bevy 0.17 public API; using default clear behavior
 use bevy_egui::{
     EguiContexts,
     EguiPlugin,
 };
 use bevy_egui::egui;
-use bevy_egui::egui::TextureHandle;
+use bevy::ecs::system::SystemParam;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -85,7 +86,6 @@ use crate::compute_pass_integration::{ComputePassPlugin, ComputePassManager};
 
 use crate::editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_editor_side_panels, draw_editor_central_panel};
 
-use crate::shader_renderer::{ShaderRenderer, RenderParameters};
 
 use crate::bevy_node_graph_integration_enhanced::BevyNodeGraphPlugin;
 // use crate::compute_pass_integration::ComputePassPlugin;
@@ -93,6 +93,16 @@ use crate::bevy_node_graph_integration_enhanced::BevyNodeGraphPlugin;
 use crate::scene_editor_3d::{SceneEditor3DState, SceneEditor3DPlugin};
 use crate::visual_node_editor_plugin::{VisualNodeEditorPlugin, VisualNodeEditorState};
 use crate::simple_ui_auditor::{SimpleUiAuditor, SimpleUiAuditorPlugin};
+
+#[derive(SystemParam)]
+pub struct OutputsParams<'w> {
+    pub spout_config: ResMut<'w, crate::spout_syphon_output::SpoutSyphonConfig>,
+    pub spout_output: Res<'w, crate::spout_syphon_output::SpoutSyphonOutput>,
+    pub ndi_config: ResMut<'w, crate::ndi_output::NdiConfig>,
+    pub ndi_output: Res<'w, crate::ndi_output::NdiOutput>,
+    pub dmx_config: ResMut<'w, crate::dmx_lighting_control::DmxConfig>,
+    pub dmx_control: ResMut<'w, crate::dmx_lighting_control::DmxLightingControl>,
+}
 
 // Hint Windows drivers to prefer discrete GPU when available
 #[cfg(target_os = "windows")]
@@ -111,11 +121,15 @@ pub fn editor_ui_system(
     audio_analyzer: Res<AudioAnalyzer>,
     mut timeline_animation: ResMut<TimelineAnimation>,
     scene_editor_state: Res<SceneEditor3DState>,
+    scene_view_tex: Res<crate::scene_editor_3d::SceneViewportTexture>,
+    mut node_graph_res: ResMut<crate::bevy_node_graph_integration_enhanced::NodeGraphResource>,
     performance_metrics: Res<PerformanceMetrics>,
     mut midi_system: ResMut<MidiSystem>,
     mut gesture_control: ResMut<GestureControlSystem>,
     mut compute_manager: ResMut<ComputePassManager>,
     mut auditor: ResMut<SimpleUiAuditor>,
+    exporter: Res<crate::screenshot_video_export::ScreenshotVideoExporter>,
+    mut outputs: OutputsParams,
 ) {
     // Increment frame counter
     startup_gate.frames += 1;
@@ -123,6 +137,15 @@ pub fn editor_ui_system(
     // Wait a few frames for egui context to initialize properly
     if startup_gate.frames < 5 {
         return;
+    }
+    
+    // Register 3D scene image (only once) before borrowing context
+    if ui_state.central_view == crate::editor_ui::CentralView::Scene3D
+        && scene_editor_state.enabled
+        && ui_state.scene3d_texture_id.is_none()
+    {
+        let tex_id = egui_ctx.add_image(bevy_egui::EguiTextureHandle::Strong(scene_view_tex.handle.clone()));
+        ui_state.scene3d_texture_id = Some(tex_id);
     }
     
     // Get egui context, handling the Result return type
@@ -134,15 +157,6 @@ pub fn editor_ui_system(
     // Apply theme settings
     apply_theme(&ctx, &ui_state);
     
-    // Debug: Print frame info every 60 frames
-    if startup_gate.frames % 60 == 0 {
-        println!("Frame {}: Drawing UI with state - shader_browser: {}, parameter_panel: {}, preview: {}, code_editor: {}", 
-                 startup_gate.frames,
-                 ui_state.show_shader_browser,
-                 ui_state.show_parameter_panel,
-                 ui_state.show_preview,
-                 ui_state.show_code_editor);
-    }
     
     // Ensure UI panels are visible by default and initialize content
     if startup_gate.frames == 5 {
@@ -151,11 +165,12 @@ pub fn editor_ui_system(
         ui_state.show_parameter_panel = true;
         ui_state.show_preview = true;
         ui_state.show_code_editor = true;
-        ui_state.show_node_studio = true;
-        ui_state.show_timeline = true; // Enable timeline for animation
+        ui_state.show_node_studio = false;
+        ui_state.show_timeline = false; // Keep timeline hidden initially
         ui_state.show_audio_panel = false; // Keep disabled for now
         ui_state.show_midi_panel = false; // Keep disabled for now
         ui_state.show_gesture_panel = false; // Keep disabled for now
+        ui_state.show_3d_scene_panel = false; // Embedded via central tabs
         
         // Initialize with some default content
         ui_state.draft_code = String::from("// WGSL Shader Studio\n// Welcome to the shader editor\n\n@fragment\nfn main() -> @location(0) vec4<f32> {\n    return vec4<f32>(1.0, 0.0, 0.0, 1.0);\n}");
@@ -195,37 +210,58 @@ pub fn editor_ui_system(
                 ui_state.set_parameter_value(&param.name, param.value);
             }
             
-            println!("Applied timeline animation to {} parameters", timeline_params.len());
+            
         }
     }
     
     // Draw menu bar
-    println!("Drawing menu bar...");
     draw_editor_menu(ctx, &mut *ui_state);
     if auditor.enabled { auditor.record_panel("Menu Bar", true, None); }
     
-    draw_editor_side_panels(&ctx, &mut *ui_state, &*audio_analyzer, &mut *gesture_control, &mut *compute_manager, None);
+    draw_editor_side_panels(
+        &ctx, 
+        &mut *ui_state, 
+        &*audio_analyzer, 
+        &mut *gesture_control, 
+        &mut *compute_manager, 
+        Some(&*exporter), 
+        &mut *midi_system,
+        &mut *outputs.spout_config,
+        &*outputs.spout_output,
+        &mut *outputs.ndi_config,
+        &*outputs.ndi_output,
+        &mut *outputs.dmx_config,
+        &mut *outputs.dmx_control
+    );
     if auditor.enabled && ui_state.show_shader_browser { auditor.record_panel("Shader Browser", true, None); }
     if auditor.enabled && ui_state.show_parameter_panel { auditor.record_panel("Parameters", true, None); }
     
     // Draw the main preview panel - this should be the CentralPanel
     // Only draw if preview is enabled, otherwise let other panels fill the space
     if ui_state.show_preview {
-        println!("Drawing preview panel...");
-        draw_editor_central_panel(ctx, &mut *ui_state, &*audio_analyzer, None);
-        if auditor.enabled { auditor.record_panel("Preview", true, None); }
+        draw_editor_central_panel(
+            ctx, 
+            &mut *ui_state, 
+            &*audio_analyzer, 
+            None, 
+            &mut *node_graph_res, 
+            &*scene_editor_state,
+            &mut *timeline_animation
+        );
+        if auditor.enabled {
+            match ui_state.central_view {
+                crate::editor_ui::CentralView::Preview => auditor.record_panel("Preview", true, None),
+                crate::editor_ui::CentralView::NodeGraph => auditor.record_panel("Node Graph", true, None),
+                crate::editor_ui::CentralView::Scene3D => auditor.record_panel("3D Editor", true, None),
+                crate::editor_ui::CentralView::Timeline => auditor.record_panel("Timeline", true, None),
+            }
+        }
     }
     
-    // Draw the additional side panels (timeline, node studio, etc.) as windows
-    if ui_state.show_timeline {
-        // Use the actual timeline UI from timeline.rs
-        egui::Window::new("Timeline")
-            .default_pos([100.0, 100.0])
-            .default_size([800.0, 400.0])
-            .show(&ctx, |ui| {
-                crate::timeline::draw_timeline_ui(ui, &mut *timeline_animation);
-            });
-        if auditor.enabled { auditor.record_panel("Timeline", true, None); }
+    // Bottom code editor — always available when enabled
+    if ui_state.show_code_editor {
+        crate::editor_ui::draw_editor_code_panel(ctx, &mut *ui_state);
+        if auditor.enabled { auditor.record_panel("Code Editor", true, None); }
     }
     
     // Draw MIDI panel
@@ -234,23 +270,12 @@ pub fn editor_ui_system(
         if auditor.enabled { auditor.record_panel("MIDI", true, None); }
     }
     
-    // Draw node studio (node graph editor)
-    if ui_state.show_node_studio {
-        // The node graph UI system is separate due to its resource requirements
-        // It will be called automatically by Bevy's system scheduler
-        println!("Node studio window should be visible");
-    }
-    
-    // Draw 3D scene editor panel
-    if ui_state.show_3d_scene_panel {
-        crate::editor_ui::draw_3d_scene_panel(ctx, &mut *ui_state);
-        if auditor.enabled { auditor.record_panel("3D Scene Editor", true, None); }
-    }
+    // Node graph and 3D editor are embedded in central view tabs now
 }
 
 pub fn setup_camera(mut commands: Commands) {
-    // Use Camera2d for proper UI rendering with egui
-    commands.spawn(Camera2d);
+    commands.spawn(Camera3d::default());
+    commands.spawn((Camera2d, Camera { order: 100, ..Default::default() }));
 }
 
 fn initialize_wgpu_renderer(ui_state: ResMut<EditorUiState>) {
@@ -275,7 +300,7 @@ fn async_initialize_wgpu_renderer(
     mut startup_gate: ResMut<UiStartupGate>
 ) {
     // Only attempt initialization after UI is stable
-    if startup_gate.frames < 60 {
+    if startup_gate.frames < 5 {
         return;
     }
     
@@ -304,18 +329,17 @@ fn async_initialize_wgpu_renderer(
                      working_examples_count);
         }
         Err(e) => {
-            println!("CRITICAL FAILURE: WGPU renderer initialization failed: {}", e);
-            println!("ENFORCING GPU-ONLY POLICY - NO CPU FALLBACK ALLOWED.");
+            println!("WGPU renderer initialization failed: {}", e);
+            println!("Continuing without renderer; UI will show 'Renderer not initialized'.");
             ui_state.wgpu_initialized = false;
             ui_state.compilation_error = format!("WGPU initialization failed: {}", e);
-            
-            // HARD PANIC - System requires GPU, no CPU fallback permitted
-            panic!("GPU initialization failed. This application requires a compatible GPU and cannot run without it. Error: {}", e);
+            // Do not panic; keep app running so user can inspect UI and logs
         }
     }
 }
 
 pub fn run_app() {
+    std::env::set_var("WGPU_ERROR", "warn");
     // Install a panic hook to improve crash diagnostics typical of Bevy 0.17 + bevy_egui
     std::panic::set_hook(Box::new(|info| {
         eprintln!("WGSL Shader Studio panicked: {}", info);
@@ -357,14 +381,16 @@ pub fn run_app() {
         .add_plugins(SpoutSyphonOutputPlugin)
         .add_plugins(DmxLightingControlPlugin)
         .add_plugins(SimpleUiAuditorPlugin)
-        // .add_plugins(BevyNodeGraphPluginEnhanced)
-        // .add_plugins(ResponsiveBackendPlugin)
+        .add_plugins(BevyNodeGraphPlugin)
         .insert_resource(EditorUiState::default())
         .insert_resource(UiStartupGate::default())
         .insert_resource(Viewport3DTexture::default())
+        .insert_resource(crate::scene_editor_3d::SceneEditor3DState::default())
+        .insert_resource(crate::scene_editor_3d::SceneViewportTexture::default())
+        .insert_resource(crate::scene_editor_3d::ShaderPreviewTexture::default())
         .insert_resource(MidiSystem::new())
         .insert_resource(crate::screenshot_video_export::ScreenshotVideoExporter::new())
-        .insert_resource(VisualNodeEditorState { auto_compile: true, show_node_editor: true })
+        .insert_resource(VisualNodeEditorState { auto_compile: true, show_node_editor: false })
         .insert_resource(EnhancedAudioAnalyzer::new())
         .add_systems(Startup, setup_camera)
         .add_systems(Startup, initialize_wgpu_renderer)

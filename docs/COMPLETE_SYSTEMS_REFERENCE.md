@@ -2,35 +2,27 @@
 
 ## 🚨 Critical Status
 
-**⚠️ CURRENT REALITY**: This project is **BROKEN** with 33 compilation errors and **0 working features**. All systems described below represent the **TARGET ARCHITECTURE** that needs to be implemented during reconstruction.
+**Current Snapshot**: All core systems are **present**. Wiring and integrations are **incomplete** and need refinement. Live preview is unstable; UI panels and tooling exist but require reliable wiring. This document is a **target architecture reference** aligned with present modules.
 
 ```mermaid
-graph TD
-    A[COMPLETE SYSTEMS REFERENCE] --> B[🚨 CURRENT STATE]
-    A --> C[🎯 TARGET ARCHITECTURE]
-    A --> D[📋 IMPLEMENTATION ROADMAP]
-    
-    B --> B1[33 Compilation Errors]
-    B --> B2[0 Working Features]
-    B --> B3[Broken UI Layout]
-    B --> B4[Missing Core Systems]
-    
-    C --> C1[WGPU Integration]
-    C --> C2[Shader Compilation]
-    C --> C3[UI Framework]
-    C --> C4[Node Editor]
-    C --> C5[Audio/MIDI]
-    C --> C6[FFGL Export]
-    
-    D --> D1[Critical Fixes]
-    D --> D2[Foundation Systems]
-    D --> D3[Core Features]
-    D --> D4[Advanced Systems]
-    
-    style A fill:#1a237e
-    style B fill:#f44336
-    style C fill:#2196f3
-    style D fill:#4caf50
+flowchart TD
+    A["Complete Systems Reference"] --> State["Current State"]
+    A --> Target["Target Architecture"]
+    A --> Roadmap["Implementation Roadmap"]
+    State --> S1["Framework Ready"]
+    State --> S2["Core Systems Present"]
+    State --> S3["Wiring Incomplete"]
+    State --> S4["Preview Unstable"]
+    State --> S5["UI Present; Refinement Needed"]
+    Target --> T1["WGPU Integration"]
+    Target --> T2["Shader Compilation"]
+    Target --> T3["UI Framework"]
+    Target --> T4["Node Editor"]
+    Target --> T5["Audio/MIDI"]
+    Target --> T6["Export"]
+    Roadmap --> R1["Stabilize Wiring"]
+    Roadmap --> R2["Refine Integrations"]
+    Roadmap --> R3["Polish UX"]
 ```
 
 ## 🎯 Complete Feature Matrix
@@ -38,37 +30,31 @@ graph TD
 ### Core Rendering Systems (Priority 1 - CRITICAL)
 
 ```mermaid
-graph TD
-    A[CORE RENDERING SYSTEMS] --> B[WGPU Integration]
-    A --> C[Shader Compilation]
-    A --> D[Render Pipeline]
-    A --> E[Resource Management]
+flowchart TD
+    A["CORE RENDERING SYSTEMS"] --> B["WGPU Integration"]
+    A --> C["Shader Compilation"]
+    A --> D["Render Pipeline"]
+    A --> E["Resource Management"]
     
-    B --> B1[Device Creation]
-    B --> B2[Queue Management]
-    B --> B3[Surface Configuration]
-    B --> B4[Adapter Selection]
+    B --> B1["Device Creation"]
+    B --> B2["Queue Management"]
+    B --> B3["Surface Configuration"]
+    B --> B4["Adapter Selection"]
     
-    C --> C1[naga WGSL Parser]
-    C --> C2[Semantic Validation]
-    C --> C3[Code Generation]
-    C --> C4[Pipeline Creation]
+    C --> C1["naga WGSL Parser"]
+    C --> C2["Semantic Validation"]
+    C --> C3["Code Generation"]
+    C --> C4["Pipeline Creation"]
     
-    D --> D1[Vertex Processing]
-    D --> D2[Fragment Processing]
-    D --> D3[Uniform Buffers]
-    D --> D4[Texture Binding]
+    D --> D1["Vertex Processing"]
+    D --> D2["Fragment Processing"]
+    D --> D3["Uniform Buffers"]
+    D --> D4["Texture Binding"]
     
-    E --> E1[Buffer Management]
-    E --> E2[Texture Allocation]
-    E --> E3[Memory Tracking]
-    E --> E4[Resource Cleanup]
-    
-    style A fill:#f44336
-    style B fill:#ffebee
-    style C fill:#ffebee
-    style D fill:#ffebee
-    style E fill:#ffebee
+    E --> E1["Buffer Management"]
+    E --> E2["Texture Allocation"]
+    E --> E3["Memory Tracking"]
+    E --> E4["Resource Cleanup"]
 ```
 
 #### WGPU Integration Framework
@@ -90,7 +76,7 @@ pub struct WgpuRenderer {
 - ✅ Render pipeline setup with vertex/fragment shaders
 - ✅ Uniform buffer management for shader parameters
 - ✅ Texture binding for input images/videos
-- ❌ **CURRENT STATUS**: Not implemented
+- **Status**: Present; wiring incomplete
 
 #### Shader Compilation Pipeline
 ```rust
@@ -109,28 +95,49 @@ pub struct ShaderCompiler {
 3. **Target Backend** → Code generation (SPIRV/GLSL/HLSL)
 4. **WGPU Pipeline** → Final render pipeline creation
 
-**Status**: ❌ **NOT IMPLEMENTED**
+**Status**: Present; wiring incomplete
 
 ### UI Panel Systems (Priority 1 - CRITICAL)
 
 #### Three-Panel Layout Manager
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Menu Bar (Fixed)                       │
-├─────────────────┬────────────────────────┬──────────────────┤
-│                 │                        │                  │
-│  LEFT PANEL     │    CENTER PANEL        │   RIGHT PANEL    │
-│  (25% width)    │    (50% width)       │   (25% width)    │
-│                 │                        │                  │
-│  • File Browser │  • Live Preview       │  • Parameters     │
-│  • Shader Tree  │  • Code Editor        │  • Controls       │
-│  • Recent Files │  • Node Editor        │  • Properties     │
-│  • ISF Library  │  • Split View         │  • Settings       │
-│                 │                        │                  │
-├─────────────────┴────────────────────────┴──────────────────┤
-│                  BOTTOM PANEL (Fixed Height)               │
-│  • Timeline • Error Console • Performance • Audio Visual   │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    App["Main Window"] --> Menu["Menu Bar (Fixed)"]
+    App --> Container["Panel Container"]
+    App --> Status["Status Bar"]
+
+    Container --> Left["Left Panel (25%)"]
+    Container --> Center["Center Panel (50%)"]
+    Container --> Right["Right Panel (25%)"]
+    Container --> Bottom["Bottom Panel (Fixed Height)"]
+
+    Left --> L1["File Browser"]
+    Left --> L2["Shader Tree"]
+    Left --> L3["Recent Files"]
+    Left --> L4["ISF Library"]
+
+    Center --> C1["Live Preview"]
+    Center --> C2["Code Editor"]
+    Center --> C3["Node Editor"]
+    Center --> C4["Split View"]
+
+    Right --> R1["Parameters"]
+    Right --> R2["Controls"]
+    Right --> R3["Properties"]
+    Right --> R4["Settings"]
+
+    Bottom --> B1["Timeline"]
+    Bottom --> B2["Error Console"]
+    Bottom --> B3["Performance"]
+    Bottom --> B4["Audio Visual"]
+
+    style App fill:#e3f2fd,stroke:#90caf9
+    style Menu fill:#bbdefb
+    style Container fill:#f0f4c3
+    style Left fill:#c8e6c9
+    style Center fill:#e3f2fd
+    style Right fill:#ffe0b2
+    style Bottom fill:#e8eaf6
 ```
 
 **Panel Features:**
@@ -140,7 +147,7 @@ pub struct ShaderCompiler {
 - **Floating Windows**: Detachable panel windows
 - **Layout Presets**: Save/load workspace configurations
 
-**Status**: ❌ **NOT IMPLEMENTED**
+**Status**: Present; wiring incomplete
 
 ### File System Operations (Priority 1 - CRITICAL)
 
@@ -170,7 +177,7 @@ pub enum ShaderFormat {
 - **Category Organization**: Group by type, complexity, visual style
 - **Preview Thumbnails**: Visual shader preview in browser
 
-**Status**: ❌ **NOT IMPLEMENTED**
+**Status**: Present; wiring incomplete
 
 ### Audio Analysis System (Priority 2 - HIGH)
 
@@ -202,7 +209,7 @@ pub struct AudioAnalyzer {
 - `AUDIOLEVEL`: Overall volume level (0.0-1.0)
 - `AUDIOTOOL`: Beat detection trigger (boolean pulse)
 
-**Status**: ❌ **NOT IMPLEMENTED**
+**Status**: Present; wiring incomplete
 
 ### Node-Based Editor (Priority 2 - HIGH)
 
@@ -263,7 +270,7 @@ pub struct NodeGraph {
 - Generative: Fractals, Cellular automata
 - Utility: Switch, Gate, Delay, Feedback
 
-**Status**: ❌ **NOT IMPLEMENTED**
+**Status**: Present; wiring incomplete
 
 ### Timeline Animation System (Priority 3 - MEDIUM)
 
@@ -293,7 +300,7 @@ pub struct Timeline {
 - **Playback Controls**: Play, pause, loop, speed control
 - **Audio Waveform**: Visual audio reference for synchronization
 
-**Status**: ❌ **NOT IMPLEMENTED**
+**Status**: Present; wiring incomplete
 
 ### Export and Deployment (Priority 3 - MEDIUM)
 
@@ -327,7 +334,7 @@ pub struct ExportManager {
 - **VJ Software**: Support for CoGe, VDMX, Modul8
 - **Parameter Mapping**: Automatic UI generation in host software
 
-**Status**: ❌ **NOT IMPLEMENTED**
+**Status**: Present; wiring incomplete
 
 ## 🔧 Development Infrastructure
 
@@ -382,49 +389,49 @@ pub struct PerformanceMonitor {
 
 | System Category | Priority | Complexity | Status | Est. Time |
 |----------------|----------|------------|---------|-----------|
-| **WGPU Integration** | P1 | High | ❌ Missing | 2-3 weeks |
-| **Shader Compilation** | P1 | High | ❌ Missing | 1-2 weeks |
-| **Three-Panel UI** | P1 | Medium | ❌ Missing | 1-2 weeks |
-| **File Operations** | P1 | Medium | ❌ Missing | 1 week |
-| **Audio Analysis** | P2 | Medium | ❌ Missing | 1-2 weeks |
-| **Node Editor** | P2 | High | ❌ Missing | 3-4 weeks |
-| **Timeline Animation** | P3 | Medium | ❌ Missing | 2-3 weeks |
-| **Export System** | P3 | High | ❌ Missing | 2-3 weeks |
-| **Error Handling** | P2 | Medium | ❌ Missing | 1 week |
-| **Performance Monitor** | P3 | Low | ❌ Missing | 1 week |
+| **WGPU Integration** | P1 | High | Present; wiring incomplete | 2-3 weeks |
+| **Shader Compilation** | P1 | High | Present; wiring incomplete | 1-2 weeks |
+| **Three-Panel UI** | P1 | Medium | Present; wiring incomplete | 1-2 weeks |
+| **File Operations** | P1 | Medium | Present; wiring incomplete | 1 week |
+| **Audio Analysis** | P2 | Medium | Present; wiring incomplete | 1-2 weeks |
+| **Node Editor** | P2 | High | Present; wiring incomplete | 3-4 weeks |
+| **Timeline Animation** | P3 | Medium | Present; wiring incomplete | 2-3 weeks |
+| **Export System** | P3 | High | Present; wiring incomplete | 2-3 weeks |
+| **Error Handling** | P2 | Medium | Present; wiring incomplete | 1 week |
+| **Performance Monitor** | P3 | Low | Present; wiring incomplete | 1 week |
 
 ## 🚀 Recovery Roadmap
 
-### Phase 1: Foundation (Weeks 1-2)
-**Goal**: Fix compilation errors and establish basic framework
-- Fix 33 compilation errors in existing codebase
-- Implement basic WGPU integration
-- Create functional three-panel UI layout
-- Add basic file loading/saving capabilities
+### Phase 1: Wiring Stabilization (Weeks 1-2)
+**Goal**: Stabilize end-to-end wiring and unify state
+- Normalize `EditorState` and app state schema
+- Wire UI controls to preview and compiler
+- Align data types between UI, compiler, and renderer
+- Integrate diagnostics pipeline for validation
 
-### Phase 2: Core Features (Weeks 3-4)
-**Goal**: Implement essential shader development features
-- Complete shader compilation pipeline
-- Add WGSL syntax highlighting and error reporting
-- Implement live preview with basic rendering
-- Create parameter control system
+### Phase 2: Core Feature Integration (Weeks 3-4)
+**Goal**: Make essential features reliably usable
+- Solidify WGPU pipeline creation and preview lifecycle
+- Complete shader compilation flow with validation
+- Implement parameter controls mapped to uniforms
+- Finalize file operations (open/save/recent)
 
 ### Phase 3: Advanced Editing (Weeks 5-6)
-**Goal**: Add visual programming and audio features
-- Implement node-based shader editor
-- Add audio analysis and reactive features
-- Create timeline animation system
-- Add MIDI controller support
+**Goal**: Visual programming and audio reactive features
+- Wire node-based editor to code generation and compiler
+- Integrate audio analysis mappings to shader parameters
+- Establish timeline animation wiring and playback
+- Add MIDI controller bindings
 
 ### Phase 4: Polish and Export (Weeks 7-8)
-**Goal**: Complete professional feature set
-- Add comprehensive export capabilities
-- Implement performance optimization
-- Add error handling and diagnostics
-- Complete cross-platform testing
+**Goal**: Professional-grade delivery
+- Implement export capabilities and presets
+- Performance optimization and profiling overlays
+- Error handling and recovery strategies
+- Cross-platform testing and QA matrix
 
 ---
 
 **Document Status**: Complete systems reference for WGSL Shader Studio reconstruction  
-**Last Updated**: 2025-11-17  
-**Current Reality**: All systems are **NOT IMPLEMENTED** - this represents the target architecture for complete project reconstruction
+**Last Updated**: 2025-12-14  
+**Current Reality**: All core systems are **present**; this reference aligns target design with current modules and focuses on wiring and refinement to reach stability.

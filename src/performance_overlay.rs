@@ -10,7 +10,7 @@ impl Plugin for PerformanceOverlayPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PerformanceMetrics>()
             .add_systems(Update, update_performance_metrics)
-            .add_systems(Update, draw_performance_overlay);
+            .add_systems(bevy_egui::EguiPrimaryContextPass, draw_performance_overlay);
     }
 }
 
@@ -122,7 +122,11 @@ fn update_performance_metrics(
 fn draw_performance_overlay(
     mut contexts: EguiContexts,
     metrics: Res<PerformanceMetrics>,
+    ui_state: Res<crate::editor_ui::EditorUiState>,
 ) {
+    if !ui_state.show_performance_overlay {
+        return;
+    }
     let ctx = contexts.ctx_mut();
     let ctx_ref = ctx.unwrap();
     

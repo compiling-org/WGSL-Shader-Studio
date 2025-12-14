@@ -265,7 +265,7 @@ impl WgslToGlslTranspiler {
 }
 
 impl ShaderTranspiler for WgslToGlslTranspiler {
-    fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    fn transpile(&self, source: &str, _options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
         use crate::wgsl_ast_parser::WgslAstParser;
         
         let mut parser = WgslAstParser::new();
@@ -322,12 +322,12 @@ impl WgslToGlslTranspiler {
         Ok(metadata)
     }
 
-    fn extract_uniform_blocks(&self, ast: &AstNode, metadata: &mut TranspilerMetadata) -> TranspilerResult<()> {
+    fn extract_uniform_blocks(&self, _ast: &AstNode, _metadata: &mut TranspilerMetadata) -> TranspilerResult<()> {
         // Extract uniform blocks from AST - simplified implementation
         Ok(())
     }
 
-    fn extract_texture_bindings(&self, ast: &AstNode, metadata: &mut TranspilerMetadata) -> TranspilerResult<()> {
+    fn extract_texture_bindings(&self, _ast: &AstNode, _metadata: &mut TranspilerMetadata) -> TranspilerResult<()> {
         // Extract texture bindings from AST - simplified implementation
         Ok(())
     }
@@ -550,7 +550,7 @@ impl GlslToWgslTranspiler {
 }
 
 impl ShaderTranspiler for GlslToWgslTranspiler {
-    fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    fn transpile(&self, source: &str, _options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
         let mut visitor = self.visitor.clone();
         let result = visitor.visit_glsl(source)?;
         let result_len = result.len();
@@ -692,7 +692,7 @@ impl WgslToHlslTranspiler {
 }
 
 impl ShaderTranspiler for WgslToHlslTranspiler {
-    fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    fn transpile(&self, source: &str, _options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
         let mut output = String::new();
         output.push_str("// Transpiled from WGSL to HLSL\n");
         output.push_str("// Original size: ");
@@ -777,7 +777,7 @@ impl HlslToWgslTranspiler {
 }
 
 impl ShaderTranspiler for HlslToWgslTranspiler {
-    fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    fn transpile(&self, source: &str, _options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
         let mut output = String::new();
         output.push_str("// Transpiled from HLSL to WGSL\n");
         output.push_str("// Original size: ");
@@ -871,14 +871,14 @@ impl ShaderValidator {
         Ok(())
     }
 
-    fn validate_syntax(source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
+    fn validate_syntax(source: &str, _language: ShaderLanguage) -> TranspilerResult<()> {
         if source.is_empty() {
             return Err(TranspilerError::ValidationError("Empty source code".to_string()));
         }
         Ok(())
     }
 
-    fn validate_semantics(source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
+    fn validate_semantics(source: &str, _language: ShaderLanguage) -> TranspilerResult<()> {
         if source.len() > 1_000_000 {
             return Err(TranspilerError::ValidationError("Source code too large".to_string()));
         }
@@ -900,7 +900,7 @@ impl ShaderOptimizer {
         }
     }
 
-    pub fn optimize(&self, result: TranspilerResult<TranspilerOutput>, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    pub fn optimize(&self, result: TranspilerResult<TranspilerOutput>, _options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
         let mut output = result?;
         let mut optimization_passes = Vec::new();
         

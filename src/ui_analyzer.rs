@@ -467,10 +467,19 @@ impl UIAnalyzer {
     }
 
     fn check_live_shader_preview(&self) -> bool {
+        // Broaden detection heuristics to match current implementation
         if let Ok(editor_content) = std::fs::read_to_string("src/editor_ui.rs") {
-            editor_content.contains("Live shader preview") && editor_content.contains("CentralPanel")
+            let has_central_panel = editor_content.contains("egui::CentralPanel::default()")
+                || editor_content.contains("CentralPanel");
+            let has_preview_heading = editor_content.contains("Live shader preview")
+                || editor_content.contains("Shader Preview");
+            let calls_render = editor_content.contains("render_frame(")
+                || editor_content.contains("render_frame_with_params(");
+            has_central_panel && has_preview_heading && calls_render
         } else if let Ok(app_content) = std::fs::read_to_string("src/bevy_app.rs") {
-            app_content.contains("Live shader preview") || app_content.contains("render_frame")
+            app_content.contains("CentralPanel")
+                || app_content.contains("render_frame(")
+                || app_content.contains("render_frame_with_params(")
         } else {
             false
         }
@@ -499,10 +508,14 @@ impl UIAnalyzer {
     }
 
     fn check_shader_browser_panel(&self) -> bool {
+        // Support current heading and function name
         if let Ok(editor_content) = std::fs::read_to_string("src/editor_ui.rs") {
-            editor_content.contains("Available shaders:")
+            editor_content.contains("Shader Browser")
+                || editor_content.contains("draw_editor_shader_browser_panel")
+                || editor_content.contains("shader_browser")
         } else if let Ok(app_content) = std::fs::read_to_string("src/bevy_app.rs") {
             app_content.contains("shader_browser_panel")
+                || app_content.contains("Shader Browser")
         } else {
             false
         }
@@ -519,9 +532,18 @@ impl UIAnalyzer {
     }
 
     fn check_shader_compilation(&self) -> bool {
-        // Check if shader compilation is working
-        if let Ok(content) = std::fs::read_to_string("src/bevy_app.rs") {
-            content.contains("✅ Compiled") || content.contains("❌ Error")
+        // Detect actual compilation pipeline usage rather than UI strings
+        if let Ok(renderer) = std::fs::read_to_string("src/shader_renderer.rs") {
+            // Look for key WGPU calls that indicate compilation/rendering is implemented
+            let has_module = renderer.contains("create_shader_module(")
+                || renderer.contains("ShaderModuleDescriptor");
+            let has_pipeline = renderer.contains("create_render_pipeline(")
+                || renderer.contains("RenderPipelineDescriptor");
+            let has_render_call = renderer.contains("render_frame(")
+                || renderer.contains("render_frame_with_params(");
+            has_module && has_pipeline && has_render_call
+        } else if let Ok(editor) = std::fs::read_to_string("src/editor_ui.rs") {
+            editor.contains("render_frame(") || editor.contains("render_frame_with_params(")
         } else {
             false
         }

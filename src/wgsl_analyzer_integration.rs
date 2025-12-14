@@ -358,7 +358,7 @@ impl DiagnosticRenderer {
                             ui.label(egui::RichText::new("▲").color(egui::Color32::YELLOW));
                         }
                         DiagnosticSeverity::Info => {
-                            ui.colored(egui::Color32::BLUE, "ℹ");
+                            ui.colored_label(egui::Color32::BLUE, "ℹ");
                         }
                     }
                     

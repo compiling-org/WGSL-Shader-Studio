@@ -659,7 +659,7 @@ impl WgslAstParser {
 
     /// Parse module-level declarations
     fn parse_module(&mut self, source: &str) -> Result<ModuleNode> {
-        let mut module = ModuleNode {
+        let module = ModuleNode {
             name: None,
             imports: Vec::new(),
             declarations: Vec::new(),
@@ -678,7 +678,7 @@ impl WgslAstParser {
     }
 
     /// Validate the parsed module
-    fn validate_module(&mut self, module: &ModuleNode) -> Result<()> {
+    fn validate_module(&mut self, _module: &ModuleNode) -> Result<()> {
         // Check for undefined symbols
         // Check for type consistency
         // Check for valid bindings
@@ -1053,22 +1053,22 @@ pub mod integration {
                 PrimitiveType::F16 => "f16".to_string(),
             },
             TypeNode::Vector(vector) => {
-                let prefix = match vector.component_type {
-                    PrimitiveType::Bool => "b",
-                    PrimitiveType::I32 => "i",
-                    PrimitiveType::U32 => "u",
-                    PrimitiveType::F32 => "f",
-                    PrimitiveType::F16 => "f",
+                let component = match vector.component_type {
+                    PrimitiveType::Bool => "bool",
+                    PrimitiveType::I32 => "i32",
+                    PrimitiveType::U32 => "u32",
+                    PrimitiveType::F32 => "f32",
+                    PrimitiveType::F16 => "f16",
                 };
                 let size = match vector.size {
                     VectorSize::Two => "2",
                     VectorSize::Three => "3",
                     VectorSize::Four => "4",
                 };
-                format!("vec{}{}"", size, prefix)
+                format!("vec{}<{}>", size, component)
             },
             TypeNode::Matrix(matrix) => {
-                format!("mat{}x{}x<f32>", matrix.rows, matrix.cols)
+                format!("mat{}x{}<f32>", matrix.rows, matrix.cols)
             },
             TypeNode::Array(array) => {
                 let element_type = type_node_to_string(&array.element_type);
@@ -1105,7 +1105,7 @@ pub mod integration {
                 let array_suffix = if texture.is_array { "_array" } else { "" };
                 let multisampled_suffix = if texture.is_multisampled { "_ms" } else { "" };
                 
-                format!("texture{}{}_{}", dimension, array_suffix, sample_type)
+                format!("texture_{}{}{}<{}>", dimension, array_suffix, multisampled_suffix, sample_type)
             },
             TypeNode::Sampler(sampler) => match sampler {
                 SamplerType::Sampler => "sampler".to_string(),

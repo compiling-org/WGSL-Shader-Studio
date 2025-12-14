@@ -31,13 +31,13 @@ graph TD
     style O fill:#ffb74d
 ```
 
-**CURRENT REALITY**: The application is **COMPLETELY BROKEN** with 33 compilation errors and zero working features. All previous claims of working functionality were false.
+**CURRENT REALITY**: All core systems are **present**; wiring and integrations are **incomplete**. Live preview is **unstable**; UI panels exist and need reliable wiring.
 
-**RECOVERY REQUIREMENT**: Complete reconstruction of all core systems from foundation up.
+**FOCUS**: Stabilize wiring across modules, unify state, refine integrations.
 
-## Phase 1: Critical Foundation (Week 1-2)
+## Phase 1: Wiring Stabilization (Week 1-2)
 
-### 1.1 Fix Compilation Errors
+### 1.1 Stabilize Wiring
 
 ```mermaid
 graph TD
@@ -71,9 +71,10 @@ graph TD
 ```
 
 **Acceptance Criteria**:
-- `cargo check --features gui` passes with 0 errors
-- `cargo run` starts without compilation failures
-- Basic window appears with empty UI
+- UI controls drive preview reliably
+- Diagnostics report validation and binding issues
+- File open/save hooks functional
+- Rendering initializes and presents frames consistently
 
 ### 1.2 Implement WGPU Core Integration
 

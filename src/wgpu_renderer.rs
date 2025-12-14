@@ -92,11 +92,13 @@ impl WgpuShaderRenderer {
 
         // Configure surface
         let size = window.inner_size();
+        let safe_width = size.width.max(1);
+        let safe_height = size.height.max(1);
         let surface_config = SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::COPY_DST,
             format: TextureFormat::Bgra8UnormSrgb,
-            width: size.width,
-            height: size.height,
+            width: safe_width,
+            height: safe_height,
             present_mode: PresentMode::Fifo,
             alpha_mode: CompositeAlphaMode::Auto,
             view_formats: vec![TextureFormat::Bgra8UnormSrgb],
@@ -108,8 +110,8 @@ impl WgpuShaderRenderer {
         let output_texture = device.create_texture(&TextureDescriptor {
             label: Some("Shader Output"),
             size: wgpu::Extent3d {
-                width: size.width,
-                height: size.height,
+                width: safe_width,
+                height: safe_height,
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
@@ -123,8 +125,8 @@ impl WgpuShaderRenderer {
         let render_target = device.create_texture(&TextureDescriptor {
             label: Some("Render Target"),
             size: wgpu::Extent3d {
-                width: size.width,
-                height: size.height,
+                width: safe_width,
+                height: safe_height,
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
@@ -153,7 +155,7 @@ impl WgpuShaderRenderer {
             fps: 0.0,
             compilation_times: HashMap::new(),
             current_shader: None,
-            render_size: (size.width, size.height),
+            render_size: (safe_width, safe_height),
         })
     }
 

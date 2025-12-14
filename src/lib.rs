@@ -23,7 +23,6 @@ pub mod spout_syphon_output;
 pub mod bevy_node_graph_integration_enhanced;
 pub mod dmx_lighting_control;
 pub mod editor_ui;
-pub mod bevy_node_graph_integration;
 pub mod scene_editor_3d;
 pub mod gesture_control;
 pub mod shader_converter;

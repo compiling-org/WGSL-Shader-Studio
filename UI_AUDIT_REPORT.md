@@ -2,42 +2,18 @@
 
 ## Executive Summary
 
-- **Total Features Required**: 27
-- **Critical Missing**: 3
-- **High Priority Missing**: 6
-- **Critical Broken**: 1
-- **Functional Features**: 2
-- **Partial Features**: 2
+- Status as of 2025-12-14: multiple systems present but key UI integrations are incomplete.
+- Preview panel is unreliable; WGSL validation/binding rules require relaxation.
+- Node-based editor UI exists; wiring and exposure in the app are pending.
+- 3D scene editor modules exist; viewport initialization and panel wiring are pending.
+- Analyzer scripts generate inconsistent reports and require overhaul.
 
 ## CRITICAL ISSUES - IMMEDIATE ACTION REQUIRED
-
-### 🚨 CRITICAL MISSING FEATURES
-
-#### Live Shader Preview
-- **Category**: Core Rendering
-- **Description**: Real-time shader rendering with parameter updates and smooth animation
-- **Requirements**:
-  - Live preview not functional
-
-#### Shader Browser Panel
-- **Category**: UI Layout
-- **Description**: ISF shader library with search, categories, and favorites
-- **Requirements**:
-  - Shader browser not implemented
-
-#### Shader Compilation
-- **Category**: Shader Systems
-- **Description**: WGSL shader compilation with error reporting
-- **Requirements**:
-  - Shader compilation not working
-
-### 💥 CRITICAL BROKEN FEATURES
-
-#### Three-Panel Layout
-- **Category**: UI Layout
-- **Description**: Professional three-panel workspace (Center preview, Right controls, Bottom editor)
-- **Issues**:
-  - Panel layout has issues
+1. Repair preview pipeline and texture resize handling
+2. Relax WGSL validation rules for external shaders
+3. Enable node editor plugin and expose wiring UI
+4. Initialize and display 3D editor viewport in the UI
+5. Refresh analyzer scripts and documentation
 
 ## HIGH PRIORITY MISSING FEATURES
 
@@ -91,35 +67,19 @@
   - User notifications
   - Recovery mechanisms
 
-## FEATURE STATUS BY CATEGORY
+## FEATURE STATUS BY CATEGORY (snapshot)
 
 ### Advanced Features
-- **Total**: 2 features
-- **Missing**: 2
-- **Broken**: 0
-- **Partial**: 0
-- **Functional**: 0
+- Mixed: several modules present; integrations pending
 
 ### Audio/MIDI
-- **Total**: 2 features
-- **Missing**: 2
-- **Broken**: 0
-- **Partial**: 0
-- **Functional**: 0
+- Modules present; UI exposure and mapping pending
 
 ### Core Rendering
-- **Total**: 3 features
-- **Missing**: 2
-- **Broken**: 0
-- **Partial**: 0
-- **Functional**: 1
+- Renderer modules present; preview unreliable and under repair
 
 ### Error Handling
-- **Total**: 2 features
-- **Missing**: 2
-- **Broken**: 0
-- **Partial**: 0
-- **Functional**: 0
+- Error types and diagnostics exist; user feedback and recovery need work
 
 ### Export/Import
 - **Total**: 2 features
@@ -165,10 +125,10 @@
 
 ### Shader Systems
 - **Total**: 3 features
-- **Missing**: 2
+- **Missing**: 1
 - **Broken**: 0
 - **Partial**: 1
-- **Functional**: 0
+- **Functional**: 1
 
 ### Templates
 - **Total**: 1 features
@@ -179,33 +139,47 @@
 
 ### UI Layout
 - **Total**: 4 features
-- **Missing**: 1
-- **Broken**: 1
+- **Missing**: 0
+- **Broken**: 0
 - **Partial**: 1
-- **Functional**: 1
+- **Functional**: 3
 
 ## IMPLEMENTATION ROADMAP
 
 ### Phase 1: Critical Foundation (Week 1)
-1. Fix three-panel UI layout rendering
-2. Implement WGPU integration and shader compilation
-3. Restore shader browser with ISF file loading
-4. Fix parameter panel with real-time updates
-5. Implement basic menu system
+1. Repair preview pipeline and WGPU initialization handling
+2. Relax WGSL validation for external shaders
+3. Expose node editor wiring UI in the app
+4. Initialize 3D viewport and activate panel
+5. Refresh analyzer scripts and UI menu exposure
+```mermaid
+gantt
+    title UI Roadmap - Phase 1
+    dateFormat  YYYY-MM-DD
+    section Preview
+    Fix pipeline/init         :done,   p1, 2025-12-13, 1d
+    Relax validation          :active, p2, 2025-12-14, 2d
+    section Node Editor
+    Expose wiring UI          :        n1, 2025-12-14, 2d
+    section 3D Viewport
+    Init + activate panel     :        v1, 2025-12-15, 2d
+    section Analyzer
+    Refresh scripts & menus   :        a1, 2025-12-14, 2d
+```
 
 ### Phase 2: Core Functionality (Week 2)
-1. Complete WGSL syntax highlighting with error indicators
+1. Wire parameter uniforms for real-time preview updates
 2. Implement file dialogs and project management
 3. Add performance monitoring overlay
-4. Restore shader conversion capabilities
-5. Implement error handling and logging
+4. Verify shader conversion capabilities
+5. Improve error handling and logging
 
 ### Phase 3: Advanced Features (Week 3-4)
-1. Build node-based editor system
+1. Enhance node-based editor system
 2. Add audio/MIDI integration
 3. Implement shader visualizer
-4. Add advanced templates and examples
-5. Complete cross-platform support
+4. Add templates and examples
+5. Improve cross-platform support
 
 ## TECHNICAL REQUIREMENTS
 
@@ -266,15 +240,15 @@ src/
 
 ## CONCLUSION
 
-This comprehensive analysis reveals that the WGSL Shader Studio requires **complete reconstruction**
-of all core systems. The current implementation lacks fundamental functionality required for
-basic shader development workflows.
+The project contains many of the required modules but key UI integrations are incomplete.
+Immediate focus is on repairing the preview, relaxing WGSL validation, enabling node wiring,
+and initializing the 3D viewport. Analyzer scripts and documentation will be refreshed to
+reflect the current reality.
 
-**Immediate priorities**: Fix UI layout rendering, implement WGPU integration, restore shader
-browser functionality, and add basic file operations. Without these critical features, the
-application cannot perform its core function as a shader development environment.
+**Immediate priorities**: Repair preview, relax WGSL validation, enable node wiring, initialize
+3D viewport, and refresh analyzer/documentation.
 
-**Estimated Recovery Time**: 3-4 weeks for basic functionality, 6-8 weeks for full feature parity.
+**Estimated Repair Time**: Ongoing; incremental updates prioritized this week.
 
 # SURGICAL FIX PLAN - CRITICAL UI ISSUES
 
@@ -282,27 +256,21 @@ application cannot perform its core function as a shader development environment
 
 ### 💥 WGPU INITIALIZATION FAILURE
 
-Error: error: the package 'wgsl-shader-studio' does not contain this feature: wgpu
-help: there is a similarly named feature: gui
-
-
-**SURGICAL FIX**: Force WGPU initialization with panic on failure
-**LOCATION**: src/bevy_app.rs - initialize_wgpu_renderer()
+Observed: preview instability and texture resize/initialization issues
 
 ## SURGICAL INTERVENTION STEPS
 
-1. **STOP ALL APP LAUNCHES** - Do not run broken code
-2. **FIX WGPU INITIALIZATION** - Force GPU initialization with panic on failure
-3. **REMOVE CPU FALLBACK** - Delete all software rendering code
-4. **FIX UI LAYOUT** - Implement proper three-panel layout
-5. **VALIDATE RENDERING** - Ensure texture alignment and buffer management
-6. **TEST COMPREHENSIVELY** - Verify all UI elements render and function
+1. Repair renderer init/resize handling
+2. Relax WGSL validation and entry-point detection
+3. Enable node editor plugin and expose wiring UI
+4. Initialize 3D viewport and display in UI
+5. Validate rendering and buffer/texture alignment
+6. Refresh analyzer scripts and run comprehensive UI checks
 
 ## SUCCESS CRITERIA
 
-- ✅ WGPU initializes successfully with no fallback
-- ✅ UI panels render and are interactive
-- ✅ Shader preview displays correctly
-- ✅ Performance is > 30 FPS (GPU-accelerated)
-- ✅ No critical runtime errors
-
+- ✅ Preview displays WGSL output reliably
+- ✅ External WGSL shaders compile with relaxed validation
+- ✅ Node editor wiring enabled and exposed in UI
+- ✅ 3D viewport renders and updates correctly
+- ✅ Analyzer outputs accurate, useful reports

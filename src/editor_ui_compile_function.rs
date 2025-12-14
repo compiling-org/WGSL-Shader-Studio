@@ -101,7 +101,6 @@ fn compile_and_render_shader(
                         pixels: pixel_data.chunks(4).map(|chunk| {
                             egui::Color32::from_rgba_unmultiplied(chunk[0], chunk[1], chunk[2], chunk[3])
                         }).collect(),
-                        source_size: size,
                     },
                     egui::TextureOptions::default()
                 );

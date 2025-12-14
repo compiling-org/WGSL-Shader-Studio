@@ -492,7 +492,7 @@ impl HLSLConverter {
         }
     }
 
-    pub fn convert_to_wgsl(&mut self, hlsl_source: &str, name: &str) -> Result<String> {
+    pub fn convert_to_wgsl(&mut self, _hlsl_source: &str, name: &str) -> Result<String> {
         // Advanced HLSL to WGSL conversion
         let mut wgsl_code = String::new();
         wgsl_code.push_str(&format!("// Converted from HLSL: {}\n", name));
@@ -516,7 +516,7 @@ impl ISFConverter {
         }
     }
 
-    pub fn convert_to_wgsl(&mut self, isf_source: &str, name: &str) -> Result<String> {
+    pub fn convert_to_wgsl(&mut self, _isf_source: &str, name: &str) -> Result<String> {
         // ISF to WGSL conversion for VJ software
         let mut wgsl_code = String::new();
         wgsl_code.push_str(&format!("// Converted from ISF: {}\n", name));

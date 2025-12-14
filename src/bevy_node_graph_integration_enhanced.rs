@@ -14,9 +14,11 @@ impl Plugin for BevyNodeGraphPlugin {
         app.init_resource::<NodeGraphResource>()
             .add_systems(Update, (
                 update_node_graph,
+                handle_node_interactions,
+            ))
+            .add_systems(bevy_egui::EguiPrimaryContextPass, (
                 draw_node_graph_ui,
                 draw_node_graph_toolbar,
-                handle_node_interactions,
             ));
     }
 }
@@ -675,6 +677,10 @@ fn draw_nodes(ui: &mut egui::Ui, node_graph: &mut NodeGraphResource) {
     }
 }
 
+pub fn draw_node_graph_embedded(ui: &mut egui::Ui, node_graph: &mut NodeGraphResource) {
+    draw_node_graph_canvas(ui, node_graph);
+}
+
 fn draw_single_node(
     ui: &mut egui::Ui,
     node: &mut ShaderNode,
@@ -682,9 +688,8 @@ fn draw_single_node(
     grid_size: f32,
     drag_state: Option<&DragState>,
 ) {
-    let response = ui.allocate_ui_at_rect(
-        egui::Rect::from_min_size(node.position, node.size),
-        |ui| {
+    let rect = egui::Rect::from_min_size(node.position, node.size);
+    let response = ui.allocate_ui_at_rect(rect, |ui| {
             let frame = egui::Frame::none()
                 .fill(node.color)
                 .stroke(egui::Stroke::new(2.0, if node.selected { 
@@ -710,7 +715,7 @@ fn draw_single_node(
                         ui.separator();
                         
                         // Inputs
-                        for (i, input) in node.inputs.iter().enumerate() {
+                        for (i, input) in node.inputs.iter_mut().enumerate() {
                             ui.horizontal(|ui| {
                                 let color = match input.port_type {
                                     PortType::Float => egui::Color32::GREEN,
@@ -721,8 +726,10 @@ fn draw_single_node(
                                     PortType::Texture => egui::Color32::from_rgb(128, 255, 128),
                                     PortType::Any => egui::Color32::WHITE,
                                 };
-                                
-                                ui.painter().circle_filled(ui.cursor().left_top() + egui::Vec2::new(8.0, 8.0), 6.0, color);
+                                let y = rect.min.y + 30.0 + i as f32 * 22.0;
+                                let pos = egui::pos2(rect.min.x + 8.0, y);
+                                input.position = pos;
+                                ui.painter().circle_filled(pos, 6.0, color);
                                 ui.label(&input.name);
                             });
                         }
@@ -730,7 +737,7 @@ fn draw_single_node(
                         ui.separator();
                         
                         // Outputs
-                        for (i, output) in node.outputs.iter().enumerate() {
+                        for (i, output) in node.outputs.iter_mut().enumerate() {
                             ui.horizontal(|ui| {
                                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                                     let color = match output.port_type {
@@ -742,8 +749,10 @@ fn draw_single_node(
                                         PortType::Texture => egui::Color32::from_rgb(128, 255, 128),
                                         PortType::Any => egui::Color32::WHITE,
                                     };
-                                    
-                                    ui.painter().circle_filled(ui.cursor().right_top() + egui::Vec2::new(-8.0, 8.0), 6.0, color);
+                                    let y = rect.min.y + 30.0 + i as f32 * 22.0;
+                                    let pos = egui::pos2(rect.max.x - 8.0, y);
+                                    output.position = pos;
+                                    ui.painter().circle_filled(pos, 6.0, color);
                                     ui.label(&output.name);
                                 });
                             });
@@ -751,20 +760,20 @@ fn draw_single_node(
                     }
                 });
             });
-        },
-    );
+        });
+    let resp = &response.response;
     
     // Handle node dragging
-    if response.response.dragged() {
-        if let Some(_drag_state) = drag_state {
-            let delta = response.response.drag_delta();
-            node.position += delta;
-            
-            if snap_to_grid {
-                node.position.x = (node.position.x / grid_size).round() * grid_size;
-                node.position.y = (node.position.y / grid_size).round() * grid_size;
-            }
+    if resp.dragged() {
+        let delta = resp.drag_delta();
+        node.position += delta;
+        if snap_to_grid {
+            node.position.x = (node.position.x / grid_size).round() * grid_size;
+            node.position.y = (node.position.y / grid_size).round() * grid_size;
         }
+    }
+    if resp.clicked() {
+        node.selected = true;
     }
 }
 
@@ -785,12 +794,43 @@ fn handle_canvas_interactions(ui: &mut egui::Ui, node_graph: &mut NodeGraphResou
             node.selected = false;
         }
     }
+    
+    if ui.input(|i| i.pointer.any_released()) {
+        if let Some((from_node, from_out)) = node_graph.connection_start.take() {
+            if let Some(mouse_pos) = ui.input(|i| i.pointer.hover_pos()) {
+                for (to_id, to_node) in node_graph.graph.nodes.iter() {
+                    for (idx, input) in to_node.inputs.iter().enumerate() {
+                        if mouse_pos.distance(input.position) < 10.0 {
+                            let _ = node_graph.graph.connect(from_node, from_out, *to_id, idx);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if ui.input(|i| i.pointer.any_pressed()) {
+        if let Some(mouse_pos) = ui.input(|i| i.pointer.hover_pos()) {
+            for (nid, node) in node_graph.graph.nodes.iter() {
+                for (idx, out) in node.outputs.iter().enumerate() {
+                    if mouse_pos.distance(out.position) < 10.0 {
+                        node_graph.connection_start = Some((*nid, idx));
+                        return;
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn draw_node_graph_toolbar(
     mut node_graph: ResMut<NodeGraphResource>,
     mut egui_ctx: EguiContexts,
+    ui_state: Res<crate::editor_ui::EditorUiState>,
 ) {
+    if !ui_state.show_node_studio {
+        return;
+    }
     let ctx = egui_ctx.ctx_mut().expect("egui ctx");
     
     egui::TopBottomPanel::top("node_graph_toolbar")
@@ -944,11 +984,15 @@ fn update_node_graph(
 fn draw_node_graph_ui(
     mut node_graph: ResMut<NodeGraphResource>,
     mut egui_ctx: EguiContexts,
+    ui_state: Res<crate::editor_ui::EditorUiState>,
 ) {
+    if !ui_state.show_node_studio {
+        return;
+    }
     let ctx = egui_ctx.ctx_mut().expect("egui ctx");
     
     egui::Window::new("Shader Graph Editor")
-        .default_size([1400.0, 900.0])
+        .default_size([900.0, 600.0])
         .resizable(true)
         .scroll(false)
         .show(ctx, |ui| {

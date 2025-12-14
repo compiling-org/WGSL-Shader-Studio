@@ -12,6 +12,19 @@ The UI follows a standard three-panel, dark-theme layout optimized for deep focu
 - **Tabbed Main Viewport**: Central area with tabs switching between Live Preview and Node-based Editor
 - **High-Contrast Border**: Emphasizes viewport as the active, real-time output element
 - **Performance Overlay**: Subtle FPS and resolution metrics in top-right corner
+```mermaid
+flowchart TD
+    A[Main Window] --> B[Top Bar]
+    A --> C[Panel Container]
+    A --> D[Status Bar]
+    C --> E[Left Panel - Browser]
+    C --> F[Center Panel - Preview/Editor]
+    C --> G[Right Panel - Parameters]
+    C --> H[Bottom Panel - Timeline/Code]
+    F --> F1[Tabbed: Preview | Node Editor]
+    G --> G1[Uniforms | Audio/MIDI | Compute]
+    H --> H1[Timeline | Code]
+```
 
 #### **Right Panel (The Control)**
 - **Parameter Panel**: Clean, high-contrast controls (sliders, color pickers, toggles)
@@ -49,28 +62,37 @@ The UI follows a standard three-panel, dark-theme layout optimized for deep focu
 ## Current Implementation Status
 
 ### Progress Summary
-Several core features are implemented and working, while others are actively being integrated. The sections below reflect the target design; current status highlights:
-- WGSL diagnostics: implemented with active panel and error reporting
-- WGPU renderer initialization: implemented; preview panel shows placeholder; live rendering in progress
-- Gesture Control plugin: integrated; basic parameter mapping applied
-- Compute Pass integration: plugin and UI controls added; dispatch/bindings in progress
+Several core modules exist, while key UI integrations are actively being repaired. Current status highlights:
+- WGSL diagnostics: panels and reporting exist; rules require relaxation for external shaders
+- WGPU renderer: modules present; preview panel unreliable and under repair
+- Gesture Control: modules present; UI exposure limited
+- Compute Pass: modules present; UI execution path pending
 
 ### Phase 1: Core Visual Features
 
 #### Live Preview System (in progress)
-- **WGPU Initialization**: Implemented async initialization and GPU-only policy
-- **Preview Panel**: Active with placeholder rendering; live shader pipeline integration ongoing
+- **WGPU Initialization**: Repairing initialization/resize handling
+- **Preview Panel**: Unreliable output; wiring repairs in progress
 - **Performance Monitoring**: Planned overlay
 - **Texture Display**: Planned input/output visualization
 - **Resolution Control**: Planned dynamic sizing
+```mermaid
+flowchart LR
+    A[WGSL Input] --> B[Validation Relaxation]
+    B --> C[Compilation]
+    C --> D[Pipeline Update]
+    D --> E[Uniform Binding]
+    E --> F[Render Pass]
+    F --> G[Frame Presentation]
+```
 
 #### WGSL Diagnostics (implemented)
-- **Validation**: Shader diagnostics and error reporting integrated
+- **Validation**: Diagnostics exist; validation/binding rules being relaxed
 - **Indicators**: Error listing and status messages
 - **Editor Integration**: Planned syntax highlighting and completions
 
 #### Node-based Editor (planned)
-- **Visual Programming**: UI scaffolding present; integration pending
+- **Visual Programming**: UI scaffolding present; wiring/exposure pending
 - **Data Flow**: Planned connections and node types
 - **Code Generation**: Planned WGSL code generation
 - **Parameter Mapping**: Planned integration with right panel
@@ -166,35 +188,37 @@ Several core features are implemented and working, while others are actively bei
 - **Tools**: Compilation, conversion, analysis tools
 - **Help**: Documentation and keyboard shortcuts
 
-## ✅ Development Status - FULLY FUNCTIONAL
+## Development Status - In Progress
 
-### **All Systems Successfully Implemented**
+### Current State
 
-#### ✅ Core Systems
-- **WGPU Renderer**: Complete shader rendering implementation with high-performance pipeline
-- **Audio Engine**: Full audio analysis system with real-time FFT and beat detection
-- **MIDI System**: Complete MIDI control mapping with low-latency processing
-- **File I/O**: Advanced file operations with native OS dialogs and recent files management
+#### Core Systems
+- **WGPU Renderer**: Modules present; preview wiring under repair
+- **Audio Engine**: Audio analysis modules present; integration pending
+- **MIDI System**: MIDI modules present; mapping UI pending
+- **File I/O**: File operations plans; dialogs and recent files pending
 
-#### ✅ Complete Features
-- **Node Editor**: Fully functional visual programming interface with drag-and-drop
-- **Syntax Highlighting**: Professional WGSL highlighting with error squiggles and auto-completion
-- **Shader Conversion**: Tested WGSL↔GLSL↔HLSL conversion with error handling
-- **Templates**: Complete template system with 15+ categorized examples
+#### Features
+- **Node Editor**: UI present; wiring/exposure pending
+- **Syntax Highlighting**: Planned; diagnostics present
+- **Shader Conversion**: Modules exist; verification pending
+- **Templates**: Planned examples and categories
 
-### 🎯 **Current State Assessment**
+### 🎯 Current State Assessment
 
-The WGSL Shader Studio is now a **production-ready, professional-grade shader development environment** that rivals commercial tools. All requested features have been fully implemented with:
+The project contains many core modules but requires repair and wiring of key UI systems:
 
-- **37+ completed features** across all phases
-- **Modern UI design** inspired by Blender/Nuke/Shadered
-- **High-performance rendering** with real-time feedback
-- **Complete documentation** with usage guides
-- **Cross-platform compatibility** with native OS integration
+- **Preview**: unreliable; renderer wiring under repair
+- **Node editor**: not fully wired/exposed
+- **3D viewport**: initialization and panel wiring pending
+- **Analyzer**: scripts exist; reports need refresh
 
-### 🚀 **Ready for Production Use**
+### 🚀 Focus Areas
 
-The application successfully compiles and runs with all features functional. Users can immediately start developing shaders using the live preview system, node-based editor, and comprehensive template library.
+- Repair preview pipeline and relax WGSL validation
+- Enable node editor wiring and UI exposure
+- Initialize 3D viewport and panel activation
+- Refresh analyzer scripts and documentation
 
 ## Integration Points
 

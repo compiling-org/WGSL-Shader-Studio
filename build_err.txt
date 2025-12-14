@@ -98,9 +98,9 @@ warning: unused imports: `InterpolationType` and `PlaybackState`
   |                                          ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^
 
 warning: unused import: `crate::audio_system::AudioData`
-   --> src\editor_ui.rs:487:9
+   --> src\editor_ui.rs:492:9
     |
-487 |     use crate::audio_system::AudioData;
+492 |     use crate::audio_system::AudioData;
     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 warning: unused import: `regex::Regex`
@@ -213,29 +213,23 @@ warning: use of deprecated function `bevy_egui::egui::show_tooltip`: Use `egui::
     |
     = note: `#[warn(deprecated)]` on by default
 
-error[E0277]: `fn(..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ...) {editor_ui_system}` does not describe a valid system configuration
-   --> src\bevy_app.rs:380:57
+warning: use of deprecated type alias `bevy::prelude::EventReader`: Renamed to `MessageReader`.
+   --> src\scene_editor_3d.rs:308:30
     |
-380 |         .add_systems(bevy_egui::EguiPrimaryContextPass, editor_ui_system)
-    |          -----------                                    ^^^^^^^^^^^^^^^^ invalid system configuration
-    |          |
-    |          required by a bound introduced by this call
+308 |     mut mouse_motion_events: EventReader<bevy::input::mouse::MouseMotion>,
+    |                              ^^^^^^^^^^^
+
+warning: use of deprecated type alias `bevy::prelude::EventReader`: Renamed to `MessageReader`.
+   --> src\scene_editor_3d.rs:356:30
     |
-    = help: the trait `bevy::prelude::IntoSystem<(), (), _>` is not implemented for fn item `fn(..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ...) {editor_ui_system}`
-    = help: the following other types implement trait `bevy::prelude::IntoSystem<In, Out, Marker>`:
-              `IntoAdapterSystem<Func, S>` implements `bevy::prelude::IntoSystem<<Func as Adapt<<S as bevy::prelude::IntoSystem<I, O, M>>::System>>::In, <Func as Adapt<<S as bevy::prelude::IntoSystem<I, O, M>>::System>>::Out, (IsAdapterSystemMarker, I, O, M)>`
-              `IntoPipeSystem<A, B>` implements `bevy::prelude::IntoSystem<IA, OB, (IsPipeSystemMarker, OA, IB, MA, MB)>`
-    = note: required for `fn(..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ..., ...) {editor_ui_system}` to implement `IntoScheduleConfigs<std::boxed::Box<(dyn bevy::prelude::System<In = (), Out = ()> + 'static)>, _>`
-note: required by a bound in `bevy::prelude::App::add_systems`
-   --> C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\bevy_app-0.17.3\src\app.rs:321:23
+356 |     mut mouse_motion_events: EventReader<bevy::input::mouse::MouseMotion>,
+    |                              ^^^^^^^^^^^
+
+warning: use of deprecated type alias `bevy::prelude::EventReader`: Renamed to `MessageReader`.
+   --> src\scene_editor_3d.rs:359:22
     |
-318 |     pub fn add_systems<M>(
-    |            ----------- required by a bound in this associated function
-...
-321 |         systems: impl IntoScheduleConfigs<ScheduleSystem, M>,
-    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `App::add_systems`
-    = note: the full name for the type has been written to 'C:\Users\kapil\compiling\WGSL-Shader-Studio\target\debug\deps\resolume_isf_shaders_rust_ffgl.long-type-9717801378594730810.txt'
-    = note: consider using `--verbose` to print the full type name to the console
+359 |     mut mouse_wheel: EventReader<bevy::input::mouse::MouseWheel>,
+    |                      ^^^^^^^^^^^
 
 warning: use of deprecated associated function `bevy_egui::egui::ComboBox::from_id_source`: Renamed from_id_salt
    --> src\screenshot_video_export.rs:478:33
@@ -250,58 +244,22 @@ warning: use of deprecated associated function `bevy_egui::egui::ComboBox::from_
     |                                     ^^^^^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::allocate_ui_at_rect`: Use `allocate_new_ui` instead
-   --> src\bevy_node_graph_integration_enhanced.rs:691:23
+   --> src\bevy_node_graph_integration_enhanced.rs:692:23
     |
-691 |     let response = ui.allocate_ui_at_rect(
+692 |     let response = ui.allocate_ui_at_rect(rect, |ui| {
     |                       ^^^^^^^^^^^^^^^^^^^
 
 warning: use of deprecated associated function `bevy_egui::egui::Frame::none`: Use `Frame::NONE` or `Frame::new()` instead.
-   --> src\bevy_node_graph_integration_enhanced.rs:694:38
+   --> src\bevy_node_graph_integration_enhanced.rs:693:38
     |
-694 |             let frame = egui::Frame::none()
+693 |             let frame = egui::Frame::none()
     |                                      ^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Frame::rounding`: Renamed to `corner_radius`
-   --> src\bevy_node_graph_integration_enhanced.rs:701:18
+   --> src\bevy_node_graph_integration_enhanced.rs:700:18
     |
-701 |                 .rounding(8.0);
+700 |                 .rounding(8.0);
     |                  ^^^^^^^^
-
-warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\bevy_node_graph_integration_enhanced.rs:816:28
-    |
-816 |                         ui.close_menu();
-    |                            ^^^^^^^^^^
-
-warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\bevy_node_graph_integration_enhanced.rs:820:28
-    |
-820 |                         ui.close_menu();
-    |                            ^^^^^^^^^^
-
-warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\bevy_node_graph_integration_enhanced.rs:824:28
-    |
-824 |                         ui.close_menu();
-    |                            ^^^^^^^^^^
-
-warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\bevy_node_graph_integration_enhanced.rs:831:28
-    |
-831 |                         ui.close_menu();
-    |                            ^^^^^^^^^^
-
-warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\bevy_node_graph_integration_enhanced.rs:835:28
-    |
-835 |                         ui.close_menu();
-    |                            ^^^^^^^^^^
-
-warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\bevy_node_graph_integration_enhanced.rs:839:28
-    |
-839 |                         ui.close_menu();
-    |                            ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
    --> src\bevy_node_graph_integration_enhanced.rs:846:28
@@ -310,27 +268,63 @@ warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.clo
     |                            ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\bevy_node_graph_integration_enhanced.rs:853:28
+   --> src\bevy_node_graph_integration_enhanced.rs:850:28
     |
-853 |                         ui.close_menu();
+850 |                         ui.close_menu();
     |                            ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:556:24
+   --> src\bevy_node_graph_integration_enhanced.rs:854:28
     |
-556 |                     ui.close_menu();
+854 |                         ui.close_menu();
+    |                            ^^^^^^^^^^
+
+warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> src\bevy_node_graph_integration_enhanced.rs:861:28
+    |
+861 |                         ui.close_menu();
+    |                            ^^^^^^^^^^
+
+warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> src\bevy_node_graph_integration_enhanced.rs:865:28
+    |
+865 |                         ui.close_menu();
+    |                            ^^^^^^^^^^
+
+warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> src\bevy_node_graph_integration_enhanced.rs:869:28
+    |
+869 |                         ui.close_menu();
+    |                            ^^^^^^^^^^
+
+warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> src\bevy_node_graph_integration_enhanced.rs:876:28
+    |
+876 |                         ui.close_menu();
+    |                            ^^^^^^^^^^
+
+warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> src\bevy_node_graph_integration_enhanced.rs:883:28
+    |
+883 |                         ui.close_menu();
+    |                            ^^^^^^^^^^
+
+error[E0063]: missing field `analyzer_run_requested` in initializer of `EditorUiState`
+   --> src\editor_ui.rs:211:9
+    |
+211 |         Self {
+    |         ^^^^ missing `analyzer_run_requested`
+
+warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> src\editor_ui.rs:561:24
+    |
+561 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:582:24
+   --> src\editor_ui.rs:587:24
     |
-582 |                     ui.close_menu();
-    |                        ^^^^^^^^^^
-
-warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:586:24
-    |
-586 |                     ui.close_menu();
+587 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
@@ -340,9 +334,9 @@ warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.clo
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:595:24
+   --> src\editor_ui.rs:596:24
     |
-595 |                     ui.close_menu();
+596 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
@@ -352,9 +346,9 @@ warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.clo
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:604:24
+   --> src\editor_ui.rs:605:24
     |
-604 |                     ui.close_menu();
+605 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
@@ -364,47 +358,53 @@ warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.clo
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:619:24
+   --> src\editor_ui.rs:614:24
     |
-619 |                     ui.close_menu();
+614 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:625:24
+   --> src\editor_ui.rs:624:24
     |
-625 |                     ui.close_menu();
+624 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:632:24
+   --> src\editor_ui.rs:630:24
     |
-632 |                     ui.close_menu();
+630 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:646:24
+   --> src\editor_ui.rs:637:24
     |
-646 |                     ui.close_menu();
+637 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:653:24
+   --> src\editor_ui.rs:651:24
     |
-653 |                     ui.close_menu();
+651 |                     ui.close_menu();
+    |                        ^^^^^^^^^^
+
+warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
+   --> src\editor_ui.rs:658:24
+    |
+658 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: unused variable: `performance_metrics`
-   --> src\bevy_app.rs:113:5
+   --> src\bevy_app.rs:126:5
     |
-113 |     performance_metrics: Res<PerformanceMetrics>,
+126 |     performance_metrics: Res<PerformanceMetrics>,
     |     ^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_performance_metrics`
     |
     = note: `#[warn(unused_variables)]` on by default
 
 warning: variable does not need to be mutable
-   --> src\bevy_app.rs:280:5
+   --> src\bevy_app.rs:300:5
     |
-280 |     mut startup_gate: ResMut<UiStartupGate>
+300 |     mut startup_gate: ResMut<UiStartupGate>
     |     ----^^^^^^^^^^^^
     |     |
     |     help: remove this `mut`
@@ -557,22 +557,16 @@ warning: unused variable: `available_size`
 575 |     let available_size = ui.available_size();
     |         ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_available_size`
 
-warning: unused variable: `i`
-   --> src\bevy_node_graph_integration_enhanced.rs:719:30
+warning: unused variable: `drag_state`
+   --> src\bevy_node_graph_integration_enhanced.rs:689:5
     |
-719 |                         for (i, input) in node.inputs.iter().enumerate() {
-    |                              ^ help: if this is intentional, prefix it with an underscore: `_i`
-
-warning: unused variable: `i`
-   --> src\bevy_node_graph_integration_enhanced.rs:739:30
-    |
-739 |                         for (i, output) in node.outputs.iter().enumerate() {
-    |                              ^ help: if this is intentional, prefix it with an underscore: `_i`
+689 |     drag_state: Option<&DragState>,
+    |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_drag_state`
 
 warning: unused variable: `mouse_input`
-   --> src\bevy_node_graph_integration_enhanced.rs:901:5
+   --> src\bevy_node_graph_integration_enhanced.rs:931:5
     |
-901 |     mouse_input: Res<ButtonInput<MouseButton>>,
+931 |     mouse_input: Res<ButtonInput<MouseButton>>,
     |     ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_mouse_input`
 
 warning: unused variable: `mapping`
@@ -582,79 +576,79 @@ warning: unused variable: `mapping`
     |                     ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_mapping`
 
 warning: unused variable: `renderer`
-   --> src\editor_ui.rs:323:21
+   --> src\editor_ui.rs:328:21
     |
-323 |         if let Some(renderer) = self.global_renderer.renderer.lock().unwrap().as_mut() {
+328 |         if let Some(renderer) = self.global_renderer.renderer.lock().unwrap().as_mut() {
     |                     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_renderer`
 
 warning: unused variable: `video_exporter`
-   --> src\editor_ui.rs:390:5
+   --> src\editor_ui.rs:395:5
     |
-390 |     video_exporter: Option<&()> // ScreenshotVideoExporter commented out
+395 |     video_exporter: Option<&()> // ScreenshotVideoExporter commented out
     |     ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_video_exporter`
 
 warning: unused variable: `prompt`
-   --> src\editor_ui.rs:676:36
+   --> src\editor_ui.rs:681:36
     |
-676 | fn generate_shader_with_wgsl_smith(prompt: &str) -> String {
+681 | fn generate_shader_with_wgsl_smith(prompt: &str) -> String {
     |                                    ^^^^^^ help: if this is intentional, prefix it with an underscore: `_prompt`
 
-warning: unused variable: `audio_analyzer`
-   --> src\editor_ui.rs:711:5
-    |
-711 |     audio_analyzer: &AudioAnalyzer, 
-    |     ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_audio_analyzer`
-
 warning: unused variable: `gesture_control`
-   --> src\editor_ui.rs:712:5
+   --> src\editor_ui.rs:717:5
     |
-712 |     gesture_control: &mut crate::gesture_control::GestureControlSystem,
+717 |     gesture_control: &mut crate::gesture_control::GestureControlSystem,
     |     ^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_gesture_control`
 
 warning: variable does not need to be mutable
-    --> src\editor_ui.rs:1470:29
+    --> src\editor_ui.rs:1490:29
      |
-1470 |                         let mut mf = MultiFormatTranspiler::new();
+1490 |                         let mut mf = MultiFormatTranspiler::new();
      |                             ----^^
      |                             |
      |                             help: remove this `mut`
 
-warning: unused variable: `code`
-    --> src\editor_ui.rs:2286:16
+warning: unused variable: `dmx_config`
+    --> src\editor_ui.rs:2113:5
      |
-2286 |     for (name, code) in test_cases {
+2113 |     dmx_config: &mut DmxConfig,
+     |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_dmx_config`
+
+warning: unused variable: `code`
+    --> src\editor_ui.rs:2506:16
+     |
+2506 |     for (name, code) in test_cases {
      |                ^^^^ help: if this is intentional, prefix it with an underscore: `_code`
 
 warning: unused variable: `texture_handle`
-    --> src\editor_ui.rs:2325:23
+    --> src\editor_ui.rs:2545:23
      |
-2325 | fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
+2545 | fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
      |                       ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_texture_handle`
 
 warning: unused variable: `ctx`
-    --> src\editor_ui.rs:2325:61
+    --> src\editor_ui.rs:2545:61
      |
-2325 | fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
+2545 | fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
      |                                                             ^^^ help: if this is intentional, prefix it with an underscore: `_ctx`
 
 warning: variable does not need to be mutable
-   --> src\scene_editor_3d.rs:201:5
+   --> src\scene_editor_3d.rs:306:5
     |
-201 |     mut editor_state: ResMut<SceneEditor3DState>,
+306 |     mut editor_state: ResMut<SceneEditor3DState>,
     |     ----^^^^^^^^^^^^
     |     |
     |     help: remove this `mut`
 
 warning: unused variable: `time`
-   --> src\scene_editor_3d.rs:255:5
+   --> src\scene_editor_3d.rs:360:5
     |
-255 |     time: Res<Time>,
+360 |     time: Res<Time>,
     |     ^^^^ help: if this is intentional, prefix it with an underscore: `_time`
 
 warning: variable does not need to be mutable
-   --> src\scene_editor_3d.rs:500:5
+   --> src\scene_editor_3d.rs:605:5
     |
-500 |     mut editor_state: ResMut<SceneEditor3DState>,
+605 |     mut editor_state: ResMut<SceneEditor3DState>,
     |     ----^^^^^^^^^^^^
     |     |
     |     help: remove this `mut`
@@ -672,15 +666,21 @@ warning: unused variable: `hand_id`
     |                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_hand_id`
 
 warning: unused variable: `output_buffer`
-    --> src\shader_renderer.rs:1189:13
+    --> src\shader_renderer.rs:1194:13
      |
-1189 |         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+1194 |         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
      |             ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_output_buffer`
 
-warning: unused variable: `shader_module`
-    --> src\shader_renderer.rs:1397:13
+warning: unused variable: `e`
+    --> src\shader_renderer.rs:1264:20
      |
-1397 |         let shader_module = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+1264 |             Ok(Err(e)) => {
+     |                    ^ help: if this is intentional, prefix it with an underscore: `_e`
+
+warning: unused variable: `shader_module`
+    --> src\shader_renderer.rs:1393:13
+     |
+1393 |         let shader_module = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
      |             ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_shader_module`
 
 warning: unused variable: `handle`
@@ -831,47 +831,11 @@ warning: unused variable: `queue`
 107 |     pub fn export_texture(&mut self, texture_id: u64, device: &Device, queue: &Queue) -> InteropResult<NativeTextureInfo> {
     |                                                                        ^^^^^ help: if this is intentional, prefix it with an underscore: `_queue`
 
-warning: unused variable: `options`
-   --> src\shader_transpiler.rs:268:39
-    |
-268 |     fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
-    |                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_options`
-
 warning: unused variable: `source`
    --> src\shader_transpiler.rs:299:31
     |
 299 |     fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
     |                               ^^^^^^ help: if this is intentional, prefix it with an underscore: `_source`
-
-warning: unused variable: `ast`
-   --> src\shader_transpiler.rs:325:38
-    |
-325 |     fn extract_uniform_blocks(&self, ast: &AstNode, metadata: &mut TranspilerMetadata) -> TranspilerResult<()> {
-    |                                      ^^^ help: if this is intentional, prefix it with an underscore: `_ast`
-
-warning: unused variable: `metadata`
-   --> src\shader_transpiler.rs:325:53
-    |
-325 |     fn extract_uniform_blocks(&self, ast: &AstNode, metadata: &mut TranspilerMetadata) -> TranspilerResult<()> {
-    |                                                     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_metadata`
-
-warning: unused variable: `ast`
-   --> src\shader_transpiler.rs:330:40
-    |
-330 |     fn extract_texture_bindings(&self, ast: &AstNode, metadata: &mut TranspilerMetadata) -> TranspilerResult<()> {
-    |                                        ^^^ help: if this is intentional, prefix it with an underscore: `_ast`
-
-warning: unused variable: `metadata`
-   --> src\shader_transpiler.rs:330:55
-    |
-330 |     fn extract_texture_bindings(&self, ast: &AstNode, metadata: &mut TranspilerMetadata) -> TranspilerResult<()> {
-    |                                                       ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_metadata`
-
-warning: unused variable: `options`
-   --> src\shader_transpiler.rs:553:39
-    |
-553 |     fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
-    |                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_options`
 
 warning: unused variable: `source`
    --> src\shader_transpiler.rs:584:31
@@ -879,23 +843,11 @@ warning: unused variable: `source`
 584 |     fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
     |                               ^^^^^^ help: if this is intentional, prefix it with an underscore: `_source`
 
-warning: unused variable: `options`
-   --> src\shader_transpiler.rs:695:39
-    |
-695 |     fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
-    |                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_options`
-
 warning: unused variable: `source`
    --> src\shader_transpiler.rs:741:31
     |
 741 |     fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
     |                               ^^^^^^ help: if this is intentional, prefix it with an underscore: `_source`
-
-warning: unused variable: `options`
-   --> src\shader_transpiler.rs:780:39
-    |
-780 |     fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
-    |                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_options`
 
 warning: unused variable: `source`
    --> src\shader_transpiler.rs:826:31
@@ -903,50 +855,12 @@ warning: unused variable: `source`
 826 |     fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
     |                               ^^^^^^ help: if this is intentional, prefix it with an underscore: `_source`
 
-warning: unused variable: `language`
-   --> src\shader_transpiler.rs:874:38
-    |
-874 |     fn validate_syntax(source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
-    |                                      ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_language`
-
-warning: unused variable: `language`
-   --> src\shader_transpiler.rs:881:41
-    |
-881 |     fn validate_semantics(source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
-    |                                         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_language`
-
-warning: unused variable: `options`
-   --> src\shader_transpiler.rs:903:72
-    |
-903 |     pub fn optimize(&self, result: TranspilerResult<TranspilerOutput>, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
-    |                                                                        ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_options`
-
-warning: unused variable: `hlsl_source`
-   --> src\advanced_shader_compilation.rs:495:39
-    |
-495 |     pub fn convert_to_wgsl(&mut self, hlsl_source: &str, name: &str) -> Result<String> {
-    |                                       ^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_hlsl_source`
-
-warning: unused variable: `isf_source`
-   --> src\advanced_shader_compilation.rs:519:39
-    |
-519 |     pub fn convert_to_wgsl(&mut self, isf_source: &str, name: &str) -> Result<String> {
-    |                                       ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_isf_source`
-
 warning: unused variable: `source`
    --> src\wgsl_ast_parser.rs:661:32
     |
 661 |     fn parse_module(&mut self, source: &str) -> Result<ModuleNode> {
     |                                ^^^^^^ help: if this is intentional, prefix it with an underscore: `_source`
 
-warning: variable does not need to be mutable
-   --> src\wgsl_ast_parser.rs:662:13
-    |
-662 |         let mut module = ModuleNode {
-    |             ----^^^^^^
-    |             |
-    |             help: remove this `mut`
-
-For more information about this error, try `rustc --explain E0277`.
-warning: `wgsl-shader-studio` (lib) generated 147 warnings
-error: could not compile `wgsl-shader-studio` (lib) due to 1 previous error; 147 warnings emitted
+For more information about this error, try `rustc --explain E0063`.
+warning: `wgsl-shader-studio` (lib) generated 136 warnings
+error: could not compile `wgsl-shader-studio` (lib) due to 1 previous error; 136 warnings emitted

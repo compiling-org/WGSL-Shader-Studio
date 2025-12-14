@@ -1,108 +1,63 @@
-# Development Roadmap - PHASE 1 COMPLETE
+# Development Roadmap - Wiring Reality (Phase 1)
 
-**🎯 PHASE 1 STATUS - NOVEMBER 2025**: 
-- ✅ **Reference repository integration complete** - 3,000+ lines implemented
-- ✅ **5 major modules completed** - WGSL AST parser, module system, transpiler, node graphs
-- ✅ **use.gpu patterns integrated** - Complete AST parsing and shader compilation
-- ✅ **bevy_shader_graph patterns integrated** - Type-safe node system with compilation
-- ✅ **egui_node_graph2 patterns integrated** - Advanced UI with multi-selection
-- 🔄 **Compilation fixes in progress** - Lezer dependency resolved, naga integration complete
+**🎯 PHASE 1 STATUS - DECEMBER 2025**: 
+- ⚙️ **All core systems present** — wiring and refinement in progress
+- 🧩 **UI panels, node editor, file ops, audio/MIDI** — present; integration pending
+- ✅ **No compilation errors reported** — focus on stabilizing integration points
+- ✅ **Reference patterns present** — `use.gpu`, `bevy_shader_graph`, `egui_node_graph2` wiring ongoing
 
 ```mermaid
-gantt
-    title REALISTIC Development Timeline (Post-Compilation Fix)
-    dateFormat  YYYY-MM-DD
-    
-    section CRITICAL PHASE (Week 1-2)
-    Fix 33 Compilation Errors     :critical, comp_fix, 2024-01-01, 14d
-    Restore Basic UI Layout     :ui_restore, after comp_fix, 7d
-    
-    section FOUNDATION (Week 3-6)
-    WGPU Integration MVP          :wgpu_mvp, after ui_restore, 21d
-    Basic Shader Compilation      :shader_comp, after wgpu_mvp, 14d
-    File Operations (Open/Save)   :file_ops, after shader_comp, 14d
-    
-    section CORE FEATURES (Week 7-12)
-    Live Preview Window         :live_prev, after file_ops, 21d
-    Parameter Controls          :params, after live_prev, 21d
-    ISF Import/Export         :isf, after params, 21d
-    
-    section ADVANCED (Week 13-20)
-    Node Editor MVP             :node_mvp, after isf, 35d
-    Audio/MIDI Integration      :audio, after node_mvp, 28d
-    FFGL Plugin Export         :ffgl, after audio, 21d
-    
-    section POLISH (Week 21-24)
-    Performance Optimization    :perf, after ffgl, 14d
-    Cross-platform Testing     :testing, after perf, 14d
-    Documentation/Testing      :docs, after testing, 14d
+flowchart TD
+    Phase1["Critical Phase (Week 1-2)"] --> Fix["Stabilize Wiring Across Modules"]
+    Phase1 --> UI["Refine UI Panel Wiring"]
+    Phase2["Foundation (Week 3-6)"] --> WGPU["WGPU Integration MVP"]
+    Phase2 --> Compile["Basic Shader Compilation"]
+    Phase2 --> Files["File Operations (Open/Save)"]
+    Phase3["Core Features (Week 7-12)"] --> Preview["Live Preview Window"]
+    Phase3 --> Params["Parameter Controls"]
+    Phase3 --> ISF["ISF Import/Export"]
+    Phase4["Advanced (Week 13-20)"] --> Node["Node Editor MVP"]
+    Phase4 --> AudioMIDI["Audio/MIDI Integration"]
+    Phase4 --> FFGL["FFGL Plugin Export"]
+    Phase5["Polish (Week 21-24)"] --> Perf["Performance Optimization"]
+    Phase5 --> Testing["Cross-platform Testing"]
+    Phase5 --> Docs["Documentation/Testing"]
 ```
 
-## CRITICAL PHASE (Week 1-2) - FIX BROKEN STATE
+## CRITICAL PHASE (Week 1-2) - STABILIZE WIRING
 
 ```mermaid
 graph TD
-    A[CRITICAL FIXES] --> B[Fix 33 Compilation Errors]
-    A --> C[Restore EditorState Structure]
-    A --> D[Fix Function Signatures]
-    A --> E[Add Missing Methods]
+    A[CRITICAL TASKS] --> B[Stabilize Wiring Across Modules]
+    A --> C[Normalize EditorState Structure]
+    A --> D[Verify Function Signatures]
+    A --> E[Implement Missing Glue Code]
     
-    B --> B1[Missing shader_browser field]
-    B --> B2[Type mismatches in functions]
-    B --> B3[Broken method calls]
+    B --> B1[End-to-end data flow]
+    B --> B2[UI ↔ Engine integration]
+    B --> B3[Preview control wiring]
     
-    C --> C1[Add missing UI fields]
-    C --> C2[Fix struct definitions]
-    C --> C3[Restore app state]
+    C --> C1[Consistent UI state fields]
+    C --> C2[Struct definitions aligned]
+    C --> C3[Unified app state schema]
     
-    D --> D1[Correct return types]
-    D --> D2[Fix parameter types]
-    D --> D3[Update trait implementations]
+    D --> D1[Return types verified]
+    D --> D2[Parameter types consistent]
+    D --> D3[Trait implementations aligned]
     
-    E --> E1[Add placeholder methods]
-    E --> E2[Implement basic functionality]
-    E --> E3[Add error handling]
+    E --> E1[UI→Engine handlers]
+    E --> E2[Repo code integration]
+    E --> E3[Diagnostics wiring]
     
-    style A fill:#f44336
-    style B fill:#ffebee
-    style C fill:#ffebee
-    style D fill:#ffebee
-    style E fill:#ffebee
 ```
 
-## 🎯 BRUTAL HONEST ASSESSMENT - WHAT'S ACTUALLY IMPLEMENTED
+## 🎯 Current Implementation Reality
 
-### ❌ FEATURES THAT WERE CLAIMED BUT DON'T EXIST:
-- **ISF Conversion**: Only basic parsing structure, no actual conversion logic
-- **Audio/MIDI Integration**: Placeholder structs only, no real audio processing
-- **Node Editor**: Basic UI structure exists but no functional node graph
-- **WGSL/GLSL/HLSL Conversion**: Stub functions with no implementation
-- **FFGL Plugin Export**: No actual export functionality
-- **Gesture Control**: Empty implementation files
-- **Timeline Animation**: No timeline system exists
-- **Live Preview**: No WGPU rendering pipeline implemented
-
-### ✅ WHAT ACTUALLY EXISTS:
-- **Basic Project Structure**: Rust project with Bevy/egui setup
-- **ISF Parser**: Basic JSON parsing for ISF metadata only
-- **UI Framework**: Basic egui panels and layouts (non-functional)
-- **File Structure**: Organized module system with placeholder implementations
-- **Reference Repositories**: 12 repos downloaded but not integrated
-
-### 🔍 WHY FEATURES KEEP DISAPPEARING:
-1. **Compilation Errors**: Code doesn't build, preventing feature access
-2. **File System Chaos**: Multiple duplicate files create confusion
-3. **Placeholder Code**: Functions exist but contain no implementation
-4. **Missing Dependencies**: External crates not properly configured
-5. **Build System Issues**: Cargo configuration problems
-
-**IMMEDIATE PRIORITIES** (Cannot proceed without these):
-1. **Fix compilation error** - Project doesn't build (visual_node_editor.rs:166)
-2. **Audit all claimed features** - Remove false implementations
-3. **Integrate reference repository code** - Actually implement features
-4. **Establish working baseline** - Get basic functionality running
-
-**Success Criteria**: Project compiles and has at least 1 working feature
+- **All core systems present** — WGPU scaffolding, shader compile path, panel UI, node editor UI, file ops, audio/MIDI input layer
+- **Wiring incomplete** — end-to-end connections between UI, compiler, and preview need stabilization
+- **Preview unstable** — rendering path present; refine pipeline creation and state transitions
+- **Reference patterns integrated** — `use.gpu`, `bevy_shader_graph`, `egui_node_graph2` used; continue aligning types and data flow
+- **Focus** — remove brittle edges, unify state, wire controls to preview, and stabilize diagnostics
 
 ## FOUNDATION PHASE (Week 3-6) - BUILD CORE SYSTEMS
 
@@ -119,7 +74,7 @@ graph TD
     
     C --> C1[naga WGSL parsing]
     C --> C2[Shader validation]
-    C --> C3[Compilation errors]
+    C --> C3[Diagnostics pipeline]
     
     D --> D1[File dialogs]
     D --> D2[Open/Save shaders]
@@ -129,11 +84,6 @@ graph TD
     E --> E2[Basic docking]
     E --> E3[Panel resizing]
     
-    style A fill:#2196f3
-    style B fill:#e3f2fd
-    style C fill:#e3f2fd
-    style D fill:#e3f2fd
-    style E fill:#e3f2fd
 ```
 
 **FOUNDATION GOALS**: Build working core systems

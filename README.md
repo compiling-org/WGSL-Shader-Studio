@@ -1,95 +1,65 @@
 # WGSL Shader Studio
- 
-## Current Reality (2025-12-14)
-- ✅ **3D Scene Editor Integration Complete** - Comprehensive 3D scene management with gizmo-based manipulation
-- ✅ Build compilation issues resolved (duplicate functions fixed, module imports corrected)
-- GUI initializes; preview uses a real WGPU renderer. CPU fallback has been removed; GPU-only rendering enforced.
-- Parameter sliders in the UI are not wired to the renderer's `params` buffer; changes don't affect shader output.
-- Audio/MIDI integration is missing (`src/audio_midi_integration.rs` is empty).
-- Compute pipeline code exists (`src/compute_pass_integration.rs`) but is not executed (no device/pipeline/dispatch wiring).
-- Version drift: Bevy's internal wgpu version differs from the direct `wgpu = 26.0.1` dependency, risking API mismatch.
 
-### What Works
-- ✅ **3D Scene Editor** - Interactive 3D scene management with gizmo-based manipulation, camera controls, and export capabilities
-- WGSL rendering backend (`src/shader_renderer.rs`) compiles shaders, creates pipelines, renders to texture, and reads pixels back.
-- ISF loading/validation (`src/isf_loader.rs`) with Resolume directory scanning and local assets.
-- CLI developer tools (`src/main.rs`) for listing, validating, and converting ISF shaders.
-- Enhanced node graph to WGSL generation (`src/bevy_node_graph_integration_enhanced.rs`) with grid, snapping, connections.
-- Timeline model and Bevy plugin (`src/timeline.rs`).
-- Screenshot and video export system (`src/screenshot_video_export.rs`) with multiple format support.
+## Current Reality (2025-12-14)
+- Preview panel is unreliable; WGSL fragment pipeline integration is being repaired.
+- External WGSL shaders may fail due to strict validation/binding rules; validation is being relaxed.
+- Node-based editor UI is present; wiring and UI exposure in the main app are incomplete.
+- 3D scene editor modules exist; viewport initialization and panel wiring are pending.
+- Live analyzer scripts exist; generated reports are inconsistent and require overhaul.
+
+### What Works (partial)
+- Bevy + egui application boots with multiple panels.
+- Shader systems and render modules are present; preview wiring is under repair.
+- ISF loading/parsing modules exist; CLI tools build for diagnostics.
+- Node graph UI and compilation modules exist; editor wiring needs activation.
+- Timeline modules and export system exist; integration requires verification.
 
 ### What’s Broken/Missing
- - UI parameter updates not applied to renderer (`params` uniform buffer).
- - Audio/MIDI input/mapping not fully implemented.
- - Compute pipeline execution path not exposed in UI controls.
- - Batch ISF directory conversion remains stubbed.
- - Frame recording not implemented; MP4 exporter presumes frames.
+ - Preview panel frequently blank; renderer initialization/resize handling under repair
+ - External WGSL shader validation too strict; binding rules being relaxed
+ - Node editor is not fully wired/exposed in the UI
+ - 3D editor viewport initialization and display not stable
+ - Live analyzer documentation and scripts are outdated and inconsistent
 
-### Placeholder vs Real
-- Real: `shader_renderer.rs`, `isf_loader.rs`, `node_graph.rs`, `timeline.rs`, CLI in `main.rs`, FFGL skeleton.
-- Placeholder/Stub: `audio_midi_integration.rs`, batch conversion, compute execution, several visual node editor variants and auditors, frame recording/export.
+### Placeholder vs Real (snapshot)
+- Real modules present: `shader_renderer.rs`, `isf_loader.rs`, node graph integrations, timeline, CLI utilities.
+- Implemented, needs repair/integration: audio/MIDI integration, compute execution UI path, node editor UI wiring, frame recording/export UI.
 
 ### Immediate Plan
-- Wire parameter uniform updates in `shader_renderer.rs` and `editor_ui.rs`.
-- Implement audio/MIDI mapping UI and backend integration.
-- Expose compute pipeline execution controls in UI; validate outputs.
-- Complete batch ISF conversion flows; add progress reporting.
-- Add frame recording pipeline; integrate with export UI.
+- Repair preview pipeline and relax WGSL validation for external shaders
+- Enable node editor plugin and expose wiring UI
+- Fix 3D editor viewport initialization and panel activation
+- Refresh analyzer scripts and documentation to reflect current reality
 
-A professional-grade shader development environment built with Bevy 0.17 and bevy_egui 0.38, featuring real-time WGSL shader compilation, ISF support, and advanced visual editing capabilities.
+A shader development environment built with Bevy 0.17 and bevy_egui 0.38, featuring WGSL shader compilation, ISF support modules, and visual editing capabilities under active repair.
 
-## 🎯 Current Status
+## Current Reality
 
-**Framework**: Bevy 0.17 + bevy_egui 0.38 (✅ STABLE)  
-**Build Status**: ✅ **WORKING** (library + bins compile cleanly)  
-**Core Features**: ✅ **Phase 1 Complete** - 3,000+ lines of reference patterns implemented  
-**Critical Systems**: ✅ **Reference Patterns Integrated** - use.gpu, bevy_shader_graph, egui_node_graph2  
+**Framework**: Bevy 0.17 + bevy_egui 0.38  
+**Build Status**: Builds with multiple modules; preview path under repair  
+**Core Features**: Many modules implemented; several integrations need repair  
+**Critical Systems**: Node graph, analyzer, and renderer modules present; UI wiring ongoing
 
-## ✅ Recent Integration Highlights
+## Recent Integration Highlights
 
-### 🚀 Successfully Implemented (3,000+ lines of production Rust code)
+### Implemented Modules (examples)
 
-#### 1. WGSL AST Parser (`src/wgsl_ast_parser.rs`) - 1000+ lines
-- ✅ Lezer grammar patterns ported to Rust-native parsing
-- ✅ Complete AST node type definitions and symbol table
-- ✅ Type inference engine with scope management
-- ✅ Visitor pattern for tree traversal
-- ✅ Parse error and warning systems
-- ✅ Integration with existing shader compilation
+#### 1. WGSL AST Parser (`src/wgsl_ast_parser.rs`)
+- AST node types, parsing utilities, diagnostics scaffolding
 
-#### 2. Shader Module System (`src/shader_module_system.rs`) - 600+ lines
-- ✅ LRU cache with TTL-based eviction (use.gpu patterns)
-- ✅ Multi-format bundle loading (JSON, TOML, YAML)
-- ✅ Import resolution with circular dependency detection
-- ✅ Thread-safe module management with Arc<RwLock>
-- ✅ Comprehensive error handling and statistics
-- ✅ UUID-based module identification
+#### 2. Shader Module System (`src/shader_module_system.rs`)
+- Module loading/caching, import resolution scaffolding
 
-#### 3. Transpiler Framework (`src/shader_transpiler.rs`) - 800+ lines
-- ✅ Multi-format conversion (WGSL ↔ GLSL ↔ HLSL)
-- ✅ Pluggable transpiler architecture (use.gpu patterns)
-- ✅ Validation and optimization passes
-- ✅ Source mapping and metadata generation
-- ✅ Performance profiling and statistics
-- ✅ Comprehensive error handling with custom error types
+#### 3. Transpiler Framework (`src/shader_transpiler.rs`)
+- Multi-format conversion stubs and integration points
 
-#### 4. Bevy Shader Graph Integration (`src/bevy_shader_graph_integration.rs`) - 700+ lines
-- ✅ Type-safe node and port system (bevy_shader_graph patterns)
-- ✅ Graph compilation to WGSL with entry point management
-- ✅ Node template architecture with validation rules
-- ✅ Connection validation and type checking
-- ✅ Comprehensive error handling and diagnostics
-- ✅ Integration with existing shader systems
+#### 4. Bevy Shader Graph Integration (`src/bevy_shader_graph_integration.rs`)
+- Node/port types, graph compilation scaffolding
 
-#### 5. Egui Node Graph UI (`src/egui_node_graph_integration.rs`) - 600+ lines
-- ✅ Advanced pan/zoom with smooth animations (egui_node_graph2 patterns)
-- ✅ Multi-node selection and dragging
-- ✅ Connection validation and visual feedback
-- ✅ Grid system with snapping and subdivisions
-- ✅ Performance monitoring and optimization
-- ✅ JSON export/import for persistence
+#### 5. Egui Node Graph UI (`src/egui_node_graph_integration.rs`)
+- Pan/zoom, selection, connections UI scaffolding
 
-## 🏗️ Architecture - Phase 1 Implementation
+## Architecture
 
 ### Technology Stack
 - **Engine**: Bevy 0.17 (ECS game engine)
@@ -97,102 +67,230 @@ A professional-grade shader development environment built with Bevy 0.17 and bev
 - **Rendering**: WGPU (cross-platform graphics API)
 - **Audio**: Custom FFT analysis system with midir MIDI support
 - **Platform**: Windows, macOS, Linux support
-
-### Phase 1 Module Structure
+```mermaid
+flowchart TD
+    A[WGSL Shader Studio] --> B[Bevy 0.17]
+    A --> C[bevy_egui 0.38]
+    A --> D[WGPU Renderer]
+    A --> E[Audio/MIDI]
+    A --> F[Node Graph]
+    A --> G[Timeline & Export]
+    D --> D1[Fragment]
+    D --> D2[Compute]
+    D1 --> D3[Uniforms & Bind Groups]
+    D2 --> D4[Workgroups & Dispatch]
+    E --> E1[Audio FFT]
+    E --> E2[MIDI Learn]
+    E1 --> E3[Parameter Mapping]
+    E2 --> E3
+    F --> F1[Visual Node Editor]
+    F --> F2[Graph→WGSL Generation]
+    G --> G1[Screenshots]
+    G --> G2[Video Export]
 ```
-src/
-├── wgsl_ast_parser.rs              # 1000+ lines - WGSL AST parsing
-├── shader_module_system.rs         # 600+ lines - Module management
-├── shader_transpiler.rs            # 800+ lines - Multi-format transpilation
-├── bevy_shader_graph_integration.rs # 700+ lines - Node graph system
-├── egui_node_graph_integration.rs  # 600+ lines - Advanced UI system
-├── bevy_app.rs                     # Main application with all features
-├── editor_ui.rs                    # Comprehensive UI implementation
-├── audio.rs                        # Audio analysis system
-├── converter/                      # Shader format converters
-│   ├── isf.rs                     # ISF loader and parser
-│   ├── glsl.rs                    # GLSL conversion
-│   └── hlsl.rs                    # HLSL conversion
-├── gyroflow_wgpu_interop.rs       # Zero-copy texture sharing
-├── gyroflow_interop_integration.rs # Video processing integration
-└── lib.rs                         # Main library exports
+
+### Module Structure (Diagram)
+
+```mermaid
+graph TD
+    subgraph src
+        BA[bevy_app.rs]
+        EU[editor_ui.rs]
+        WA[wgsl_ast_parser.rs]
+        SM[shader_module_system.rs]
+        ST[shader_transpiler.rs]
+        BGI[bevy_shader_graph_integration.rs]
+        ENGI[egui_node_graph_integration.rs]
+        AU[audio.rs]
+        GW[gyroflow_wgpu_interop.rs]
+        GI[gyroflow_interop_integration.rs]
+        LIB[lib.rs]
+        subgraph converter
+            C1[isf.rs]
+            C2[glsl.rs]
+            C3[hlsl.rs]
+        end
+    end
+    BA --> EU
+    EU --> BGI
+    BGI --> ENGI
+    WA --> EU
+    SM --> ST
+    ST --> EU
+    AU --> BA
+    GW --> GI
+    EU --> GW
+    C1 --> ST
+    C2 --> ST
+    C3 --> ST
 ```
 
-## ✅ Technical Achievements
+#### Module Graph (Flow)
 
-### Quality Metrics
-- **Total Lines**: 3,000+ lines of production Rust code
-- **Test Coverage**: 20+ unit tests across all modules
-- **Error Types**: 5 custom error types with thiserror
-- **Thread Safety**: All systems use Arc<RwLock> for concurrent access
-- **Memory Management**: LRU caching and proper resource management
-- **Zero Compilation Errors**: All Phase 1 modules compile successfully
+```mermaid
+flowchart TD
+    UI[Editor UI Systems] --> AST[WGSL AST Parser]
+    AST --> DIAG[Diagnostics]
+    DIAG --> TRAN[Transpiler]
+    TRAN --> REND[WGPU Renderer]
+    REND --> PREV[Preview Panel]
+    UI --> NODE[Visual Node Editor]
+    NODE --> TRAN
+    UI --> PARAM[Parameter Controls]
+    PARAM --> REND
+    UI --> FILES[File Ops / ISF, GLSL, HLSL]
+    FILES --> TRAN
+```
 
-### Reference Patterns Successfully Integrated
-- **use.gpu patterns**: WGSL AST parsing, module systems, transpilation
-- **bevy_shader_graph patterns**: Type-safe node graphs, graph compilation
-- **egui_node_graph2 patterns**: Advanced UI interactions, animations
+#### Subsystem Dataflow
 
-## 🎯 Next Phase Goals
+```mermaid
+graph LR
+    subgraph Tooling
+        A[Code Editor] --> B[Diagnostics]
+        B --> C[Transpiler]
+    end
+    subgraph Rendering
+        C --> D[Pipeline Build]
+        D --> E[Uniform Binding]
+        E --> F[Render Pass]
+        F --> G[Frame Present]
+    end
+    subgraph Interaction
+        H[Node Graph] --> C
+        I[Audio/MIDI] --> E
+        J[Parameters] --> E
+    end
+    G --> K[Preview Viewport]
+```
 
-### Phase 2: UI Enablement and Live Validation
-1. Visual Node Editor: fully enabled in app plugin list
-2. Enhanced Node Graph: rendering fixed (Bezier curves) and UI windows integrated
-3. Live Analyzer: `ui-analyzer` binary generates audit report for UI panels
-4. GPU-only enforcement: WGPU init is required; failures hard-panic with diagnostics
+### Extended Architecture Diagrams
 
-### Phase 3: Advanced Features
-1. Complete audio/MIDI integration with real-time mapping
-2. Full timeline animation with keyframes and curve editors
-3. FFGL plugin export for professional VJ applications
-4. Advanced shader features from remaining use.gpu patterns
+#### System Overview
+```mermaid
+flowchart LR
+    UI[bevy_egui 0.38 UI] --> Panels[Preview + Node + 3D + Timeline]
+    Panels --> Editor[Editor UI Systems]
+    Renderer[wgpu] --> Pipeline[Render Pipeline]
+    Pipeline --> Modes[Fragment + Compute]
+    Modes --> ViewTex[Viewport Textures]
+    AST[WGSL AST Parser] --> Diag[Diagnostics]
+    Diag --> Transpiler[Transpiler]
+    Transpiler --> Pipeline
+    NodeUI[Visual Node Editor] --> NodeEngine[Node Graph Engine]
+    NodeEngine --> Transpiler
+    AudioFFT[Audio FFT] --> ParamMap[Parameter Mapping]
+    Midi[MIDI Learn] --> ParamMap
+    ParamMap --> Pipeline
+    Editor --> ViewTex
+    ViewTex --> Editor
+```
 
-## 🎮 Usage
+#### Shader/Data Flow
+```mermaid
+flowchart TD
+    User --> UI
+    UI --> Analyzer[Diagnostics]
+    Analyzer --> UI
+    UI --> Compile[Compile Shader]
+    Compile --> Pipeline[Create Pipeline]
+    Pipeline --> Present[Present Frame]
+    Present --> UI
+    UI --> User
+```
+
+#### Preview Repair Pipeline
+```mermaid
+flowchart TD
+    Init[Init/Resize] --> Tex[Create Viewport Textures]
+    Tex --> Sync[Sync surface size]
+    Sync --> RP[Create Render Pass]
+    RP --> Present[Present frame]
+    Present --> Check{Blank?}
+    Check -- Yes --> Fix[Recreate resources]
+    Check -- No --> Done[Preview OK]
+```
+
+## Technical Notes
+
+### Quality Snapshot
+- Multiple modules compile; preview path under repair
+- Diagnostics/analyzer scripts exist; reports require refresh
+- Threading/concurrency patterns vary across modules
+```mermaid
+flowchart LR
+    P1[Init/Resize Handling] --> P2[Texture/Viewport Sync]
+    P2 --> P3[Reliable Frame Present]
+    V1[Entry Point Detection] --> V2[Binding Rule Relax]
+    V2 --> V3[External WGSL Compatibility]
+    U1[Enable Node Editor] --> U2[Expose Wiring UI]
+    U3[Init 3D Viewport] --> U4[Activate Panel]
+```
+
+### Reference Patterns
+- use.gpu patterns: AST parsing, module systems, transpilation
+- bevy_shader_graph patterns: node graphs, compilation concepts
+- egui_node_graph patterns: UI interactions
+
+## Next Phase Goals
+
+### UI Enablement and Live Validation
+1. Visual Node Editor: enable plugin and expose UI
+2. Node Graph: fix rendering details and window integration
+3. Live Analyzer: refresh scripts and generated audit reports
+4. Preview: ensure reliable WGPU initialization and rendering
+
+### Advanced Features
+1. Audio/MIDI integration with real-time mapping
+2. Timeline animation with keyframes and curve editors
+3. FFGL plugin export
+4. Advanced shader features
+
+## Usage
 
 ### Building
 ```bash
-cargo build --release  # ✅ Phase 1 modules compile successfully
+cargo build --release
 ```
 
 ### Running
 ```bash
-cargo run --features gui --bin isf-shaders
+cargo run --bin isf-shaders
 ```
 Optional UI diagnostics:
 ```bash
 cargo run --bin ui-analyzer
 ```
+Enhanced analysis:
+```bash
+cargo run --bin ui-analyzer-enhanced
+```
 
-## 🛡️ Safety Measures
+## Safety Notes
 
-This project implements strict disciplinary measures:
-- **Reference First**: Implemented all reference patterns before compilation fixes
-- **No False Claims**: Documented actual implementation progress honestly
-- **User Direction**: Strictly followed "reference repositories first" instruction
-- **Reality Documentation**: Updated all status documents with real progress
-- **Git Backup**: Successfully committed and pushed Phase 1 implementation
+- Documentation and analyzer reports are being reconciled to reflect actual current status.
 
-## 📊 Honest Quality Metrics
+## Status Snapshot
 
-- **Build Success**: ✅ **100%** (Phase 1 modules compile without errors)
-- **Reference Integration**: ✅ **100%** Complete (use.gpu, bevy_shader_graph, egui_node_graph2)
-- **Core Features**: ✅ **Phase 1 Complete** (3,000+ lines implemented)
-- **Documentation**: ✅ **100%** Updated to reflect actual progress
-- **Test Coverage**: ✅ **20+ unit tests** across all new modules
+- Build: Compiles with multiple modules; preview path under repair
+- Renderer: WGSL preview unreliable; repairs in progress
+- Node Editor: UI present; wiring/exposure pending
+- 3D Editor: Modules present; viewport initialization pending
+- Analyzer: Scripts exist; reports require refresh
 
-## 🎯 Success Criteria (Phase 1 Achieved)
+## Success Criteria (near-term)
 
-- ✅ Reference repository patterns successfully integrated
-- ✅ All Phase 1 modules compile without errors
-- ✅ Thread-safe implementation with proper error handling
-- ✅ Comprehensive test coverage for new components
-- ✅ Honest documentation of actual implementation status
+- Preview panel displays WGSL output reliably
+- External WGSL shaders compile with relaxed validation
+- Node editor wiring enabled and exposed in UI
+- 3D editor viewport renders and updates correctly
+- Analyzer outputs accurate, useful reports
 
 ## 📚 Documentation
 
-- [Missing Reference Patterns Integration Plan](MISSING_REFERENCE_PATTERNS_INTEGRATION_PLAN.md) - Phase 1 completion details
-- [Psychotic Loop Analysis](PSYCHOTIC_LOOP_ANALYSIS.md) - Development process improvements
-- [Current Status Report](CURRENT_STATUS_REPORT.md) - Detailed Phase 1 achievements
+- [UI Audit Report](UI_AUDIT_REPORT.md) - Current UI status and priorities
+- [Frontend Features](docs/FRONTEND_FEATURES.md) - Target design and current progress
+- [3D Scene Editor Status](docs/3D_SCENE_EDITOR_STATUS_REPORT.md) - Integration progress
 
 ## 🔗 Reference Repositories Integrated
 
@@ -203,7 +301,7 @@ This project implements strict disciplinary measures:
 ---
 
 **Last Updated**: 2025-12-14  
-**Status**: **Working Build** - Enhanced node graph and visual editor enabled  
-**Next Milestone**: Wire parameter uniforms, audio/MIDI, compute controls
+**Status**: Build compiles; preview/node/3D editor under repair  
+**Next Milestone**: Repair preview, enable node wiring, initialize 3D viewport
 
-**✅ HONEST ASSESSMENT**: Phase 1 successfully completed with 3,000+ lines of production Rust code implementing all missing reference patterns from use.gpu, bevy_shader_graph, and egui_node_graph2.**
+**Assessment**: Active repair and reconciliation of preview, node editor, analyzer, and documentation.

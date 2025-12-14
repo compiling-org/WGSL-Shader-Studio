@@ -10,11 +10,24 @@ use crate::shader_renderer::ShaderRenderer;
 use crate::audio_system::AudioAnalyzer;
 use crate::compute_pass_integration::{ComputePassManager, TextureFormat};
 use crate::midi_system::MidiSystem;
-// use crate::screenshot_video_export::{ScreenshotVideoExporter, VideoExportSettings};
+use crate::screenshot_video_export::{ScreenshotVideoExporter, ExportUI, ExportSettings, VideoExportSettings};
+use crate::ndi_output::{NdiConfig, NdiOutput, NdiUI};
+use crate::spout_syphon_output::{SpoutSyphonConfig, SpoutSyphonOutput, SpoutSyphonUI};
+use crate::dmx_lighting_control::{DmxConfig, DmxLightingControl, DmxUI};
+use crate::wgsl_ast_parser::WgslAstParser;
+use crate::shader_transpiler::{MultiFormatTranspiler, TranspilerOptions, ShaderLanguage, ShaderValidator};
 
 // Temporarily commented out to fix compilation - will be restored when visual node editor is fully integrated
 // use crate::visual_node_editor_adapter::NodeEditorAdapter;
 use std::sync::Mutex;
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum CentralView {
+    Preview,
+    NodeGraph,
+    Scene3D,
+    Timeline,
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PipelineMode {
@@ -33,6 +46,23 @@ pub enum ThemePreference {
     System,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum RightSidebarMode {
+    Parameters,
+    Compute,
+    Outputs,
+    Audio,
+    MIDI,
+    Gestures,
+    Lighting,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum SourceSet {
+    All,
+    Assets,
+    ISF,
+}
+
 impl Default for ThemePreference {
     fn default() -> Self { ThemePreference::Dark }
 }
@@ -49,6 +79,7 @@ pub struct EditorUiState {
     pub show_audio_panel: bool,
     pub show_midi_panel: bool,
     pub show_gesture_panel: bool,
+    pub show_gesture_calibration: bool,
     pub show_wgslsmith_panel: bool,
     pub show_diagnostics_panel: bool,
     pub show_compute_panel: bool,
@@ -66,10 +97,16 @@ pub struct EditorUiState {
     pub show_dmx_panel: bool,
     pub show_export_panel: bool,
     pub show_ndi_panel: bool,
+    pub central_view: CentralView,
     pub fps: f32,
     pub time: f64,
     // Preview pipeline mode
     pub pipeline_mode: PipelineMode,
+    // Right sidebar mode
+    pub right_sidebar_mode: RightSidebarMode,
+    pub outputs_mode: OutputsMode,
+    pub code_editor_tab: CodeEditorTab,
+    pub selected_source: SourceSet,
     // Theme settings
     pub dark_mode: bool,
     pub theme_preference: ThemePreference,
@@ -111,6 +148,8 @@ pub struct EditorUiState {
     pub wgsl_smith_status: String,
     // WGSL diagnostics
     pub diagnostics_messages: Vec<DiagnosticMessage>,
+    pub analyzer_status: Vec<String>,
+    pub analyzer_run_requested: bool,
     // Compute pass UI state
     pub compute_pass_name: String,
     pub compute_workgroup_x: u32,
@@ -139,6 +178,32 @@ pub struct EditorUiState {
     pub light_intensity: f32,
     pub ambient_light_color: [f32; 3],
     pub ambient_light_intensity: f32,
+    pub export_settings: ExportSettings,
+    pub video_export_settings: VideoExportSettings,
+    pub use_legacy_windows: bool,
+    pub ast_ok: bool,
+    pub ast_error: String,
+    pub validator_ok: bool,
+    pub validator_error: String,
+    pub transpiled_glsl: String,
+    pub transpiler_error: String,
+    pub scene3d_texture_id: Option<egui::TextureId>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum OutputsMode {
+    Ndi,
+    SpoutSyphon,
+    ScreenshotsVideo,
+    Ffgl,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum CodeEditorTab {
+    Editor,
+    AI,
+    Diagnostics,
+    Analyzer,
 }
 
 impl Default for EditorUiState {
@@ -148,15 +213,16 @@ impl Default for EditorUiState {
             show_parameter_panel: true,
             show_preview: true,
             show_code_editor: true,
-            show_node_studio: true,
-            show_timeline: true,
+            show_node_studio: false,
+            show_timeline: false,
             show_audio_panel: true,
             show_midi_panel: true,
             show_gesture_panel: true,
+            show_gesture_calibration: false,
             show_wgslsmith_panel: true,
             show_diagnostics_panel: true,
             show_compute_panel: true,
-            show_3d_scene_panel: true,
+            show_3d_scene_panel: false,
             show_spout_panel: false,
             show_ffgl_panel: false,
             show_gyroflow_panel: false,
@@ -170,13 +236,18 @@ impl Default for EditorUiState {
             show_dmx_panel: false,
             show_export_panel: false,
             show_ndi_panel: false,
+            central_view: CentralView::Preview,
             fps: 0.0,
             time: 0.0,
             pipeline_mode: PipelineMode::default(),
+            right_sidebar_mode: RightSidebarMode::Parameters,
+            outputs_mode: OutputsMode::ScreenshotsVideo,
+            code_editor_tab: CodeEditorTab::Editor,
+            selected_source: SourceSet::All,
             dark_mode: true,
             theme_preference: ThemePreference::default(),
             search_query: String::new(),
-            show_all_shaders: false,
+            show_all_shaders: true,
             available_shaders_all: Vec::new(),
             available_shaders_compatible: Vec::new(),
             selected_shader: None,
@@ -205,6 +276,8 @@ impl Default for EditorUiState {
             wgsl_smith_generated: String::new(),
             wgsl_smith_status: String::new(),
             diagnostics_messages: Vec::new(),
+            analyzer_status: Vec::new(),
+            analyzer_run_requested: false,
             // Compute pass UI defaults
             compute_pass_name: "compute_pass_1".to_string(),
             compute_workgroup_x: 8,
@@ -233,6 +306,16 @@ impl Default for EditorUiState {
             light_intensity: 1.0,
             ambient_light_color: [0.2, 0.2, 0.2],
             ambient_light_intensity: 0.3,
+            export_settings: ExportSettings::default(),
+            video_export_settings: VideoExportSettings::default(),
+            use_legacy_windows: false,
+            ast_ok: false,
+            ast_error: String::new(),
+            validator_ok: false,
+            validator_error: String::new(),
+            transpiled_glsl: String::new(),
+            transpiler_error: String::new(),
+            scene3d_texture_id: None,
         }
     }
 }
@@ -395,133 +478,8 @@ fn compile_and_render_shader(
         }
     }
     
-    // Fallback to software renderer if WGPU is not available
-    println!("Using software shader renderer fallback...");
-    let width = size.x as usize;
-    let height = size.y as usize;
-    let mut pixels = Vec::with_capacity(width * height);
-    
-    // Parse shader for uniforms and inputs
-    let has_time = wgsl_code.contains("time") || wgsl_code.contains("Time");
-    let has_resolution = wgsl_code.contains("resolution") || wgsl_code.contains("Resolution");
-    let has_uv = wgsl_code.contains("uv") || wgsl_code.contains("UV") || wgsl_code.contains("@location(0)");
-    let has_mouse = wgsl_code.contains("mouse") || wgsl_code.contains("Mouse");
-    let has_audio = wgsl_code.contains("audio") || wgsl_code.contains("Audio");
-    
-    // Get current time for animation
-    let time = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs_f32();
-    
-    // Simulate mouse position
-    let mouse_x = 0.5 + 0.3 * time.sin();
-    let mouse_y = 0.5 + 0.3 * time.cos();
-    
-    // Render based on shader content analysis and WGSL patterns
-    for y in 0..height {
-        for x in 0..width {
-            let fx = x as f32 / width as f32;
-            let fy = y as f32 / height as f32;
-            
-            let mut r: f32 = 0.0;
-            let mut g: f32 = 0.0;
-            let mut b: f32 = 0.0;
-            let a: f32 = 1.0;
-            
-            // Analyze shader patterns and render accordingly
-            if wgsl_code.contains("mandelbrot") || wgsl_code.contains("Mandelbrot") {
-                // Mandelbrot set approximation
-                let cx = (fx - 0.5) * 3.0 - 0.7;
-                let cy = (fy - 0.5) * 3.0;
-                let mut zx = 0.0;
-                let mut zy = 0.0;
-                let mut i = 0;
-                
-                while zx * zx + zy * zy < 4.0 && i < 50 {
-                    let tmp = zx * zx - zy * zy + cx;
-                    zy = 2.0 * zx * zy + cy;
-                    zx = tmp;
-                    i += 1;
-                }
-                
-                let t = i as f32 / 50.0;
-                r = t * (1.0 - t) * 4.0;
-                g = t * t * (1.0 - t) * 6.0;
-                b = t * t * t * 8.0;
-            } else if wgsl_code.contains("plasma") || wgsl_code.contains("Plasma") {
-                // Plasma effect
-                let v1 = (fx * 10.0 + time).sin();
-                let v2 = (fy * 10.0 + time * 0.7).cos();
-                let v3 = ((fx + fy) * 10.0 + time * 0.5).sin();
-                
-                r = (v1 + 1.0) * 0.5;
-                g = (v2 + 1.0) * 0.5;
-                b = (v3 + 1.0) * 0.5;
-            } else if wgsl_code.contains("noise") || wgsl_code.contains("Noise") {
-                // Simple noise pattern
-                let n = (fx * 100.0).floor() + (fy * 100.0).floor() * 57.0;
-                let n = (n * 0.06711056).fract() * n;
-                let noise = (n * 0.01781812).fract();
-                
-                r = noise;
-                g = noise;
-                b = noise;
-            } else if has_time {
-                // Time-based animated gradient
-                r = ((fx + time * 0.5).sin() + 1.0) * 0.5;
-                g = ((fy + time * 0.3).cos() + 1.0) * 0.5;
-                b = ((fx + fy + time * 0.7).sin() + 1.0) * 0.5;
-            } else {
-                // Default gradient with UV coordinates
-                r = fx;
-                g = fy;
-                b = (fx + fy) * 0.5;
-            }
-            
-            // Apply mouse interaction if detected
-            if has_mouse {
-                let dist = ((fx - mouse_x).powi(2) + (fy - mouse_y).powi(2)).sqrt();
-                let influence = (1.0 - dist.min(1.0)).powi(2);
-                r = r * (1.0 - influence) + influence;
-                g = g * (1.0 - influence) + influence * 0.8;
-                b = b * (1.0 - influence) + influence * 0.6;
-            }
-            
-            // Apply audio visualization if detected
-            if has_audio {
-                let audio_wave = (time * 5.0).sin() * 0.5 + 0.5;
-                r = r * (1.0 - audio_wave * 0.3) + audio_wave * 0.3;
-                g = g * (1.0 - audio_wave * 0.2) + audio_wave * 0.2;
-                b = b * (1.0 - audio_wave * 0.1) + audio_wave * 0.1;
-            }
-            
-            // Clamp values
-            r = r.clamp(0.0, 1.0);
-            g = g.clamp(0.0, 1.0);
-            b = b.clamp(0.0, 1.0);
-            
-            pixels.push(egui::Color32::from_rgba_unmultiplied(
-                (r * 255.0) as u8,
-                (g * 255.0) as u8,
-                (b * 255.0) as u8,
-                (a * 255.0) as u8
-            ));
-        }
-    }
-    
-    // Create texture from pixel data
-    let texture = egui_ctx.load_texture(
-        "shader_preview_fallback",
-        egui::ColorImage {
-            size: [width, height],
-            pixels,
-            source_size: size,
-        },
-        egui::TextureOptions::default()
-    );
-    
-    Ok(texture)
+    // Fallback disabled: enforce GPU-only policy
+    Err("GPU renderer not initialized. Hardware acceleration is required.".to_string())
 }
 
 /// Render shader to texture for preview
@@ -552,7 +510,7 @@ fn render_shader_to_texture(
                     pixels: pixel_data.chunks(4).map(|chunk| {
                         egui::Color32::from_rgba_unmultiplied(chunk[0], chunk[1], chunk[2], chunk[3])
                     }).collect(),
-                    source_size: bevy_egui::egui::Vec2::new(params.width as f32, params.height as f32),
+                    source_size: egui::Vec2::new(params.width as f32, params.height as f32),
                 },
                 egui::TextureOptions::default()
             );
@@ -601,7 +559,7 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
                 });
                 if ui.button("Toggle Dark Mode").clicked() {
                     ui_state.dark_mode = !ui_state.dark_mode;
-                    ui.close_kind(egui::UiKind::Menu);
+                    ui.close_menu();
                 }
                 ui.separator();
                 ui.checkbox(&mut ui_state.show_diagnostics_panel, "Diagnostics Panel");
@@ -627,34 +585,34 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
             ui.menu_button("Import/Convert", |ui| {
                 if ui.button("Import ISF (.fs) → WGSL into editor").clicked() {
                     import_isf_into_editor(ui_state);
-                    ui.close_kind(egui::UiKind::Menu);
+                    ui.close_menu();
                 }
                 if ui.button("Batch convert ISF directory → WGSL").clicked() {
                     batch_convert_isf_directory();
-                    ui.close_kind(egui::UiKind::Menu);
+                    ui.close_menu();
                 }
                 ui.separator();
                 if ui.button("Current buffer: GLSL → WGSL").clicked() {
                     convert_current_glsl_to_wgsl(ui_state);
-                    ui.close_kind(egui::UiKind::Menu);
+                    ui.close_menu();
                 }
                 if ui.button("Current buffer: HLSL → WGSL").clicked() {
                     convert_current_hlsl_to_wgsl(ui_state);
-                    ui.close_kind(egui::UiKind::Menu);
+                    ui.close_menu();
                 }
                 ui.separator();
                 if ui.button("Export current WGSL → GLSL").clicked() {
                     export_current_wgsl_to_glsl(&ui_state);
-                    ui.close_kind(egui::UiKind::Menu);
+                    ui.close_menu();
                 }
                 if ui.button("Export current WGSL → HLSL").clicked() {
                     export_current_wgsl_to_hlsl(&ui_state);
-                    ui.close_kind(egui::UiKind::Menu);
+                    ui.close_menu();
                 }
                 ui.separator();
                 if ui.button("Multi-language Transpiler").clicked() {
                     show_transpiler_panel(ui_state);
-                    ui.close_kind(egui::UiKind::Menu);
+                    ui.close_menu();
                 }
             });
 
@@ -664,20 +622,20 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
                     println!("Clicked: New WGSL Buffer");
                     ui_state.draft_code = default_wgsl_template();
                     ctx.request_repaint();
-                    ui.close_kind(egui::UiKind::Menu);
+                    ui.close_menu();
                 }
                 if ui.button("Save Draft As…").clicked() {
                     println!("Clicked: Save Draft As…");
                     save_draft_wgsl_to_assets(&ui_state);
                     ctx.request_repaint();
-                    ui.close_kind(egui::UiKind::Menu);
+                    ui.close_menu();
                 }
                 ui.separator();
                 if ui.button("Save Project…").clicked() {
                     println!("Clicked: Save Project…");
                     let _ = export_project_json(&ui_state);
                     ctx.request_repaint();
-                    ui.close_kind(egui::UiKind::Menu);
+                    ui.close_menu();
                 }
                 if ui.button("Open Project…").clicked() {
                     println!("Clicked: Open Project…");
@@ -691,14 +649,14 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
                         Err(e) => { println!("Import project failed: {}", e); }
                     }
                     ctx.request_repaint();
-                    ui.close_kind(egui::UiKind::Menu);
+                    ui.close_menu();
                 }
                 ui.separator();
                 if ui.button("Export recorded frames → MP4").clicked() {
                     println!("Clicked: Export recorded frames → MP4");
                     export_recorded_frames_to_mp4();
                     ctx.request_repaint();
-                    ui.close_kind(egui::UiKind::Menu);
+                    ui.close_menu();
                 }
             });
 
@@ -759,1178 +717,527 @@ pub fn draw_editor_side_panels(
     audio_analyzer: &AudioAnalyzer, 
     gesture_control: &mut crate::gesture_control::GestureControlSystem,
     compute_pass_manager: &mut ComputePassManager,
-    video_exporter: Option<&()> // ScreenshotVideoExporter commented out
+    video_exporter: Option<&ScreenshotVideoExporter>, 
+    midi_system: &mut MidiSystem,
+    spout_config: &mut SpoutSyphonConfig,
+    spout_output: &SpoutSyphonOutput,
+    ndi_config: &mut NdiConfig,
+    ndi_output: &NdiOutput,
+    dmx_config: &mut DmxConfig,
+    dmx_control: &mut DmxLightingControl
 ) {
-    // FIX: Use proper panel hierarchy to avoid CentralPanel conflicts
-    
-    // Left panel - Shader Browser
+    // Left panel: Shader Browser (and related tools) — per original UI map
     if ui_state.show_shader_browser {
-        egui::SidePanel::left("shader_browser").resizable(true).show(ctx, |ui| {
-            ui.heading("Shader Browser");
-            ui.horizontal(|ui| {
-                ui.checkbox(&mut ui_state.show_all_shaders, "Show all shaders");
-                if !ui_state.show_all_shaders {
-                    ui.label("Showing compatible only (has @vertex and @fragment)");
-                }
-            });
-            ui.horizontal(|ui| {
-                ui.label("Search:");
-                ui.text_edit_singleline(&mut ui_state.search_query);
-            });
-            ui.separator();
-            egui::ScrollArea::vertical().auto_shrink([false; 2]).show(ui, |ui| {
-                let names = if ui_state.show_all_shaders {
-                    ui_state.available_shaders_all.clone()
-                } else {
-                    ui_state.available_shaders_compatible.clone()
-                };
-                for name in names.iter() {
-                    if !ui_state.search_query.is_empty() && !name.to_lowercase().contains(&ui_state.search_query.to_lowercase()) {
-                        continue;
-                    }
-                    let selected = ui.selectable_label(ui_state.selected_shader.as_ref().map(|s| s == name).unwrap_or(false), name);
-                    if selected.clicked() {
-                        ui_state.selected_shader = Some(name.clone());
-                        // Load the shader immediately
-                        if let Ok(content) = std::fs::read_to_string(name) {
-                            // Check if this is an ISF file (.fs extension)
-                            if name.to_lowercase().ends_with(".fs") {
-                                // Parse as ISF and convert to WGSL
-                                match crate::isf_loader::IsfShader::parse(&name, &content) {
-                                    Ok(isf_shader) => {
-                                        // Convert ISF to WGSL using the ISF converter
-                                        let mut converter = super::isf_converter::IsfConverter::new();
-                                        match converter.convert_to_wgsl(&isf_shader) {
-                                            Ok(wgsl_code) => ui_state.draft_code = wgsl_code,
-                                            Err(e) => {
-                                                println!("Failed to convert ISF to WGSL: {}", e);
-                                                ui_state.draft_code = content; // Fallback to raw content
-                                            }
-                                        }
-                                    }
-                                    Err(e) => {
-                                        println!("Failed to parse ISF shader: {}", e);
-                                        ui_state.draft_code = content; // Fallback to raw content
-                                    }
-                                }
-                            } else {
-                                // Regular WGSL file
-                                ui_state.draft_code = content;
-                            }
-                        }
-                    }
-                }
-            });
-        });
+        draw_editor_shader_browser_panel(ctx, ui_state);
     }
 
-    // Right panel - Parameters
-    if ui_state.show_parameter_panel {
-        egui::SidePanel::right("parameters").resizable(true).show(ctx, |ui| {
-            ui.heading("Parameters");
-            ui.label("Interactive shader parameters");
+    // Right panel: Audio / MIDI / Gestures modes only
+    if ui_state.show_parameter_panel || ui_state.show_audio_panel || ui_state.show_midi_panel || ui_state.show_gesture_panel {
+        egui::SidePanel::right("right_modes_panel").resizable(true).show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                for (mode, label) in [
+                    (RightSidebarMode::Parameters, "Parameters"),
+                    (RightSidebarMode::Compute, "Compute"),
+                    (RightSidebarMode::Outputs, "Outputs"),
+                    (RightSidebarMode::Audio, "Audio"),
+                    (RightSidebarMode::MIDI, "MIDI"),
+                    (RightSidebarMode::Gestures, "Gestures"),
+                    (RightSidebarMode::Lighting, "Lighting"),
+                ] {
+                    let sel = ui_state.right_sidebar_mode == mode;
+                    if ui.selectable_label(sel, label).clicked() {
+                        ui_state.right_sidebar_mode = mode;
+                    }
+                }
+            });
             ui.separator();
-            
-            // Parameter controls based on current shader
-            if !ui_state.draft_code.is_empty() {
-                // Parse shader for parameters
-                let params = parse_shader_parameters(&ui_state.draft_code);
-                
-                if params.is_empty() {
-                    ui.label("No parameters found in shader");
-                } else {
-                    ui.label(format!("Found {} parameters:", params.len()));
+            match ui_state.right_sidebar_mode {
+                RightSidebarMode::MIDI => {
+                    ui.heading("MIDI");
+                    if ui.button("Scan Devices").clicked() {
+                        let _ = midi_system.scan_devices();
+                    }
                     ui.separator();
-                    
-                    for param in params.iter() {
+                    let devices_snapshot = midi_system.devices.clone();
+                    for (i, dev) in devices_snapshot.iter().enumerate() {
                         ui.horizontal(|ui| {
-                            ui.label(&param.name);
-                            
-                            // Create appropriate control based on parameter type and metadata
-                            if let (Some(min), Some(max)) = (param.min_value, param.max_value) {
-                                // Use proper range slider with min/max values
-                                let mut current_val = param.default_value.unwrap_or((min + max) / 2.0);
-                                
-                                if ui.add(egui::Slider::new(&mut current_val, min..=max)).changed() {
-                                    // Update parameter in shader
-                                    println!("Parameter {} changed to {} (range: {} to {})", 
-                                        param.name, current_val, min, max);
-                                    
-                                    // Store the parameter value in ui_state for shader rendering
-                                    ui_state.set_parameter_value(&param.name, current_val);
+                            ui.label(&dev.name);
+                            if dev.connected {
+                                if ui.button("Disconnect").clicked() {
+                                    let _ = midi_system.disconnect_device(i);
                                 }
                             } else {
-                                // Default 0-1 range if no min/max specified
-                                let mut current_val = param.default_value.unwrap_or(0.5);
-                                
-                                if ui.add(egui::Slider::new(&mut current_val, 0.0..=1.0)).changed() {
-                                    println!("Parameter {} changed to {}", param.name, current_val);
-                                    ui_state.set_parameter_value(&param.name, current_val);
+                                if ui.button("Connect").clicked() {
+                                    let _ = midi_system.connect_device(i);
                                 }
                             }
                         });
-                        
-                        // Show parameter metadata if available
-                        if param.default_value.is_some() || param.min_value.is_some() || param.max_value.is_some() {
-                            ui.horizontal(|ui| {
-                                ui.label(format!(
-                                    "Type: {}", 
-                                    param.wgsl_type
-                                ));
-                                if let Some(default) = param.default_value {
-                                    ui.label(format!("Default: {:.2}", default));
+                    }
+                }
+                RightSidebarMode::Audio => {
+                    ui.heading("Audio");
+                    ui.label("Audio analyzer active");
+                }
+                RightSidebarMode::Gestures => {
+                    ui.heading("Gestures");
+                    ui.checkbox(&mut ui_state.quick_params_enabled, "Enable quick params");
+                    if ui.button("Calibrate").clicked() {
+                        ui_state.show_gesture_calibration = true;
+                    }
+                }
+                RightSidebarMode::Parameters => {
+                    ui.heading("Parameters");
+                }
+                RightSidebarMode::Compute => {
+                    ui.heading("Compute");
+                }
+                RightSidebarMode::Outputs => {
+                    ui.horizontal(|ui| {
+                        for (mode, label) in [
+                            (OutputsMode::ScreenshotsVideo, "Screenshots/Video"),
+                            (OutputsMode::Ndi, "NDI"),
+                            (OutputsMode::SpoutSyphon, "Spout/Syphon"),
+                            (OutputsMode::Ffgl, "FFGL"),
+                        ] {
+                            let sel = ui_state.outputs_mode == mode;
+                            if ui.selectable_label(sel, label).clicked() {
+                                ui_state.outputs_mode = mode;
+                            }
+                        }
+                    });
+                    ui.separator();
+                    match ui_state.outputs_mode {
+                        OutputsMode::ScreenshotsVideo => {
+                            if let Some(exporter) = video_exporter {
+                                ExportUI::render_export_controls(ui, exporter, &mut ui_state.export_settings, &mut ui_state.video_export_settings);
+                            } else {
+                                ui.label("Exporter not available");
+                            }
+                        }
+                        OutputsMode::Ndi => {
+                            NdiUI::render_ndi_controls(ui, ndi_config, ndi_output);
+                        }
+                        OutputsMode::SpoutSyphon => {
+                            SpoutSyphonUI::render_spout_syphon_controls(ui, spout_config, spout_output);
+                        }
+                        OutputsMode::Ffgl => {
+                            ui.label("FFGL plugin generation UI not integrated");
+                        }
+                    }
+                }
+                RightSidebarMode::Lighting => {
+                    ui.heading("DMX Lighting");
+                    DmxUI::render_dmx_controls(ui, dmx_config, dmx_control);
+                    ui.separator();
+                    ui.heading("Parameter to DMX Mapping");
+                    let params = parse_shader_parameters(&ui_state.draft_code);
+                    if !params.is_empty() {
+                        let mut universe: u16 = 1;
+                        let mut channel: u16 = 1;
+                        ui.horizontal(|ui| {
+                            ui.label("Universe");
+                            ui.add(egui::DragValue::new(&mut universe).range(1..=16));
+                            ui.label("Channel");
+                            ui.add(egui::DragValue::new(&mut channel).range(1..=512));
+                        });
+                        egui::ScrollArea::vertical().max_height(120.0).show(ui, |ui| {
+                            for p in params.iter() {
+                                let mut val = ui_state.get_parameter_value(&p.name).unwrap_or(p.default_value.unwrap_or(0.5));
+                                ui.horizontal(|ui| {
+                                    ui.label(&p.name);
+                                    if ui.add(egui::Slider::new(&mut val, 0.0..=1.0)).changed() {
+                                        ui_state.set_parameter_value(&p.name, val);
+                                        let _ = dmx_control.map_parameter_to_channel(&p.name, universe, channel, 0.0, 1.0, val);
+                                    }
+                                });
+                            }
+                        });
+                    } else {
+                        ui.label("No shader parameters available");
+                    }
+                }
+            }
+
+            // Parameters below modes (kept accessible, aligned to right panel)
+            if ui_state.show_parameter_panel {
+                ui.separator();
+                ui.heading("Parameters");
+                if !ui_state.draft_code.is_empty() {
+                    let params = parse_shader_parameters(&ui_state.draft_code);
+                    if params.is_empty() {
+                        ui.label("No parameters found");
+                    } else {
+                        egui::ScrollArea::vertical().show(ui, |ui| {
+                            for param in params.iter() {
+                                ui.horizontal(|ui| {
+                                    ui.label(&param.name);
+                                    if let (Some(min), Some(max)) = (param.min_value, param.max_value) {
+                                        let mut v = param.default_value.unwrap_or((min + max) / 2.0);
+                                        if ui.add(egui::Slider::new(&mut v, min..=max)).changed() {
+                                            ui_state.set_parameter_value(&param.name, v);
+                                        }
+                                    } else {
+                                        let mut v = param.default_value.unwrap_or(0.5);
+                                        if ui.add(egui::Slider::new(&mut v, 0.0..=1.0)).changed() {
+                                            ui_state.set_parameter_value(&param.name, v);
+                                        }
+                                    }
+                                });
+                                ui.separator();
+                            }
+                        });
+                    }
+                } else {
+                    ui.label("Load a shader to see parameters");
+                }
+            }
+            if ui_state.show_compute_panel {
+                ui.separator();
+                ui.heading("Compute Passes");
+                ui.label("Compute Shader Dispatch");
+                ui.horizontal(|ui| {
+                    ui.label("Name:");
+                    ui.text_edit_singleline(&mut ui_state.compute_pass_name);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Workgroup Size:");
+                    ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_x).speed(1));
+                    ui.label("x");
+                    ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_y).speed(1));
+                    ui.label("x");
+                    ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_z).speed(1));
+                });
+                if ui.button("Create Compute Pass").clicked() {
+                    compute_pass_manager.create_ping_pong_texture(
+                        &ui_state.compute_pass_name,
+                        512,
+                        512,
+                        TextureFormat::Rgba8Unorm
+                    );
+                }
+                ui.separator();
+                ui.label("Create Ping-Pong Texture:");
+                ui.horizontal(|ui| {
+                    ui.label("Name:");
+                    ui.text_edit_singleline(&mut ui_state.pingpong_texture_name);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Size:");
+                    ui.add(egui::DragValue::new(&mut ui_state.pingpong_width).speed(1));
+                    ui.label("x");
+                    ui.add(egui::DragValue::new(&mut ui_state.pingpong_height).speed(1));
+                });
+                if ui.button("Create Ping-Pong Texture").clicked() {
+                    compute_pass_manager.create_ping_pong_texture(
+                        &ui_state.pingpong_texture_name,
+                        ui_state.pingpong_width,
+                        ui_state.pingpong_height,
+                        TextureFormat::Rgba8Unorm
+                    );
+                }
+                ui.separator();
+                ui.label("Dispatch Controls:");
+                ui.horizontal(|ui| {
+                    ui.label("Dispatch Size:");
+                    ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_x).speed(1));
+                    ui.label("x");
+                    ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_y).speed(1));
+                    ui.label("x");
+                    ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_z).speed(1));
+                });
+                if ui.button("Dispatch Compute").clicked() {
+                }
+                ui.separator();
+                ui.label("Active Compute Passes:");
+                if compute_pass_manager.ping_pong_textures.is_empty() && compute_pass_manager.compute_pipelines.is_empty() {
+                    ui.label("No active compute passes");
+                } else {
+                    ui.label(format!("Ping-pong textures: {}", compute_pass_manager.ping_pong_textures.len()));
+                    ui.label(format!("Compute pipelines: {}", compute_pass_manager.compute_pipelines.len()));
+                    ui.label(format!("Active passes: {}", compute_pass_manager.active_compute_passes.len()));
+                }
+            }
+            if ui_state.show_osc_panel {
+                ui.separator();
+                ui.heading("OSC");
+                ui.label("Configure OSC endpoints and test messages");
+            }
+            if ui_state.show_dmx_panel {
+                ui.separator();
+                ui.heading("DMX");
+                ui.label("Configure DMX lighting");
+            }
+            if ui_state.show_export_panel {
+                ui.separator();
+                ui.heading("Export");
+                ui.label("Export screenshots and videos");
+            }
+            if ui_state.show_ndi_panel {
+                ui.separator();
+                ui.heading("NDI");
+                ui.label("Configure NDI stream settings");
+            }
+            if ui_state.show_spout_panel {
+                ui.separator();
+                ui.heading("Spout/Syphon");
+                ui.label("Configure texture sharing");
+            }
+            if ui_state.show_ffgl_panel {
+                ui.separator();
+                ui.heading("FFGL");
+                ui.label("Manage FFGL plugins");
+            }
+            if ui_state.show_gyroflow_panel {
+                ui.separator();
+                ui.heading("Gyroflow");
+                ui.label("Configure stabilization integration");
+            }
+        });
+    }
+
+    // Central preview is handled by draw_editor_central_panel; no CentralPanel here
+
+    if ui_state.show_node_studio {
+        ui_state.central_view = CentralView::NodeGraph;
+        ui_state.show_node_studio = false;
+    }
+    if ui_state.show_timeline {
+        ui_state.central_view = CentralView::Timeline;
+        ui_state.show_timeline = false;
+    }
+
+    if ui_state.show_gesture_calibration {
+        egui::Window::new("Gesture Calibration").open(&mut ui_state.show_gesture_calibration).show(ctx, |ui| {
+            ui.label("Leap Motion / MediaPipe calibration");
+            ui.separator();
+            ui.label("Place hands in view and follow on-screen prompts");
+        });
+    }
+
+    if ui_state.use_legacy_windows {
+        if ui_state.show_compute_panel {
+            egui::Window::new("Compute Passes").open(&mut ui_state.show_compute_panel).show(ctx, |ui| {
+                ui.heading("Compute Shader Dispatch");
+                ui.horizontal(|ui| {
+                    ui.label("Name:");
+                    ui.text_edit_singleline(&mut ui_state.compute_pass_name);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Workgroup Size:");
+                    ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_x).speed(1));
+                    ui.label("x");
+                    ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_y).speed(1));
+                    ui.label("x");
+                    ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_z).speed(1));
+                });
+                if ui.button("Create Compute Pass").clicked() {
+                    compute_pass_manager.create_ping_pong_texture(
+                        &ui_state.compute_pass_name,
+                        512,
+                        512,
+                        TextureFormat::Rgba8Unorm
+                    );
+                }
+                ui.separator();
+                ui.label("Create Ping-Pong Texture:");
+                ui.horizontal(|ui| {
+                    ui.label("Name:");
+                    ui.text_edit_singleline(&mut ui_state.pingpong_texture_name);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Size:");
+                    ui.add(egui::DragValue::new(&mut ui_state.pingpong_width).speed(1));
+                    ui.label("x");
+                    ui.add(egui::DragValue::new(&mut ui_state.pingpong_height).speed(1));
+                });
+                if ui.button("Create Ping-Pong Texture").clicked() {
+                    compute_pass_manager.create_ping_pong_texture(
+                        &ui_state.pingpong_texture_name,
+                        ui_state.pingpong_width,
+                        ui_state.pingpong_height,
+                        TextureFormat::Rgba8Unorm
+                    );
+                }
+                ui.separator();
+                ui.label("Dispatch Controls:");
+                ui.horizontal(|ui| {
+                    ui.label("Dispatch Size:");
+                    ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_x).speed(1));
+                    ui.label("x");
+                    ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_y).speed(1));
+                    ui.label("x");
+                    ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_z).speed(1));
+                });
+                if ui.button("Dispatch Compute").clicked() {
+                }
+                ui.separator();
+                ui.label("Active Compute Passes:");
+                if compute_pass_manager.ping_pong_textures.is_empty() && compute_pass_manager.compute_pipelines.is_empty() {
+                    ui.label("No active compute passes");
+                } else {
+                    ui.label(format!("Ping-pong textures: {}", compute_pass_manager.ping_pong_textures.len()));
+                    ui.label(format!("Compute pipelines: {}", compute_pass_manager.compute_pipelines.len()));
+                    ui.label(format!("Active passes: {}", compute_pass_manager.active_compute_passes.len()));
+                }
+            });
+        }
+        if ui_state.show_wgslsmith_panel {
+            egui::Window::new("WGSLSmith AI").open(&mut ui_state.show_wgslsmith_panel).show(ctx, |ui| {
+                ui.heading("AI-Assisted Shader Generation");
+                ui.horizontal(|ui| {
+                    ui.label("Prompt:");
+                    ui.text_edit_multiline(&mut ui_state.wgsl_smith_prompt);
+                });
+                ui.horizontal(|ui| {
+                    if ui.button("Generate Shader").clicked() {
+                        ui_state.wgsl_smith_generated = generate_shader_with_wgsl_smith(&ui_state.wgsl_smith_prompt);
+                    }
+                    if ui.button("Clear").clicked() {
+                        ui_state.wgsl_smith_prompt.clear();
+                        ui_state.wgsl_smith_generated.clear();
+                    }
+                });
+                if !ui_state.wgsl_smith_generated.is_empty() {
+                    ui.separator();
+                    ui.label("Generated WGSL:");
+                    egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
+                        ui.monospace(&ui_state.wgsl_smith_generated);
+                    });
+                    ui.horizontal(|ui| {
+                        if ui.button("Apply to Editor").clicked() {
+                            ui_state.draft_code = ui_state.wgsl_smith_generated.clone();
+                        }
+                    });
+                }
+                if !ui_state.wgsl_smith_status.is_empty() {
+                    ui.label(&ui_state.wgsl_smith_status);
+                }
+            });
+        }
+        if ui_state.show_osc_panel {
+            egui::Window::new("OSC Control").open(&mut ui_state.show_osc_panel).show(ctx, |ui| {
+                ui.heading("OSC");
+                ui.label("Configure OSC endpoints and test messages");
+            });
+        }
+        if ui_state.show_ndi_panel {
+            egui::Window::new("NDI Output").open(&mut ui_state.show_ndi_panel).show(ctx, |ui| {
+                ui.heading("NDI");
+                ui.label("Configure NDI stream settings");
+            });
+        }
+        if ui_state.show_spout_panel {
+            egui::Window::new("Spout/Syphon").open(&mut ui_state.show_spout_panel).show(ctx, |ui| {
+                ui.heading("Spout/Syphon");
+                ui.label("Configure texture sharing settings");
+            });
+        }
+        if ui_state.show_ffgl_panel {
+            egui::Window::new("FFGL Export").open(&mut ui_state.show_ffgl_panel).show(ctx, |ui| {
+                ui.heading("FFGL");
+                ui.label("Generate and manage FFGL plugins");
+            });
+        }
+        if ui_state.show_gyroflow_panel {
+            egui::Window::new("Gyroflow").open(&mut ui_state.show_gyroflow_panel).show(ctx, |ui| {
+                ui.heading("Gyroflow");
+                ui.label("Configure stabilization integration");
+            });
+        }
+        if ui_state.show_export_panel {
+            egui::Window::new("Export").open(&mut ui_state.show_export_panel).show(ctx, |ui| {
+                ui.heading("Export");
+                ui.label("Export screenshots and videos");
+            });
+        }
+        if ui_state.show_diagnostics_panel {
+            egui::Window::new("WGSL Diagnostics").open(&mut ui_state.show_diagnostics_panel).show(ctx, |ui| {
+                ui.heading("Shader Compilation Diagnostics");
+                ui.horizontal(|ui| {
+                    if ui.button("Check Current Shader").clicked() {
+                        ui_state.diagnostics_messages = check_wgsl_diagnostics(&ui_state.draft_code);
+                    }
+                    if ui.button("Clear").clicked() {
+                        ui_state.diagnostics_messages.clear();
+                    }
+                });
+                if ui_state.diagnostics_messages.is_empty() {
+                    ui.label("No diagnostics available. Click 'Check Current Shader' to analyze.");
+                } else {
+                    ui.label(format!("Found {} diagnostic(s):", ui_state.diagnostics_messages.len()));
+                    egui::ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
+                        for (i, diagnostic) in ui_state.diagnostics_messages.iter().enumerate() {
+                            ui.group(|ui| {
+                                match diagnostic.severity {
+                                    DiagnosticSeverity::Error => {
+                                        ui.colored_label(egui::Color32::RED, format!("Error {}: {}", i + 1, diagnostic.message));
+                                    }
+                                    DiagnosticSeverity::Warning => {
+                                        ui.colored_label(egui::Color32::YELLOW, format!("Warning {}: {}", i + 1, diagnostic.message));
+                                    }
+                                    DiagnosticSeverity::Info => {
+                                        ui.colored_label(egui::Color32::BLUE, format!("Info {}: {}", i + 1, diagnostic.message));
+                                    }
                                 }
-                                if let (Some(min), Some(max)) = (param.min_value, param.max_value) {
-                                    ui.label(format!("Range: {:.2} - {:.2}", min, max));
+                                if let Some(line) = diagnostic.line {
+                                    ui.label(format!("  Line: {}", line));
+                                }
+                                if let Some(column) = diagnostic.column {
+                                    ui.label(format!("  Column: {}", column));
                                 }
                             });
                         }
-                        
-                        ui.separator();
-                    }
-                }
-            } else {
-                ui.label("Load a shader to see parameters");
-            }
-        });
-    }
-
-    // CRITICAL FIX: Use CentralPanel for preview to create proper three-panel layout
-    if ui_state.show_preview {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Shader Preview");
-            
-            // Quick parameter controls
-            ui.horizontal(|ui| {
-                ui.checkbox(&mut ui_state.quick_params_enabled, "Quick Params");
-                if ui_state.quick_params_enabled {
-                    ui.label("A:");
-                    ui.add(egui::Slider::new(&mut ui_state.quick_param_a, 0.0..=1.0));
-                    ui.label("B:");
-                    ui.add(egui::Slider::new(&mut ui_state.quick_param_b, 0.0..=1.0));
-                }
-            });
-            
-            // Video recording controls
-            ui.horizontal(|ui| {
-                ui.label("Video Recording:");
-                
-                if ui_state.is_recording_video {
-                    if ui.button("⏹ Stop Recording").clicked() {
-                        ui_state.is_recording_video = false;
-                        // Video export functionality temporarily disabled for compilation
-                        // if let Some(exporter) = video_exporter {
-                        //     let file_path = format!("shader_recording.{}", ui_state.video_format);
-                        //     match exporter.stop_recording(&file_path) {
-                        //         Ok(_) => println!("Video recording stopped and saved to: {}", file_path),
-                        //         Err(e) => eprintln!("Failed to stop recording: {}", e),
-                        //     }
-                        // }
-                    }
-                    ui.label(format!("Recording... FPS: {}", ui_state.video_fps));
-                } else {
-                    if ui.button("⏺ Start Recording").clicked() {
-                        ui_state.is_recording_video = true;
-                        // Start recording - Video export functionality commented out
-                        // if let Some(exporter) = video_exporter {
-                        //     let settings = VideoExportSettings {
-                        //         output_path: "shader_recording.mp4".to_string(),
-                        //         format: ui_state.video_format.clone(),
-                        //         fps: ui_state.video_fps,
-                        //         bitrate: 5000,
-                        //         width: 1920,
-                        //         height: 1080,
-                        //     };
-                        //     exporter.start_recording(settings);
-                        // }
-                    }
-                }
-                
-                ui.separator();
-                
-                ui.label("Format:");
-                egui::ComboBox::from_label("")
-                    .selected_text(&ui_state.video_format)
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut ui_state.video_format, "mp4".to_string(), "MP4");
-                        ui.selectable_value(&mut ui_state.video_format, "webm".to_string(), "WebM");
-                        ui.selectable_value(&mut ui_state.video_format, "gif".to_string(), "GIF");
-                    });
-                
-                ui.label("FPS:");
-                ui.add(egui::Slider::new(&mut ui_state.video_fps, 15..=120));
-                
-                ui.label("Quality:");
-                ui.add(egui::Slider::new(&mut ui_state.video_quality, 1..=100));
-            });
-            
-            ui.separator();
-            
-            // Preview viewport area
-            let available_size = ui.available_size();
-            let preview_size = egui::vec2(
-                available_size.x.min(800.0),
-                available_size.y.min(400.0)
-            );
-            
-            // Create a frame for the preview
-            let (response, painter) = ui.allocate_painter(preview_size, egui::Sense::hover());
-            let rect = response.rect;
-            
-            // Draw preview background
-            painter.rect_filled(rect, 0.0, egui::Color32::from_gray(20));
-            
-            // CRITICAL: Actually render the shader instead of placeholder text
-            if ui_state.draft_code.is_empty() {
-                painter.text(
-                    rect.center(),
-                    egui::Align2::CENTER_CENTER,
-                    "No shader loaded\nLoad a shader from the browser or paste code",
-                    egui::FontId::proportional(14.0),
-                    egui::Color32::from_gray(128)
-                );
-            } else {
-                // CRITICAL: Actually compile and render the WGSL shader
-                match compile_and_render_shader(&ui_state.draft_code, rect.size(), ctx, &ui_state.global_renderer, &ui_state.parameter_values, Some(audio_analyzer), video_exporter) {
-                    Ok(texture_handle) => {
-                        // Display the rendered texture
-                        let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
-                        painter.image(texture_handle.id(), rect, uv, egui::Color32::WHITE);
-                    }
-                    Err(e) => {
-                        // Show error message if shader compilation fails
-                        painter.text(
-                            rect.center(),
-                            egui::Align2::CENTER_CENTER,
-                            format!("Shader Error:\n{}", e),
-                            egui::FontId::proportional(12.0),
-                            egui::Color32::RED
-                        );
-                    }
-                }
-            }
-            
-            // Draw preview border
-            painter.rect_stroke(rect, 0.0, egui::Stroke::new(1.0, egui::Color32::from_gray(60)), egui::StrokeKind::Inside);
-        });
-    }
-
-    if ui_state.show_node_studio {
-        let mut show = ui_state.show_node_studio;
-        egui::Window::new("Node Studio").open(&mut show).show(ctx, |ui| {
-            ui.heading("Node-based Shader Authoring");
-            ui.label("Quick palette:");
-            ui.horizontal(|ui| {
-                ui.label("Inputs:");
-                if ui.button("UV").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::UV, "UV", (100.0, 100.0));
-                }
-                if ui.button("Time").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Time, "Time", (160.0, 100.0));
-                }
-                if ui.button("Resolution").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Resolution, "Resolution", (220.0, 100.0));
-                }
-                if ui.button("Mouse").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Mouse, "Mouse", (280.0, 100.0));
-                }
-                if ui.button("Param").clicked() {
-                    let idx = ui_state.param_index_input.min(63);
-                    ui_state.node_graph.add_node(NodeKind::Param(idx), &format!("Param[{}]", idx), (340.0, 100.0));
-                }
-            });
-            ui.horizontal(|ui| {
-                ui.label("Constants:");
-                if ui.button("Float").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::ConstantFloat(1.0), "Float", (100.0, 140.0));
-                }
-                if ui.button("Vec2").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::ConstantVec2([0.5, 0.5]), "Vec2", (160.0, 140.0));
-                }
-                if ui.button("Vec3").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::ConstantVec3([0.5, 0.3, 0.8]), "Vec3", (220.0, 140.0));
-                }
-                if ui.button("Vec4").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::ConstantVec4([0.5, 0.3, 0.8, 1.0]), "Vec4", (280.0, 140.0));
-                }
-            });
-            ui.horizontal(|ui| {
-                ui.label("Math:");
-                if ui.button("Add").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Add, "Add", (100.0, 180.0));
-                }
-                if ui.button("Subtract").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Subtract, "Subtract", (160.0, 180.0));
-                }
-                if ui.button("Multiply").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Multiply, "Multiply", (220.0, 180.0));
-                }
-                if ui.button("Divide").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Divide, "Divide", (280.0, 180.0));
-                }
-                if ui.button("Min").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Min, "Min", (340.0, 180.0));
-                }
-                if ui.button("Max").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Max, "Max", (400.0, 180.0));
-                }
-            });
-            ui.horizontal(|ui| {
-                ui.label("Trig:");
-                if ui.button("Sin").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Sine, "Sin", (100.0, 220.0));
-                }
-                if ui.button("Cos").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Cosine, "Cos", (160.0, 220.0));
-                }
-                if ui.button("Tan").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Tangent, "Tan", (220.0, 220.0));
-                }
-            });
-            ui.horizontal(|ui| {
-                ui.label("Vector:");
-                if ui.button("Length").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Length, "Length", (100.0, 260.0));
-                }
-                if ui.button("Normalize").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Normalize, "Normalize", (160.0, 260.0));
-                }
-                if ui.button("Distance").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Distance, "Distance", (220.0, 260.0));
-                }
-                if ui.button("Dot").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Dot, "Dot", (280.0, 260.0));
-                }
-                if ui.button("Cross").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Cross, "Cross", (340.0, 260.0));
-                }
-                if ui.button("Reflect").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Reflect, "Reflect", (400.0, 260.0));
-                }
-            });
-            ui.horizontal(|ui| {
-                ui.label("Color:");
-                if ui.button("RGB").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::RGB, "RGB", (100.0, 300.0));
-                }
-                if ui.button("HSV").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::HSV, "HSV", (160.0, 300.0));
-                }
-                if ui.button("ColorMix").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::ColorMix, "ColorMix", (220.0, 300.0));
-                }
-                if ui.button("ColorAdjust").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::ColorAdjust, "ColorAdjust", (280.0, 300.0));
-                }
-            });
-            ui.horizontal(|ui| {
-                ui.label("Noise:");
-                if ui.button("Noise2D").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Noise2D, "Noise2D", (100.0, 340.0));
-                }
-                if ui.button("Noise3D").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Noise3D, "Noise3D", (160.0, 340.0));
-                }
-                if ui.button("Voronoi").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Voronoi, "Voronoi", (220.0, 340.0));
-                }
-            });
-            ui.horizontal(|ui| {
-                ui.label("Interpolation:");
-                if ui.button("Mix").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Mix, "Mix", (100.0, 380.0));
-                }
-                if ui.button("Step").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Step, "Step", (160.0, 380.0));
-                }
-                if ui.button("Smoothstep").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Smoothstep, "Smoothstep", (220.0, 380.0));
-                }
-                if ui.button("Clamp").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Clamp, "Clamp", (280.0, 380.0));
-                }
-            });
-            ui.horizontal(|ui| {
-                ui.label("Utility:");
-                if ui.button("Fract").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Fract, "Fract", (100.0, 420.0));
-                }
-                if ui.button("Floor").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Floor, "Floor", (160.0, 420.0));
-                }
-                if ui.button("Ceil").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Ceil, "Ceil", (220.0, 420.0));
-                }
-                if ui.button("Abs").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Abs, "Abs", (280.0, 420.0));
-                }
-                if ui.button("Sqrt").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Sqrt, "Sqrt", (340.0, 420.0));
-                }
-                if ui.button("Pow").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Pow, "Pow", (400.0, 420.0));
-                }
-                if ui.button("Sign").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::Sign, "Sign", (460.0, 420.0));
-                }
-            });
-            ui.horizontal(|ui| {
-                ui.label("Texture:");
-                if ui.button("Texture Sample").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::TextureSample, "Texture Sample", (100.0, 380.0));
-                }
-                if ui.button("Output").clicked() {
-                    ui_state.node_graph.add_node(NodeKind::OutputColor, "Output", (220.0, 380.0));
-                }
-            });
-            ui.separator();
-            ui.label("Quick Examples:");
-            ui.horizontal(|ui| {
-                if ui.button("Texture Sample").clicked() {
-                    // Create a minimal graph: uv -> sample -> output
-                    let uv = ui_state.node_graph.add_node(NodeKind::UV, "UV", (100.0, 160.0));
-                    let ts = ui_state.node_graph.add_node(NodeKind::TextureSample, "TextureSample", (220.0, 160.0));
-                    let out = ui_state.node_graph.add_node(NodeKind::OutputColor, "Output", (360.0, 160.0));
-                    // Find ports
-                    let uv_out = ui_state.node_graph.nodes.get(&uv).unwrap().outputs[0].id;
-                    let ts_in_uv = ui_state.node_graph.nodes.get(&ts).unwrap().inputs[1].id;
-                    let ts_out = ui_state.node_graph.nodes.get(&ts).unwrap().outputs[0].id;
-                    let out_in = ui_state.node_graph.nodes.get(&out).unwrap().inputs[0].id;
-                    ui_state.node_graph.connect(uv, uv_out, ts, ts_in_uv);
-                    ui_state.node_graph.connect(ts, ts_out, out, out_in);
-                }
-                if ui.button("Sine Wave").clicked() {
-                    // Create: time -> sin -> output
-                    let time = ui_state.node_graph.add_node(NodeKind::Time, "Time", (100.0, 200.0));
-                    let sin = ui_state.node_graph.add_node(NodeKind::Sine, "Sin", (220.0, 200.0));
-                    let out = ui_state.node_graph.add_node(NodeKind::OutputColor, "Output", (360.0, 200.0));
-                    // Find ports
-                    let time_out = ui_state.node_graph.nodes.get(&time).unwrap().outputs[0].id;
-                    let sin_in = ui_state.node_graph.nodes.get(&sin).unwrap().inputs[0].id;
-                    let sin_out = ui_state.node_graph.nodes.get(&sin).unwrap().outputs[0].id;
-                    let out_in = ui_state.node_graph.nodes.get(&out).unwrap().inputs[0].id;
-                    ui_state.node_graph.connect(time, time_out, sin, sin_in);
-                    ui_state.node_graph.connect(sin, sin_out, out, out_in);
-                }
-                if ui.button("Gradient").clicked() {
-                    // Create: uv -> fract -> output
-                    let uv = ui_state.node_graph.add_node(NodeKind::UV, "UV", (100.0, 240.0));
-                    let fract = ui_state.node_graph.add_node(NodeKind::Fract, "Fract", (220.0, 240.0));
-                    let out = ui_state.node_graph.add_node(NodeKind::OutputColor, "Output", (360.0, 240.0));
-                    // Find ports
-                    let uv_out = ui_state.node_graph.nodes.get(&uv).unwrap().outputs[0].id;
-                    let fract_in = ui_state.node_graph.nodes.get(&fract).unwrap().inputs[0].id;
-                    let fract_out = ui_state.node_graph.nodes.get(&fract).unwrap().outputs[0].id;
-                    let out_in = ui_state.node_graph.nodes.get(&out).unwrap().inputs[0].id;
-                    ui_state.node_graph.connect(uv, uv_out, fract, fract_in);
-                    ui_state.node_graph.connect(fract, fract_out, out, out_in);
-                }
-            });
-            ui.horizontal(|ui| {
-                if ui.button("Distance Field").clicked() {
-                    // Create: uv -> distance -> step -> output
-                    let uv = ui_state.node_graph.add_node(NodeKind::UV, "UV", (100.0, 280.0));
-                    let center = ui_state.node_graph.add_node(NodeKind::ConstantVec2([0.5, 0.5]), "Center", (100.0, 320.0));
-                    let dist = ui_state.node_graph.add_node(NodeKind::Distance, "Distance", (220.0, 300.0));
-                    let step = ui_state.node_graph.add_node(NodeKind::Step, "Step", (340.0, 300.0));
-                    let out = ui_state.node_graph.add_node(NodeKind::OutputColor, "Output", (460.0, 300.0));
-                    // Find ports and connect
-                    let uv_out = ui_state.node_graph.nodes.get(&uv).unwrap().outputs[0].id;
-                    let center_out = ui_state.node_graph.nodes.get(&center).unwrap().outputs[0].id;
-                    let dist_in_uv = ui_state.node_graph.nodes.get(&dist).unwrap().inputs[0].id;
-                    let dist_in_center = ui_state.node_graph.nodes.get(&dist).unwrap().inputs[1].id;
-                    let dist_out = ui_state.node_graph.nodes.get(&dist).unwrap().outputs[0].id;
-                    let step_in_edge = ui_state.node_graph.nodes.get(&step).unwrap().inputs[0].id;
-                    let step_in_x = ui_state.node_graph.nodes.get(&step).unwrap().inputs[1].id;
-                    let step_out = ui_state.node_graph.nodes.get(&step).unwrap().outputs[0].id;
-                    let out_in = ui_state.node_graph.nodes.get(&out).unwrap().inputs[0].id;
-                    ui_state.node_graph.connect(uv, uv_out, dist, dist_in_uv);
-                    ui_state.node_graph.connect(center, center_out, dist, dist_in_center);
-                    ui_state.node_graph.connect(dist, dist_out, step, step_in_x);
-                    let edge_const = ui_state.node_graph.add_node(NodeKind::ConstantFloat(0.3), "Edge", (220.0, 340.0));
-                    let edge_out = ui_state.node_graph.nodes.get(&edge_const).unwrap().outputs[0].id;
-                    ui_state.node_graph.connect(edge_const, edge_out, step, step_in_edge);
-                    ui_state.node_graph.connect(step, step_out, out, out_in);
-                }
-                if ui.button("Clear Graph").clicked() {
-                    ui_state.node_graph = NodeGraph::new();
-                }
-            });
-            if ui.button("Generate WGSL from Graph").clicked() {
-                let wgsl = ui_state.node_graph.generate_wgsl(512, 512);
-                ui_state.draft_code = wgsl;
-                ui_state.apply_requested = true;
-            }
-            ui.separator();
-            if ui.button("Export Project JSON").clicked() {
-                if let Err(e) = export_project_json(&ui_state) {
-                    ui.label(format!("Export error: {}", e));
-                }
-            }
-            if ui.button("Import Project JSON").clicked() {
-                match import_project_json() {
-                    Ok(loaded) => {
-                        ui_state.node_graph = loaded.node_graph;
-                        if let Some(code) = loaded.draft_code {
-                            ui_state.draft_code = code;
-                        }
-                        ui_state.timeline = TimelineAnimation { timeline: loaded.timeline, playing: false };
-                        ui_state.param_index_map = loaded.param_index_map;
-                    }
-                    Err(e) => { ui.label(format!("Import error: {}", e)); }
-                }
-            }
-            
-            // Visual node editor area
-            // ui_state.visual_node_editor.ui(ui, &mut ui_state.node_graph);
-        });
-        ui_state.show_node_studio = show;
-    }
-    if ui_state.show_timeline {
-        let mut show = ui_state.show_timeline;
-        egui::Window::new("Timeline").open(&mut show).show(ctx, |ui| {
-            ui.heading("Timeline Animation Editor");
-            
-            // Playback controls
-            ui.horizontal(|ui| {
-                if ui.button("⏮").clicked() {
-                    ui_state.timeline.timeline.seek(0.0);
-                }
-                
-                let is_playing = ui_state.timeline.timeline.playback_state == PlaybackState::Playing;
-                let play_pause_text = if is_playing { "⏸" } else { "▶" };
-                if ui.button(play_pause_text).clicked() {
-                    if is_playing {
-                        ui_state.timeline.timeline.pause();
-                    } else {
-                        ui_state.timeline.timeline.play();
-                    }
-                }
-                
-                if ui.button("⏹").clicked() {
-                    ui_state.timeline.timeline.stop();
-                }
-                
-                ui.separator();
-                
-                // Speed control
-                ui.label("Speed:");
-                ui.add(egui::DragValue::new(&mut ui_state.timeline.timeline.playback_speed).speed(0.1).range(0.1..=5.0));
-                
-                ui.separator();
-                
-                // Loop control
-                ui.checkbox(&mut ui_state.timeline.timeline.loop_enabled, "Loop");
-                if ui_state.timeline.timeline.loop_enabled {
-                    ui.label("Loop Range:");
-                    ui.add(egui::DragValue::new(&mut ui_state.timeline.timeline.loop_start).speed(0.1));
-                    ui.label("to");
-                    ui.add(egui::DragValue::new(&mut ui_state.timeline.timeline.loop_end).speed(0.1));
-                }
-            });
-            
-            ui.separator();
-            // Controls to add a keyframe to the 'time' track
-            static mut KF_TIME: f32 = 0.0;
-            static mut KF_VALUE: f32 = 0.0;
-            let mut kf_time;
-            let mut kf_value;
-            unsafe { kf_time = KF_TIME; kf_value = KF_VALUE; }
-            ui.horizontal(|ui| {
-                ui.label("Track name:");
-                ui.text_edit_singleline(&mut ui_state.timeline_track_input);
-            });
-            ui.horizontal(|ui| {
-                ui.label("Keyframe time:");
-                ui.add(egui::DragValue::new(&mut kf_time).range(0.0..=1000.0).speed(0.1));
-                ui.label("Value:");
-                ui.add(egui::DragValue::new(&mut kf_value).speed(0.1));
-                let track = if ui_state.timeline_track_input.trim().is_empty() { "time".to_string() } else { ui_state.timeline_track_input.clone() };
-                if ui.button(format!("Add keyframe to '{}'", track)).clicked() {
-                    ui_state.timeline.timeline.add_keyframe(&track, kf_time, kf_value, InterpolationType::Linear);
-                }
-            });
-            unsafe { KF_TIME = kf_time; KF_VALUE = kf_value; }
-            ui.separator();
-            ui.label("Tracks:");
-            egui::ScrollArea::vertical().max_height(160.0).show(ui, |ui| {
-                for (param, kfs) in ui_state.timeline.timeline.tracks.iter() {
-                    ui.collapsing(format!("{} ({} kfs)", param, kfs.keyframes.len()), |ui| {
-                        for k in kfs.keyframes.iter() {
-                            ui.label(format!("t={:.2} → v={:.3}", k.time, k.value));
-                        }
                     });
                 }
             });
-        });
-        ui_state.show_timeline = show;
-    }
-    if ui_state.show_audio_panel {
-        egui::Window::new("Audio").open(&mut ui_state.show_audio_panel).show(ctx, |ui| {
-            ui.heading("Audio Analysis");
-            ui.checkbox(&mut ui_state.quick_params_enabled, "Reactive");
-            ui.horizontal(|ui| {
-                ui.label("Gain");
-                ui.add(egui::Slider::new(&mut ui_state.quick_param_b, 0.0..=2.0));
-            });
-        });
-    }
-    if ui_state.show_midi_panel {
-        egui::Window::new("MIDI").open(&mut ui_state.show_midi_panel).show(ctx, |ui| {
-            ui.heading("MIDI Mapping");
-            ui.horizontal(|ui| {
-                ui.label("CC #");
-                ui.add(egui::DragValue::new(&mut ui_state.param_index_input).range(0..=127));
-                ui.checkbox(&mut ui_state.quick_params_enabled, "Enable");
-            });
-        });
-    }
-    if ui_state.show_gesture_panel {
-        egui::Window::new("Gestures").open(&mut ui_state.show_gesture_panel).show(ctx, |ui| {
-            ui.heading("Gesture Controls");
-            
-            // Gesture system status
-            ui.horizontal(|ui| {
-                ui.label("Status:");
-                ui.label(if gesture_control.is_enabled() { "Enabled" } else { "Disabled" });
-                if ui.button(if gesture_control.is_enabled() { "Disable" } else { "Enable" }).clicked() {
-                    gesture_control.set_enabled(!gesture_control.is_enabled());
-                }
-            });
-            
-            ui.separator();
-            
-            // Active gestures display
-            ui.label("Active Gestures:");
-            let active_gestures = gesture_control.get_active_gestures();
-            if active_gestures.is_empty() {
-                ui.label("No gestures detected");
-            } else {
-                for (gesture, strength) in active_gestures {
-                    ui.horizontal(|ui| {
-                        ui.label(format!("{:?}:", gesture));
-                        ui.add(egui::ProgressBar::new(*strength).text(format!("{:.2}", strength)));
-                    });
-                }
-            }
-            
-            ui.separator();
-            
-            // Parameter mappings
-            ui.label("Parameter Mappings:");
-            let mappings = gesture_control.get_parameter_mappings();
-            for (param_name, mapping) in mappings {
+        }
+        if ui_state.show_wgsl_analyzer {
+            egui::Window::new("WGSL Analyzer").open(&mut ui_state.show_wgsl_analyzer).show(ctx, |ui| {
+                ui.heading("WGSL Code Analysis");
+                ui.label("Advanced WGSL shader analysis and optimization");
                 ui.horizontal(|ui| {
-                    ui.label(format!("{}:", param_name));
-                    if let Some(value) = gesture_control.get_parameter_value(param_name) {
-                        ui.label(format!("{:.2}", value));
-                    } else {
-                        ui.label("-");
+                    if ui.button("Analyze Code").clicked() {
+                    }
+                    if ui.button("Optimize").clicked() {
                     }
                 });
-            }
-            
-            ui.separator();
-            
-            // Test gesture simulation
-            ui.label("Test Gestures:");
-            if ui.button("Simulate Hand Open").clicked() {
-                gesture_control.simulate_gesture(crate::gesture_control::SimulatedGestureData {
-                    gesture_type: crate::gesture_control::GestureType::HandOpen,
-                    strength: 1.0,
-                    duration: 2.0,
-                    hand_position: (0.0, 0.0, 0.5),
-                });
-            }
-            if ui.button("Simulate Swipe Left").clicked() {
-                gesture_control.simulate_gesture(crate::gesture_control::SimulatedGestureData {
-                    gesture_type: crate::gesture_control::GestureType::SwipeLeft,
-                    strength: 0.8,
-                    duration: 1.5,
-                    hand_position: (-0.5, 0.0, 0.5),
-                });
-            }
-            if ui.button("Simulate Pinch").clicked() {
-                gesture_control.simulate_gesture(crate::gesture_control::SimulatedGestureData {
-                    gesture_type: crate::gesture_control::GestureType::Pinch,
-                    strength: 0.9,
-                    duration: 1.0,
-                    hand_position: (0.0, 0.0, 0.3),
-                });
-            }
-            if ui.button("Clear All").clicked() {
-                gesture_control.clear_hands();
-            }
-        });
-    }
-    
-    // Compute Pass Panel
-    if ui_state.show_compute_panel {
-        egui::Window::new("Compute Passes").open(&mut ui_state.show_compute_panel).show(ctx, |ui| {
-            ui.heading("Compute Shader Dispatch");
-            
-            ui.label("Compute pass management and dispatch controls");
-            
-            ui.separator();
-            
-            // Compute pass creation
-            ui.label("Create Compute Pass:");
-            ui.horizontal(|ui| {
-                ui.label("Name:");
-                ui.text_edit_singleline(&mut ui_state.compute_pass_name);
             });
-            ui.horizontal(|ui| {
-                ui.label("Workgroup Size:");
-                ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_x).speed(1));
-                ui.label("x");
-                ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_y).speed(1));
-                ui.label("x");
-                ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_z).speed(1));
-            });
-            
-            if ui.button("Create Compute Pass").clicked() {
-                compute_pass_manager.create_ping_pong_texture(
-                    &ui_state.compute_pass_name,
-                    512,
-                    512,
-                    TextureFormat::Rgba8Unorm
-                );
-                println!("Created compute pass: {}", ui_state.compute_pass_name);
-            }
-            
-            ui.separator();
-            
-            // Ping-pong texture creation
-            ui.label("Create Ping-Pong Texture:");
-            ui.horizontal(|ui| {
-                ui.label("Name:");
-                ui.text_edit_singleline(&mut ui_state.pingpong_texture_name);
-            });
-            ui.horizontal(|ui| {
-                ui.label("Size:");
-                ui.add(egui::DragValue::new(&mut ui_state.pingpong_width).speed(1));
-                ui.label("x");
-                ui.add(egui::DragValue::new(&mut ui_state.pingpong_height).speed(1));
-            });
-            
-            if ui.button("Create Ping-Pong Texture").clicked() {
-                compute_pass_manager.create_ping_pong_texture(
-                    &ui_state.pingpong_texture_name,
-                    ui_state.pingpong_width,
-                    ui_state.pingpong_height,
-                    TextureFormat::Rgba8Unorm
-                );
-                println!("Created ping-pong texture: {} ({}x{})", 
-                    ui_state.pingpong_texture_name, ui_state.pingpong_width, ui_state.pingpong_height);
-            }
-            
-            ui.separator();
-            
-            // Dispatch controls
-            ui.label("Dispatch Controls:");
-            ui.horizontal(|ui| {
-                ui.label("Dispatch Size:");
-                ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_x).speed(1));
-                ui.label("x");
-                ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_y).speed(1));
-                ui.label("x");
-                ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_z).speed(1));
-            });
-            
-            if ui.button("Dispatch Compute").clicked() {
-                // Dispatch compute logic would go here
-                println!("Dispatching compute shader: ({}, {}, {})", 
-                    ui_state.dispatch_size_x, ui_state.dispatch_size_y, ui_state.dispatch_size_z);
-            }
-            
-            ui.separator();
-            
-            // Active compute passes display
-            ui.label("Active Compute Passes:");
-            if compute_pass_manager.ping_pong_textures.is_empty() && compute_pass_manager.compute_pipelines.is_empty() {
-                ui.label("No active compute passes");
-            } else {
-                ui.label(format!("Ping-pong textures: {}", compute_pass_manager.ping_pong_textures.len()));
-                ui.label(format!("Compute pipelines: {}", compute_pass_manager.compute_pipelines.len()));
-                ui.label(format!("Active passes: {}", compute_pass_manager.active_compute_passes.len()));
-            }
-        });
-    }
-    
-    // WGSLSmith Testing Panel
-    if ui_state.show_wgslsmith_panel {
-        egui::Window::new("WGSLSmith AI").open(&mut ui_state.show_wgslsmith_panel).show(ctx, |ui| {
-            ui.heading("AI-Assisted Shader Generation");
-            
-            ui.horizontal(|ui| {
-                ui.label("Prompt:");
-                ui.text_edit_multiline(&mut ui_state.wgsl_smith_prompt);
-            });
-            
-            ui.horizontal(|ui| {
-                if ui.button("Generate Shader").clicked() {
-                    ui_state.wgsl_smith_generated = generate_shader_with_wgsl_smith(&ui_state.wgsl_smith_prompt);
-                }
-                if ui.button("Clear").clicked() {
-                    ui_state.wgsl_smith_prompt.clear();
-                    ui_state.wgsl_smith_generated.clear();
-                }
-            });
-            
-            if !ui_state.wgsl_smith_generated.is_empty() {
-                ui.separator();
-                ui.label("Generated WGSL:");
-                egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
-                    ui.monospace(&ui_state.wgsl_smith_generated);
-                });
-                
+        }
+        if ui_state.show_performance {
+            egui::Window::new("Performance").open(&mut ui_state.show_performance).show(ctx, |ui| {
+                ui.heading("Performance Metrics");
+                ui.label("Real-time performance monitoring");
                 ui.horizontal(|ui| {
-                    if ui.button("Apply to Editor").clicked() {
-                        ui_state.draft_code = ui_state.wgsl_smith_generated.clone();
-                    }
-                    if ui.button("Test Compile").clicked() {
-                        match compile_and_render_shader(&ui_state.wgsl_smith_generated, egui::vec2(400.0, 300.0), ctx, &ui_state.global_renderer, &ui_state.parameter_values, Some(audio_analyzer), None) {
-                            Ok(_) => ui_state.wgsl_smith_status = "Compilation successful!".to_string(),
-                            Err(e) => ui_state.wgsl_smith_status = format!("Compilation failed: {}", e),
-                        }
-                    }
+                    ui.label("FPS:");
+                    ui.label(format!("{:.1}", ui_state.fps));
                 });
-            }
-            
-            if !ui_state.wgsl_smith_status.is_empty() {
-                ui.label(&ui_state.wgsl_smith_status);
-            }
-        });
-    }
-    
-    if ui_state.show_osc_panel {
-        egui::Window::new("OSC Control").open(&mut ui_state.show_osc_panel).show(ctx, |ui| {
-            ui.heading("OSC");
-            ui.label("Configure OSC endpoints and test messages");
-        });
-    }
-    
-    if ui_state.show_ndi_panel {
-        egui::Window::new("NDI Output").open(&mut ui_state.show_ndi_panel).show(ctx, |ui| {
-            ui.heading("NDI");
-            ui.label("Configure NDI stream settings");
-        });
-    }
-    
-    if ui_state.show_spout_panel {
-        egui::Window::new("Spout/Syphon").open(&mut ui_state.show_spout_panel).show(ctx, |ui| {
-            ui.heading("Spout/Syphon");
-            ui.label("Configure texture sharing settings");
-        });
-    }
-    
-    if ui_state.show_ffgl_panel {
-        egui::Window::new("FFGL Export").open(&mut ui_state.show_ffgl_panel).show(ctx, |ui| {
-            ui.heading("FFGL");
-            ui.label("Generate and manage FFGL plugins");
-        });
-    }
-    
-    if ui_state.show_gyroflow_panel {
-        egui::Window::new("Gyroflow").open(&mut ui_state.show_gyroflow_panel).show(ctx, |ui| {
-            ui.heading("Gyroflow");
-            ui.label("Configure stabilization integration");
-        });
-    }
-    
-    if ui_state.show_export_panel {
-        egui::Window::new("Export").open(&mut ui_state.show_export_panel).show(ctx, |ui| {
-            ui.heading("Export");
-            ui.label("Export screenshots and videos");
-        });
-    }
-    
-    // WGSL Diagnostics Panel
-    if ui_state.show_diagnostics_panel {
-        egui::Window::new("WGSL Diagnostics").open(&mut ui_state.show_diagnostics_panel).show(ctx, |ui| {
-            ui.heading("Shader Compilation Diagnostics");
-            
-            ui.horizontal(|ui| {
-                if ui.button("Check Current Shader").clicked() {
-                    // Run diagnostics on current draft code
-                    ui_state.diagnostics_messages = check_wgsl_diagnostics(&ui_state.draft_code);
-                }
-                if ui.button("Clear").clicked() {
-                    ui_state.diagnostics_messages.clear();
-                }
             });
-            
-            ui.separator();
-            
-            if ui_state.diagnostics_messages.is_empty() {
-                ui.label("No diagnostics available. Click 'Check Current Shader' to analyze.");
-            } else {
-                ui.label(format!("Found {} diagnostic(s):", ui_state.diagnostics_messages.len()));
-                egui::ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
-                    for (i, diagnostic) in ui_state.diagnostics_messages.iter().enumerate() {
-                        ui.group(|ui| {
-                            match diagnostic.severity {
-                                DiagnosticSeverity::Error => {
-                                    ui.colored_label(egui::Color32::RED, format!("Error {}: {}", i + 1, diagnostic.message));
-                                }
-                                DiagnosticSeverity::Warning => {
-                                    ui.colored_label(egui::Color32::YELLOW, format!("Warning {}: {}", i + 1, diagnostic.message));
-                                }
-                                DiagnosticSeverity::Info => {
-                                    ui.colored_label(egui::Color32::BLUE, format!("Info {}: {}", i + 1, diagnostic.message));
-                                }
-                            }
-                            if let Some(line) = diagnostic.line {
-                                ui.label(format!("  Line: {}", line));
-                            }
-                            if let Some(column) = diagnostic.column {
-                                ui.label(format!("  Column: {}", column));
-                            }
-                        });
-                    }
-                });
-            }
-        });
+        }
+        if ui_state.show_3d_scene_panel {
+            egui::Window::new("3D Scene Editor").open(&mut ui_state.show_3d_scene_panel).show(ctx, |ui| {
+                ui.heading("3D Scene Editor");
+                ui.label("Edit 3D scenes and objects");
+            });
+        }
     }
-    
-    // ISF Converter Panel
-    if ui_state.show_isf_converter {
-        egui::Window::new("ISF Converter").open(&mut ui_state.show_isf_converter).show(ctx, |ui| {
-            ui.heading("ISF/HLSL/GLSL to WGSL Converter");
-            ui.label("Convert shaders from other formats to WGSL");
-            
-            ui.separator();
-            
-            ui.horizontal(|ui| {
-                if ui.button("Convert ISF").clicked() {
-                    // ISF conversion logic
-                }
-                if ui.button("Convert HLSL").clicked() {
-                    // HLSL conversion logic  
-                }
-                if ui.button("Convert GLSL").clicked() {
-                    // GLSL conversion logic
-                }
-            });
-            
-            ui.separator();
-            
-            ui.label("Drop shader files here to convert");
-        });
-    }
-    
-    // WGSL Analyzer Panel
-    if ui_state.show_wgsl_analyzer {
-        egui::Window::new("WGSL Analyzer").open(&mut ui_state.show_wgsl_analyzer).show(ctx, |ui| {
-            ui.heading("WGSL Code Analysis");
-            ui.label("Advanced WGSL shader analysis and optimization");
-            
-            ui.separator();
-            
-            ui.horizontal(|ui| {
-                if ui.button("Analyze Code").clicked() {
-                    // WGSL analysis logic
-                }
-                if ui.button("Optimize").clicked() {
-                    // WGSL optimization logic
-                }
-            });
-            
-            ui.separator();
-            
-            ui.label("Analysis results will appear here");
-        });
-    }
-    
-    // Performance Overlay Panel
-    if ui_state.show_performance {
-        egui::Window::new("Performance").open(&mut ui_state.show_performance).show(ctx, |ui| {
-            ui.heading("Performance Metrics");
-            ui.label("Real-time performance monitoring");
-            
-            ui.separator();
-            
-            ui.horizontal(|ui| {
-                ui.label("FPS:");
-                ui.label(format!("{:.1}", ui_state.fps));
-            });
-            
-            ui.horizontal(|ui| {
-                if ui.button("Reset Metrics").clicked() {
-                    // Reset performance metrics
-                }
-            });
-        });
-    }
-    
-    // 3D Scene Panel
-    if ui_state.show_3d_scene_panel {
-        egui::Window::new("3D Scene Editor").open(&mut ui_state.show_3d_scene_panel).show(ctx, |ui| {
-            ui.heading("3D Scene Editor");
-            ui.label("Edit 3D scenes and objects");
-            
-            ui.separator();
-            
-            ui.horizontal(|ui| {
-                if ui.button("Add Cube").clicked() {
-                    // Add cube to scene
-                }
-                if ui.button("Add Sphere").clicked() {
-                    // Add sphere to scene
-                }
-                if ui.button("Add Light").clicked() {
-                    // Add light to scene
-                }
-            });
-            
-            ui.separator();
-            
-            ui.label("Scene objects will appear here");
-        });
+    if ui_state.show_analyzer_panel {
+        draw_analyzer_panel(
+            ctx,
+            ui_state,
+            midi_system,
+            compute_pass_manager,
+            spout_config,
+            spout_output,
+            ndi_config,
+            ndi_output,
+            dmx_config,
+            dmx_control,
+            audio_analyzer
+        );
     }
 }
 
-/// Helper that draws the main central preview panel using a provided egui context
-pub fn draw_editor_central_panel(ctx: &egui::Context, ui_state: &mut EditorUiState, audio_analyzer: &AudioAnalyzer, video_exporter: Option<&()>) { // ScreenshotVideoExporter commented out
-    if ui_state.show_preview {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Shader Preview");
-            
-            // Quick parameter controls
-            ui.horizontal(|ui| {
-                ui.checkbox(&mut ui_state.quick_params_enabled, "Quick Params");
-                if ui_state.quick_params_enabled {
-                    ui.label("A:");
-                    ui.add(egui::Slider::new(&mut ui_state.quick_param_a, 0.0..=1.0));
-                    ui.label("B:");
-                    ui.add(egui::Slider::new(&mut ui_state.quick_param_b, 0.0..=1.0));
-                }
-            });
-            
-            // Video recording controls
-            let mut should_start_recording = false;
-            let mut should_stop_recording = false;
-            
-            ui.horizontal(|ui| {
-                ui.label("Video Recording:");
-                
-                if ui_state.is_recording_video {
-                    if ui.button("⏹ Stop Recording").clicked() {
-                        should_stop_recording = true;
-                    }
-                    ui.label(format!("Recording... FPS: {} Duration: {:.1}s", ui_state.video_fps, ui_state.video_duration));
-                } else {
-                    if ui.button("⏺ Start Recording").clicked() {
-                        should_start_recording = true;
-                    }
-                    
-                    ui.add(egui::Slider::new(&mut ui_state.video_fps, 15..=60).text("FPS"));
-                    
-                    egui::ComboBox::from_label("Format")
-                        .selected_text(&ui_state.video_format)
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut ui_state.video_format, "mp4".to_string(), "MP4");
-                            ui.selectable_value(&mut ui_state.video_format, "gif".to_string(), "GIF");
-                        });
-                        
-                    ui.add(egui::Slider::new(&mut ui_state.video_quality, 50..=100).text("Quality"));
-                }
-            });
-            
-            // Handle recording actions outside the UI closure
-            if should_start_recording {
-                ui_state.is_recording_video = true;
-                ui_state.video_duration = 0.0;
-                // if let Some(exporter) = video_exporter {
-                //     let settings = VideoExportSettings {
-                //         output_path: "shader_recording.mp4".to_string(),
-                //         fps: ui_state.video_fps,
-                //         quality: ui_state.video_quality,
-                //         format: ui_state.video_format.clone(),
-                //         width: 1920,
-                //         height: 1080,
-                //     };
-                //     exporter.start_recording(settings);
-                // }
-            }
-            
-            if should_stop_recording {
-                ui_state.is_recording_video = false;
-                // Video export functionality temporarily disabled for compilation
-                // if let Some(exporter) = video_exporter {
-                //     let _ = exporter.stop_recording();
-                // }
-            }
-            
-            ui.separator();
-            
-            // Preview viewport area
-            let available_size = ui.available_size();
-            let preview_size = egui::vec2(
-                available_size.x.min(800.0),
-                available_size.y.min(400.0)
-            );
-            
-            // Create a frame for the preview
-            let (response, painter) = ui.allocate_painter(preview_size, egui::Sense::hover());
-            let rect = response.rect;
-            
-            // Draw preview background
-            painter.rect_filled(rect, 0.0, egui::Color32::from_gray(20));
-            
-            // CRITICAL: Actually render the shader instead of placeholder text
-            if ui_state.draft_code.is_empty() {
-                painter.text(
-                    rect.center(),
-                    egui::Align2::CENTER_CENTER,
-                    "No shader loaded\nLoad a shader from the browser or paste code",
-                    egui::FontId::proportional(14.0),
-                    egui::Color32::from_gray(128)
-                );
-            } else {
-                // CRITICAL: Actually compile and render the WGSL shader
-                match compile_and_render_shader(&ui_state.draft_code, rect.size(), ctx, &ui_state.global_renderer, &ui_state.parameter_values, Some(audio_analyzer), video_exporter) {
-                    Ok(texture_handle) => {
-                        // Display the rendered texture
-                        let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
-                        painter.image(texture_handle.id(), rect, uv, egui::Color32::WHITE);
-                        
-                        // Capture frame for video recording if active
-                        // Video export functionality temporarily disabled for compilation
-                        // if ui_state.is_recording_video {
-                        //     if let Some(exporter) = video_exporter {
-                        //         // Get pixel data from the texture for video recording
-                        //         if let Ok(pixel_data) = get_texture_pixels(&texture_handle, ctx) {
-                        //             let _ = exporter.capture_frame_data(&pixel_data, rect.width() as u32, rect.height() as u32);
-                        //             ui_state.video_duration += 1.0 / ui_state.video_fps as f32;
-                        //         }
-                        //     }
-                        // }
-                    }
-                    Err(e) => {
-                        // Show error message if shader compilation fails
-                        painter.text(
-                            rect.center(),
-                            egui::Align2::CENTER_CENTER,
-                            format!("Shader Error:\n{}", e),
-                            egui::FontId::proportional(12.0),
-                            egui::Color32::RED
-                        );
-                    }
-                }
-            }
-            
-            // Draw preview border
-            painter.rect_stroke(rect, 0.0, egui::Stroke::new(1.0, egui::Color32::from_gray(60)), egui::StrokeKind::Inside);
-        });
-    }
-}
-
-pub fn editor_central_panel(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiState>, audio_analyzer: Res<AudioAnalyzer>) { // ScreenshotVideoExporter commented out - removed Option<Res<()>>
-    let ctx = egui_ctx.ctx_mut().expect("Failed to get egui context");
-    let video_exporter_ref = None; // video_exporter.as_deref(); // Commented out
-    draw_editor_central_panel(ctx, &mut *ui_state, &audio_analyzer, video_exporter_ref);
-}
+// deprecated legacy central panel helpers removed in favor of tabbed central view
 
 pub fn populate_shader_list(mut ui_state: ResMut<EditorUiState>) {
     let mut found_all = Vec::new();
@@ -2038,34 +1345,185 @@ pub fn collect_isf_files(dir: &Path, out: &mut Vec<String>) {
 // Helper that draws the code editor panel using a provided egui context
 pub fn draw_editor_code_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
     if !ui_state.show_code_editor { return; }
-    egui::TopBottomPanel::bottom("code_editor")
+    egui::TopBottomPanel::bottom("code_editor_panel")
         .resizable(false)
         .default_height(240.0)
         .min_height(160.0)
         .max_height(280.0)
         .show(ctx, |ui| {
-        ui.heading("WGSL Code Editor");
-        egui::ScrollArea::vertical().show(ui, |ui| {
-            let mut edit = egui::TextEdit::multiline(&mut ui_state.draft_code)
-                .code_editor()
-                .desired_rows(12)
-                .lock_focus(true)
-                .hint_text("Paste or write WGSL here...");
-            let mut layouter = |ui: &egui::Ui, text: &dyn egui::TextBuffer, wrap_width: f32| -> Arc<egui::Galley> {
-                highlight_wgsl(ui, text.as_str(), wrap_width)
-            };
-            edit = edit.layouter(&mut layouter);
-            // Fix editor height so it doesn't balloon and block the viewport
-            let fixed_height = 180.0;
-            ui.add_sized(egui::vec2(ui.available_width(), fixed_height), edit);
-        });
         ui.horizontal(|ui| {
-            if ui.button("Apply to Preview").clicked() {
-                ui_state.apply_requested = true;
+            let tabs = [
+                (CodeEditorTab::Editor, "Editor"),
+                (CodeEditorTab::AI, "AI"),
+                (CodeEditorTab::Diagnostics, "Diagnostics"),
+                (CodeEditorTab::Analyzer, "Analyzer"),
+            ];
+            for (tab, label) in tabs {
+                let sel = ui_state.code_editor_tab == tab;
+                if ui.selectable_label(sel, label).clicked() {
+                    ui_state.code_editor_tab = tab;
+                }
             }
-            ui.checkbox(&mut ui_state.auto_apply, "Auto Apply");
-            ui.label("Tip: Load a shader from the browser, edit, then apply.");
         });
+        ui.separator();
+        match ui_state.code_editor_tab {
+            CodeEditorTab::Editor => {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    let mut edit = egui::TextEdit::multiline(&mut ui_state.draft_code)
+                        .code_editor()
+                        .desired_rows(12)
+                        .lock_focus(true)
+                        .hint_text("Paste or write WGSL here...");
+                    let mut layouter = |ui: &egui::Ui, text: &dyn egui::TextBuffer, wrap_width: f32| -> Arc<egui::Galley> {
+                        highlight_wgsl(ui, text.as_str(), wrap_width)
+                    };
+                    edit = edit.layouter(&mut layouter);
+                    let fixed_height = 180.0;
+                    ui.add_sized(egui::vec2(ui.available_width(), fixed_height), edit);
+                });
+                ui.horizontal(|ui| {
+                    if ui.button("Apply to Preview").clicked() {
+                        ui_state.apply_requested = true;
+                    }
+                    ui.checkbox(&mut ui_state.auto_apply, "Auto Apply");
+                    ui.label("Tip: Load a shader from the browser, edit, then apply.");
+                });
+            }
+            CodeEditorTab::AI => {
+                ui.heading("AI-Assisted Shader Generation");
+                ui.horizontal(|ui| {
+                    ui.label("Prompt:");
+                    ui.text_edit_multiline(&mut ui_state.wgsl_smith_prompt);
+                });
+                ui.horizontal(|ui| {
+                    if ui.button("Generate Shader").clicked() {
+                        ui_state.wgsl_smith_generated = generate_shader_with_wgsl_smith(&ui_state.wgsl_smith_prompt);
+                    }
+                    if ui.button("Clear").clicked() {
+                        ui_state.wgsl_smith_prompt.clear();
+                        ui_state.wgsl_smith_generated.clear();
+                    }
+                });
+                if !ui_state.wgsl_smith_generated.is_empty() {
+                    ui.separator();
+                    ui.label("Generated WGSL:");
+                    egui::ScrollArea::vertical().max_height(140.0).show(ui, |ui| {
+                        ui.monospace(&ui_state.wgsl_smith_generated);
+                    });
+                    ui.horizontal(|ui| {
+                        if ui.button("Apply to Editor").clicked() {
+                            ui_state.draft_code = ui_state.wgsl_smith_generated.clone();
+                        }
+                        if ui.button("Apply to Preview").clicked() {
+                            ui_state.draft_code = ui_state.wgsl_smith_generated.clone();
+                            ui_state.apply_requested = true;
+                        }
+                    });
+                }
+            }
+            CodeEditorTab::Diagnostics => {
+                ui.heading("Shader Compilation Diagnostics");
+                ui.horizontal(|ui| {
+                    if ui.button("Check Current Shader").clicked() {
+                        ui_state.diagnostics_messages = check_wgsl_diagnostics(&ui_state.draft_code);
+                    }
+                    if ui.button("Clear").clicked() {
+                        ui_state.diagnostics_messages.clear();
+                    }
+                });
+                if ui_state.diagnostics_messages.is_empty() {
+                    ui.label("No diagnostics available. Click 'Check Current Shader' to analyze.");
+                } else {
+                    ui.label(format!("Found {} diagnostic(s):", ui_state.diagnostics_messages.len()));
+                    egui::ScrollArea::vertical().max_height(160.0).show(ui, |ui| {
+                        for (i, diagnostic) in ui_state.diagnostics_messages.iter().enumerate() {
+                            ui.group(|ui| {
+                                match diagnostic.severity {
+                                    DiagnosticSeverity::Error => {
+                                        ui.colored_label(egui::Color32::RED, format!("Error {}: {}", i + 1, diagnostic.message));
+                                    }
+                                    DiagnosticSeverity::Warning => {
+                                        ui.colored_label(egui::Color32::YELLOW, format!("Warning {}: {}", i + 1, diagnostic.message));
+                                    }
+                                    DiagnosticSeverity::Info => {
+                                        ui.colored_label(egui::Color32::BLUE, format!("Info {}: {}", i + 1, diagnostic.message));
+                                    }
+                                }
+                                if let Some(line) = diagnostic.line {
+                                    ui.label(format!("  Line: {}", line));
+                                }
+                                if let Some(column) = diagnostic.column {
+                                    ui.label(format!("  Column: {}", column));
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+            CodeEditorTab::Analyzer => {
+                ui.heading("WGSL Code Analysis");
+                ui.horizontal(|ui| {
+                    if ui.button("Analyze Code").clicked() {
+                        let mut parser = WgslAstParser::new();
+                        match parser.parse(&ui_state.draft_code) {
+                            Ok(_) => {
+                                ui_state.ast_ok = true;
+                                ui_state.ast_error.clear();
+                            }
+                            Err(e) => {
+                                ui_state.ast_ok = false;
+                                ui_state.ast_error = format!("{}", e);
+                            }
+                        }
+                        let validator = ShaderValidator::new();
+                        match validator.validate_source(&ui_state.draft_code, ShaderLanguage::Wgsl) {
+                            Ok(_) => {
+                                ui_state.validator_ok = true;
+                                ui_state.validator_error.clear();
+                            }
+                            Err(e) => {
+                                ui_state.validator_ok = false;
+                                ui_state.validator_error = format!("{}", e);
+                            }
+                        }
+                    }
+                    if ui.button("Transpile WGSL→GLSL").clicked() {
+                        let mut mf = MultiFormatTranspiler::new();
+                        let opts = TranspilerOptions { source_language: ShaderLanguage::Wgsl, target_language: ShaderLanguage::Glsl, ..Default::default() };
+                        match mf.transpile(&ui_state.draft_code, &opts) {
+                            Ok(out) => {
+                                ui_state.transpiled_glsl = out.source_code;
+                                ui_state.transpiler_error.clear();
+                            }
+                            Err(e) => {
+                                ui_state.transpiled_glsl.clear();
+                                ui_state.transpiler_error = format!("{}", e);
+                            }
+                        }
+                    }
+                });
+                if ui_state.ast_ok {
+                    ui.label("AST parse: OK");
+                } else if !ui_state.ast_error.is_empty() {
+                    ui.colored_label(egui::Color32::RED, format!("AST error: {}", ui_state.ast_error));
+                }
+                if ui_state.validator_ok {
+                    ui.label("Validator: OK");
+                } else if !ui_state.validator_error.is_empty() {
+                    ui.colored_label(egui::Color32::RED, format!("Validator error: {}", ui_state.validator_error));
+                }
+                if !ui_state.transpiler_error.is_empty() {
+                    ui.colored_label(egui::Color32::RED, format!("Transpiler error: {}", ui_state.transpiler_error));
+                }
+                if !ui_state.transpiled_glsl.is_empty() {
+                    ui.separator();
+                    ui.label("GLSL:");
+                    egui::ScrollArea::vertical().max_height(160.0).show(ui, |ui| {
+                        ui.code(&ui_state.transpiled_glsl);
+                    });
+                }
+            }
+        }
     });
 }
 
@@ -2080,20 +1538,64 @@ pub fn draw_editor_shader_browser_panel(ctx: &egui::Context, ui_state: &mut Edit
         ui.horizontal(|ui| {
             ui.checkbox(&mut ui_state.show_all_shaders, "Show all shaders");
             if !ui_state.show_all_shaders {
-                ui.label("Showing compatible only (has @vertex and @fragment)");
+                ui.label("Showing compatible only (has @fragment or @compute)");
+            }
+        });
+        ui.horizontal(|ui| {
+            for (src, label) in [
+                (SourceSet::All, "All Sources"),
+                (SourceSet::Assets, "Assets"),
+                (SourceSet::ISF, "ISF"),
+            ] {
+                let sel = ui_state.selected_source == src;
+                if ui.selectable_label(sel, label).clicked() {
+                    ui_state.selected_source = src;
+                    match src {
+                        SourceSet::All => rescan_shaders_all(ui_state),
+                        SourceSet::Assets => rescan_shaders_assets_only(ui_state),
+                        SourceSet::ISF => rescan_shaders_isf_only(ui_state),
+                    }
+                }
             }
         });
         ui.horizontal(|ui| {
             ui.label("Search:");
             ui.text_edit_singleline(&mut ui_state.search_query);
         });
+        ui.horizontal(|ui| {
+            if ui.button("Rescan (All)").clicked() {
+                rescan_shaders_all(ui_state);
+            }
+            if ui.button("Rescan (ISF only)").clicked() {
+                rescan_shaders_isf_only(ui_state);
+            }
+        });
+        ui.horizontal(|ui| {
+            let mut current_cat = ui_state.selected_category.clone().unwrap_or_else(|| "All".to_string());
+            for cat in ["All", "ISF", "WGSL", "GLSL", "HLSL"] {
+                let selected = current_cat == cat;
+                if ui.selectable_label(selected, cat).clicked() {
+                    current_cat = cat.to_string();
+                }
+            }
+            ui_state.selected_category = Some(current_cat);
+        });
         ui.separator();
         egui::ScrollArea::vertical().auto_shrink([false; 2]).show(ui, |ui| {
-            let names = if ui_state.show_all_shaders {
+            let mut names = if ui_state.show_all_shaders {
                 ui_state.available_shaders_all.clone()
             } else {
                 ui_state.available_shaders_compatible.clone()
             };
+            if let Some(cat) = &ui_state.selected_category {
+                names = match cat.as_str() {
+                    "ISF" => names.into_iter().filter(|n| n.to_lowercase().ends_with(".fs")).collect(),
+                    "WGSL" => names.into_iter().filter(|n| n.to_lowercase().ends_with(".wgsl")).collect(),
+                    "GLSL" => names.into_iter().filter(|n| n.to_lowercase().ends_with(".glsl")).collect(),
+                    "HLSL" => names.into_iter().filter(|n| n.to_lowercase().ends_with(".hlsl")).collect(),
+                    _ => names,
+                };
+            }
             for name in names.iter() {
                 if !ui_state.search_query.is_empty() && !name.to_lowercase().contains(&ui_state.search_query.to_lowercase()) {
                     continue;
@@ -2117,6 +1619,10 @@ pub fn draw_editor_shader_browser_panel(ctx: &egui::Context, ui_state: &mut Edit
                                     ui_state.draft_code = content;
                                 }
                             }
+                        } else if name.to_lowercase().ends_with(".glsl") {
+                            ui_state.draft_code = content;
+                        } else if name.to_lowercase().ends_with(".hlsl") {
+                            ui_state.draft_code = content;
                         } else {
                             ui_state.draft_code = content;
                         }
@@ -2125,6 +1631,116 @@ pub fn draw_editor_shader_browser_panel(ctx: &egui::Context, ui_state: &mut Edit
             }
         });
     });
+}
+
+fn rescan_shaders_all(ui_state: &mut EditorUiState) {
+    let mut found_all = Vec::new();
+    let standard_dirs = ["examples", "assets/shaders", "assets", "shaders"];
+    for d in standard_dirs.iter() {
+        let path = Path::new(d);
+        if path.exists() {
+            collect_wgsl_files(path, &mut found_all);
+        }
+    }
+    let isf_dirs = [
+        "C:/Program Files/Magic/Modules2/ISF",
+        "C:/Program Files/Magic/ISF",
+        "C:/Magic/ISF",
+        "~/Magic/ISF",
+        "~/Documents/Magic/ISF",
+        "./isf-shaders",
+        "./ISF",
+        "./assets/isf",
+        "./assets/ISF",
+    ];
+    for dir_str in isf_dirs.iter() {
+        let expanded_path = if dir_str.starts_with("~/") {
+            let home_dir = std::env::var("HOME")
+                .or_else(|_| std::env::var("USERPROFILE"))
+                .unwrap_or_else(|_| ".".to_string());
+            Path::new(&home_dir).join(&dir_str[2..])
+        } else {
+            Path::new(dir_str).to_path_buf()
+        };
+        if expanded_path.exists() {
+            collect_isf_files(&expanded_path, &mut found_all);
+        }
+    }
+    found_all.sort();
+    found_all.dedup();
+    let mut compatible = Vec::new();
+    for p in found_all.iter() {
+        if let Ok(src) = fs::read_to_string(p) {
+            if is_wgsl_shader_compatible(&src) {
+                compatible.push(p.clone());
+            }
+        }
+    }
+    ui_state.available_shaders_all = found_all;
+    ui_state.available_shaders_compatible = compatible;
+}
+
+fn rescan_shaders_isf_only(ui_state: &mut EditorUiState) {
+    let mut found_all = Vec::new();
+    let isf_dirs = [
+        "C:/Program Files/Magic/Modules2/ISF",
+        "C:/Program Files/Magic/ISF",
+        "C:/Magic/ISF",
+        "~/Magic/ISF",
+        "~/Documents/Magic/ISF",
+        "./isf-shaders",
+        "./ISF",
+        "./assets/isf",
+        "./assets/ISF",
+    ];
+    for dir_str in isf_dirs.iter() {
+        let expanded_path = if dir_str.starts_with("~/") {
+            let home_dir = std::env::var("HOME")
+                .or_else(|_| std::env::var("USERPROFILE"))
+                .unwrap_or_else(|_| ".".to_string());
+            Path::new(&home_dir).join(&dir_str[2..])
+        } else {
+            Path::new(dir_str).to_path_buf()
+        };
+        if expanded_path.exists() {
+            collect_isf_files(&expanded_path, &mut found_all);
+        }
+    }
+    found_all.sort();
+    found_all.dedup();
+    ui_state.available_shaders_all = found_all.clone();
+    let mut compatible = Vec::new();
+    for p in found_all.iter() {
+        if let Ok(src) = fs::read_to_string(p) {
+            if is_wgsl_shader_compatible(&src) {
+                compatible.push(p.clone());
+            }
+        }
+    }
+    ui_state.available_shaders_compatible = compatible;
+}
+
+fn rescan_shaders_assets_only(ui_state: &mut EditorUiState) {
+    let mut found_all = Vec::new();
+    let standard_dirs = ["examples", "assets/shaders", "assets", "shaders"];
+    for d in standard_dirs.iter() {
+        let path = Path::new(d);
+        if path.exists() {
+            collect_wgsl_files(path, &mut found_all);
+        }
+    }
+    found_all.sort();
+    found_all.dedup();
+    let mut compatible = Vec::new();
+    for p in found_all.iter() {
+        if let Ok(src) = fs::read_to_string(p) {
+            if is_wgsl_shader_compatible(&src) {
+                compatible.push(p.clone());
+            }
+        }
+    }
+    ui_state.available_shaders_all = found_all;
+    ui_state.available_shaders_compatible = compatible;
 }
 
 pub fn draw_editor_parameter_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
@@ -2191,6 +1807,214 @@ pub fn draw_midi_panel(ctx: &egui::Context, ui_state: &mut EditorUiState, midi_s
             ui.add(egui::DragValue::new(&mut ui_state.param_index_input).range(0..=127));
             ui.checkbox(&mut ui_state.quick_params_enabled, "Enable");
         });
+    });
+}
+
+pub fn draw_editor_central_panel(
+    ctx: &egui::Context,
+    ui_state: &mut EditorUiState,
+    audio_analyzer: &AudioAnalyzer,
+    _video_exporter: Option<&crate::screenshot_video_export::ScreenshotVideoExporter>,
+    node_graph_res: &mut crate::bevy_node_graph_integration_enhanced::NodeGraphResource,
+    scene_state: &crate::scene_editor_3d::SceneEditor3DState,
+    timeline_animation: &mut crate::timeline::TimelineAnimation,
+) {
+    egui::CentralPanel::default().show(ctx, |ui| {
+        ui.horizontal(|ui| {
+            let tabs = [
+                (CentralView::Preview, "Preview"),
+                (CentralView::NodeGraph, "Node Graph"),
+                (CentralView::Scene3D, "3D Editor"),
+                (CentralView::Timeline, "Timeline"),
+            ];
+            for (view, label) in tabs {
+                let selected = ui_state.central_view == view;
+                if ui.selectable_label(selected, label).clicked() {
+                    ui_state.central_view = view;
+                }
+            }
+        });
+        ui.separator();
+        match ui_state.central_view {
+            CentralView::Preview => {
+                ui.heading("Shader Preview");
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut ui_state.quick_params_enabled, "Quick Params");
+                    if ui_state.quick_params_enabled {
+                        ui.label("A:");
+                        ui.add(egui::Slider::new(&mut ui_state.quick_param_a, 0.0..=1.0));
+                        ui.label("B:");
+                        ui.add(egui::Slider::new(&mut ui_state.quick_param_b, 0.0..=1.0));
+                    }
+                });
+                let available_size = ui.available_size();
+                let (response, painter) = ui.allocate_painter(available_size, egui::Sense::hover());
+                let rect = response.rect;
+                let mut guard = ui_state.global_renderer.renderer.lock().unwrap();
+                if let Some(ref mut renderer) = *guard {
+                    let render_params = crate::shader_renderer::RenderParameters {
+                        width: rect.width() as u32,
+                        height: rect.height() as u32,
+                        time: ui_state.time as f32,
+                        frame_rate: 60.0,
+                        audio_data: Some(audio_analyzer.get_audio_data()),
+                    };
+                    let render_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        renderer.render_frame(&ui_state.draft_code, &render_params, render_params.audio_data.clone())
+                    }));
+                    match render_result {
+                        Ok(Ok(pixels)) => {
+                            let color_image = egui::ColorImage {
+                                size: [render_params.width as usize, render_params.height as usize],
+                                pixels: pixels
+                                    .chunks(4)
+                                    .map(|c| egui::Color32::from_rgba_unmultiplied(c[0], c[1], c[2], c[3]))
+                                    .collect(),
+                                source_size: rect.size(),
+                            };
+                            let tex = ctx.load_texture("shader_preview_tex", color_image, egui::TextureOptions::default());
+                            let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
+                            painter.image(tex.id(), rect, uv, egui::Color32::WHITE);
+                        }
+                        Ok(Err(e)) => {
+                            painter.text(
+                                rect.center(),
+                                egui::Align2::CENTER_CENTER,
+                                format!("Shader Error:\n{}", e),
+                                egui::FontId::proportional(12.0),
+                                egui::Color32::RED,
+                            );
+                        }
+                        Err(_) => {
+                            painter.text(
+                                rect.center(),
+                                egui::Align2::CENTER_CENTER,
+                                "Shader Error: pipeline creation failed (invalid WGSL)",
+                                egui::FontId::proportional(12.0),
+                                egui::Color32::RED,
+                            );
+                        }
+                    }
+                    painter.rect_stroke(rect, 0.0, egui::Stroke::new(1.0, egui::Color32::from_gray(60)), egui::StrokeKind::Inside);
+                } else {
+                    painter.text(
+                        rect.center(),
+                        egui::Align2::CENTER_CENTER,
+                        "Renderer not initialized",
+                        egui::FontId::proportional(12.0),
+                        egui::Color32::RED,
+                    );
+                }
+            }
+            CentralView::NodeGraph => {
+                ui.heading("Node Graph");
+                crate::bevy_node_graph_integration_enhanced::draw_node_graph_embedded(ui, node_graph_res);
+                ui.separator();
+                ui.label("Graph Preview");
+                let preview_size = egui::vec2(ui.available_width(), ui.available_height().min(240.0));
+                let (response, painter) = ui.allocate_painter(preview_size, egui::Sense::hover());
+                let rect = response.rect;
+                let mut guard = ui_state.global_renderer.renderer.lock().unwrap();
+                if let Some(ref mut renderer) = *guard {
+                    match node_graph_res.graph.generate_wgsl() {
+                        Ok(wgsl_code) => {
+                            let render_params = crate::shader_renderer::RenderParameters {
+                                width: rect.width() as u32,
+                                height: rect.height() as u32,
+                                time: ui_state.time as f32,
+                                frame_rate: 60.0,
+                                audio_data: Some(audio_analyzer.get_audio_data()),
+                            };
+                            let render_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                                renderer.render_frame(&wgsl_code, &render_params, render_params.audio_data.clone())
+                            }));
+                            match render_result {
+                                Ok(Ok(pixels)) => {
+                                    let color_image = egui::ColorImage {
+                                        size: [render_params.width as usize, render_params.height as usize],
+                                        pixels: pixels
+                                            .chunks(4)
+                                            .map(|c| egui::Color32::from_rgba_unmultiplied(c[0], c[1], c[2], c[3]))
+                                            .collect(),
+                                        source_size: rect.size(),
+                                    };
+                                    let tex = ctx.load_texture("node_graph_preview_tex", color_image, egui::TextureOptions::default());
+                                    let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
+                                    painter.image(tex.id(), rect, uv, egui::Color32::WHITE);
+                                }
+                                Ok(Err(e)) => {
+                                    painter.text(
+                                        rect.center(),
+                                        egui::Align2::CENTER_CENTER,
+                                        format!("Preview error:\n{}", e),
+                                        egui::FontId::proportional(12.0),
+                                        egui::Color32::RED,
+                                    );
+                                }
+                                Err(_) => {
+                                    painter.text(
+                                        rect.center(),
+                                        egui::Align2::CENTER_CENTER,
+                                        "Preview error: pipeline creation failed (invalid WGSL)",
+                                        egui::FontId::proportional(12.0),
+                                        egui::Color32::RED,
+                                    );
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            painter.text(
+                                rect.center(),
+                                egui::Align2::CENTER_CENTER,
+                                format!("Failed to generate WGSL:\n{}", e),
+                                egui::FontId::proportional(12.0),
+                                egui::Color32::RED,
+                            );
+                        }
+                    }
+                } else {
+                    let grid_color = egui::Color32::from_gray(40);
+                    let mut x = rect.min.x;
+                    while x < rect.max.x {
+                        painter.line_segment([egui::pos2(x, rect.min.y), egui::pos2(x, rect.max.y)], (1.0, grid_color));
+                        x += 16.0;
+                    }
+                    let mut y = rect.min.y;
+                    while y < rect.max.y {
+                        painter.line_segment([egui::pos2(rect.min.x, y), egui::pos2(rect.max.x, y)], (1.0, grid_color));
+                        y += 16.0;
+                    }
+                    painter.text(
+                        rect.center(),
+                        egui::Align2::CENTER_CENTER,
+                        "Renderer not initialized",
+                        egui::FontId::proportional(12.0),
+                        egui::Color32::RED,
+                    );
+                }
+            }
+            CentralView::Scene3D => {
+                ui.heading("3D Editor");
+                ui.label(if scene_state.enabled { "3D editor active" } else { "3D editor disabled" });
+                ui.label(format!("Selected: {:?}", scene_state.selected_entity));
+                ui.label(format!("Mode: {:?}", scene_state.manipulation_mode));
+                ui.separator();
+                let viewport_size = egui::vec2(ui.available_width(), ui.available_height().min(360.0));
+                let (response, painter) = ui.allocate_painter(viewport_size, egui::Sense::click_and_drag());
+                let rect = response.rect;
+                if let Some(tex_id) = ui_state.scene3d_texture_id {
+                    let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
+                    painter.image(tex_id, rect, uv, egui::Color32::WHITE);
+                } else {
+                    painter.rect_filled(rect, 4.0, egui::Color32::from_rgb(8, 8, 10));
+                    painter.text(rect.center(), egui::Align2::CENTER_CENTER, "3D viewport not ready", egui::FontId::proportional(13.0), egui::Color32::RED);
+                }
+            }
+            CentralView::Timeline => {
+                ui.heading("Timeline");
+                crate::timeline::draw_timeline_ui(ui, timeline_animation);
+            }
+        }
     });
 }
 
@@ -2278,7 +2102,19 @@ pub fn draw_gyroflow_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
     });
 }
 
-pub fn draw_analyzer_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+pub fn draw_analyzer_panel(
+    ctx: &egui::Context,
+    ui_state: &mut EditorUiState,
+    midi_system: &mut MidiSystem,
+    compute_pass_manager: &mut ComputePassManager,
+    spout_config: &mut SpoutSyphonConfig,
+    spout_output: &SpoutSyphonOutput,
+    ndi_config: &mut NdiConfig,
+    ndi_output: &NdiOutput,
+    dmx_config: &mut DmxConfig,
+    dmx_control: &mut DmxLightingControl,
+    audio_analyzer: &AudioAnalyzer
+) {
     let mut analyzer_open = ui_state.show_analyzer_panel;
     egui::Window::new("WGSL Analyzer").open(&mut analyzer_open).show(ctx, |ui| {
         ui.horizontal(|ui| {
@@ -2289,6 +2125,121 @@ pub fn draw_analyzer_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
                 ui.label(format!("Found {}", ui_state.diagnostics_messages.len()));
             }
         });
+        ui.separator();
+        ui.horizontal(|ui| {
+            if ui.button("Run Live Integration Tests").clicked() {
+                let mut results = Vec::new();
+                {
+                    let mut renderer_guard = ui_state.global_renderer.renderer.lock().unwrap();
+                    if let Some(ref mut renderer) = *renderer_guard {
+                        let test_wgsl = "@fragment\nfn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> { let uv = position.xy / vec2<f32>(64.0, 64.0); return vec4<f32>(uv.x, uv.y, 0.0, 1.0); }";
+                        let params = crate::shader_renderer::RenderParameters { width: 64, height: 64, time: 0.0, frame_rate: 60.0, audio_data: None };
+                        match renderer.render_frame(test_wgsl, &params, None) {
+                            Ok(p) => {
+                                let ok = !p.is_empty();
+                                results.push(format!("Preview renderer: {}", if ok { "OK" } else { "EMPTY" }));
+                            }
+                            Err(e) => results.push(format!("Preview renderer error: {}", e)),
+                        }
+                        match validate_wgsl_for_mode(&ui_state.draft_code, ui_state.pipeline_mode) {
+                            Ok(()) => {
+                                let params2 = crate::shader_renderer::RenderParameters { width: 32, height: 32, time: 0.0, frame_rate: 60.0, audio_data: None };
+                                match renderer.render_frame(&ui_state.draft_code, &params2, None) {
+                                    Ok(_) => results.push("Draft shader render: OK".to_string()),
+                                    Err(e) => results.push(format!("Draft shader render error: {}", e)),
+                                }
+                            }
+                            Err(e) => results.push(format!("WGSL validation error: {}", e)),
+                        }
+                    } else {
+                        results.push("Renderer not initialized".to_string());
+                    }
+                }
+                let graph_wgsl = ui_state.node_graph.generate_wgsl(64, 64);
+                if graph_wgsl.contains("@fragment") {
+                    results.push("Node graph WGSL generation: OK".to_string());
+                } else {
+                    results.push("Node graph WGSL generation: Missing @fragment".to_string());
+                }
+                let scene_ready = ui_state.scene3d_texture_id.is_some();
+                results.push(format!("3D viewport texture: {}", if scene_ready { "READY" } else { "NOT READY" }));
+                rescan_shaders_all(ui_state);
+                let total = ui_state.available_shaders_all.len();
+                let compat = ui_state.available_shaders_compatible.len();
+                results.push(format!("Shader browser: total={}, compatible={}", total, compat));
+                let _ = midi_system.scan_devices();
+                results.push(format!("MIDI devices: {}", midi_system.devices.len()));
+                compute_pass_manager.create_ping_pong_texture("analyzer_test", 64, 64, TextureFormat::Rgba8Unorm);
+                results.push(format!("Compute ping-pong textures: {}", compute_pass_manager.ping_pong_textures.len()));
+                let audio = audio_analyzer.get_audio_data();
+                results.push(format!("Audio analyzer: volume={:.2} beat={}", audio.volume, audio.beat_detected));
+                spout_config.enabled = false;
+                let spout_status = spout_output.get_status();
+                results.push(format!("Spout/Syphon: running={} status={}", spout_status.is_running, spout_status.connection_status));
+                ndi_config.enabled = false;
+                let ndi_status = ndi_output.get_status();
+                results.push(format!("NDI: running={} status={}", ndi_status.is_running, ndi_status.connection_status));
+                let _ = dmx_control.start();
+                let dmx_status = dmx_control.get_status();
+                results.push(format!("DMX: running={} mappings={}", dmx_status.is_running, dmx_status.num_mappings));
+                let _ = dmx_control.stop();
+                ui_state.analyzer_status = results;
+            }
+            if ui.button("Audit UI Panels").clicked() {
+                let mut report = Vec::new();
+                report.push(format!("Menu Bar: {}", "OK"));
+                if ui_state.show_shader_browser {
+                    let ok = !ui_state.available_shaders_all.is_empty();
+                    report.push(format!("Shader Browser: {}", if ok { "OK" } else { "EMPTY" }));
+                } else {
+                    report.push("Shader Browser: HIDDEN".to_string());
+                }
+                if ui_state.show_parameter_panel {
+                    let ok = !ui_state.parameter_values.is_empty();
+                    report.push(format!("Parameters Panel: {}", if ok { "OK" } else { "NO CONTROLS" }));
+                } else {
+                    report.push("Parameters Panel: HIDDEN".to_string());
+                }
+                if ui_state.show_code_editor {
+                    let ok = !ui_state.draft_code.trim().is_empty();
+                    report.push(format!("Code Editor: {}", if ok { "OK" } else { "EMPTY" }));
+                } else {
+                    report.push("Code Editor: HIDDEN".to_string());
+                }
+                if ui_state.show_preview {
+                    let ok = {
+                        let renderer_guard = ui_state.global_renderer.renderer.lock().unwrap();
+                        renderer_guard.as_ref().is_some()
+                    };
+                    report.push(format!("Preview: {}", if ok { "READY" } else { "NOT INITIALIZED" }));
+                } else {
+                    report.push("Preview: HIDDEN".to_string());
+                }
+                if ui_state.show_node_studio {
+                    report.push("Node Studio: VISIBLE".to_string());
+                }
+                if ui_state.show_timeline {
+                    report.push("Timeline: VISIBLE".to_string());
+                }
+                if ui_state.show_audio_panel {
+                    report.push("Audio Panel: VISIBLE".to_string());
+                }
+                if ui_state.show_midi_panel {
+                    report.push("MIDI Panel: VISIBLE".to_string());
+                }
+                let scene_tab_open = ui_state.central_view == CentralView::Scene3D;
+                report.push(format!("3D Editor Tab: {}", if scene_tab_open { "OPEN" } else { "CLOSED" }));
+                report.push(format!("3D Viewport Texture: {}", if ui_state.scene3d_texture_id.is_some() { "READY" } else { "NOT READY" }));
+                ui_state.analyzer_status = report;
+            }
+        });
+        if !ui_state.analyzer_status.is_empty() {
+            egui::ScrollArea::vertical().max_height(180.0).show(ui, |ui| {
+                for line in ui_state.analyzer_status.iter() {
+                    ui.label(line);
+                }
+            });
+        }
     });
     ui_state.show_analyzer_panel = analyzer_open;
 }
@@ -2344,20 +2295,19 @@ pub fn apply_shader_selection(mut ui_state: ResMut<EditorUiState>) {
 
 /// Validator: requires both @vertex and @fragment entry points for compatibility.
 pub fn is_wgsl_shader_compatible(src: &str) -> bool {
-    let has_vertex = src.contains("@vertex");
     let has_fragment = src.contains("@fragment");
-    has_vertex && has_fragment
+    let has_compute = src.contains("@compute");
+    has_fragment || has_compute
 }
 
 /// If incompatible, return a clear message; otherwise, Ok(())
 pub fn validate_wgsl_entry_points(src: &str) -> Result<(), String> {
-    let has_vertex = src.contains("@vertex");
     let has_fragment = src.contains("@fragment");
-    match (has_vertex, has_fragment) {
-        (true, true) => Ok(()),
-        (false, true) => Err("Missing @vertex entry point".to_string()),
-        (true, false) => Err("Missing @fragment entry point".to_string()),
-        (false, false) => Err("Missing both @vertex and @fragment entry points".to_string()),
+    let has_compute = src.contains("@compute");
+    if has_fragment || has_compute {
+        Ok(())
+    } else {
+        Err("Shader must contain @fragment or @compute entry point".to_string())
     }
 }
 
@@ -2365,41 +2315,11 @@ pub fn validate_wgsl_entry_points(src: &str) -> Result<(), String> {
 pub fn validate_wgsl_for_mode(src: &str, mode: PipelineMode) -> Result<(), String> {
     match mode {
         PipelineMode::Fragment => {
-            // Require vertex + fragment entries
-            validate_wgsl_entry_points(src).and_then(|_| {
-                // Heuristic binding checks for group(0)
-                let has_uniforms = src.contains("@group(0)") && src.contains("@binding(0)");
-                let has_params = src.contains("@group(0)") && src.contains("@binding(1)");
-                if !has_uniforms {
-                    return Err("Fragment mode: expected @group(0) @binding(0) uniforms".to_string());
-                }
-                if !has_params {
-                    return Err("Fragment mode: expected @group(0) @binding(1) params".to_string());
-                }
-                // Ensure fragment outputs a color
-                let has_color_out = src.contains("@fragment") && src.contains("@location(0)");
-                if !has_color_out {
-                    return Err("Fragment mode: expected @location(0) color output".to_string());
-                }
-                Ok(())
-            })
+            validate_wgsl_entry_points(src)
         }
         PipelineMode::Compute => {
             let has_compute = src.contains("@compute");
             if !has_compute { return Err("Missing @compute entry point".to_string()); }
-            // Heuristic binding checks
-            let has_uniforms = src.contains("@group(0)") && src.contains("@binding(0)");
-            let has_params = src.contains("@group(0)") && src.contains("@binding(1)");
-            let has_storage = src.contains("texture_storage_2d") && src.contains("@binding(2)");
-            if !has_uniforms {
-                return Err("Compute mode: expected @group(0) @binding(0) uniforms".to_string());
-            }
-            if !has_params {
-                return Err("Compute mode: expected @group(0) @binding(1) params".to_string());
-            }
-            if !has_storage {
-                return Err("Compute mode: expected @group(0) @binding(2) storage texture".to_string());
-            }
             Ok(())
         }
     }

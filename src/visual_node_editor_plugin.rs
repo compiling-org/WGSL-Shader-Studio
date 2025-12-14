@@ -7,7 +7,7 @@ pub struct VisualNodeEditorPlugin;
 impl Plugin for VisualNodeEditorPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<VisualNodeEditorState>()
-            .add_systems(Update, visual_node_editor_ui);
+            .add_systems(bevy_egui::EguiPrimaryContextPass, visual_node_editor_ui);
     }
 }
 

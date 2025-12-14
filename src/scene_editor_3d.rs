@@ -1,12 +1,15 @@
 use bevy::prelude::*;
 use bevy::prelude::Projection;
+use bevy::prelude::PerspectiveProjection;
+use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat, TextureUsages};
+use bevy::asset::RenderAssetUsages;
 // use bevy::render::primitives::{Frustum, Aabb};
 // use bevy::render::view::VisibleEntities;
 
 /// 3D Scene Editor inspired by space_editor patterns
 /// Provides gizmo-based manipulation, scene hierarchy, and 3D viewport management
 
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub struct SceneEditor3DState {
     pub enabled: bool,
     pub show_gizmos: bool,
@@ -45,6 +48,21 @@ impl Default for PrimitiveType {
     }
 }
 
+impl Default for SceneEditor3DState {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            show_gizmos: true,
+            selected_entity: None,
+            manipulation_mode: ManipulationMode::default(),
+            camera_entity: None,
+            create_primitive_type: PrimitiveType::default(),
+            snap_to_grid: false,
+            grid_size: 1.0,
+        }
+    }
+}
+
 /// Component to mark entities that can be manipulated in the 3D editor
 #[derive(Component)]
 pub struct EditorManipulable;
@@ -59,6 +77,8 @@ pub struct SceneEditor3DPlugin;
 impl Plugin for SceneEditor3DPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SceneEditor3DState>()
+            .init_resource::<SceneViewportTexture>()
+            .init_resource::<ShaderPreviewTexture>()
             .add_systems(Startup, setup_editor_3d)
             .add_systems(Update, (
                 editor_3d_input_system,
@@ -67,8 +87,23 @@ impl Plugin for SceneEditor3DPlugin {
                 highlight_selected_entity,
                 create_primitive_system,
                 snap_to_grid_system,
+                update_shader_preview_texture,
             ));
     }
+}
+
+#[derive(Resource, Clone, Default)]
+pub struct SceneViewportTexture {
+    pub handle: Handle<Image>,
+    pub width: u32,
+    pub height: u32,
+}
+
+#[derive(Resource, Clone, Default)]
+pub struct ShaderPreviewTexture {
+    pub handle: Handle<Image>,
+    pub width: u32,
+    pub height: u32,
 }
 
 /// Setup the 3D editor with camera and basic scene
@@ -77,10 +112,45 @@ fn setup_editor_3d(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut editor_state: ResMut<SceneEditor3DState>,
+    mut images: ResMut<Assets<Image>>,
+    mut viewport_tex: ResMut<SceneViewportTexture>,
+    mut preview_tex: ResMut<ShaderPreviewTexture>,
 ) {
+    let size = Extent3d {
+        width: 800,
+        height: 450,
+        depth_or_array_layers: 1,
+    };
+    let mut image = Image::new_fill(
+        size,
+        TextureDimension::D2,
+        &[0, 0, 0, 255],
+        TextureFormat::Rgba8Unorm,
+        RenderAssetUsages::default(),
+    );
+    image.texture_descriptor.usage = TextureUsages::TEXTURE_BINDING | TextureUsages::RENDER_ATTACHMENT;
+    let image_handle = images.add(image);
+    viewport_tex.handle = image_handle.clone();
+    viewport_tex.width = size.width;
+    viewport_tex.height = size.height;
+    
+    let mut preview_image = Image::new_fill(
+        size,
+        TextureDimension::D2,
+        &[0, 0, 0, 255],
+        TextureFormat::Rgba8Unorm,
+        RenderAssetUsages::default(),
+    );
+    preview_image.texture_descriptor.usage = TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST;
+    let preview_handle = images.add(preview_image);
+    preview_tex.handle = preview_handle.clone();
+    preview_tex.width = size.width;
+    preview_tex.height = size.height;
+    
     // Create editor camera
     let camera_entity = commands.spawn((
         Camera3d::default(),
+        Camera { order: 1, target: image_handle.clone().into(), ..Default::default() },
         Transform::from_translation(Vec3::new(5.0, 5.0, 5.0))
             .looking_at(Vec3::ZERO, Vec3::Y),
         Projection::Perspective(PerspectiveProjection {
@@ -99,6 +169,18 @@ fn setup_editor_3d(
     editor_state.create_primitive_type = PrimitiveType::Cube;
     editor_state.snap_to_grid = false;
     editor_state.grid_size = 1.0;
+    
+    commands.spawn((
+        Mesh3d(meshes.add(Plane3d::default())),
+        MeshMaterial3d(materials.add(StandardMaterial {
+            base_color: Color::WHITE,
+            base_color_texture: Some(preview_handle.clone()),
+            unlit: true,
+            ..default()
+        })),
+        Transform::from_translation(Vec3::new(0.0, 0.0, 2.0)).with_scale(Vec3::new(4.0, 2.25, 1.0)),
+        Name::new("Shader Preview Quad"),
+    ));
     
     // Add some default lighting
     commands.spawn((
@@ -195,11 +277,35 @@ fn editor_3d_input_system(
     }
 }
 
+fn update_shader_preview_texture(
+    mut images: ResMut<Assets<Image>>,
+    preview_tex: Res<ShaderPreviewTexture>,
+    ui_state: Res<crate::editor_ui::EditorUiState>,
+    audio_analyzer: Res<crate::audio_system::AudioAnalyzer>,
+) {
+    if let Ok(mut guard) = ui_state.global_renderer.renderer.lock() {
+        if let Some(ref mut renderer) = *guard {
+            let params = crate::shader_renderer::RenderParameters {
+                width: preview_tex.width,
+                height: preview_tex.height,
+                time: ui_state.time as f32,
+                frame_rate: 60.0,
+                audio_data: Some(audio_analyzer.get_audio_data()),
+            };
+            if let Ok(pixels) = renderer.render_frame(&ui_state.draft_code, &params, params.audio_data.clone()) {
+                if let Some(img) = images.get_mut(&preview_tex.handle) {
+                    img.data = Some(pixels);
+                }
+            }
+        }
+    }
+}
+
 /// Gizmo manipulation system for selected entities
 fn gizmo_manipulation_system(
     mut editor_state: ResMut<SceneEditor3DState>,
     mut manipulable_query: Query<&mut Transform, With<EditorManipulable>>,
-    mut mouse_motion_events: MessageReader<bevy::input::mouse::MouseMotion>,
+    mut mouse_motion_events: EventReader<bevy::input::mouse::MouseMotion>,
     mouse_button: Res<ButtonInput<MouseButton>>,
 ) {
     if !editor_state.enabled {
@@ -247,10 +353,10 @@ fn gizmo_manipulation_system(
 /// Update editor camera with pan/orbit controls
 fn update_editor_camera(
     mut camera_query: Query<(&mut Transform, &mut Projection), With<EditorCamera3D>>,
-    mut mouse_motion_events: MessageReader<bevy::input::mouse::MouseMotion>,
+    mut mouse_motion_events: EventReader<bevy::input::mouse::MouseMotion>,
     mouse_button: Res<ButtonInput<MouseButton>>,
     key_input: Res<ButtonInput<KeyCode>>,
-    mut mouse_wheel: MessageReader<bevy::input::mouse::MouseWheel>,
+    mut mouse_wheel: EventReader<bevy::input::mouse::MouseWheel>,
     time: Res<Time>,
 ) {
     if let Ok((mut transform, _projection)) = camera_query.single_mut() {

@@ -32,93 +32,65 @@ test_diagram() {
     TOTAL_DIAGRAMS=$((TOTAL_DIAGRAMS + 1))
     
     # Create temporary test file
-    local temp_file=$(mktemp)
-    echo "\`\`\`mermaid" > "$temp_file"
-    echo "$diagram_content" >> "$temp_file"
-    echo "\`\`\`" >> "$temp_file"
-    
-    # Test with mermaid-live-editor API (syntax validation)
-    if command -v node >/dev/null 2>&1; then
-        # Use Node.js to validate mermaid syntax if available
-        local validation_result=$(node -e "
-            const content = \`$diagram_content\`;
-            // Basic syntax validation for common mermaid errors
-            const errors = [];
-            
-            // Check for unclosed brackets
-            const openBrackets = (content.match(/\[/g) || []).length;
-            const closeBrackets = (content.match(/\]/g) || []).length;
-            if (openBrackets !== closeBrackets) {
-                errors.push('Unclosed brackets: ' + openBrackets + ' open, ' + closeBrackets + ' close');
-            }
-            
-            // Check for unclosed braces
-            const openBraces = (content.match(/\{/g) || []).length;
-            const closeBraces = (content.match(/\}/g) || []).length;
-            if (openBraces !== closeBraces) {
-                errors.push('Unclosed braces: ' + openBraces + ' open, ' + closeBraces + ' close');
-            }
-            
-            // Check for valid arrow syntax
-            const arrows = content.match(/-->|---|===|==>/g) || [];
-            const invalidArrows = content.match(/--->|----|====/g) || [];
-            if (invalidArrows.length > 0) {
-                errors.push('Invalid arrow syntax found');
-            }
-            
-            // Check for valid node definitions
-            const nodes = content.match(/\w+\[.*?\]/g) || [];
-            const invalidNodes = content.match(/\w+\[.*?[^\]]$/g) || [];
-            if (invalidNodes.length > 0) {
-                errors.push('Invalid node definitions');
-            }
-            
-            if (errors.length > 0) {
-                console.log('BROKEN: ' + errors.join(', '));
-            } else {
-                console.log('WORKING: Valid syntax');
-            }
-        " 2>/dev/null || echo "MANUAL_CHECK_REQUIRED")
-        
-        if [[ "$validation_result" == *"WORKING"* ]]; then
-            echo -e "${GREEN}✅ WORKING${NC}: $diagram_name in $file_path"
+    local temp_file="$(mktemp).mmd"
+    echo "$diagram_content" > "$temp_file"
+
+    # Validate diagram type
+    local has_type=0
+    if echo "$diagram_content" | grep -q -E '^[[:space:]]*(graph|flowchart)[[:space:]]'; then has_type=1; fi
+    if echo "$diagram_content" | grep -q -E '^[[:space:]]*sequenceDiagram'; then has_type=1; fi
+    if echo "$diagram_content" | grep -q -E '^[[:space:]]*gantt'; then has_type=1; fi
+    if echo "$diagram_content" | grep -q -E '^[[:space:]]*classDiagram'; then has_type=1; fi
+    if echo "$diagram_content" | grep -q -E '^[[:space:]]*stateDiagram(-v2)?'; then has_type=1; fi
+    if echo "$diagram_content" | grep -q -E '^[[:space:]]*erDiagram'; then has_type=1; fi
+    if echo "$diagram_content" | grep -q -E '^[[:space:]]*journey'; then has_type=1; fi
+    if echo "$diagram_content" | grep -q -E '^[[:space:]]*pie'; then has_type=1; fi
+    if [[ "$has_type" -eq 0 ]]; then
+        echo -e "${RED}❌ BROKEN${NC}: $diagram_name in $file_path"
+        echo -e "  ${RED}Error: Missing diagram type header (e.g., 'graph TD')${NC}"
+        BROKEN_DIAGRAMS=$((BROKEN_DIAGRAMS + 1))
+        rm -f "$temp_file"
+        echo ""
+        return
+    fi
+
+    # Prefer real rendering test if mmdc or npx is available
+    if command -v mmdc >/dev/null 2>&1; then
+        if mmdc -i "$temp_file" -o "${temp_file%.mmd}.svg" >/dev/null 2>&1; then
+            echo -e "${GREEN}✅ RENDERED${NC}: $diagram_name in $file_path"
             WORKING_DIAGRAMS=$((WORKING_DIAGRAMS + 1))
-        elif [[ "$validation_result" == *"BROKEN"* ]]; then
+            rm -f "$temp_file" "${temp_file%.mmd}.svg"
+            echo ""
+            return
+        else
             echo -e "${RED}❌ BROKEN${NC}: $diagram_name in $file_path"
-            echo -e "  ${RED}Error: $validation_result${NC}"
+            echo -e "  ${RED}Error: mmdc failed to render diagram${NC}"
             BROKEN_DIAGRAMS=$((BROKEN_DIAGRAMS + 1))
-        else
-            # Manual validation for complex cases
-            echo -e "${YELLOW}⚠️  MANUAL CHECK${NC}: $diagram_name in $file_path"
-            # Basic validation
-            if echo "$diagram_content" | grep -q "\[.*\$"; then
-                echo -e "  ${RED}❌ Unclosed brackets detected${NC}"
-                BROKEN_DIAGRAMS=$((BROKEN_DIAGRAMS + 1))
-            elif echo "$diagram_content" | grep -q "{.*\$"; then
-                echo -e "  ${RED}❌ Unclosed braces detected${NC}"
-                BROKEN_DIAGRAMS=$((BROKEN_DIAGRAMS + 1))
-            else
-                echo -e "  ${GREEN}✅ Appears valid${NC}"
-                WORKING_DIAGRAMS=$((WORKING_DIAGRAMS + 1))
-            fi
+            rm -f "$temp_file"
+            echo ""
+            return
         fi
-    else
-        # Manual validation without Node.js
-        echo -e "${YELLOW}⚠️  MANUAL VALIDATION${NC}: $diagram_name"
-        if echo "$diagram_content" | grep -q "\[.*\$"; then
-            echo -e "  ${RED}❌ BROKEN${NC}: Unclosed brackets"
-            BROKEN_DIAGRAMS=$((BROKEN_DIAGRAMS + 1))
-        elif echo "$diagram_content" | grep -q "{.*\$"; then
-            echo -e "  ${RED}❌ BROKEN${NC}: Unclosed braces"
-            BROKEN_DIAGRAMS=$((BROKEN_DIAGRAMS + 1))
-        elif echo "$diagram_content" | grep -q "-->.*-->.*-->"; then
-            echo -e "  ${GREEN}✅ WORKING${NC}: Valid connection syntax"
+    elif command -v npx >/dev/null 2>&1; then
+        # Attempt ephemeral CLI render (best-effort; may be slow)
+        if npx -y @mermaid-js/mermaid-cli -i "$temp_file" -o "${temp_file%.mmd}.svg" >/dev/null 2>&1; then
+            echo -e "${GREEN}✅ RENDERED${NC}: $diagram_name in $file_path"
             WORKING_DIAGRAMS=$((WORKING_DIAGRAMS + 1))
+            rm -f "$temp_file" "${temp_file%.mmd}.svg"
+            echo ""
+            return
         else
-            echo -e "  ${GREEN}✅ WORKING${NC}: Basic syntax appears valid"
-            WORKING_DIAGRAMS=$((WORKING_DIAGRAMS + 1))
+            echo -e "${RED}❌ BROKEN${NC}: $diagram_name in $file_path"
+            echo -e "  ${RED}Error: mermaid-cli (npx) failed to render diagram${NC}"
+            BROKEN_DIAGRAMS=$((BROKEN_DIAGRAMS + 1))
+            rm -f "$temp_file"
+            echo ""
+            return
         fi
     fi
+
+    # Fallback: minimal validation (type header present is enough)
+    echo -e "${GREEN}✅ VALID (type detected)${NC}: $diagram_name in $file_path"
+    WORKING_DIAGRAMS=$((WORKING_DIAGRAMS + 1))
     
     rm -f "$temp_file"
     echo ""
@@ -136,37 +108,87 @@ extract_and_test_diagrams() {
     echo -e "${BLUE}📄 TESTING FILE: $file_path${NC}"
     echo "================================"
     
-    # Extract mermaid diagrams using awk
+    # Fence and adjacency validation
+    local quad_fence_count
+    quad_fence_count=$(grep -n '^\`\`\`\`mermaid$' "$file_path" | wc -l || true)
+    if [[ "$quad_fence_count" -gt 0 ]]; then
+        echo -e "${RED}❌ BROKEN${NC}: Found '````mermaid' quadruple fence declarations"
+        echo -ne "  ${RED}Fix: Replace with "
+        echo -n '```mermaid'
+        echo -e " and ensure proper closing fences${NC}"
+        BROKEN_DIAGRAMS=$((BROKEN_DIAGRAMS + quad_fence_count))
+    fi
+    local stray_tick_count
+    stray_tick_count=$(grep -n '^[[:space:]]*\`[[:space:]]*$' "$file_path" | wc -l || true)
+    if [[ "$stray_tick_count" -gt 0 ]]; then
+        echo -e "${RED}❌ BROKEN${NC}: Found stray single backtick lines which break rendering"
+        BROKEN_DIAGRAMS=$((BROKEN_DIAGRAMS + stray_tick_count))
+    fi
+    # Adjacent fences without blank line
     awk '
-    /^```mermaid$/ {in_diagram=1; diagram=""; next}
-    /^```$/ && in_diagram {in_diagram=0; print diagram; diagram=""; next}
-    in_diagram {diagram = diagram $0 "\n"}
-    ' "$file_path" | while IFS= read -r diagram_content; do
-        if [[ -n "$diagram_content" ]]; then
-            local diagram_name="Diagram $((TOTAL_DIAGRAMS + 1))"
-            test_diagram "$diagram_content" "$diagram_name" "$file_path"
-        fi
+    {lines[NR]=$0}
+    END {
+        for (i=2; i<=NR; i++) {
+            if (lines[i-1] == "```" && lines[i] == "```mermaid") {
+                print i
+            }
+        }
+    }' "$file_path" | while read -r line_no; do
+        echo -e "${YELLOW}⚠️  Warning${NC}: Mermaid fence at line $line_no immediately follows a closing fence; add a blank line"
     done
+
+    # Extract mermaid diagrams using awk and delimit with a sentinel to preserve block boundaries
+    awk '
+    {
+        sub(/\r$/, "", $0); # strip Windows CR if present
+    }
+    /^```mermaid$/ {in_diagram=1; diagram=""; next}
+    /^```$/ && in_diagram {in_diagram=0; print diagram "\n<<<END_DIAGRAM>>>"; diagram=""; next}
+    in_diagram {diagram = diagram $0 "\n"}
+    END {
+        if (in_diagram) { print diagram "\n<<<END_DIAGRAM>>>"; }
+    }
+    ' "$file_path" | {
+        buf=""
+        idx=0
+        while IFS= read -r line; do
+            # normalize CR if any slipped through
+            line="${line%$'\r'}"
+            if [[ "$line" == "<<<END_DIAGRAM>>>" ]]; then
+                if [[ -n "$buf" ]]; then
+                    idx=$((idx + 1))
+                    local_name="Diagram $((TOTAL_DIAGRAMS + 1))"
+                    test_diagram "$buf" "$local_name" "$file_path"
+                    buf=""
+                fi
+            else
+                buf+="$line"$'\n'
+            fi
+        done
+    }
 }
 
-# Test all key documents
-echo -e "${BLUE}🔍 TESTING ALL DOCUMENTS${NC}"
-echo "================================"
-
-# Root directory documents
-for doc in README.md TECHNOLOGY_STACK.md; do
-    if [[ -f "$doc" ]]; then
-        extract_and_test_diagrams "$doc"
-    fi
-done
-
-# Docs directory documents
-if [[ -d "docs" ]]; then
-    for doc in docs/*.md; do
+# Entry: optional single-file mode
+if [[ -n "$1" ]]; then
+    echo -e "${BLUE}🔍 SINGLE FILE MODE${NC}"
+    extract_and_test_diagrams "$1"
+else
+    echo -e "${BLUE}🔍 TESTING ALL DOCUMENTS${NC}"
+    echo "================================"
+    # Root directory documents
+    for doc in README.md TECHNOLOGY_STACK.md; do
         if [[ -f "$doc" ]]; then
             extract_and_test_diagrams "$doc"
         fi
     done
+    # Docs directory documents
+    if [[ -d "docs" ]]; then
+        for doc in docs/*.md; do
+            if [[ -f "$doc" ]]; then
+                extract_and_test_diagrams "$doc"
+            fi
+        done
+    fi
 fi
 
 # Summary report

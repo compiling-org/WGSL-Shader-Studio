@@ -2969,11 +2969,7 @@ fn fs_main() -> @location(0) vec4<f32> {
         let (rect, _) = ui.allocate_exact_size(preview_size, egui::Sense::hover());
 
         // Subtle background
-        ui.painter().rect_filled(
-            rect,
-            egui::CornerRadius::same(4),
-            egui::Color32::from_rgb(20, 20, 25),
-        );
+        ui.painter().rect_filled(rect, egui::Rounding::same(4.0), egui::Color32::from_rgb(20, 20, 25));
 
         println!("🔥 GUI render loop: Attempting to render shader...");
         self.render_actual_shader_preview(ui, rect, preview_size);
@@ -3007,7 +3003,7 @@ fn fs_main() -> @location(0) vec4<f32> {
                         .fit_to_exact_size(preview_size);
                     ui.add(image);
                 } else {
-                    ui.painter().rect_filled(rect, egui::CornerRadius::same(4), egui::Color32::from_rgb(30, 30, 40));
+                    ui.painter().rect_filled(rect, egui::Rounding::same(4.0), egui::Color32::from_rgb(30, 30, 40));
                     ui.painter().text(
                         rect.center(),
                         egui::Align2::CENTER_CENTER,
@@ -3100,11 +3096,7 @@ fn fs_main() -> @location(0) vec4<f32> {
                 } else {
                     // Pixel data size mismatch - show error
                     println!("✗ Pixel data size mismatch! Expected: {}, Got: {}", expected_size, pixel_data.len());
-                    ui.painter().rect_filled(
-                        rect,
-                        egui::CornerRadius::same(4),
-                        egui::Color32::from_rgb(200, 50, 50),
-                    );
+                    ui.painter().rect_filled(rect, egui::Rounding::same(4.0), egui::Color32::from_rgb(200, 50, 50));
                     ui.painter().text(
                         rect.center(),
                         egui::Align2::CENTER_CENTER,
@@ -3117,11 +3109,7 @@ fn fs_main() -> @location(0) vec4<f32> {
             Err(e) => {
                 println!("✗ User shader rendering error: {}", e);
                 // Show error message
-                ui.painter().rect_filled(
-                    rect,
-                    egui::CornerRadius::same(4),
-                    egui::Color32::from_rgb(150, 50, 50),
-                );
+                ui.painter().rect_filled(rect, egui::Rounding::same(4.0), egui::Color32::from_rgb(150, 50, 50));
                 ui.painter().text(
                     rect.center(),
                     egui::Align2::CENTER_CENTER,

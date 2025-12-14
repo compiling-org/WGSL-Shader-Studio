@@ -4,72 +4,48 @@
 
 This document provides the comprehensive technical architecture for the WGSL Shader Studio, including all planned systems, data flows, and integration points.
 
+## Purpose & Scope
+
+This document is the planned technical architecture reference. It describes target systems and designs for WGSL Shader Studio. For the actual wired-but-incomplete state, see `docs/WGSL_Shader_Studio_Technical_Architecture_Current.md`.
+
 ## 🚨 Current Reality Check
 
-**⚠️ CRITICAL**: This project is currently **BROKEN** with 33 compilation errors and **0 working features**. All architecture described below represents the **PLANNED SYSTEMS** that need to be implemented.
-
 ```mermaid
-graph TD
-    A[WGSL Shader Studio Architecture] --> B{System Status}
-    B --> C[✅ Framework Ready]
-    B --> D[❌ Core Systems Missing]
-    B --> E[❌ Advanced Features Missing]
-    B --> F[❌ Integration Broken]
-    
+flowchart TD
+    A[WGSL Shader Studio Architecture] --> B[System Status]
+    B --> C[Framework Ready]
+    B --> D[Core Systems Missing]
+    B --> E[Advanced Features Missing]
+    B --> F[Integration Broken]
     C --> C1[Bevy 0.17 - Available]
     C --> C2[bevy_egui 0.38 - Available]
     C --> C3[Basic Window - Working]
-    
     D --> D1[WGPU Integration - Missing]
     D --> D2[Shader Compiler - Missing]
     D --> D3[File System - Missing]
     D --> D4[UI Layout - Broken]
-    
     E --> E1[Node Editor - Missing]
     E --> E2[Audio Analysis - Missing]
     E --> E3[Timeline - Missing]
     E --> E4[Export System - Missing]
-    
     F --> F1[33 Compilation Errors]
     F --> F2[Missing Dependencies]
     F --> F3[Broken Function Signatures]
-    
-    style A fill:#e3f2fd
-    style C fill:#4caf50
-    style D fill:#f44336
-    style E fill:#ff9800
-    style F fill:#d32f2f
 ```
-
 ## 🎯 Core Application Architecture
 
 ### Framework Foundation
 ```mermaid
-graph LR
-    subgraph "Available Framework"
-        A[Bevy 0.17] --> B[ECS Architecture]
-        C[bevy_egui 0.38] --> D[Immediate Mode GUI]
-        E[WGPU Backend] --> F[Cross-platform Graphics]
-    end
-    
-    subgraph "Application Structure"
-        G[main.rs] --> H{Feature Flag}
-        H -->|gui| I[bevy_app::run_app()]
-        H -->|cli| J[CLI Fallback]
-    end
-    
-    subgraph "Current Issues"
-        K[33 Compilation Errors] --> L[Broken UI System]
-        M[Missing WGPU] --> N[No Rendering]
-        O[No File System] --> P[Isolated Experience]
-    end
-    
-    style A fill:#2196f3
-    style C fill:#2196f3
-    style G fill:#4caf50
-    style K fill:#f44336
-    style M fill:#f44336
-    style O fill:#f44336
+flowchart LR
+    Bevy[Bevy 0.17] --> ECS[ECS Architecture]
+    Egui[bevy_egui 0.38] --> GUI[Immediate Mode GUI]
+    WGPU[WGPU Backend] --> GFX[Cross-platform Graphics]
+    Main[Main] --> FF[Feature Flag]
+    FF --> RunApp[Run App]
+    FF --> CLI[CLI Fallback]
+    Errors[Compilation Errors] --> BrokenUI[Broken UI System]
+    MissingWGPU[Missing WGPU] --> NoRender[No Rendering]
+    NoFS[No File System] --> Isolated[Isolated Experience]
 ```
 
 ### Application Entry Flow
@@ -98,7 +74,7 @@ sequenceDiagram
 
 ### Three-Panel Layout System
 ```mermaid
-graph TD
+flowchart TD
     A[Main Window] --> B[Menu Bar]
     A --> C[Panel Container]
     A --> D[Status Bar]
@@ -127,48 +103,23 @@ graph TD
     H --> H2[Error Console]
     H --> H3[Performance Graph]
     H --> H4[Audio Visualizer]
-    
-    style A fill:#e3f2fd
-    style B fill:#bbdefb
-    style E fill:#c8e6c9
-    style F fill:#fff3e0
-    style G fill:#f3e5f5
-    style H fill:#e8eaf6
 ```
 
 ### Panel Component Architecture
 ```mermaid
-graph LR
-    subgraph "Panel Management"
-        A[PanelManager] --> B[Layout Engine]
-        B --> C[Resize Handlers]
-        C --> D[Visibility Controls]
-        D --> E[Tab Switching]
-    end
-    
-    subgraph "UI Components"
-        F[egui::SidePanel] --> G[Left Panel]
-        H[egui::CentralPanel] --> I[Center Panel]
-        J[egui::SidePanel] --> K[Right Panel]
-        L[egui::TopBottomPanel] --> M[Bottom Panel]
-    end
-    
-    subgraph "Content Systems"
-        N[FileBrowserWidget] --> O[File Operations]
-        P[CodeEditorWidget] --> Q[Syntax Highlighting]
-        R[PreviewWidget] --> S[WGPU Rendering]
-        T[ParameterWidget] --> U[ISF Mapping]
-    end
-    
-    style A fill:#4caf50
-    style F fill:#2196f3
-    style H fill:#2196f3
-    style J fill:#2196f3
-    style L fill:#2196f3
-    style N fill:#ff9800
-    style P fill:#ff9800
-    style R fill:#ff9800
-    style T fill:#ff9800
+flowchart LR
+    PM[PanelManager] --> LE[Layout Engine]
+    LE --> RH[Resize Handlers]
+    RH --> VC[Visibility Controls]
+    VC --> TS[Tab Switching]
+    SP[egui::SidePanel] --> LP[Left Panel]
+    CPn[egui::CentralPanel] --> Cn[Center Panel]
+    RPs[egui::SidePanel] --> RP[Right Panel]
+    TB[egui::TopBottomPanel] --> BP[Bottom Panel]
+    FBW[FileBrowserWidget] --> FO[File Operations]
+    CEW[CodeEditorWidget] --> SH[Syntax Highlighting]
+    PW[PreviewWidget] --> WR[WGPU Rendering]
+    ParW[ParameterWidget] --> IM[ISF Mapping]
 ```
 
 ## 🔄 Data Flow Architecture

@@ -167,11 +167,10 @@ pub fn draw_editor_central_panel(
                         egui::ColorImage {
                             size: [render_params.width as usize, render_params.height as usize],
                             pixels: pixels.chunks(4).map(|c| egui::Color32::from_rgba_unmultiplied(c[0], c[1], c[2], c[3])).collect(),
-                            source_size: size,
                         },
                         egui::TextureOptions::default(),
                     );
-                    ui.image(egui::load::SizedTexture::from_handle(tex, size));
+                    ui.image(tex.id(), size);
                 }
                 Err(e) => {
                     ui_state.compilation_error = e.to_string();
