@@ -117,20 +117,28 @@ fn run_cli() {
             let input = &args[2];
             match std::fs::read_to_string(input) {
                 Ok(src) => {
-                    let transpiler = resolume_isf_shaders_rust_ffgl::shader_transpiler::MultiFormatTranspiler::new();
-                    let mut options = resolume_isf_shaders_rust_ffgl::shader_transpiler::TranspilerOptions::default();
-                    options.source_language = resolume_isf_shaders_rust_ffgl::shader_transpiler::ShaderLanguage::Hlsl;
-                    options.target_language = resolume_isf_shaders_rust_ffgl::shader_transpiler::ShaderLanguage::Wgsl;
-                    match transpiler.transpile(&src, &options) {
-                        Ok(res) => {
-                            let out_path = format!("{}.wgsl", input);
-                            if let Err(e) = std::fs::write(&out_path, res.source_code) {
-                                println!("Failed to write output: {}", e);
-                            } else {
-                                println!("Converted to {}", out_path);
+                    #[cfg(feature = "naga_integration")]
+                    {
+                        let transpiler = resolume_isf_shaders_rust_ffgl::shader_transpiler::MultiFormatTranspiler::new();
+                        let mut options = resolume_isf_shaders_rust_ffgl::shader_transpiler::TranspilerOptions::default();
+                        options.source_language = resolume_isf_shaders_rust_ffgl::shader_transpiler::ShaderLanguage::Hlsl;
+                        options.target_language = resolume_isf_shaders_rust_ffgl::shader_transpiler::ShaderLanguage::Wgsl;
+                        match transpiler.transpile(&src, &options) {
+                            Ok(res) => {
+                                let out_path = format!("{}.wgsl", input);
+                                if let Err(e) = std::fs::write(&out_path, res.source_code) {
+                                    println!("Failed to write output: {}", e);
+                                } else {
+                                    println!("Converted to {}", out_path);
+                                }
                             }
+                            Err(e) => println!("Conversion error: {}", e),
                         }
-                        Err(e) => println!("Conversion error: {}", e),
+                    }
+                    #[cfg(not(feature = "naga_integration"))]
+                    {
+                        println!("Feature 'naga_integration' is disabled; enable it to use transpiler");
+                        process::exit(1);
                     }
                 }
                 Err(e) => println!("Failed to read {}: {}", input, e),
@@ -248,7 +256,7 @@ fn test_node_graph() {
     println!("Added nodes: Noise2D ({:?}), Time ({:?})", noise_node, sine_node);
     
     // Test connecting nodes
-    graph.connect(noise_node, node_graph::PortId(0), sine_node, node_graph::PortId(0));
+    let _ = graph.connect(noise_node, node_graph::PortId(0), sine_node, node_graph::PortId(0));
     println!("✓ Nodes connected successfully");
     
     println!("Node graph test completed.");

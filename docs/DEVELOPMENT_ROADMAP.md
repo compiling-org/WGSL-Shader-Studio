@@ -59,6 +59,66 @@ graph TD
 - **Reference patterns integrated** — `use.gpu`, `bevy_shader_graph`, `egui_node_graph2` used; continue aligning types and data flow
 - **Focus** — remove brittle edges, unify state, wire controls to preview, and stabilize diagnostics
 
+## Actionable Goals & Success Criteria
+
+- Node Editor
+  - Canonicalize `bevy_node_graph_integration_enhanced.rs` as the single node system; deprecate parallel variants
+  - Complete node palette (inputs, math, vectors, textures, outputs) aligned to `ShaderNodeType`
+  - Implement per-node WGSL codegen and variable emission in `generate_wgsl` and `generate_node_variables`
+  - Add validation (type compatibility, cycles, missing inputs), connect to diagnostics overlay
+  - Success: Build graphs, compile WGSL, preview updates live; invalid graphs show actionable diagnostics
+
+- Graph → Preview
+  - Route `NodeGraphResource.graph.generate_wgsl()` into preview render in central tabs
+  - Provide graceful fallback textures and error overlays for invalid WGSL
+  - Success: Live graph edits update preview within one frame; errors non-crashing with visible messages
+
+- 3D Viewport
+  - Ensure viewport texture init/registration before use and stable camera/gizmo controls
+  - Render a basic mesh/material pipeline and sync uniforms (time/resolution) with timeline/audio
+  - Success: Stable 3D tab render; camera/gizmos functional; uniforms synced with animations
+
+- Preview & Renderer
+  - Single renderer initialization path with resize handling, present guarding, and error hooks
+  - Maintain fallback preview on compile errors; add small status overlays
+  - Success: No panic on resize or tab switch; continuous frames; fallback appears on failure
+
+- Parameters & Uniforms
+  - Wire parameter panel values to shader uniforms and node graph inputs
+  - Apply timeline outputs to parameters during render; evaluate curves per keyframe interpolation
+  - Success: Slider/timeline changes update preview deterministically; values reflected in uniforms
+
+- Timeline
+  - Maintain borrow-safe UI rendering using snapshots and ensure playback/loop/scrub work
+  - Add mini scrub overlay to preview central panel; pause playback on user scrub
+  - Success: Keyframes render correctly; playback drives curves; export/import JSON works
+
+- Audio/MIDI
+  - Map audio analyzer outputs (volume/bass/mid/treble) to uniforms and node parameters
+  - Implement MIDI CC mapping and a basic “MIDI learn” workflow
+  - Success: Audio-reactive shaders respond; MIDI controls adjust parameters live
+
+- Diagnostics
+  - Surface Naga/WGSL diagnostics in preview with structured overlays
+  - Validate node graphs (type mismatch, missing connections) with readable messages
+  - Success: Diagnostics are visible, actionable, and non-crashing
+
+- File Operations
+  - Implement open/save for shaders and node graphs; persist graph JSON; recent files list
+  - Success: Users can load/save shaders/graphs; state restored on startup
+
+- Export/Import
+  - ISF importer with parameter mapping and WGSL generation; connect FFGL export scaffolding
+  - Success: Import common ISF JSONs; generate valid WGSL; basic FFGL export compiles
+
+- Performance & Stability
+  - Add performance overlay metrics and optimize preview paths; guard egui/WGPU startup
+  - Success: Stable frame rate; no stutter; clean renderer logs on errors
+
+- Testing & CI
+  - Integration tests for node WGSL generation, preview render smoke, timeline evaluation, parameter binding
+  - Add Windows CI runner; headless codegen/validation checks
+  - Success: Green test suite; CI builds pass consistently
 ## FOUNDATION PHASE (Week 3-6) - BUILD CORE SYSTEMS
 
 ```mermaid

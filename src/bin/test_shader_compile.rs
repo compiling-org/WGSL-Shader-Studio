@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("✓ GPU adapter found: {:?}", adapter.get_info());
     
     // Create device and queue
-    let (device, queue) = adapter
+    let (device, _queue) = adapter
         .request_device(&wgpu::DeviceDescriptor::default())
         .await?;
     
@@ -52,7 +52,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         push_constant_ranges: &[],
     });
     
-    let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+    let _render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: Some("Test Render Pipeline"),
         layout: Some(&render_pipeline_layout),
         vertex: wgpu::VertexState {

@@ -56,15 +56,22 @@ impl EnforcementSystem {
     }
 
     pub fn record_file_modification(&mut self, file_path: &str) -> Result<()> {
-        let count = self.file_modification_counts.entry(file_path.to_string()).or_insert(0);
-        *count += 1;
+        let exceeded_limit = {
+            let count = self.file_modification_counts.entry(file_path.to_string()).or_insert(0);
+            *count += 1;
+            *count > self.max_file_changes_per_session
+        };
         self.last_activity = Utc::now();
-
-        if *count > self.max_file_changes_per_session {
-            self.add_violation(ViolationType::ExcessiveFileModifications, 
-                             format!("File '{}' modified {} times (max: {})", 
-                                   file_path, *count, self.max_file_changes_per_session),
-                             ViolationSeverity::Critical);
+        if exceeded_limit {
+            self.add_violation(
+                ViolationType::ExcessiveFileModifications,
+                format!(
+                    "File '{}' modified more than {} times",
+                    file_path,
+                    self.max_file_changes_per_session
+                ),
+                ViolationSeverity::Critical,
+            );
         }
 
         Ok(())
@@ -137,15 +144,13 @@ impl EnforcementSystem {
     }
 
     fn add_violation(&mut self, violation_type: ViolationType, description: String, severity: ViolationSeverity) {
+        println!("🚨 ENFORCEMENT VIOLATION: {:?} - {}", violation_type, description);
         let violation = Violation {
             timestamp: Utc::now(),
             violation_type,
             description,
             severity,
         };
-
-        println!("🚨 ENFORCEMENT VIOLATION: {:?} - {}", violation_type, violation.description);
-        
         self.violations.push(violation);
         self.last_activity = Utc::now();
 

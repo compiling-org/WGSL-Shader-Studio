@@ -205,7 +205,7 @@ fn draw_performance_overlay(
             let rect = response.rect;
             
             // Draw background
-            painter.rect_filled(rect, 0.0, egui::Color32::from_gray(30));
+            painter.rect_filled(rect, egui::CornerRadius::same(0u8), egui::Color32::from_gray(30));
             
             // Draw grid lines
             for i in 0..=4 {

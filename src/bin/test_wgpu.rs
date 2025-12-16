@@ -1,4 +1,4 @@
-use resolume_isf_shaders_rust_ffgl::shader_renderer::{ShaderRenderer, RenderParameters};
+use resolume_isf_shaders_rust_ffgl::shader_renderer::ShaderRenderer;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Testing WGPU renderer...");

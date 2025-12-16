@@ -212,34 +212,49 @@ impl WgslReflectAnalyzer {
                     ShaderStage::Compute
                 };
                 
-                // Look for function declaration
-                if let Some(next_line) = lines.peek() {
+                // Handle same-line declaration: "@fragment fn name(...)"
+                let same_line_fn = if line.contains("fn ") {
+                    Some(line.split("fn ").nth(1)
+                        .and_then(|s| s.split('(').next())
+                        .unwrap_or("unknown")
+                        .trim()
+                        .to_string())
+                } else { None };
+
+                let fn_name = if let Some(name) = same_line_fn {
+                    name
+                } else if let Some(next_line) = lines.peek() {
                     if next_line.contains("fn ") {
-                        let fn_name = next_line.split("fn ").nth(1)
+                        next_line.split("fn ").nth(1)
                             .and_then(|s| s.split('(').next())
                             .unwrap_or("unknown")
                             .trim()
-                            .to_string();
-                        
-                        let mut entry_point = EntryPointInfo {
-                            name: fn_name,
-                            stage: stage.clone(),
-                            workgroup_size: None,
-                            inputs: Vec::new(),
-                            outputs: Vec::new(),
-                        };
-                        
-                        // Extract workgroup size for compute shaders
-                        if matches!(stage, ShaderStage::Compute) && line.contains("workgroup_size") {
-                            if let Some(size_str) = line.split("workgroup_size").nth(1) {
-                                if let Some(sizes) = Self::parse_workgroup_size(size_str) {
-                                    entry_point.workgroup_size = Some(sizes);
-                                }
+                            .to_string()
+                    } else {
+                        "unknown".to_string()
+                    }
+                } else {
+                    "unknown".to_string()
+                };
+
+                if fn_name != "unknown" {
+                    let mut entry_point = EntryPointInfo {
+                        name: fn_name,
+                        stage: stage.clone(),
+                        workgroup_size: None,
+                        inputs: Vec::new(),
+                        outputs: Vec::new(),
+                    };
+                    
+                    if matches!(stage, ShaderStage::Compute) && line.contains("workgroup_size") {
+                        if let Some(size_str) = line.split("workgroup_size").nth(1) {
+                            if let Some(sizes) = Self::parse_workgroup_size(size_str) {
+                                entry_point.workgroup_size = Some(sizes);
                             }
                         }
-                        
-                        self.entry_points.push(entry_point);
                     }
+                    
+                    self.entry_points.push(entry_point);
                 }
             }
         }
@@ -257,23 +272,31 @@ impl WgslReflectAnalyzer {
         for line in wgsl_code.lines() {
             let line = line.trim();
             
-            // Look for @group attribute
-            if line.starts_with("@group") {
+            // Look for @group attribute (allow combined attribute lines)
+            if line.contains("@group(") {
                 if let Some(group_num) = Self::extract_group_number(line) {
-                    // Save previous group if exists
-                    if let Some(prev_group) = current_group {
-                        self.bind_groups.push(BindGroupInfo {
-                            group: prev_group,
-                            bindings: current_bindings.clone(),
-                        });
-                        current_bindings.clear();
+                    match current_group {
+                        None => {
+                            current_group = Some(group_num);
+                        }
+                        Some(prev_group) => {
+                            // Only finalize when the group number changes
+                            if prev_group != group_num {
+                                self.bind_groups.push(BindGroupInfo {
+                                    group: prev_group,
+                                    bindings: current_bindings.clone(),
+                                });
+                                current_bindings.clear();
+                                current_group = Some(group_num);
+                            }
+                            // If it's the same group, continue accumulating bindings
+                        }
                     }
-                    current_group = Some(group_num);
                 }
             }
             
-            // Look for @binding attribute
-            if line.starts_with("@binding") && current_group.is_some() {
+            // Look for @binding attribute (support both standalone and combined with @group)
+            if line.contains("@binding(") && current_group.is_some() {
                 if let Some(binding_info) = Self::extract_binding_info(line, wgsl_code) {
                     current_bindings.push(binding_info);
                 }

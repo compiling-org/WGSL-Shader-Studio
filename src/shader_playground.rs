@@ -134,7 +134,10 @@ fn shader_playground_ui(
     mut contexts: EguiContexts,
     mut playground_state: ResMut<ShaderPlaygroundState>,
 ) {
-    let ctx = contexts.ctx_mut();
+    let ctx = match contexts.ctx_mut() {
+        Ok(ctx) => ctx,
+        Err(_) => return,
+    };
     
     egui::Window::new("Shader Playground")
         .default_size([1200.0, 800.0])

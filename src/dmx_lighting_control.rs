@@ -443,8 +443,7 @@ impl Plugin for DmxLightingControlPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DmxConfig>()
             .insert_resource(DmxLightingControl::new(DmxConfig::default()))
-            .add_systems(Update, update_dmx_control)
-            .add_systems(Update, dmx_ui_system);
+            .add_systems(Update, update_dmx_control);
     }
 }
 
@@ -468,7 +467,6 @@ fn update_dmx_control(
     }
 }
 
-/// UI system to render DMX controls within the main editor
 fn dmx_ui_system(
     mut contexts: EguiContexts,
     mut config: ResMut<DmxConfig>,
@@ -484,7 +482,7 @@ fn dmx_ui_system(
     };
     egui::Window::new("DMX Lighting")
         .open(&mut ui_state.show_dmx_panel)
-        .show(&ctx, |ui| {
+        .show(ctx, |ui| {
             DmxUI::render_dmx_controls(ui, &mut *config, &mut *control);
         });
 }

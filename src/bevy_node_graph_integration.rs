@@ -186,12 +186,12 @@ pub fn draw_node_graph_ui(
                         
                         painter.rect_filled(
                             node_rect,
-                            egui::Rounding::same(4),
+                            egui::CornerRadius::same(4u8),
                             egui::Color32::from_gray(60)
                         );
                         painter.rect_stroke(
                             node_rect,
-                            egui::Rounding::same(4),
+                            egui::CornerRadius::same(4u8),
                             egui::Stroke::new(2.0, egui::Color32::WHITE),
                             egui::StrokeKind::Outside
                         );

@@ -203,8 +203,7 @@ impl Plugin for NdiOutputPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<NdiConfig>()
             .insert_resource(NdiOutput::new(NdiConfig::default()))
-            .add_systems(Update, update_ndi_output)
-            .add_systems(Update, ndi_ui_system);
+            .add_systems(Update, update_ndi_output);
     }
 }
 
@@ -219,11 +218,10 @@ fn update_ndi_output(
     }
 }
 
-/// UI system to render NDI controls within the main editor
 fn ndi_ui_system(
     mut contexts: EguiContexts,
     mut config: ResMut<NdiConfig>,
-    output: Res<NdiOutput>,
+    mut output: ResMut<NdiOutput>,
     mut ui_state: ResMut<crate::editor_ui::EditorUiState>,
 ) {
     if !ui_state.show_ndi_panel {
@@ -235,8 +233,8 @@ fn ndi_ui_system(
     };
     egui::Window::new("NDI Output")
         .open(&mut ui_state.show_ndi_panel)
-        .show(&ctx, |ui| {
-            NdiUI::render_ndi_controls(ui, &mut *config, &*output);
+        .show(ctx, |ui| {
+            NdiUI::render_ndi_controls(ui, &mut *config, &mut *output);
         });
 }
 
@@ -247,7 +245,7 @@ impl NdiUI {
     pub fn render_ndi_controls(
         ui: &mut egui::Ui,
         config: &mut NdiConfig,
-        output: &NdiOutput,
+        output: &mut NdiOutput,
     ) {
         ui.heading("🌐 NDI Output");
         
@@ -323,13 +321,11 @@ impl NdiUI {
             ui.horizontal(|ui| {
                 if status.is_running {
                     if ui.button("⏹ Stop Output").clicked() {
-                        // This would trigger stop via system
-                        println!("NDI stop requested");
+                        let _ = output.stop();
                     }
                 } else {
                     if ui.button("▶ Start Output").clicked() {
-                        // This would trigger start via system
-                        println!("NDI start requested");
+                        let _ = output.start();
                     }
                 }
             });

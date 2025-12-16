@@ -251,8 +251,7 @@ impl Plugin for SpoutSyphonOutputPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SpoutSyphonConfig>()
             .insert_resource(SpoutSyphonOutput::new(SpoutSyphonConfig::default()))
-            .add_systems(Update, update_spout_syphon_output)
-            .add_systems(Update, spout_syphon_ui_system);
+            .add_systems(Update, update_spout_syphon_output);
     }
 }
 
@@ -267,11 +266,10 @@ fn update_spout_syphon_output(
     }
 }
 
-/// UI system to render Spout/Syphon controls within the main editor
 fn spout_syphon_ui_system(
     mut contexts: EguiContexts,
     mut config: ResMut<SpoutSyphonConfig>,
-    output: Res<SpoutSyphonOutput>,
+    mut output: ResMut<SpoutSyphonOutput>,
     mut ui_state: ResMut<crate::editor_ui::EditorUiState>,
 ) {
     if !ui_state.show_spout_panel {
@@ -283,8 +281,8 @@ fn spout_syphon_ui_system(
     };
     egui::Window::new("Spout/Syphon")
         .open(&mut ui_state.show_spout_panel)
-        .show(&ctx, |ui| {
-            SpoutSyphonUI::render_spout_syphon_controls(ui, &mut *config, &*output);
+        .show(ctx, |ui| {
+            SpoutSyphonUI::render_spout_syphon_controls(ui, &mut *config, &mut *output);
         });
 }
 
@@ -295,7 +293,7 @@ impl SpoutSyphonUI {
     pub fn render_spout_syphon_controls(
         ui: &mut egui::Ui,
         config: &mut SpoutSyphonConfig,
-        output: &SpoutSyphonOutput,
+        output: &mut SpoutSyphonOutput,
     ) {
         let platform_name = match config.platform {
             Platform::Windows => "Spout",
@@ -374,13 +372,11 @@ impl SpoutSyphonUI {
             ui.horizontal(|ui| {
                 if status.is_running {
                     if ui.button("⏹ Stop Output").clicked() {
-                        // This would trigger stop via system
-                        println!("{} stop requested", platform_name);
+                        let _ = output.stop();
                     }
                 } else {
                     if ui.button("▶ Start Output").clicked() {
-                        // This would trigger start via system
-                        println!("{} start requested", platform_name);
+                        let _ = output.start();
                     }
                 }
             });

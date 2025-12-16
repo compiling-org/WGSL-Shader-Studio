@@ -87,6 +87,20 @@ impl OscControl {
             connection_status: "Not initialized".to_string(),
         }
     }
+    
+    pub fn add_mapping(&mut self, mapping: OscMapping) {
+        self.mappings.retain(|m| m.parameter_name != mapping.parameter_name);
+        self.mappings.push(mapping);
+    }
+    
+    pub fn remove_mapping_for_parameter(&mut self, parameter_name: &str) {
+        self.mappings.retain(|m| m.parameter_name != parameter_name);
+        self.parameter_values.remove(parameter_name);
+    }
+    
+    pub fn get_mapping_for_parameter(&self, parameter_name: &str) -> Option<&OscMapping> {
+        self.mappings.iter().find(|m| m.parameter_name == parameter_name)
+    }
 
     /// Initialize OSC control
     pub fn initialize(&mut self) -> Result<(), String> {
@@ -288,8 +302,7 @@ impl Plugin for OscControlPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<OscConfig>()
             .insert_resource(OscControl::new(OscConfig::default()))
-            .add_systems(Update, update_osc_control)
-            .add_systems(Update, osc_ui_system);
+            .add_systems(Update, update_osc_control);
     }
 }
 
@@ -304,7 +317,6 @@ fn update_osc_control(
     }
 }
 
-/// UI system to render OSC controls within the main editor
 fn osc_ui_system(
     mut contexts: EguiContexts,
     mut config: ResMut<OscConfig>,
@@ -320,7 +332,7 @@ fn osc_ui_system(
     };
     egui::Window::new("OSC Control")
         .open(&mut ui_state.show_osc_panel)
-        .show(&ctx, |ui| {
+        .show(ctx, |ui| {
             OscUI::render_osc_controls(ui, &mut *config, &*control);
         });
 }

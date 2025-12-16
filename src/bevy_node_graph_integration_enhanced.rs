@@ -49,8 +49,7 @@ pub struct NodeGraphResource {
 
 impl Default for NodeGraphResource {
     fn default() -> Self {
-        let mut graph = ShaderNodeGraph::default();
-        graph.create_default_shader_graph();
+        let graph = ShaderNodeGraph::default();
         
         Self {
             graph,
@@ -277,11 +276,11 @@ impl ShaderNodeGraph {
             vec!["color".to_string()], vec![]);
         
         // Connect nodes for animated gradient
-        self.connect(time_node, 0, sin_node, 0);
-        self.connect(sin_node, 0, color_mix_node, 2); // Use sin(time) as mix factor
-        self.connect(uv_node, 0, color_mix_node, 0); // UV as first color
-        self.connect(time_node, 0, color_mix_node, 1); // Time as second color
-        self.connect(color_mix_node, 0, output_node, 0);
+        let _ = self.connect(time_node, 0, sin_node, 0);
+        let _ = self.connect(sin_node, 0, color_mix_node, 2);
+        let _ = self.connect(uv_node, 0, color_mix_node, 0);
+        let _ = self.connect(time_node, 0, color_mix_node, 1);
+        let _ = self.connect(color_mix_node, 0, output_node, 0);
     }
     
     /// Clear all nodes and connections
@@ -443,28 +442,45 @@ impl ShaderNodeGraph {
         wgsl.push_str("    @location(0) uv: vec2<f32>,\n");
         wgsl.push_str("}\n\n");
         
-        // Add uniform struct
+        // Add uniform struct (aligned with renderer expectations)
         wgsl.push_str("struct Uniforms {\n");
         wgsl.push_str("    time: f32,\n");
         wgsl.push_str("    resolution: vec2<f32>,\n");
         wgsl.push_str("    mouse: vec2<f32>,\n");
+        wgsl.push_str("    audio_volume: f32,\n");
+        wgsl.push_str("    audio_bass: f32,\n");
+        wgsl.push_str("    audio_mid: f32,\n");
+        wgsl.push_str("    audio_treble: f32,\n");
+        wgsl.push_str("    _padding: i32,\n");
         wgsl.push_str("}\n\n");
         
         // Add uniforms binding
         wgsl.push_str("@group(0) @binding(0) var<uniform> uniforms: Uniforms;\n\n");
         
-        // Add vertex shader
+        // Fullscreen triangle vertex shader compatible with pipeline (no vertex buffers)
         wgsl.push_str("@vertex\n");
-        wgsl.push_str("fn vertex_main(@location(0) position: vec2<f32>) -> VertexOutput {\n");
-        wgsl.push_str("    var output: VertexOutput;\n");
-        wgsl.push_str("    output.position = vec4<f32>(position, 0.0, 1.0);\n");
-        wgsl.push_str("    output.uv = position * 0.5 + 0.5;\n");
-        wgsl.push_str("    return output;\n");
+        wgsl.push_str("fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {\n");
+        wgsl.push_str("    var out: VertexOutput;\n");
+        wgsl.push_str("    var pos = vec2<f32>(0.0, 0.0);\n");
+        wgsl.push_str("    switch vertex_index {\n");
+        wgsl.push_str("        case 0u: { pos = vec2<f32>(-1.0, -1.0); }\n");
+        wgsl.push_str("        case 1u: { pos = vec2<f32>( 3.0, -1.0); }\n");
+        wgsl.push_str("        case 2u: { pos = vec2<f32>(-1.0,  3.0); }\n");
+        wgsl.push_str("        default: { pos = vec2<f32>(0.0, 0.0); }\n");
+        wgsl.push_str("    }\n");
+        wgsl.push_str("    out.position = vec4<f32>(pos, 0.0, 1.0);\n");
+        wgsl.push_str("    out.uv = pos * 0.5 + vec2<f32>(0.5, 0.5);\n");
+        wgsl.push_str("    return out;\n");
+        wgsl.push_str("}\n\n");
+        
+        // Helper function for color mixing (WGSL does not have GLSL mix)
+        wgsl.push_str("fn mix3(a: vec3<f32>, b: vec3<f32>, t: f32) -> vec3<f32> {\n");
+        wgsl.push_str("    return a + t * (b - a);\n");
         wgsl.push_str("}\n\n");
         
         // Generate fragment shader
         wgsl.push_str("@fragment\n");
-        wgsl.push_str("fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {\n");
+        wgsl.push_str("fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {\n");
         wgsl.push_str("    let uv = input.uv;\n");
         wgsl.push_str("    var color = vec3<f32>(0.0);\n\n");
         
@@ -480,6 +496,19 @@ impl ShaderNodeGraph {
         // Add generated variables to WGSL
         for (var_name, var_code) in node_vars {
             wgsl.push_str(&format!("    {}\n", var_code));
+        }
+        
+        // Determine final color: prefer FragmentOutput input, else Color node, else gradient
+        if let Some((frag_id, _)) = self.nodes.iter().find(|(_, n)| matches!(n.node_type, ShaderNodeType::FragmentOutput)) {
+            if let Some(conn) = self.connections.iter().find(|c| c.to_node == *frag_id) {
+                wgsl.push_str(&format!("    color = {};\n", self.get_connection_variable(conn)));
+            } else {
+                wgsl.push_str("    color = vec3<f32>(uv.x, uv.y, 0.5);\n");
+            }
+        } else if let Some((color_id, _)) = self.nodes.iter().find(|(_, n)| matches!(n.node_type, ShaderNodeType::Color)) {
+            wgsl.push_str(&format!("    color = node_{}_color;\n", color_id.0));
+        } else {
+            wgsl.push_str("    color = vec3<f32>(uv.x, uv.y, 0.5);\n");
         }
         
         wgsl.push_str("\n    return vec4<f32>(color, 1.0);\n");
@@ -536,7 +565,7 @@ impl ShaderNodeGraph {
                     self.get_input_connection(node.id, 1),
                     self.get_input_connection(node.id, 2)
                 ) {
-                    Ok(format!("let node_{}_result = mix({}, {}, {});", 
+                    Ok(format!("let node_{}_result = mix3({}, {}, {});", 
                         node.id.0, 
                         self.get_connection_variable(&a_conn),
                         self.get_connection_variable(&b_conn),
@@ -831,7 +860,10 @@ fn draw_node_graph_toolbar(
     if !ui_state.show_node_studio {
         return;
     }
-    let ctx = egui_ctx.ctx_mut().expect("egui ctx");
+    let ctx = match egui_ctx.ctx_mut() {
+        Ok(ctx) => ctx,
+        Err(_) => return,
+    };
     
     egui::TopBottomPanel::top("node_graph_toolbar")
         .show(ctx, |ui| {
@@ -989,7 +1021,10 @@ fn draw_node_graph_ui(
     if !ui_state.show_node_studio {
         return;
     }
-    let ctx = egui_ctx.ctx_mut().expect("egui ctx");
+    let ctx = match egui_ctx.ctx_mut() {
+        Ok(ctx) => ctx,
+        Err(_) => return,
+    };
     
     egui::Window::new("Shader Graph Editor")
         .default_size([900.0, 600.0])

@@ -392,7 +392,10 @@ fn shader_graph_editor_system(
         return;
     }
     
-    let ctx = contexts.ctx_mut();
+    let ctx = match contexts.ctx_mut() {
+        Ok(ctx) => ctx,
+        Err(_) => return,
+    };
     
     egui::Window::new("Shader Graph Editor")
         .default_pos((100.0, 100.0))

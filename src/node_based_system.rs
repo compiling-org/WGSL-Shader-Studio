@@ -1253,30 +1253,27 @@ fn noise_2d(p: vec2<f32>) -> f32 {
     fn generate_main_function(&mut self, graph: &NodeGraph) -> Result<(), String> {
         self.main_function_body.push("var uv = (vec2<f32>(vertex_index % 2u, vertex_index / 2u) * 2.0 - 1.0);".to_string());
         self.main_function_body.push("var position = uv * vec2<f32>(1.0, -1.0);".to_string());
-        
-        // Generate node execution code
         for node in graph.nodes.values() {
-            self.generate_node_execution(node)?;
+            self.generate_node_execution(graph, node)?;
         }
-        
-        // Generate output assignments
         for node in graph.nodes.values() {
             match &node.node_type {
                 NodeType::ColorOutputNode => {
-                    self.output_assignments.push("frag_color = vec4<f32>(color_output, 1.0);".to_string());
+                    let expr = self.resolve_input_expr(graph, node, "color");
+                    self.output_assignments.push(format!("frag_color = {};", expr));
                 },
                 NodeType::FloatOutputNode => {
-                    self.output_assignments.push("frag_color = vec4<f32>(float_output, float_output, float_output, 1.0);".to_string());
+                    let expr = self.resolve_input_expr(graph, node, "value");
+                    self.output_assignments.push(format!("frag_color = vec4<f32>({e}, {e}, {e}, 1.0);", e = expr));
                 },
                 _ => {}
             }
         }
-        
         Ok(())
     }
 
-    fn generate_node_execution(&mut self, node: &Node) -> Result<(), String> {
-        let node_var = node.name.to_lowercase().replace(' ', "_");
+    fn generate_node_execution(&mut self, graph: &NodeGraph, node: &Node) -> Result<(), String> {
+        let node_var = self.var_name_for(node);
         
         match &node.node_type {
             NodeType::TimeNode => {
@@ -1285,42 +1282,81 @@ fn noise_2d(p: vec2<f32>) -> f32 {
             
             NodeType::FloatInputNode => {
                 if let Some(PropertyValue::Float(_value)) = node.properties.get("value") {
-                    self.main_function_body.push(format!("let {} = {};", node_var, node_var));
+                    let expr = self.resolve_input_expr(graph, node, "value");
+                    self.main_function_body.push(format!("let {} = {};", node_var, expr));
                 }
             },
             
             NodeType::AddNode => {
-                self.main_function_body.push(format!("let {} = a + b;", node_var));
+                let a = self.resolve_input_expr(graph, node, "a");
+                let b = self.resolve_input_expr(graph, node, "b");
+                self.main_function_body.push(format!("let {} = {} + {};", node_var, a, b));
             },
             
             NodeType::MultiplyNode => {
-                self.main_function_body.push(format!("let {} = a * b;", node_var));
+                let a = self.resolve_input_expr(graph, node, "a");
+                let b = self.resolve_input_expr(graph, node, "b");
+                self.main_function_body.push(format!("let {} = {} * {};", node_var, a, b));
             },
             
             NodeType::SineNode => {
-                self.main_function_body.push(format!("let {} = sin(input);", node_var));
+                let inp = self.resolve_input_expr(graph, node, "input");
+                self.main_function_body.push(format!("let {} = sin({});", node_var, inp));
             },
             
             NodeType::Vec2ComposeNode => {
-                self.main_function_body.push(format!("let {} = vec2<f32>(x, y);", node_var));
+                let x = self.resolve_input_expr(graph, node, "x");
+                let y = self.resolve_input_expr(graph, node, "y");
+                self.main_function_body.push(format!("let {} = vec2<f32>({}, {});", node_var, x, y));
             },
             
             NodeType::Vec3ComposeNode => {
-                self.main_function_body.push(format!("let {} = vec3<f32>(x, y, z);", node_var));
+                let x = self.resolve_input_expr(graph, node, "x");
+                let y = self.resolve_input_expr(graph, node, "y");
+                let z = self.resolve_input_expr(graph, node, "z");
+                self.main_function_body.push(format!("let {} = vec3<f32>({}, {}, {});", node_var, x, y, z));
             },
             
             NodeType::ColorComposeNode => {
-                self.main_function_body.push(format!("let {} = vec4<f32>(r, g, b, a);", node_var));
+                let r = self.resolve_input_expr(graph, node, "r");
+                let g = self.resolve_input_expr(graph, node, "g");
+                let b = self.resolve_input_expr(graph, node, "b");
+                let a = self.resolve_input_expr(graph, node, "a");
+                self.main_function_body.push(format!("let {} = vec4<f32>({}, {}, {}, {});", node_var, r, g, b, a));
             },
             
             NodeType::NoiseNode => {
-                self.main_function_body.push(format!("let {} = noise_2d(position * scale);", node_var));
+                let position = self.resolve_input_expr(graph, node, "position");
+                let scale = self.resolve_input_expr(graph, node, "scale");
+                self.main_function_body.push(format!("let {} = noise_2d({} * {});", node_var, position, scale));
             },
             
             _ => {}
         }
         
         Ok(())
+    }
+
+    fn var_name_for(&self, node: &Node) -> String {
+        let mut s = node.id.to_string();
+        s = s.replace('-', "_");
+        format!("n_{}", s)
+    }
+
+    fn resolve_input_expr(&self, graph: &NodeGraph, node: &Node, port_name: &str) -> String {
+        if let Some(input_port) = node.inputs.get(port_name) {
+            if input_port.connected {
+                for connection in graph.connections.values() {
+                    if connection.target_node_id == node.id && connection.target_port == port_name {
+                        if let Some(src_node) = graph.nodes.get(&connection.source_node_id) {
+                            return self.var_name_for(src_node);
+                        }
+                    }
+                }
+            }
+            return input_port.value.to_wgsl_string();
+        }
+        "0.0".to_string()
     }
 
     fn get_complete_shader(&self) -> String {

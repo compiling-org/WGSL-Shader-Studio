@@ -29,6 +29,7 @@ pub mod shader_converter;
 pub mod shader_renderer;
 pub mod isf_loader;
 pub mod isf_converter;
+pub mod enforcement_system;
 
 // Re-export new integration modules
 
@@ -360,8 +361,6 @@ mod tests {
 // Module declarations
 // Keep unique module declarations only; duplicates are defined above
 pub mod ui;
-#[cfg(feature = "gui")]
-pub mod gui;
 pub mod wgsl_bindgen_integration;
 pub mod wgsl_diagnostics;
 pub mod isf_auto_converter;
@@ -384,9 +383,13 @@ pub mod visual_node_editor;
 pub mod visual_node_editor_plugin;
 pub mod visual_node_editor_adapter;
 pub mod gyroflow_wgpu_interop;
+#[cfg(feature = "naga_integration")]
 pub mod shader_transpiler;
+#[cfg(feature = "naga_integration")]
 pub mod advanced_shader_compilation;
+#[cfg(feature = "naga_integration")]
 pub mod wgsl_ast_parser;
+#[cfg(feature = "naga_integration")]
 pub mod shader_module_system;
 
 // Re-export main types for easier use

@@ -422,7 +422,7 @@ pub fn draw_timeline_ui(ui: &mut Ui, timeline: &mut TimelineAnimation) {
                     let rect = bevy_egui::egui::Rect::from_min_size(ui.cursor().min, bevy_egui::egui::vec2(timeline_width, ruler_height));
                     
                     // Draw ruler background
-                    painter.rect_filled(rect, 0.0, Color32::from_gray(40));
+                    painter.rect_filled(rect, bevy_egui::egui::CornerRadius::same(0u8), Color32::from_gray(40));
                     
                     // Draw time markers
                     let time_per_pixel = timeline.timeline.duration / timeline_width;
@@ -464,6 +464,11 @@ pub fn draw_timeline_ui(ui: &mut Ui, timeline: &mut TimelineAnimation) {
             let track_names: Vec<String> = timeline.timeline.tracks.keys().cloned().collect();
             
             for track_name in &track_names {
+                let (track_enabled_snapshot, track_color_snapshot, keyframes_snapshot) = if let Some(track) = timeline.timeline.tracks.get(track_name) {
+                    (track.enabled, track.color, track.keyframes.clone())
+                } else {
+                    (true, [0.2, 0.2, 0.2, 1.0], Vec::new())
+                };
                 ui.horizontal(|ui| {
                     // Track header - get mutable access to the track
                     ui.vertical(|ui| {
@@ -475,12 +480,7 @@ pub fn draw_timeline_ui(ui: &mut Ui, timeline: &mut TimelineAnimation) {
                         }
                     });
                     
-                    // Track timeline - get track reference outside the closure
-                    let track_enabled = if let Some(track) = timeline.timeline.tracks.get(track_name) {
-                        track.enabled
-                    } else {
-                        true // Default to enabled if track not found
-                    };
+                    let track_enabled = track_enabled_snapshot;
                     
                     ui.allocate_ui(bevy_egui::egui::vec2(timeline_width - 60.0, track_height), |ui| {
                         ui.scope(|ui| {
@@ -493,60 +493,56 @@ pub fn draw_timeline_ui(ui: &mut Ui, timeline: &mut TimelineAnimation) {
                             } else {
                                 Color32::from_gray(15) // Darker when disabled
                             };
-                            painter.rect_filled(rect, 2.0, bg_color);
+                            painter.rect_filled(rect, bevy_egui::egui::CornerRadius::same(2u8), bg_color);
                             
                             // Draw track color indicator (dimmed when disabled)
-                            if let Some(track) = timeline.timeline.tracks.get(track_name) {
-                                let color_alpha = if track.enabled { track.color[3] } else { track.color[3] * 0.3 };
-                                let color_rect = bevy_egui::egui::Rect::from_min_max(
-                                    rect.left_top(),
-                                    bevy_egui::egui::pos2(rect.left() + 4.0, rect.bottom())
-                                );
-                                painter.rect_filled(color_rect, 0.0, Color32::from_rgba_unmultiplied(
-                                    (track.color[0] * 255.0) as u8,
-                                    (track.color[1] * 255.0) as u8,
-                                    (track.color[2] * 255.0) as u8,
-                                    (color_alpha * 255.0) as u8
-                                ));
-                                
-                                // Draw keyframes (dimmed when disabled)
-                                if track.enabled {
-                                    let time_per_pixel = timeline.timeline.duration / (timeline_width - 60.0);
-                                    for keyframe in track.keyframes.iter() {
-                                        let x = rect.left() + 10.0 + (keyframe.time / time_per_pixel);
-                                        let y = rect.center().y;
-                                        
-                                        let keyframe_color = match keyframe.interpolation {
-                                            InterpolationType::Linear => Color32::from_rgb(100, 200, 255),
-                                            InterpolationType::EaseIn => Color32::from_rgb(255, 200, 100),
-                                            InterpolationType::EaseOut => Color32::from_rgb(200, 255, 100),
-                                            InterpolationType::EaseInOut => Color32::from_rgb(255, 100, 200),
-                                            InterpolationType::Step => Color32::from_rgb(200, 100, 255),
-                                        };
-                                        
-                                        painter.circle_filled(bevy_egui::egui::pos2(x, y), 4.0, keyframe_color);
-                                        painter.circle_stroke(bevy_egui::egui::pos2(x, y), 5.0, (1.0, Color32::WHITE));
-                                    }
+                            let color_alpha = if track_enabled { track_color_snapshot[3] } else { track_color_snapshot[3] * 0.3 };
+                            let color_rect = bevy_egui::egui::Rect::from_min_max(
+                                rect.left_top(),
+                                bevy_egui::egui::pos2(rect.left() + 4.0, rect.bottom())
+                            );
+                            painter.rect_filled(color_rect, bevy_egui::egui::CornerRadius::same(0u8), Color32::from_rgba_unmultiplied(
+                                (track_color_snapshot[0] * 255.0) as u8,
+                                (track_color_snapshot[1] * 255.0) as u8,
+                                (track_color_snapshot[2] * 255.0) as u8,
+                                (color_alpha * 255.0) as u8
+                            ));
+                            
+                            // Draw keyframes (dimmed when disabled)
+                            if track_enabled {
+                                let time_per_pixel = timeline.timeline.duration / (timeline_width - 60.0);
+                                for keyframe in keyframes_snapshot.iter() {
+                                    let x = rect.left() + 10.0 + (keyframe.time / time_per_pixel);
+                                    let y = rect.center().y;
+                                    
+                                    let keyframe_color = match keyframe.interpolation {
+                                        InterpolationType::Linear => Color32::from_rgb(100, 200, 255),
+                                        InterpolationType::EaseIn => Color32::from_rgb(255, 200, 100),
+                                        InterpolationType::EaseOut => Color32::from_rgb(200, 255, 100),
+                                        InterpolationType::EaseInOut => Color32::from_rgb(255, 100, 200),
+                                        InterpolationType::Step => Color32::from_rgb(200, 100, 255),
+                                    };
+                                    
+                                    painter.circle_filled(bevy_egui::egui::pos2(x, y), 4.0, keyframe_color);
+                                    painter.circle_stroke(bevy_egui::egui::pos2(x, y), 5.0, (1.0, Color32::WHITE));
                                 }
                             }
                         });
                         
                         // Keyframe tooltips (only when enabled and outside painter scope)
                         if track_enabled {
-                            if let Some(track) = timeline.timeline.tracks.get(track_name) {
-                                let time_per_pixel = timeline.timeline.duration / (timeline_width - 60.0);
-                                for keyframe in track.keyframes.iter() {
-                                    let x = ui.cursor().min.x + 10.0 + (keyframe.time / time_per_pixel);
-                                    let y = ui.cursor().min.y + track_height / 2.0;
-                                    
-                                    let keyframe_rect = bevy_egui::egui::Rect::from_center_size(bevy_egui::egui::pos2(x, y), bevy_egui::egui::vec2(10.0, 10.0));
-                                    // Tooltip temporarily disabled for compilation
-                                    // if ui.rect_contains_pointer(keyframe_rect) {
-                                    //     bevy_egui::egui::show_tooltip_at_pointer(ui.ctx(), bevy_egui::egui::Id::new(format!("keyframe_tooltip_{}", track_name)), |ui| {
-                                    //         ui.label(format!("Time: {:.2}s\nValue: {:.3}", keyframe.time, keyframe.value));
-                                    //     });
-                                    // }
-                                }
+                            let time_per_pixel = timeline.timeline.duration / (timeline_width - 60.0);
+                            for keyframe in keyframes_snapshot.iter() {
+                                let x = ui.cursor().min.x + 10.0 + (keyframe.time / time_per_pixel);
+                                let y = ui.cursor().min.y + track_height / 2.0;
+                                
+                                let _keyframe_rect = bevy_egui::egui::Rect::from_center_size(bevy_egui::egui::pos2(x, y), bevy_egui::egui::vec2(10.0, 10.0));
+                                // Tooltip temporarily disabled for compilation
+                                // if ui.rect_contains_pointer(keyframe_rect) {
+                                //     bevy_egui::egui::show_tooltip_at_pointer(ui.ctx(), bevy_egui::egui::Id::new(format!("keyframe_tooltip_{}", track_name)), |ui| {
+                                //         ui.label(format!("Time: {:.2}s\nValue: {:.3}", keyframe.time, keyframe.value));
+                                //     });
+                                // }
                             }
                         }
                     });

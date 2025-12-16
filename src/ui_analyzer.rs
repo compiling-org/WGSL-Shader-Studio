@@ -832,6 +832,9 @@ impl UIAnalyzer {
         
         // Validate critical systems
         self.validate_critical_systems();
+
+        self.check_documentation_compliance();
+        self.validate_panel_headings();
     }
 
     fn diagnose_wgpu_state(&mut self) {
@@ -945,6 +948,46 @@ impl UIAnalyzer {
                 // This is good - no CPU fallback
             } else if editor_content.contains("SoftwareShaderRenderer") {
                 self.runtime_errors.push("CRITICAL: Software shader renderer still present".to_string());
+            }
+        }
+    }
+
+    fn check_documentation_compliance(&mut self) {
+        let required_docs = vec![
+            ("DRASTIC_MEASURES_TO_PREVENT_PSYCHOTIC_LOOPS.md", "Drastic measures doc"),
+            ("PSYCHOTIC_LOOP_ANALYSIS.md", "Psychotic loop analysis"),
+            ("UI_AUDIT_REPORT.md", "UI audit report"),
+            ("COMPREHENSIVE_FEATURE_VERIFICATION.md", "Feature verification"),
+            ("COMPLETE_FEATURE_AUDIT.md", "Complete feature audit"),
+        ];
+        for (path, _desc) in required_docs {
+            if !Path::new(path).exists() {
+                self.runtime_errors.push(format!("MISSING DOCUMENTATION: {}", path));
+            }
+        }
+    }
+
+    fn validate_panel_headings(&mut self) {
+        if let Ok(editor_content) = std::fs::read_to_string("src/editor_ui.rs") {
+            let required_markers = vec![
+                "Shader Browser",
+                "Interactive shader parameters",
+                "Code Editor",
+                "CentralPanel",
+            ];
+            let mut missing = Vec::new();
+            for m in required_markers {
+                if !editor_content.contains(m) {
+                    missing.push(m.to_string());
+                }
+            }
+            if !missing.is_empty() {
+                self.runtime_errors.push(format!("UI PANEL HEADINGS MISSING: {}", missing.join(", ")));
+            }
+        }
+        if let Ok(readme_content) = std::fs::read_to_string("README.md") {
+            if !readme_content.contains("```mermaid") {
+                self.runtime_errors.push("README DIAGRAMS MISSING".to_string());
             }
         }
     }

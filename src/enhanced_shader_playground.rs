@@ -156,10 +156,14 @@ fn examples_browser_system(
         return;
     }
 
+    let ctx = match contexts.ctx_mut() {
+        Ok(ctx) => ctx,
+        Err(_) => return,
+    };
     egui::Window::new("Shader Examples Browser")
         .default_size([400.0, 600.0])
         .resizable(true)
-        .show(contexts.ctx_mut(), |ui| {
+        .show(ctx, |ui| {
             examples_browser_ui(ui, &mut state);
         });
 }
@@ -339,10 +343,14 @@ fn parameter_controls_system(
         return;
     }
 
+    let ctx = match contexts.ctx_mut() {
+        Ok(ctx) => ctx,
+        Err(_) => return,
+    };
     egui::Window::new("Parameter Controls")
         .default_size([300.0, 400.0])
         .resizable(true)
-        .show(contexts.ctx_mut(), |ui| {
+        .show(ctx, |ui| {
             if let Some(example_id) = &state.selected_example {
                 if let Some(example) = state.examples.iter().find(|e| e.id == *example_id) {
                     parameter_controls_ui(ui, &mut state.parameter_values, &example.parameters);
@@ -460,8 +468,12 @@ fn playground_toolbar_system(
     mut contexts: EguiContexts,
     mut state: ResMut<ShaderPlaygroundState>,
 ) {
+    let ctx = match contexts.ctx_mut() {
+        Ok(ctx) => ctx,
+        Err(_) => return,
+    };
     egui::TopBottomPanel::top("playground_toolbar")
-        .show(contexts.ctx_mut(), |ui| {
+        .show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.toggle_value(&mut state.show_examples_browser, "📁 Examples");
                 ui.toggle_value(&mut state.show_parameter_controls, "⚙️ Parameters");

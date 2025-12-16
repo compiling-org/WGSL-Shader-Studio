@@ -317,7 +317,7 @@ impl VisualNodeEditor {
                 );
             }
             
-            ui.painter().rect_filled(node_rect, 4.0, bg_color);
+            ui.painter().rect_filled(node_rect, bevy_egui::egui::CornerRadius::same(4u8), bg_color);
             
             // Node border with enhanced selection
             let border_color = if self.selected_nodes.contains(&node_id) {
@@ -382,7 +382,7 @@ impl VisualNodeEditor {
                 if let Some((start_node, start_port, is_output)) = self.connection_start {
                     if !is_output {
                         // Connect output to this input
-                        node_graph.connect(start_node, start_port, node_id, input_id);
+                        let _ = node_graph.connect(start_node, start_port, node_id, input_id);
                         self.connection_start = None;
                     }
                 } else {
@@ -395,7 +395,7 @@ impl VisualNodeEditor {
                 if let Some((start_node, start_port, is_output)) = self.connection_start {
                     if is_output {
                         // Connect this output to input
-                        node_graph.connect(node_id, output_id, start_node, start_port);
+                        let _ = node_graph.connect(node_id, output_id, start_node, start_port);
                         self.connection_start = None;
                     }
                 } else {
@@ -644,6 +644,6 @@ impl VisualNodeEditor {
     fn draw_selection_box(&self, ui: &mut Ui, start_pos: Pos2, current_pos: Pos2) {
         let rect = Rect::from_two_pos(start_pos, current_pos);
         ui.painter().rect_stroke(rect, 0.0, Stroke::new(1.0, Color32::from_rgb(100, 150, 255)), StrokeKind::Inside);
-        ui.painter().rect_filled(rect, 0.0, Color32::from_rgba_unmultiplied(100, 150, 255, 30));
+        ui.painter().rect_filled(rect, bevy_egui::egui::CornerRadius::same(0u8), Color32::from_rgba_unmultiplied(100, 150, 255, 30));
     }
 }

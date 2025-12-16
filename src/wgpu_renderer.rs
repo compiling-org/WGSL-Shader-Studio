@@ -190,7 +190,7 @@ impl WgpuShaderRenderer {
                     ty: BindingType::Buffer {
                         ty: BufferBindingType::Uniform,
                         has_dynamic_offset: false,
-                        min_binding_size: Some(std::mem::size_of::<ShaderUniforms>() as u64),
+                        min_binding_size: None,
                     },
                     count: None,
                 }
@@ -221,12 +221,12 @@ impl WgpuShaderRenderer {
             layout: Some(&pipeline_layout),
             vertex: VertexState {
                 module: &shader_module,
-                entry_point: "vs_main",
+                entry_point: Some("vs_main"),
                 buffers: &[],
             },
             fragment: Some(FragmentState {
                 module: &shader_module,
-                entry_point: "fs_main",
+                entry_point: Some("fs_main"),
                 targets: &[Some(ColorTargetState {
                     format: TextureFormat::Bgra8UnormSrgb,
                     blend: Some(BlendState::ALPHA_PREMULTIPLIED),

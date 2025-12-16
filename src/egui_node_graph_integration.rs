@@ -506,7 +506,7 @@ impl NodeGraphWidget {
             
             painter.rect(
                 rect,
-                egui::Rounding::same(node.corner_radius),
+                egui::CornerRadius::same(node.corner_radius as u8),
                 node_color,
                 egui::Stroke::new(1.0, node.border_color),
             );
@@ -554,7 +554,7 @@ impl NodeGraphWidget {
         if let Some(rect) = self.selection.selection_rect {
             painter.rect(
                 rect,
-                egui::Rounding::same(0.0),
+                egui::CornerRadius::same(0u8),
                 Color32::from_rgba_unmultiplied(100, 100, 255, (self.visual_settings.selection_opacity * 255.0) as u8),
                 egui::Stroke::new(1.0, Color32::from_rgb(100, 100, 255)),
             );

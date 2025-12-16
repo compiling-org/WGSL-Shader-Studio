@@ -9,6 +9,7 @@ repository = "https://github.com/compiling-org/WGSL-Shader-Studio"
 homepage = "https://github.com/compiling-org/WGSL-Shader-Studio"
 keywords = ["wgpu", "webgpu", "shader", "wgsl", "isf", "vj", "audio", "midi"]
 categories = ["multimedia", "graphics", "gui"]
+default-run = "isf-shaders"
 
 [[bin]]
 name = "isf-shaders"
@@ -88,7 +89,7 @@ dasp = "0.11"
 ringbuf = "0.4"
 
 [features]
-default = ["gui"]
+default = ["gui", "networking", "naga_integration"]
 gui = ["dep:bevy_egui"]
 networking = ["dep:tun-rs"]
 naga_integration = []

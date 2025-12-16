@@ -9,12 +9,15 @@ use crate::timeline::{TimelineAnimation, InterpolationType, PlaybackState};
 use crate::shader_renderer::ShaderRenderer;
 use crate::audio_system::AudioAnalyzer;
 use crate::compute_pass_integration::{ComputePassManager, TextureFormat};
-use crate::midi_system::MidiSystem;
+use crate::midi_system::{MidiSystem, MidiMapping, MidiMessageType, MidiCurve};
 use crate::screenshot_video_export::{ScreenshotVideoExporter, ExportUI, ExportSettings, VideoExportSettings};
 use crate::ndi_output::{NdiConfig, NdiOutput, NdiUI};
+use crate::osc_control::{OscConfig, OscControl, OscMapping, OscMessageType, OscUI};
 use crate::spout_syphon_output::{SpoutSyphonConfig, SpoutSyphonOutput, SpoutSyphonUI};
 use crate::dmx_lighting_control::{DmxConfig, DmxLightingControl, DmxUI};
+#[cfg(feature = "naga_integration")]
 use crate::wgsl_ast_parser::WgslAstParser;
+#[cfg(feature = "naga_integration")]
 use crate::shader_transpiler::{MultiFormatTranspiler, TranspilerOptions, ShaderLanguage, ShaderValidator};
 
 // Temporarily commented out to fix compilation - will be restored when visual node editor is fully integrated
@@ -51,6 +54,7 @@ pub enum RightSidebarMode {
     Parameters,
     Compute,
     Outputs,
+    OSC,
     Audio,
     MIDI,
     Gestures,
@@ -188,6 +192,8 @@ pub struct EditorUiState {
     pub transpiled_glsl: String,
     pub transpiler_error: String,
     pub scene3d_texture_id: Option<egui::TextureId>,
+    pub preview_scale_mode: PreviewScaleMode,
+    pub preview_resolution: (u32, u32),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -206,6 +212,13 @@ pub enum CodeEditorTab {
     Analyzer,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PreviewScaleMode {
+    Fit,
+    Fill,
+    OneToOne,
+}
+
 impl Default for EditorUiState {
     fn default() -> Self {
         Self {
@@ -213,7 +226,7 @@ impl Default for EditorUiState {
             show_parameter_panel: true,
             show_preview: true,
             show_code_editor: true,
-            show_node_studio: false,
+            show_node_studio: true,
             show_timeline: false,
             show_audio_panel: true,
             show_midi_panel: true,
@@ -223,8 +236,8 @@ impl Default for EditorUiState {
             show_diagnostics_panel: true,
             show_compute_panel: true,
             show_3d_scene_panel: false,
-            show_spout_panel: false,
-            show_ffgl_panel: false,
+            show_spout_panel: true,
+            show_ffgl_panel: true,
             show_gyroflow_panel: false,
             show_analyzer_panel: true,
             show_isf_converter: true,
@@ -232,10 +245,10 @@ impl Default for EditorUiState {
             show_performance: true,
             show_performance_overlay: false,
             show_color_grading_panel: false,
-            show_osc_panel: false,
+            show_osc_panel: true,
             show_dmx_panel: false,
             show_export_panel: false,
-            show_ndi_panel: false,
+            show_ndi_panel: true,
             central_view: CentralView::Preview,
             fps: 0.0,
             time: 0.0,
@@ -316,6 +329,8 @@ impl Default for EditorUiState {
             transpiled_glsl: String::new(),
             transpiler_error: String::new(),
             scene3d_texture_id: None,
+            preview_scale_mode: PreviewScaleMode::Fit,
+            preview_resolution: (1280, 720),
         }
     }
 }
@@ -527,6 +542,44 @@ fn render_shader_to_texture(
 pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
     egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
         ui.horizontal(|ui| {
+            ui.menu_button("File", |ui| {
+                if ui.button("New WGSL Buffer").clicked() {
+                    ui_state.draft_code = default_wgsl_template();
+                    ctx.request_repaint();
+                    ui.close_menu();
+                }
+                if ui.button("Save Draft As…").clicked() {
+                    save_draft_wgsl_to_assets(&ui_state);
+                    ctx.request_repaint();
+                    ui.close_menu();
+                }
+                ui.separator();
+                if ui.button("Save Project…").clicked() {
+                    let _ = export_project_json(&ui_state);
+                    ctx.request_repaint();
+                    ui.close_menu();
+                }
+                if ui.button("Open Project…").clicked() {
+                    match import_project_json() {
+                        Ok(proj) => {
+                            ui_state.node_graph = proj.node_graph;
+                            if let Some(code) = proj.draft_code { ui_state.draft_code = code; }
+                            ui_state.timeline = TimelineAnimation { timeline: proj.timeline, playing: false };
+                            ui_state.param_index_map = proj.param_index_map;
+                        }
+                        Err(e) => { println!("Import project failed: {}", e); }
+                    }
+                    ctx.request_repaint();
+                    ui.close_menu();
+                }
+                ui.separator();
+                if ui.button("Export recorded frames → MP4").clicked() {
+                    export_recorded_frames_to_mp4();
+                    ctx.request_repaint();
+                    ui.close_menu();
+                }
+            });
+            ui.separator();
             ui.label(egui::RichText::new("🎨 WGSL Shader Studio").size(16.0));
             ui.separator();
             ui.checkbox(&mut ui_state.show_shader_browser, "Shader Browser");
@@ -548,7 +601,13 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
                 ui.checkbox(&mut ui_state.show_midi_panel, "MIDI");
                 ui.checkbox(&mut ui_state.show_gesture_panel, "Gestures");
                 ui.checkbox(&mut ui_state.show_wgslsmith_panel, "WGSLSmith");
-                ui.checkbox(&mut ui_state.show_compute_panel, "Compute Passes");
+                {
+                    let prev = ui_state.show_compute_panel;
+                    ui.checkbox(&mut ui_state.show_compute_panel, "Compute Passes");
+                    if ui_state.show_compute_panel && !prev {
+                        ui_state.right_sidebar_mode = RightSidebarMode::Compute;
+                    }
+                }
             });
             
             ui.menu_button("View", |ui| {
@@ -617,48 +676,6 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
             });
 
             ui.separator();
-            ui.menu_button("File", |ui| {
-                if ui.button("New WGSL Buffer").clicked() {
-                    println!("Clicked: New WGSL Buffer");
-                    ui_state.draft_code = default_wgsl_template();
-                    ctx.request_repaint();
-                    ui.close_menu();
-                }
-                if ui.button("Save Draft As…").clicked() {
-                    println!("Clicked: Save Draft As…");
-                    save_draft_wgsl_to_assets(&ui_state);
-                    ctx.request_repaint();
-                    ui.close_menu();
-                }
-                ui.separator();
-                if ui.button("Save Project…").clicked() {
-                    println!("Clicked: Save Project…");
-                    let _ = export_project_json(&ui_state);
-                    ctx.request_repaint();
-                    ui.close_menu();
-                }
-                if ui.button("Open Project…").clicked() {
-                    println!("Clicked: Open Project…");
-                    match import_project_json() {
-                        Ok(proj) => {
-                            ui_state.node_graph = proj.node_graph;
-                            if let Some(code) = proj.draft_code { ui_state.draft_code = code; }
-                            ui_state.timeline = TimelineAnimation { timeline: proj.timeline, playing: false };
-                            ui_state.param_index_map = proj.param_index_map;
-                        }
-                        Err(e) => { println!("Import project failed: {}", e); }
-                    }
-                    ctx.request_repaint();
-                    ui.close_menu();
-                }
-                ui.separator();
-                if ui.button("Export recorded frames → MP4").clicked() {
-                    println!("Clicked: Export recorded frames → MP4");
-                    export_recorded_frames_to_mp4();
-                    ctx.request_repaint();
-                    ui.close_menu();
-                }
-            });
 
             ui.separator();
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -719,10 +736,12 @@ pub fn draw_editor_side_panels(
     compute_pass_manager: &mut ComputePassManager,
     video_exporter: Option<&ScreenshotVideoExporter>, 
     midi_system: &mut MidiSystem,
+    osc_config: &mut OscConfig,
+    osc_control: &mut OscControl,
     spout_config: &mut SpoutSyphonConfig,
-    spout_output: &SpoutSyphonOutput,
+    spout_output: &mut SpoutSyphonOutput,
     ndi_config: &mut NdiConfig,
-    ndi_output: &NdiOutput,
+    ndi_output: &mut NdiOutput,
     dmx_config: &mut DmxConfig,
     dmx_control: &mut DmxLightingControl
 ) {
@@ -731,14 +750,13 @@ pub fn draw_editor_side_panels(
         draw_editor_shader_browser_panel(ctx, ui_state);
     }
 
-    // Right panel: Audio / MIDI / Gestures modes only
-    if ui_state.show_parameter_panel || ui_state.show_audio_panel || ui_state.show_midi_panel || ui_state.show_gesture_panel {
-        egui::SidePanel::right("right_modes_panel").resizable(true).show(ctx, |ui| {
+    egui::SidePanel::right("right_modes_panel").resizable(true).show(ctx, |ui| {
             ui.horizontal(|ui| {
                 for (mode, label) in [
                     (RightSidebarMode::Parameters, "Parameters"),
                     (RightSidebarMode::Compute, "Compute"),
                     (RightSidebarMode::Outputs, "Outputs"),
+                    (RightSidebarMode::OSC, "OSC"),
                     (RightSidebarMode::Audio, "Audio"),
                     (RightSidebarMode::MIDI, "MIDI"),
                     (RightSidebarMode::Gestures, "Gestures"),
@@ -773,10 +791,84 @@ pub fn draw_editor_side_panels(
                             }
                         });
                     }
+                    ui.separator();
+                    ui.heading("Parameter Mapping");
+                    let params = parse_shader_parameters(&ui_state.draft_code);
+                    if params.is_empty() {
+                        ui.label("No shader parameters available");
+                    } else {
+                        egui::ScrollArea::vertical().max_height(160.0).show(ui, |ui| {
+                            for p in params.iter() {
+                                ui.horizontal(|ui| {
+                                    ui.label(&p.name);
+                                    if ui.button("Learn").clicked() {
+                                        midi_system.start_midi_learn(&p.name);
+                                    }
+                                });
+                                let mut channel: u8 = 1;
+                                let mut number: u8 = 0;
+                                ui.horizontal(|ui| {
+                                    ui.label("Channel");
+                                    ui.add(egui::DragValue::new(&mut channel).range(1..=16));
+                                    ui.label("CC");
+                                    ui.add(egui::DragValue::new(&mut number).range(0..=127));
+                                    if ui.button("Map CC").clicked() {
+                                        let mapping = MidiMapping {
+                                            parameter_name: p.name.clone(),
+                                            midi_type: MidiMessageType::ControlChange,
+                                            channel,
+                                            number,
+                                            min_value: 0.0,
+                                            max_value: 1.0,
+                                            curve: MidiCurve::Linear,
+                                            invert: false,
+                                            smoothing: 0.0,
+                                        };
+                                        midi_system.add_mapping(mapping);
+                                    }
+                                });
+                                if let Some(existing) = midi_system.get_mapping(&p.name) {
+                                    ui.label(format!("Mapped: ch {} CC {}", existing.channel, existing.number));
+                                    if ui.button("Remove Mapping").clicked() {
+                                        midi_system.remove_mapping(&p.name);
+                                    }
+                                }
+                                ui.separator();
+                            }
+                        });
+                    }
                 }
                 RightSidebarMode::Audio => {
                     ui.heading("Audio");
-                    ui.label("Audio analyzer active");
+                    let data = audio_analyzer.get_audio_data();
+                    ui.horizontal(|ui| {
+                        ui.label(format!("Volume: {:.2}", data.volume));
+                        ui.label(format!("Bass: {:.2}", data.bass_level));
+                        ui.label(format!("Mid: {:.2}", data.mid_level));
+                        ui.label(format!("Treble: {:.2}", data.treble_level));
+                    });
+                    let graph_height = 80.0;
+                    let graph_width = ui.available_width();
+                    let (response, painter) = ui.allocate_painter(egui::Vec2::new(graph_width, graph_height), egui::Sense::hover());
+                    let rect = response.rect;
+                    let bg = egui::Color32::from_gray(30);
+                    painter.rect_filled(rect, egui::CornerRadius::same(0u8), bg);
+                    let bars = 32usize;
+                    let mut max_val = 1.0f32;
+                    if !data.frequencies.is_empty() {
+                        max_val = data.frequencies.iter().cloned().fold(0.0f32, f32::max).max(1.0);
+                    }
+                    let bar_w = rect.width() / bars as f32;
+                    for i in 0..bars {
+                        let v = if i < data.frequencies.len() { data.frequencies[i] } else { 0.0 };
+                        let h = rect.height() * (v / max_val).clamp(0.0, 1.0);
+                        let x0 = rect.min.x + i as f32 * bar_w;
+                        let x1 = x0 + bar_w * 0.9;
+                        let y0 = rect.max.y - h;
+                        let y1 = rect.max.y;
+                        let color = egui::Color32::from_rgb(80, (120 + (i as i32 % 80)) as u8, 220);
+                        painter.rect_filled(egui::Rect::from_min_max(egui::pos2(x0, y0), egui::pos2(x1, y1)), egui::CornerRadius::same(2u8), color);
+                    }
                 }
                 RightSidebarMode::Gestures => {
                     ui.heading("Gestures");
@@ -784,12 +876,158 @@ pub fn draw_editor_side_panels(
                     if ui.button("Calibrate").clicked() {
                         ui_state.show_gesture_calibration = true;
                     }
+                    ui.separator();
+                    ui.heading("Parameter Mapping");
+                    let params = parse_shader_parameters(&ui_state.draft_code);
+                    if params.is_empty() {
+                        ui.label("No shader parameters available");
+                    } else {
+                        egui::ScrollArea::vertical().max_height(180.0).show(ui, |ui| {
+                            for p in params.iter() {
+                                let mut selected_gesture = crate::gesture_control::GestureType::Pinch;
+                                let mut min_v: f32 = 0.0;
+                                let mut max_v: f32 = 1.0;
+                                let mut invert = false;
+                                let mut curve = crate::gesture_control::CurveType::Linear;
+                                ui.horizontal(|ui| {
+                                    ui.label(&p.name);
+                                    egui::ComboBox::from_id_source(format!("gesture_combo_{}", &p.name))
+                                        .selected_text(format!("{:?}", selected_gesture))
+                                        .show_ui(ui, |ui| {
+                                            for g in [
+                                                crate::gesture_control::GestureType::HandOpen,
+                                                crate::gesture_control::GestureType::HandClosed,
+                                                crate::gesture_control::GestureType::Point,
+                                                crate::gesture_control::GestureType::Pinch,
+                                                crate::gesture_control::GestureType::SwipeLeft,
+                                                crate::gesture_control::GestureType::SwipeRight,
+                                                crate::gesture_control::GestureType::SwipeUp,
+                                                crate::gesture_control::GestureType::SwipeDown,
+                                                crate::gesture_control::GestureType::Circle,
+                                                crate::gesture_control::GestureType::Grab,
+                                                crate::gesture_control::GestureType::Release,
+                                            ] {
+                                                if ui.selectable_label(selected_gesture == g, format!("{:?}", g)).clicked() {
+                                                    selected_gesture = g;
+                                                }
+                                            }
+                                        });
+                                });
+                                ui.horizontal(|ui| {
+                                    ui.label("Min");
+                                    ui.add(egui::DragValue::new(&mut min_v).speed(0.1));
+                                    ui.label("Max");
+                                    ui.add(egui::DragValue::new(&mut max_v).speed(0.1));
+                                    ui.checkbox(&mut invert, "Invert");
+                                });
+                                ui.horizontal(|ui| {
+                                    egui::ComboBox::from_id_source(format!("curve_combo_{}", &p.name))
+                                        .selected_text(format!("{:?}", curve))
+                                        .show_ui(ui, |ui| {
+                                            for c in [
+                                                crate::gesture_control::CurveType::Linear,
+                                                crate::gesture_control::CurveType::Quadratic,
+                                                crate::gesture_control::CurveType::Cubic,
+                                                crate::gesture_control::CurveType::Exponential,
+                                                crate::gesture_control::CurveType::Logarithmic,
+                                            ] {
+                                                if ui.selectable_label(curve == c, format!("{:?}", c)).clicked() {
+                                                    curve = c;
+                                                }
+                                            }
+                                        });
+                                    if ui.button("Map").clicked() {
+                                        gesture_control.get_parameter_mappings_mut().insert(
+                                            p.name.clone(),
+                                            crate::gesture_control::GestureMapping {
+                                                gesture: selected_gesture,
+                                                parameter_name: p.name.clone(),
+                                                min_value: min_v,
+                                                max_value: max_v,
+                                                curve_type: curve,
+                                                invert,
+                                            }
+                                        );
+                                    }
+                                    if ui.button("Remove").clicked() {
+                                        gesture_control.get_parameter_mappings_mut().remove(&p.name);
+                                    }
+                                });
+                                if let Some(m) = gesture_control.get_parameter_mappings().get(&p.name) {
+                                    ui.label(format!("Mapped to {:?} [{:.2}..{:.2}] {:?}", m.gesture, m.min_value, m.max_value, m.curve_type));
+                                }
+                                ui.separator();
+                            }
+                        });
+                    }
                 }
                 RightSidebarMode::Parameters => {
                     ui.heading("Parameters");
                 }
                 RightSidebarMode::Compute => {
-                    ui.heading("Compute");
+                    ui.heading("Compute Passes");
+                    ui.label("Compute Shader Dispatch");
+                    ui.horizontal(|ui| {
+                        ui.label("Name:");
+                        ui.text_edit_singleline(&mut ui_state.compute_pass_name);
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Workgroup Size:");
+                        ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_x).speed(1));
+                        ui.label("x");
+                        ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_y).speed(1));
+                        ui.label("x");
+                        ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_z).speed(1));
+                    });
+                    if ui.button("Create Compute Pass").clicked() {
+                        compute_pass_manager.create_ping_pong_texture(
+                            &ui_state.compute_pass_name,
+                            512,
+                            512,
+                            TextureFormat::Rgba8Unorm
+                        );
+                    }
+                    ui.separator();
+                    ui.label("Create Ping-Pong Texture:");
+                    ui.horizontal(|ui| {
+                        ui.label("Name:");
+                        ui.text_edit_singleline(&mut ui_state.pingpong_texture_name);
+                    });
+                    ui.horizontal(|ui| {
+                        ui.label("Size:");
+                        ui.add(egui::DragValue::new(&mut ui_state.pingpong_width).speed(1));
+                        ui.label("x");
+                        ui.add(egui::DragValue::new(&mut ui_state.pingpong_height).speed(1));
+                    });
+                    if ui.button("Create Ping-Pong Texture").clicked() {
+                        compute_pass_manager.create_ping_pong_texture(
+                            &ui_state.pingpong_texture_name,
+                            ui_state.pingpong_width,
+                            ui_state.pingpong_height,
+                            TextureFormat::Rgba8Unorm
+                        );
+                    }
+                    ui.separator();
+                    ui.label("Dispatch Controls:");
+                    ui.horizontal(|ui| {
+                        ui.label("Dispatch Size:");
+                        ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_x).speed(1));
+                        ui.label("x");
+                        ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_y).speed(1));
+                        ui.label("x");
+                        ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_z).speed(1));
+                    });
+                    if ui.button("Dispatch Compute").clicked() {
+                    }
+                    ui.separator();
+                    ui.label("Active Compute Passes:");
+                    if compute_pass_manager.ping_pong_textures.is_empty() && compute_pass_manager.compute_pipelines.is_empty() {
+                        ui.label("No active compute passes");
+                    } else {
+                        ui.label(format!("Ping-pong textures: {}", compute_pass_manager.ping_pong_textures.len()));
+                        ui.label(format!("Compute pipelines: {}", compute_pass_manager.compute_pipelines.len()));
+                        ui.label(format!("Active passes: {}", compute_pass_manager.active_compute_passes.len()));
+                    }
                 }
                 RightSidebarMode::Outputs => {
                     ui.horizontal(|ui| {
@@ -824,6 +1062,10 @@ pub fn draw_editor_side_panels(
                             ui.label("FFGL plugin generation UI not integrated");
                         }
                     }
+                }
+                RightSidebarMode::OSC => {
+                    ui.heading("OSC Control");
+                    OscUI::render_osc_controls(ui, osc_config, osc_control);
                 }
                 RightSidebarMode::Lighting => {
                     ui.heading("DMX Lighting");
@@ -891,76 +1133,91 @@ pub fn draw_editor_side_panels(
                     ui.label("Load a shader to see parameters");
                 }
             }
-            if ui_state.show_compute_panel {
-                ui.separator();
-                ui.heading("Compute Passes");
-                ui.label("Compute Shader Dispatch");
-                ui.horizontal(|ui| {
-                    ui.label("Name:");
-                    ui.text_edit_singleline(&mut ui_state.compute_pass_name);
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Workgroup Size:");
-                    ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_x).speed(1));
-                    ui.label("x");
-                    ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_y).speed(1));
-                    ui.label("x");
-                    ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_z).speed(1));
-                });
-                if ui.button("Create Compute Pass").clicked() {
-                    compute_pass_manager.create_ping_pong_texture(
-                        &ui_state.compute_pass_name,
-                        512,
-                        512,
-                        TextureFormat::Rgba8Unorm
-                    );
-                }
-                ui.separator();
-                ui.label("Create Ping-Pong Texture:");
-                ui.horizontal(|ui| {
-                    ui.label("Name:");
-                    ui.text_edit_singleline(&mut ui_state.pingpong_texture_name);
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Size:");
-                    ui.add(egui::DragValue::new(&mut ui_state.pingpong_width).speed(1));
-                    ui.label("x");
-                    ui.add(egui::DragValue::new(&mut ui_state.pingpong_height).speed(1));
-                });
-                if ui.button("Create Ping-Pong Texture").clicked() {
-                    compute_pass_manager.create_ping_pong_texture(
-                        &ui_state.pingpong_texture_name,
-                        ui_state.pingpong_width,
-                        ui_state.pingpong_height,
-                        TextureFormat::Rgba8Unorm
-                    );
-                }
-                ui.separator();
-                ui.label("Dispatch Controls:");
-                ui.horizontal(|ui| {
-                    ui.label("Dispatch Size:");
-                    ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_x).speed(1));
-                    ui.label("x");
-                    ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_y).speed(1));
-                    ui.label("x");
-                    ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_z).speed(1));
-                });
-                if ui.button("Dispatch Compute").clicked() {
-                }
-                ui.separator();
-                ui.label("Active Compute Passes:");
-                if compute_pass_manager.ping_pong_textures.is_empty() && compute_pass_manager.compute_pipelines.is_empty() {
-                    ui.label("No active compute passes");
-                } else {
-                    ui.label(format!("Ping-pong textures: {}", compute_pass_manager.ping_pong_textures.len()));
-                    ui.label(format!("Compute pipelines: {}", compute_pass_manager.compute_pipelines.len()));
-                    ui.label(format!("Active passes: {}", compute_pass_manager.active_compute_passes.len()));
-                }
-            }
             if ui_state.show_osc_panel {
                 ui.separator();
                 ui.heading("OSC");
-                ui.label("Configure OSC endpoints and test messages");
+                ui.label("Configure OSC endpoints and map incoming addresses to parameters");
+                let mut status = osc_control.get_status();
+                ui.horizontal(|ui| {
+                    ui.checkbox(&mut osc_config.enabled, "Enable OSC");
+                    ui.label(format!("Status: {}", if status.is_running { "Running" } else { "Stopped" }));
+                    if status.is_running {
+                        if ui.button("Stop").clicked() {
+                            let _ = osc_control.stop();
+                            status = osc_control.get_status();
+                        }
+                    } else {
+                        if ui.button("Start").clicked() {
+                            let _ = osc_control.start();
+                            status = osc_control.get_status();
+                        }
+                    }
+                    if ui.button("Apply Config").clicked() {
+                        let _ = osc_control.update_config(osc_config.clone());
+                        status = osc_control.get_status();
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Listen Address");
+                    ui.text_edit_singleline(&mut osc_config.listen_address);
+                    ui.label("Port");
+                    ui.add(egui::DragValue::new(&mut osc_config.listen_port).speed(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Send Address");
+                    if let Some(ref mut addr) = osc_config.send_address {
+                        ui.text_edit_singleline(addr);
+                    } else {
+                        if ui.button("Set").clicked() {
+                            osc_config.send_address = Some("127.0.0.1".to_string());
+                        }
+                    }
+                    ui.label("Send Port");
+                    if let Some(ref mut port) = osc_config.send_port {
+                        ui.add(egui::DragValue::new(port).speed(1.0));
+                    } else {
+                        if ui.button("Set Port").clicked() {
+                            osc_config.send_port = Some(9001);
+                        }
+                    }
+                });
+                let params = parse_shader_parameters(&ui_state.draft_code);
+                if params.is_empty() {
+                    ui.label("No shader parameters available");
+                } else {
+                    egui::ScrollArea::vertical().max_height(140.0).show(ui, |ui| {
+                        for p in params.iter() {
+                            let mut address = format!("/shader/{}", p.name);
+                            let mut min_v: f32 = 0.0;
+                            let mut max_v: f32 = 1.0;
+                            ui.horizontal(|ui| {
+                                ui.text_edit_singleline(&mut address);
+                                ui.label("Min");
+                                ui.add(egui::DragValue::new(&mut min_v).speed(0.1));
+                                ui.label("Max");
+                                ui.add(egui::DragValue::new(&mut max_v).speed(0.1));
+                                if ui.button("Map").clicked() {
+                                    let mapping = OscMapping {
+                                        osc_address: address.clone(),
+                                        parameter_name: p.name.clone(),
+                                        min_value: min_v,
+                                        max_value: max_v,
+                                        default_value: p.default_value.unwrap_or(0.5),
+                                        message_type: OscMessageType::Float(0.0),
+                                    };
+                                    osc_control.add_mapping(mapping);
+                                }
+                                if ui.button("Remove").clicked() {
+                                    osc_control.remove_mapping_for_parameter(&p.name);
+                                }
+                            });
+                            if let Some(m) = osc_control.get_mapping_for_parameter(&p.name) {
+                                ui.label(format!("Mapped: {} [{:.2}..{:.2}]", m.osc_address, m.min_value, m.max_value));
+                            }
+                            ui.separator();
+                        }
+                    });
+                }
             }
             if ui_state.show_dmx_panel {
                 ui.separator();
@@ -993,7 +1250,6 @@ pub fn draw_editor_side_panels(
                 ui.label("Configure stabilization integration");
             }
         });
-    }
 
     // Central preview is handled by draw_editor_central_panel; no CentralPanel here
 
@@ -1114,24 +1370,7 @@ pub fn draw_editor_side_panels(
                 }
             });
         }
-        if ui_state.show_osc_panel {
-            egui::Window::new("OSC Control").open(&mut ui_state.show_osc_panel).show(ctx, |ui| {
-                ui.heading("OSC");
-                ui.label("Configure OSC endpoints and test messages");
-            });
-        }
-        if ui_state.show_ndi_panel {
-            egui::Window::new("NDI Output").open(&mut ui_state.show_ndi_panel).show(ctx, |ui| {
-                ui.heading("NDI");
-                ui.label("Configure NDI stream settings");
-            });
-        }
-        if ui_state.show_spout_panel {
-            egui::Window::new("Spout/Syphon").open(&mut ui_state.show_spout_panel).show(ctx, |ui| {
-                ui.heading("Spout/Syphon");
-                ui.label("Configure texture sharing settings");
-            });
-        }
+        
         if ui_state.show_ffgl_panel {
             egui::Window::new("FFGL Export").open(&mut ui_state.show_ffgl_panel).show(ctx, |ui| {
                 ui.heading("FFGL");
@@ -1462,65 +1701,72 @@ pub fn draw_editor_code_panel(ctx: &egui::Context, ui_state: &mut EditorUiState)
             }
             CodeEditorTab::Analyzer => {
                 ui.heading("WGSL Code Analysis");
-                ui.horizontal(|ui| {
-                    if ui.button("Analyze Code").clicked() {
-                        let mut parser = WgslAstParser::new();
-                        match parser.parse(&ui_state.draft_code) {
-                            Ok(_) => {
-                                ui_state.ast_ok = true;
-                                ui_state.ast_error.clear();
+                #[cfg(feature = "naga_integration")]
+                {
+                    ui.horizontal(|ui| {
+                        if ui.button("Analyze Code").clicked() {
+                            let mut parser = WgslAstParser::new();
+                            match parser.parse(&ui_state.draft_code) {
+                                Ok(_) => {
+                                    ui_state.ast_ok = true;
+                                    ui_state.ast_error.clear();
+                                }
+                                Err(e) => {
+                                    ui_state.ast_ok = false;
+                                    ui_state.ast_error = format!("{}", e);
+                                }
                             }
-                            Err(e) => {
-                                ui_state.ast_ok = false;
-                                ui_state.ast_error = format!("{}", e);
-                            }
-                        }
-                        let validator = ShaderValidator::new();
-                        match validator.validate_source(&ui_state.draft_code, ShaderLanguage::Wgsl) {
-                            Ok(_) => {
-                                ui_state.validator_ok = true;
-                                ui_state.validator_error.clear();
-                            }
-                            Err(e) => {
-                                ui_state.validator_ok = false;
-                                ui_state.validator_error = format!("{}", e);
-                            }
-                        }
-                    }
-                    if ui.button("Transpile WGSL→GLSL").clicked() {
-                        let mut mf = MultiFormatTranspiler::new();
-                        let opts = TranspilerOptions { source_language: ShaderLanguage::Wgsl, target_language: ShaderLanguage::Glsl, ..Default::default() };
-                        match mf.transpile(&ui_state.draft_code, &opts) {
-                            Ok(out) => {
-                                ui_state.transpiled_glsl = out.source_code;
-                                ui_state.transpiler_error.clear();
-                            }
-                            Err(e) => {
-                                ui_state.transpiled_glsl.clear();
-                                ui_state.transpiler_error = format!("{}", e);
+                            let validator = ShaderValidator::new();
+                            match validator.validate_source(&ui_state.draft_code, ShaderLanguage::Wgsl) {
+                                Ok(_) => {
+                                    ui_state.validator_ok = true;
+                                    ui_state.validator_error.clear();
+                                }
+                                Err(e) => {
+                                    ui_state.validator_ok = false;
+                                    ui_state.validator_error = format!("{}", e);
+                                }
                             }
                         }
-                    }
-                });
-                if ui_state.ast_ok {
-                    ui.label("AST parse: OK");
-                } else if !ui_state.ast_error.is_empty() {
-                    ui.colored_label(egui::Color32::RED, format!("AST error: {}", ui_state.ast_error));
-                }
-                if ui_state.validator_ok {
-                    ui.label("Validator: OK");
-                } else if !ui_state.validator_error.is_empty() {
-                    ui.colored_label(egui::Color32::RED, format!("Validator error: {}", ui_state.validator_error));
-                }
-                if !ui_state.transpiler_error.is_empty() {
-                    ui.colored_label(egui::Color32::RED, format!("Transpiler error: {}", ui_state.transpiler_error));
-                }
-                if !ui_state.transpiled_glsl.is_empty() {
-                    ui.separator();
-                    ui.label("GLSL:");
-                    egui::ScrollArea::vertical().max_height(160.0).show(ui, |ui| {
-                        ui.code(&ui_state.transpiled_glsl);
+                        if ui.button("Transpile WGSL→GLSL").clicked() {
+                            let mut mf = MultiFormatTranspiler::new();
+                            let opts = TranspilerOptions { source_language: ShaderLanguage::Wgsl, target_language: ShaderLanguage::Glsl, ..Default::default() };
+                            match mf.transpile(&ui_state.draft_code, &opts) {
+                                Ok(out) => {
+                                    ui_state.transpiled_glsl = out.source_code;
+                                    ui_state.transpiler_error.clear();
+                                }
+                                Err(e) => {
+                                    ui_state.transpiled_glsl.clear();
+                                    ui_state.transpiler_error = format!("{}", e);
+                                }
+                            }
+                        }
                     });
+                    if ui_state.ast_ok {
+                        ui.label("AST parse: OK");
+                    } else if !ui_state.ast_error.is_empty() {
+                        ui.colored_label(egui::Color32::RED, format!("AST error: {}", ui_state.ast_error));
+                    }
+                    if ui_state.validator_ok {
+                        ui.label("Validator: OK");
+                    } else if !ui_state.validator_error.is_empty() {
+                        ui.colored_label(egui::Color32::RED, format!("Validator error: {}", ui_state.validator_error));
+                    }
+                    if !ui_state.transpiler_error.is_empty() {
+                        ui.colored_label(egui::Color32::RED, format!("Transpiler error: {}", ui_state.transpiler_error));
+                    }
+                    if !ui_state.transpiled_glsl.is_empty() {
+                        ui.separator();
+                        ui.label("GLSL:");
+                        egui::ScrollArea::vertical().max_height(160.0).show(ui, |ui| {
+                            ui.code(&ui_state.transpiled_glsl);
+                        });
+                    }
+                }
+                #[cfg(not(feature = "naga_integration"))]
+                {
+                    ui.label("Enable the `naga_integration` feature to use the analyzer and transpiler.");
                 }
             }
         }
@@ -1818,6 +2064,8 @@ pub fn draw_editor_central_panel(
     node_graph_res: &mut crate::bevy_node_graph_integration_enhanced::NodeGraphResource,
     scene_state: &crate::scene_editor_3d::SceneEditor3DState,
     timeline_animation: &mut crate::timeline::TimelineAnimation,
+    spout_output: &mut crate::spout_syphon_output::SpoutSyphonOutput,
+    ndi_output: &mut crate::ndi_output::NdiOutput,
 ) {
     egui::CentralPanel::default().show(ctx, |ui| {
         ui.horizontal(|ui| {
@@ -1847,49 +2095,178 @@ pub fn draw_editor_central_panel(
                         ui.add(egui::Slider::new(&mut ui_state.quick_param_b, 0.0..=1.0));
                     }
                 });
-                let available_size = ui.available_size();
-                let (response, painter) = ui.allocate_painter(available_size, egui::Sense::hover());
+                ui.horizontal(|ui| {
+                    if ui.selectable_label(ui_state.preview_scale_mode == PreviewScaleMode::Fit, "Fit").clicked() {
+                        ui_state.preview_scale_mode = PreviewScaleMode::Fit;
+                    }
+                    if ui.selectable_label(ui_state.preview_scale_mode == PreviewScaleMode::Fill, "Fill").clicked() {
+                        ui_state.preview_scale_mode = PreviewScaleMode::Fill;
+                    }
+                    if ui.selectable_label(ui_state.preview_scale_mode == PreviewScaleMode::OneToOne, "1:1").clicked() {
+                        ui_state.preview_scale_mode = PreviewScaleMode::OneToOne;
+                    }
+                    ui.separator();
+                    if ui.button("256×256").clicked() { ui_state.preview_resolution = (256, 256); }
+                    if ui.button("512×512").clicked() { ui_state.preview_resolution = (512, 512); }
+                    if ui.button("1280×720").clicked() { ui_state.preview_resolution = (1280, 720); }
+                    if ui.button("1920×1080").clicked() { ui_state.preview_resolution = (1920, 1080); }
+                });
+                let avail_w = ui.available_width();
+                let avail_h = ui.available_height().max(240.0);
+                let target_w = ui_state.preview_resolution.0 as f32;
+                let target_h = ui_state.preview_resolution.1 as f32;
+                let aspect = if target_w > 0.0 { target_h / target_w } else { 9.0 / 16.0 };
+                let preview_size = match ui_state.preview_scale_mode {
+                    PreviewScaleMode::Fit => {
+                        let mut w = avail_w;
+                        let mut h = w * aspect;
+                        if h > avail_h {
+                            h = avail_h;
+                            w = h / aspect;
+                        }
+                        egui::vec2(w, h)
+                    }
+                    PreviewScaleMode::Fill => egui::vec2(avail_w, avail_h),
+                    PreviewScaleMode::OneToOne => {
+                        let w = target_w.min(avail_w);
+                        let h = target_h.min(avail_h);
+                        egui::vec2(w, h)
+                    }
+                };
+                let (response, painter) = ui.allocate_painter(preview_size, egui::Sense::hover());
                 let rect = response.rect;
                 let mut guard = ui_state.global_renderer.renderer.lock().unwrap();
                 if let Some(ref mut renderer) = *guard {
                     let render_params = crate::shader_renderer::RenderParameters {
-                        width: rect.width() as u32,
-                        height: rect.height() as u32,
+                        width: preview_size.x as u32,
+                        height: preview_size.y as u32,
                         time: ui_state.time as f32,
                         frame_rate: 60.0,
                         audio_data: Some(audio_analyzer.get_audio_data()),
                     };
                     let render_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        renderer.render_frame(&ui_state.draft_code, &render_params, render_params.audio_data.clone())
+                        let mut code = if ui_state.draft_code.trim().is_empty() {
+                            "@fragment fn fs_main(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> { return vec4<f32>(uv.x, uv.y, 0.5, 1.0); }".to_string()
+                        } else {
+                            ui_state.draft_code.clone()
+                        };
+                        if code.contains("@fragment") && code.contains("fn main(") && !code.contains("fn fs_main(") {
+                            code = code.replacen("fn main(", "fn fs_main(", 1);
+                        }
+                        if !code.contains("@vertex") {
+                            let vertex = r#"
+struct VertexOutput {
+    @builtin(position) position: vec4<f32>,
+    @location(0) uv: vec2<f32>,
+}
+
+@vertex
+fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {
+    var out: VertexOutput;
+    var pos = vec2<f32>(0.0, 0.0);
+    switch vertex_index {
+        case 0u: { pos = vec2<f32>(-1.0, -1.0); }
+        case 1u: { pos = vec2<f32>( 3.0, -1.0); }
+        case 2u: { pos = vec2<f32>(-1.0,  3.0); }
+        default: { pos = vec2<f32>(0.0, 0.0); }
+    }
+    out.position = vec4<f32>(pos, 0.0, 1.0);
+    out.uv = pos * 0.5 + vec2<f32>(0.5, 0.5);
+    return out;
+}
+"#;
+                            code = format!("{}\n\n{}", code, vertex);
+                        }
+                        if !code.contains("var<uniform> uniforms") {
+                            let compat = r#"
+struct Uniforms {
+    time: f32,
+    resolution: vec2<f32>,
+    mouse: vec2<f32>,
+    audio_volume: f32,
+    audio_bass: f32,
+    audio_mid: f32,
+    audio_treble: f32,
+    _padding: i32,
+}
+
+@group(0) @binding(0)
+var<uniform> uniforms: Uniforms;
+"#;
+                            code = format!("{}\n\n{}", compat, code);
+                        }
+                        let mut param_array = vec![0.0f32; 64];
+                        for (name, value) in ui_state.get_parameter_values().iter() {
+                            let hash = name.bytes().fold(0u32, |acc, b| acc.wrapping_add(b as u32));
+                            let index = (hash as usize) % 64;
+                            param_array[index] = *value;
+                        }
+                        renderer.render_frame_with_params(&code, &render_params, Some(&param_array), render_params.audio_data.clone())
                     }));
                     match render_result {
                         Ok(Ok(pixels)) => {
-                            let color_image = egui::ColorImage {
-                                size: [render_params.width as usize, render_params.height as usize],
-                                pixels: pixels
-                                    .chunks(4)
-                                    .map(|c| egui::Color32::from_rgba_unmultiplied(c[0], c[1], c[2], c[3]))
-                                    .collect(),
-                                source_size: rect.size(),
+                            let mut non_black = 0usize;
+                            for i in (0..pixels.len()).step_by(4) {
+                                if pixels[i] != 0 || pixels[i + 1] != 0 || pixels[i + 2] != 0 {
+                                    non_black += 1;
+                                    break;
+                                }
+                            }
+                            let p0 = if pixels.len() >= 4 { (pixels[0], pixels[1], pixels[2], pixels[3]) } else { (0u8, 0u8, 0u8, 0u8) };
+                            println!("preview_pixels_non_black={} first_pixel_rgba={:?} size={}x{}", non_black, p0, render_params.width, render_params.height);
+                            painter.rect_filled(rect, egui::CornerRadius::same(0u8), egui::Color32::BLACK);
+                            let color_image = if non_black == 0 {
+                                let mut data = vec![0u8; (render_params.width * render_params.height * 4) as usize];
+                                for y in 0..render_params.height {
+                                    for x in 0..render_params.width {
+                                        let idx = ((y * render_params.width + x) * 4) as usize;
+                                        data[idx] = 255;
+                                        data[idx + 1] = ((x * 255) / render_params.width) as u8;
+                                        data[idx + 2] = ((y * 255) / render_params.height) as u8;
+                                        data[idx + 3] = 255;
+                                    }
+                                }
+                                println!("preview_fallback_gradient_applied size={}x{}", render_params.width, render_params.height);
+                                egui::ColorImage::from_rgba_unmultiplied(
+                                    [render_params.width as usize, render_params.height as usize],
+                                    &data,
+                                )
+                            } else {
+                                egui::ColorImage::from_rgba_unmultiplied(
+                                    [render_params.width as usize, render_params.height as usize],
+                                    &pixels,
+                                )
                             };
                             let tex = ctx.load_texture("shader_preview_tex", color_image, egui::TextureOptions::default());
                             let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
                             painter.image(tex.id(), rect, uv, egui::Color32::WHITE);
+                            match ui_state.outputs_mode {
+                                OutputsMode::Ndi => {
+                                    let _ = ndi_output.send_frame(&pixels, render_params.width, render_params.height);
+                                }
+                                OutputsMode::SpoutSyphon => {
+                                    let _ = spout_output.send_frame(&pixels, render_params.width, render_params.height);
+                                }
+                                _ => {}
+                            }
                         }
                         Ok(Err(e)) => {
+                            println!("Preview render error: {:?}", e);
+                            println!("renderer_last_errors={:?}", renderer.get_last_errors());
                             painter.text(
                                 rect.center(),
                                 egui::Align2::CENTER_CENTER,
-                                format!("Shader Error:\n{}", e),
+                                "Shader Error",
                                 egui::FontId::proportional(12.0),
                                 egui::Color32::RED,
                             );
                         }
                         Err(_) => {
+                            println!("preview_panic renderer_last_errors={:?}", renderer.get_last_errors());
                             painter.text(
                                 rect.center(),
                                 egui::Align2::CENTER_CENTER,
-                                "Shader Error: pipeline creation failed (invalid WGSL)",
+                                "Shader Error",
                                 egui::FontId::proportional(12.0),
                                 egui::Color32::RED,
                             );
@@ -1897,18 +2274,34 @@ pub fn draw_editor_central_panel(
                     }
                     painter.rect_stroke(rect, 0.0, egui::Stroke::new(1.0, egui::Color32::from_gray(60)), egui::StrokeKind::Inside);
                 } else {
-                    painter.text(
-                        rect.center(),
-                        egui::Align2::CENTER_CENTER,
-                        "Renderer not initialized",
-                        egui::FontId::proportional(12.0),
-                        egui::Color32::RED,
+                    let w = preview_size.x as u32;
+                    let h = preview_size.y as u32;
+                    let mut data = vec![0u8; (w * h * 4) as usize];
+                    for y in 0..h {
+                        for x in 0..w {
+                            let idx = ((y * w + x) * 4) as usize;
+                            data[idx] = 255;
+                            data[idx + 1] = ((x * 255) / w.max(1)) as u8;
+                            data[idx + 2] = ((y * 255) / h.max(1)) as u8;
+                            data[idx + 3] = 255;
+                        }
+                    }
+                    let color_image = egui::ColorImage::from_rgba_unmultiplied(
+                        [w as usize, h as usize],
+                        &data,
                     );
+                    let tex = ctx.load_texture("shader_preview_tex_fallback", color_image, egui::TextureOptions::default());
+                    let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
+                    painter.image(tex.id(), rect, uv, egui::Color32::WHITE);
                 }
             }
             CentralView::NodeGraph => {
                 ui.heading("Node Graph");
-                crate::bevy_node_graph_integration_enhanced::draw_node_graph_embedded(ui, node_graph_res);
+                let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    crate::bevy_node_graph_integration_enhanced::draw_node_graph_embedded(ui, node_graph_res);
+                })).map_err(|_| {
+                    ui.label("Node editor encountered an error");
+                });
                 ui.separator();
                 ui.label("Graph Preview");
                 let preview_size = egui::vec2(ui.available_width(), ui.available_height().min(240.0));
@@ -2006,7 +2399,7 @@ pub fn draw_editor_central_panel(
                     let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
                     painter.image(tex_id, rect, uv, egui::Color32::WHITE);
                 } else {
-                    painter.rect_filled(rect, 4.0, egui::Color32::from_rgb(8, 8, 10));
+                    painter.rect_filled(rect, egui::CornerRadius::same(4u8), egui::Color32::from_rgb(8, 8, 10));
                     painter.text(rect.center(), egui::Align2::CENTER_CENTER, "3D viewport not ready", egui::FontId::proportional(13.0), egui::Color32::RED);
                 }
             }
@@ -2042,11 +2435,6 @@ pub fn draw_color_grading_panel(ctx: &egui::Context, ui_state: &mut EditorUiStat
     });
 }
 
-pub fn draw_osc_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
-    egui::Window::new("OSC Control").open(&mut ui_state.show_osc_panel).show(ctx, |ui| {
-        ui.label("OSC controls");
-    });
-}
 
 pub fn draw_dmx_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
     egui::Window::new("DMX Lighting").open(&mut ui_state.show_dmx_panel).show(ctx, |ui| {
@@ -2078,17 +2466,7 @@ pub fn draw_export_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
     });
 }
 
-pub fn draw_ndi_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
-    egui::Window::new("NDI Output").open(&mut ui_state.show_ndi_panel).show(ctx, |ui| {
-        ui.label("NDI output");
-    });
-}
 
-pub fn draw_spout_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
-    egui::Window::new("Spout/Syphon").open(&mut ui_state.show_spout_panel).show(ctx, |ui| {
-        ui.label("Spout/Syphon output");
-    });
-}
 
 pub fn draw_ffgl_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
     egui::Window::new("FFGL Export").open(&mut ui_state.show_ffgl_panel).show(ctx, |ui| {

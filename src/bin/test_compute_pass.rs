@@ -1,4 +1,4 @@
-use resolume_isf_shaders_rust_ffgl::compute_pass_integration::{ComputePassManager, TextureFormat, StorageAccess};
+use resolume_isf_shaders_rust_ffgl::compute_pass_integration::{ComputePassManager, TextureFormat};
 
 fn main() {
     println!("Testing compute pass integration...");
