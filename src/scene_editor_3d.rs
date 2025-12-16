@@ -294,7 +294,10 @@ fn update_shader_preview_texture(
             };
             if let Ok(pixels) = renderer.render_frame(&ui_state.draft_code, &params, params.audio_data.clone()) {
                 if let Some(img) = images.get_mut(&preview_tex.handle) {
-                    img.data = Some(pixels);
+                    let expected_len = (preview_tex.width as usize) * (preview_tex.height as usize) * 4;
+                    if pixels.len() == expected_len {
+                        img.data = Some(pixels);
+                    }
                 }
             }
         }

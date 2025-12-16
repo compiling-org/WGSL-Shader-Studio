@@ -1,5 +1,15 @@
 # WGSL Shader Studio
 
+## Current State (2025-12-16)
+- App boot: reliable after egui context scheduling fixes; UI systems run on the proper pass to prevent early context use.
+- Preview: renderer output textures use `Rgba8Unorm` (src/shader_renderer.rs:914). 3D preview textures aligned to `Rgba8Unorm` (src/scene_editor_3d.rs:128, 141). Pixel size validation prevents Bevy image panics (src/scene_editor_3d.rs:297–299). Black preview resolved by unifying formats.
+- Node graph: WGSL generation stabilized; crashes addressed by generating pipeline-compatible WGSL and safe defaults. Ongoing verification for edge cases; UI exposure active.
+- 3D editor: viewport texture created and preview quad displays the shader; camera orbit/pan implemented. See src/scene_editor_3d.rs:151–164 for camera setup and 173–183 for preview quad.
+- Outputs UI: NDI/Spout/Syphon/OSC/DMX controls live in the right sidebar `Outputs` section; floating windows removed. See UI integration in src/editor_ui.rs:1030–1094.
+- Feature enforcement: one-time initialization ensures all panels and features are enabled and prevents loops; enforcement referenced by `pub mod enforcement_system;` (src/lib.rs:32). Startup system enables all flags once within app initialization.
+- Known issues: dynamic resize of preview may still require texture recreation; `wgpu_renderer` uses `Bgra8UnormSrgb` for surface which is acceptable but separate from preview texture path; ongoing work to harden node-edge cases.
+- Verification: `cargo check` passes; runtime verified locally. Follow-up tasks include resize robustness and end-to-end node graph rendering validation.
+
 ## Current Reality (2025-12-14)
 - Preview panel is unreliable; WGSL fragment pipeline integration is being repaired.
 - External WGSL shaders may fail due to strict validation/binding rules; validation is being relaxed.
@@ -245,6 +255,21 @@ flowchart LR
 2. Timeline animation with keyframes and curve editors
 3. FFGL plugin export
 4. Advanced shader features
+
+### Actionable Goals (Summary)
+- Canonicalize node system to `bevy_node_graph_integration_enhanced.rs`
+- Complete node palette and WGSL codegen with validation/diagnostics
+- Feed `generate_wgsl()` output into preview with fallbacks and error overlays
+- Initialize 3D viewport textures; add camera/gizmos; render basic meshes/materials
+- Stabilize renderer lifecycle (init/resize/present) and add status overlays
+- Bind parameter panel values and timeline outputs to shader uniforms and graph inputs
+- Ensure borrow-safe timeline UI rendering; playback/loop/scrub; JSON export/import
+- Map audio analyzer outputs to uniforms; implement MIDI CC mapping and MIDI learn
+- Surface Naga/WGSL diagnostics in preview; validate node graphs
+- Implement open/save for shaders and graphs; persist graph JSON; recent files
+- ISF import with parameter mapping and WGSL generation; basic FFGL export path
+- Add performance overlay metrics; optimize preview paths; guard egui/WGPU startup
+- Integration tests (node WGSL, preview smoke, timeline eval, parameter binding); Windows CI runner
 
 ## Usage
 

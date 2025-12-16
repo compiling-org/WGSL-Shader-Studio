@@ -2,6 +2,26 @@
 
 ## Version History and Development Progress
 
+### 2025-12-16 - Stabilization and UI Integration
+**Fixes**
+- Prevented preview crash by aligning 3D preview textures to `Rgba8Unorm` and validating pixel data size before upload (src/scene_editor_3d.rs:128, 141, 297–299).
+- Resolved black preview by unifying fragment pipeline and output texture formats (src/shader_renderer.rs:914).
+- Scheduled critical UI systems on the correct egui pass to eliminate context panics.
+
+**UI Changes**
+- Integrated NDI/Spout/Syphon/OSC/DMX controls into the right sidebar `Outputs` section; removed floating windows (src/editor_ui.rs:1030–1094).
+- Restored node studio toolbar visibility and ensured preview panel defaults to on.
+
+**Runtime Enforcement**
+- Added one-time feature initialization to keep all panels enabled and prevent repetitive loops; module referenced in `src/lib.rs:32`.
+
+**Known Issues**
+- Dynamic preview resize may require texture recreation to guarantee consistent pixel buffer lengths.
+- `wgpu_renderer` surface format remains `Bgra8UnormSrgb`; acceptable for swapchain, separate from preview texture path.
+
+**Verification**
+- `cargo check` passes; runtime inspection confirms preview path stability and UI exposure.
+
 ### 2025-10-31 - Documentation Reality Check
 **CRITICAL FIXES**
 - **Documentation Overhaul**: Completely rewrote frontend documentation to reflect actual implementation status
