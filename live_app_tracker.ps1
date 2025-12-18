@@ -20,22 +20,22 @@ function Write-Log {
 }
 
 function Check-Compilation {
-    Write-Log "🔍 Checking compilation status..." "CHECK"
+    Write-Log "Checking compilation status..." "CHECK"
     
     # Run cargo check and capture output
     $output = cargo check 2>&1
     $exitCode = $LASTEXITCODE
     
     if ($exitCode -eq 0) {
-        Write-Log "✅ Compilation SUCCESSFUL" "SUCCESS"
+        Write-Log "Compilation SUCCESSFUL" "SUCCESS"
         return $true
     } else {
-        Write-Log "❌ Compilation FAILED with $exitCode errors" "ERROR"
+        Write-Log "Compilation FAILED with $exitCode errors" "ERROR"
         
         # Extract and log specific errors
         $errorLines = $output | Where-Object { $_ -match "error\[" }
         foreach ($error in $errorLines) {
-            Write-Log "🚨 $error" "ERROR_DETAIL"
+            Write-Log "Error: $error" "ERROR_DETAIL"
             Add-Content -Path $ErrorLog -Value "$(Get-Date -Format 'HH:mm:ss') - $error"
         }
         
@@ -44,122 +44,92 @@ function Check-Compilation {
 }
 
 function Check-ApplicationRuntime {
-    Write-Log "🏃 Checking application runtime status..." "CHECK"
+    Write-Log "Checking application runtime status..." "CHECK"
     
     # Check if the application binary exists
     if (Test-Path "target\release\wgsl-shader-studio.exe") {
-        Write-Log "✅ Application binary EXISTS" "SUCCESS"
+        Write-Log "Application binary EXISTS" "SUCCESS"
         return $true
     } elseif (Test-Path "target\debug\wgsl-shader-studio.exe") {
-        Write-Log "⚠️  Application binary exists in DEBUG mode" "WARNING"
+        Write-Log "Application binary exists in DEBUG mode" "WARNING"
         return $true
     } else {
-        Write-Log "❌ Application binary NOT FOUND" "ERROR"
+        Write-Log "Application binary NOT FOUND" "ERROR"
         return $false
     }
 }
 
 function Check-SystemHealth {
-    Write-Log "🏥 Checking system health..." "CHECK"
+    Write-Log "Checking system health..." "CHECK"
     
     # Check memory usage
-    $memory = Get-WmiObject -Class Win32_OperatingSystem
-    $freeMemory = [math]::Round($memory.FreePhysicalMemory / 1MB, 2)
-    $totalMemory = [math]::Round($memory.TotalPhysicalMemory / 1MB, 2)
-    $memoryUsage = [math]::Round((($totalMemory - $freeMemory) / $totalMemory) * 100, 1)
-    
-    Write-Log "💾 Memory Usage: $memoryUsage% ($freeMemory MB free of $totalMemory MB)" "METRIC"
+    try {
+        $memory = Get-WmiObject -Class Win32_OperatingSystem
+        $freeMemory = [math]::Round($memory.FreePhysicalMemory / 1MB, 2)
+        $totalMemory = [math]::Round($memory.TotalPhysicalMemory / 1MB, 2)
+        
+        # Prevent division by zero
+        if ($totalMemory -gt 0) {
+            $memoryUsage = [math]::Round((($totalMemory - $freeMemory) / $totalMemory) * 100, 1)
+        } else {
+            $memoryUsage = 0
+        }
+        
+        Write-Log ("Memory Usage: {0}% ({1} MB free of {2} MB)" -f $memoryUsage, $freeMemory, $totalMemory) "METRIC"
+    } catch {
+        Write-Log "Failed to get memory info: $_" "ERROR"
+        $memoryUsage = 0
+    }
     
     # Check disk space
-    $disk = Get-WmiObject -Class Win32_LogicalDisk -Filter "DeviceID='C:'"
-    $freeSpace = [math]::Round($disk.FreeSpace / 1GB, 2)
-    $totalSpace = [math]::Round($disk.Size / 1GB, 2)
-    $diskUsage = [math]::Round((($totalSpace - $freeSpace) / $totalSpace) * 100, 1)
-    
-    Write-Log "💿 Disk Usage: $diskUsage% ($freeSpace GB free of $totalSpace GB)" "METRIC"
+    try {
+        $disk = Get-WmiObject -Class Win32_LogicalDisk -Filter "DeviceID='C:'"
+        $freeSpace = [math]::Round($disk.FreeSpace / 1GB, 2)
+        $totalSpace = [math]::Round($disk.Size / 1GB, 2)
+        
+        # Prevent division by zero
+        if ($totalSpace -gt 0) {
+            $diskUsage = [math]::Round((($totalSpace - $freeSpace) / $totalSpace) * 100, 1)
+        } else {
+            $diskUsage = 0
+        }
+        
+        Write-Log ("Disk Usage: {0}% ({1} GB free of {2} GB)" -f $diskUsage, $freeSpace, $totalSpace) "METRIC"
+    } catch {
+        Write-Log "Failed to get disk info: $_" "ERROR"
+        $diskUsage = 0
+        $freeSpace = 0
+    }
     
     # Check if memory usage is critical
     if ($memoryUsage -gt 90) {
-        Write-Log "🚨 CRITICAL: Memory usage at $memoryUsage%" "CRITICAL"
+        Write-Log "CRITICAL: Memory usage at $memoryUsage%" "CRITICAL"
         return $false
     }
     
     # Check if disk space is critical
     if ($freeSpace -lt 1) {
-        Write-Log "🚨 CRITICAL: Low disk space - $freeSpace GB remaining" "CRITICAL"
+        Write-Log "CRITICAL: Low disk space - $freeSpace GB remaining" "CRITICAL"
         return $false
     }
     
     return $true
 }
 
-function Analyze-ErrorPatterns {
-    Write-Log "🔬 Analyzing error patterns..." "ANALYSIS"
-    
-    if (Test-Path $ErrorLog) {
-        $recentErrors = Get-Content $ErrorLog | Where-Object { $_ -match "$(Get-Date -Format 'yyyy-MM-dd')" }
-        
-        if ($recentErrors.Count -gt 0) {
-            Write-Log "📊 Found $($recentErrors.Count) errors today" "ANALYSIS"
-            
-            # Count error types
-            $errorTypes = @{}
-            foreach ($error in $recentErrors) {
-                if ($error -match "error\[([E0-9]+)\]") {
-                    $errorCode = $matches[1]
-                    if ($errorTypes.ContainsKey($errorCode)) {
-                        $errorTypes[$errorCode]++
-                    } else {
-                        $errorTypes[$errorCode] = 1
-                    }
-                }
-            }
-            
-            foreach ($errorType in $errorTypes.GetEnumerator()) {
-                Write-Log "📈 Error $($errorType.Key): $($errorType.Value) occurrences" "ANALYSIS"
-            }
-        }
-    }
-}
-
-function Generate-HealthReport {
-    Write-Log "📋 Generating health report..." "REPORT"
-    
-    $report = @"
-=== WGSL SHADER STUDIO HEALTH REPORT ===
-Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
-
-COMPILATION STATUS:
-- Last Check: $(if (Check-Compilation) { "SUCCESS" } else { "FAILED" })
-
-RUNTIME STATUS:
-- Binary Available: $(if (Check-ApplicationRuntime) { "YES" } else { "NO" })
-
-SYSTEM METRICS:
-- Memory Usage: $([math]::Round(((Get-WmiObject -Class Win32_OperatingSystem).TotalPhysicalMemory - (Get-WmiObject -Class Win32_OperatingSystem).FreePhysicalMemory) / (Get-WmiObject -Class Win32_OperatingSystem).TotalPhysicalMemory * 100, 1))%
-- Disk Free: $([math]::Round((Get-WmiObject -Class Win32_LogicalDisk -Filter "DeviceID='C:'").FreeSpace / 1GB, 2)) GB
-
-RECENT ERRORS:
-$(if (Test-Path $ErrorLog) { Get-Content $ErrorLog | Select-Object -Last 5 | ForEach-Object { "- $_" } })
-
-=== END REPORT ===
-"@
-    
-    Write-Log $report "REPORT_DETAIL"
-}
-
 # MAIN TRACKING LOOP
-Write-Log "🚀 STARTING LIVE APPLICATION TRACKER" "STARTUP"
-Write-Log "📊 Monitoring interval: $CheckInterval seconds" "CONFIG"
-Write-Log "📝 Log file: $LogFile" "CONFIG"
-Write-Log "⚠️  Error log: $ErrorLog" "CONFIG"
+Write-Log "STARTING LIVE APPLICATION TRACKER" "STARTUP"
+Write-Log "Monitoring interval: $CheckInterval seconds" "CONFIG"
+Write-Log "Log file: $LogFile" "CONFIG"
+Write-Log "Error log: $ErrorLog" "CONFIG"
 
 $consecutiveFailures = 0
 $maxConsecutiveFailures = 3
+$cycleCount = 0
 
 try {
     while ($true) {
-        Write-Log "🔄 Starting new monitoring cycle..." "CYCLE"
+        Write-Log "Starting new monitoring cycle..." "CYCLE"
+        $cycleCount++
         
         # Check compilation
         $compilationOk = Check-Compilation
@@ -170,22 +140,14 @@ try {
         # Check system health
         $systemOk = Check-SystemHealth
         
-        # Analyze error patterns
-        Analyze-ErrorPatterns
-        
-        # Generate health report every 10 cycles
-        if ($cycleCount % 10 -eq 0) {
-            Generate-HealthReport
-        }
-        
         # Track consecutive failures
         if (-not $compilationOk) {
             $consecutiveFailures++
-            Write-Log "⚠️  Consecutive compilation failures: $consecutiveFailures" "WARNING"
+            Write-Log "Consecutive compilation failures: $consecutiveFailures" "WARNING"
             
             if ($consecutiveFailures -ge $maxConsecutiveFailures) {
-                Write-Log "🚨 CRITICAL: Too many consecutive failures!" "CRITICAL"
-                Write-Log "💀 TERMINATING TRACKING - SYSTEM UNSTABLE" "TERMINATE"
+                Write-Log "CRITICAL: Too many consecutive failures!" "CRITICAL"
+                Write-Log "TERMINATING TRACKING - SYSTEM UNSTABLE" "TERMINATE"
                 exit 1
             }
         } else {
@@ -194,18 +156,17 @@ try {
         
         # Overall status
         if ($compilationOk -and $runtimeOk -and $systemOk) {
-            Write-Log "🟢 SYSTEM HEALTHY - All checks passed" "HEALTHY"
+            Write-Log "SYSTEM HEALTHY - All checks passed" "HEALTHY"
         } elseif ($compilationOk -and $runtimeOk) {
-            Write-Log "🟡 SYSTEM STABLE - Minor issues detected" "STABLE"
+            Write-Log "SYSTEM STABLE - Minor issues detected" "STABLE"
         } else {
-            Write-Log "🔴 SYSTEM UNSTABLE - Critical issues detected" "UNSTABLE"
+            Write-Log "SYSTEM UNSTABLE - Critical issues detected" "UNSTABLE"
         }
         
-        Write-Log "⏳ Waiting $CheckInterval seconds..." "WAIT"
+        Write-Log "Waiting $CheckInterval seconds..." "WAIT"
         Start-Sleep -Seconds $CheckInterval
-        $cycleCount++
     }
 } catch {
-    Write-Log "💥 TRACKER CRASHED: $_" "CRASH"
+    Write-Log "TRACKER CRASHED: $_" "CRASH"
     exit 1
 }

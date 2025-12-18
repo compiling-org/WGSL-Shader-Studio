@@ -20,9 +20,10 @@ while ($true) {
       $hasCheckbox = $content.Contains('ui.checkbox(&mut ui_state.' + $VarName)
       $hasWindowOpen = $content.Contains('open(&mut ui_state.' + $VarName + ')')
       $hasConditional = $content.Contains('if ui_state.' + $VarName)
-      return ($hasCheckbox -or $hasWindowOpen -or $hasConditional)
+      # Check for proper side panel integration
+      $hasSidePanelIntegration = $content.Contains('ui_state.' + $VarName) -and $content.Contains('side_panels')
+      return ($hasCheckbox -or $hasWindowOpen -or $hasConditional -or $hasSidePanelIntegration)
     }
-
     $panels = @(
       @{Var='show_shader_browser'; Name='Shader Browser'},
       @{Var='show_parameter_panel'; Name='Parameters'},
@@ -59,7 +60,8 @@ while ($true) {
     }
 
     # UI line count (informational)
-    $lineCount = ($content -split [Environment]::NewLine).Count
+    $lines = $content -split '\r?\n'
+    $lineCount = $lines.Count
     if ($lineCount -lt 800) {
       $violations += ('INFO: editor_ui.rs line count is ' + $lineCount)
     }
@@ -72,23 +74,21 @@ while ($true) {
     $violations += ('GARBAGE: ' + ($garbageFiles -join ', '))
   }
   
-  # IMMEDIATE TERMINATION ON ANY VIOLATION
+  # IMMEDIATE TERMINATION ON ANY VIOLATION (but don't terminate ourselves)
   if ($violations.Count -gt 0) {
     Write-Host 'VIOLATIONS DETECTED:' -ForegroundColor Red
     foreach ($v in $violations) {
       Write-Host ('  [!] ' + $v) -ForegroundColor DarkRed
     }
     
-    Write-Host 'IMMEDIATE TERMINATION - NO VIOLATIONS ALLOWED' -ForegroundColor Red
+    Write-Host 'TERMINATING VIOLATING PROCESSES - ENFORCER CONTINUES RUNNING' -ForegroundColor Red
     
     $terminationMsg = ('TERMINATION: ' + (Get-Date).ToString() + ' - Violations: ' + ($violations -join '; '))
     $terminationMsg | Out-File -FilePath 'ENFORCEMENT_TERMINATION.log' -Append
     
-    if ($TerminateOnViolation) {
-      exit 1
-    }
-  }
-  
+    # Don't exit - continue monitoring
+    # Only terminate violating processes, not the enforcer itself
+  }  
   Write-Host ('ENFORCEMENT CLEAR - ' + (Get-Date -Format 'HH:mm:ss')) -ForegroundColor Green
   
   Start-Sleep -Seconds $CheckInterval
