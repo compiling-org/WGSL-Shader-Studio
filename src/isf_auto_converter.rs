@@ -9,13 +9,13 @@ use regex::Regex;
 #[serde(tag = "TYPE")]
 pub enum IsfInputType {
     #[serde(rename = "float")]
-    Float { DEFAULT: f32, MIN: f32, MAX: f32 },
+    Float { default: f32, min: f32, max: f32 },
     #[serde(rename = "bool")]
-    Bool { DEFAULT: bool },
+    Bool { default: bool },
     #[serde(rename = "color")]
-    Color { DEFAULT: [f32; 4] },
+    Color { default: [f32; 4] },
     #[serde(rename = "point2D")]
-    Point2D { DEFAULT: [f32; 2], MIN: [f32; 2], MAX: [f32; 2] },
+    Point2D { default: [f32; 2], min: [f32; 2], max: [f32; 2] },
     #[serde(rename = "image")]
     Image,
     #[serde(rename = "audio")]
@@ -27,7 +27,7 @@ pub enum IsfInputType {
 /// ISF input parameter
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IsfInput {
-    pub NAME: String,
+    pub name: String,
     #[serde(flatten)]
     pub input_type: IsfInputType,
 }
@@ -35,14 +35,14 @@ pub struct IsfInput {
 /// ISF metadata from JSON comment
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IsfMetadata {
-    pub NAME: String,
-    pub DESCRIPTION: Option<String>,
-    pub CREDIT: Option<String>,
-    pub ISFVSN: Option<String>,
-    pub VSN: Option<String>,
-    pub INPUTS: Option<Vec<IsfInput>>,
-    pub PASSES: Option<Vec<HashMap<String, serde_json::Value>>>,
-    pub PERSISTENT_BUFFERS: Option<Vec<String>>,
+    pub name: String,
+    pub description: Option<String>,
+    pub credit: Option<String>,
+    pub isfvsn: Option<String>,
+    pub vsn: Option<String>,
+    pub inputs: Option<Vec<IsfInput>>,
+    pub passes: Option<Vec<HashMap<String, serde_json::Value>>>,
+    pub persistent_buffers: Option<Vec<String>>,
 }
 
 /// WGSL conversion result
@@ -106,7 +106,7 @@ impl IsfAutoConverter {
         let result = WgslConversionResult {
             metadata: metadata.clone(),
             wgsl_code: wgsl_code.clone(),
-            inputs: metadata.INPUTS.clone().unwrap_or_default(),
+            inputs: metadata.inputs.clone().unwrap_or_default(),
             bind_groups,
             performance_hints,
             conversion_time_ms,
@@ -161,20 +161,20 @@ impl IsfAutoConverter {
         wgsl_code.push_str("    time: f32,\n");
         wgsl_code.push_str("    resolution: vec2<f32>,\n");
         
-        if let Some(inputs) = &metadata.INPUTS {
+        if let Some(inputs) = &metadata.inputs {
             for input in inputs {
                 match &input.input_type {
-                    IsfInputType::Float { DEFAULT: _, MIN: _, MAX: _ } => {
-                        wgsl_code.push_str(&format!("    {}: f32,\n", input.NAME));
+                    IsfInputType::Float { default: _, min: _, max: _ } => {
+                        wgsl_code.push_str(&format!("    {}: f32,\n", input.name));
                     }
-                    IsfInputType::Bool { DEFAULT: _ } => {
-                        wgsl_code.push_str(&format!("    {}: bool,\n", input.NAME));
+                    IsfInputType::Bool { default: _ } => {
+                        wgsl_code.push_str(&format!("    {}: bool,\n", input.name));
                     }
-                    IsfInputType::Color { DEFAULT: _ } => {
-                        wgsl_code.push_str(&format!("    {}: vec4<f32>,\n", input.NAME));
+                    IsfInputType::Color { default: _ } => {
+                        wgsl_code.push_str(&format!("    {}: vec4<f32>,\n", input.name));
                     }
-                    IsfInputType::Point2D { DEFAULT: _, MIN: _, MAX: _ } => {
-                        wgsl_code.push_str(&format!("    {}: vec2<f32>,\n", input.NAME));
+                    IsfInputType::Point2D { default: _, min: _, max: _ } => {
+                        wgsl_code.push_str(&format!("    {}: vec2<f32>,\n", input.name));
                     }
                     _ => {}
                 }
@@ -188,14 +188,14 @@ impl IsfAutoConverter {
         wgsl_code.push_str("var<uniform> uniforms: Uniforms;\n\n");
         
         // Add texture declarations for image inputs
-        if let Some(inputs) = &metadata.INPUTS {
+        if let Some(inputs) = &metadata.inputs {
             let mut texture_binding = 1;
             for input in inputs {
                 if matches!(input.input_type, IsfInputType::Image) {
                     wgsl_code.push_str(&format!("@group(0) @binding({})\n", texture_binding));
-                    wgsl_code.push_str(&format!("var {}: texture_2d<f32>;\n", input.NAME));
+                    wgsl_code.push_str(&format!("var {}: texture_2d<f32>;\n", input.name));
                     wgsl_code.push_str(&format!("@group(0) @binding({})\n", texture_binding + 1));
-                    wgsl_code.push_str(&format!("var {}_sampler: sampler;\n\n", input.NAME));
+                    wgsl_code.push_str(&format!("var {}_sampler: sampler;\n\n", input.name));
                     texture_binding += 2;
                 }
             }
@@ -263,13 +263,13 @@ impl IsfAutoConverter {
         binding += 1;
         
         // Image inputs
-        if let Some(inputs) = &metadata.INPUTS {
+        if let Some(inputs) = &metadata.inputs {
             for input in inputs {
                 if matches!(input.input_type, IsfInputType::Image) {
                     bind_groups.push(BindGroupInfo {
                         group: 0,
                         binding,
-                        name: input.NAME.clone(),
+                        name: input.name.clone(),
                         binding_type: "texture".to_string(),
                     });
                     binding += 1;
@@ -277,7 +277,7 @@ impl IsfAutoConverter {
                     bind_groups.push(BindGroupInfo {
                         group: 0,
                         binding,
-                        name: format!("{}_sampler", input.NAME),
+                        name: format!("{}_sampler", input.name),
                         binding_type: "sampler".to_string(),
                     });
                     binding += 1;
@@ -362,9 +362,9 @@ mod tests {
         "#;
         
         let result = converter.parse_isf_advanced(test_isf).unwrap();
-        assert_eq!(result.metadata.NAME, "Test Shader");
+        assert_eq!(result.metadata.name, "Test Shader");
         assert_eq!(result.inputs.len(), 1);
-        assert_eq!(result.inputs[0].NAME, "speed");
+        assert_eq!(result.inputs[0].name, "speed");
         
         // Check that WGSL code contains expected elements
         assert!(result.wgsl_code.contains("@fragment"));
