@@ -823,7 +823,7 @@ impl ShaderTranspiler for HlslToWgslTranspiler {
         vec![ShaderLanguage::Wgsl]
     }
 
-    fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
+    fn validate_source(&self, _source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
         if language != ShaderLanguage::Hlsl {
             return Err(TranspilerError::LanguageMismatch(language, ShaderLanguage::Hlsl));
         }
