@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, DiagnosticsStore};
+use bevy::diagnostic::DiagnosticsStore;
 use bevy_egui::{egui, EguiContexts};
 use std::time::{Duration, Instant};
 
@@ -118,6 +118,7 @@ fn update_performance_metrics(
     metrics.frame_count += 1;
     metrics.last_update = Instant::now();
 }
+
 
 fn draw_performance_overlay(
     mut contexts: EguiContexts,

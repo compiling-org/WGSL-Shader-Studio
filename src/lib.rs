@@ -27,6 +27,8 @@ pub mod scene_editor_3d;
 pub mod gesture_control;
 pub mod shader_converter;
 pub mod shader_renderer;
+pub mod wgsl_ast_parser;
+pub mod shader_transpiler;
 pub mod isf_loader;
 pub mod isf_converter;
 pub mod enforcement_system;
@@ -384,11 +386,7 @@ pub mod visual_node_editor_plugin;
 pub mod visual_node_editor_adapter;
 pub mod gyroflow_wgpu_interop;
 #[cfg(feature = "naga_integration")]
-pub mod shader_transpiler;
-#[cfg(feature = "naga_integration")]
 pub mod advanced_shader_compilation;
-#[cfg(feature = "naga_integration")]
-pub mod wgsl_ast_parser;
 #[cfg(feature = "naga_integration")]
 pub mod shader_module_system;
 

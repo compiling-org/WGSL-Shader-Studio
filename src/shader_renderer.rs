@@ -893,8 +893,9 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     /// The return type `Box<[u8]>` fixes the `E0308` error from the compilation log.
     pub fn render_frame(&mut self, wgsl_code: &str, params: &RenderParameters, audio_data: Option<AudioData>) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         if params.width == 0 || params.height == 0 {
-            let pixel_count = (params.width.max(1) * params.height.max(1)) as usize;
-            return Ok(vec![0u8; pixel_count * 4]);
+            let num_pixels = (params.width.max(1) * params.height.max(1)) as usize;
+            let red_pixels = vec![255, 0, 0, 255].into_iter().cycle().take(num_pixels * 4).collect();
+            return Ok(red_pixels);
         }
         if wgsl_code.contains("@compute") && !wgsl_code.contains("@fragment") {
             return self.render_compute_to_pixels(wgsl_code, params);
@@ -922,8 +923,9 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         if VERBOSE_LOG { println!("Detected fragment shader entry point: '{}'", fragment_entry_point); }
         // Quick return for empty code to prevent hanging
         if wgsl_code.trim().is_empty() {
-            let pixel_count = (params.width * params.height) as usize;
-            return Ok(vec![0u8; pixel_count * 4]);
+            let num_pixels = (params.width * params.height) as usize;
+            let red_pixels = vec![255, 0, 0, 255].into_iter().cycle().take(num_pixels * 4).collect();
+            return Ok(red_pixels);
         }
         self.last_errors.clear();
 
@@ -1056,6 +1058,8 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             params_buffer = Some(self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor { label: Some("Params Buffer"), contents: bytemuck::cast_slice(&params_data), usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST }));
         }
 
+        let mut group_layouts: Vec<(u32, wgpu::BindGroupLayout)> = Vec::new();
+        let mut bind_groups: Vec<(u32, wgpu::BindGroup)> = Vec::new();
         let mut bind_entries: Vec<wgpu::BindGroupEntry> = Vec::new();
         let mut temp_views: Vec<Box<wgpu::TextureView>> = Vec::new();
         let mut temp_samplers: Vec<Box<wgpu::Sampler>> = Vec::new();
@@ -1124,30 +1128,31 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                     _ => {}
                 }
             }
+            let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor { label: Some("Bind Group"), layout: &bind_group_layout, entries: &bind_entries });
+            bind_groups.push((0, bind_group));
         } else {
             bind_entries.push(wgpu::BindGroupEntry { binding: 0, resource: uniform_buffer.as_entire_binding() });
             if let Some(ref pb) = params_buffer {
                 bind_entries.push(wgpu::BindGroupEntry { binding: 1, resource: pb.as_entire_binding() });
             }
+            let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor { label: Some("Bind Group"), layout: &bind_group_layout, entries: &bind_entries });
+            bind_groups.push((0, bind_group));
         }
-        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor { label: Some("Bind Group"), layout: &bind_group_layout, entries: &bind_entries });
 
-        let mut group_layouts: Vec<(u32, wgpu::BindGroupLayout)> = Vec::new();
-        let mut bind_groups: Vec<(u32, wgpu::BindGroup)> = Vec::new();
-
-        let mut layouts: Vec<&wgpu::BindGroupLayout> = Vec::new();
+        let mut owned_layouts: Vec<wgpu::BindGroupLayout> = Vec::new();
         if group_layouts.is_empty() {
-            layouts.push(&bind_group_layout);
+            owned_layouts.push(bind_group_layout.clone());
         } else {
             group_layouts.sort_by_key(|(g, _)| *g);
             for (_, layout) in &group_layouts {
-                layouts.push(layout);
+                owned_layouts.push(layout.clone());
             }
         }
+        let layout_refs: Vec<&wgpu::BindGroupLayout> = owned_layouts.iter().collect();
 
         let pipeline_layout = self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Pipeline Layout"),
-            bind_group_layouts: &layouts,
+            bind_group_layouts: &layout_refs,
             push_constant_ranges: &[],
         });
 
@@ -1230,13 +1235,9 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             });
 
             render_pass.set_pipeline(&render_pipeline);
-            if bind_groups.is_empty() {
-                render_pass.set_bind_group(0, &bind_group, &[]);
-            } else {
-                bind_groups.sort_by_key(|(g, _)| *g);
-                for (group_idx, bg) in &bind_groups {
-                    render_pass.set_bind_group(*group_idx, bg, &[]);
-                }
+            bind_groups.sort_by_key(|(g, _)| *g);
+            for (group_idx, bg) in &bind_groups {
+                render_pass.set_bind_group(*group_idx, bg, &[]);
             }
             render_pass.draw(0..3, 0..1);
         }
@@ -1313,7 +1314,18 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                 
                 drop(data);
                 output_buffer.unmap();
-                Ok(pixel_data)
+                
+                // Ensure we always return valid pixel data with correct size
+                if pixel_data.is_empty() || pixel_data.len() != (params.width as usize * params.height as usize * 4) {
+                    let safe_width = params.width.max(1);
+                    let safe_height = params.height.max(1);
+                    let num_pixels = (safe_width as usize * safe_height as usize);
+                    let red_pixels = vec![255, 0, 0, 255].into_iter().cycle().take(num_pixels * 4).collect();
+                    if VERBOSE_LOG { println!("Fixed pixel data size mismatch in render_frame: expected {}, got {}", num_pixels * 4, pixel_data.len()); }
+                    Ok(red_pixels)
+                } else {
+                    Ok(pixel_data)
+                }
             }
             Ok(Err(e)) => {
                 // Enhanced fallback with debug pattern
@@ -1329,6 +1341,13 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                         dummy_pixels[idx + 2] = 128; // B
                         dummy_pixels[idx + 3] = 255; // A
                     }
+                }
+                // Ensure dummy pixels have correct size
+                let safe_width = params.width.max(1);
+                let safe_height = params.height.max(1);
+                let expected_size = (safe_width as usize * safe_height as usize * 4);
+                if dummy_pixels.len() != expected_size {
+                    dummy_pixels.resize(expected_size, 0);
                 }
                 Ok(dummy_pixels)
             }
@@ -1346,6 +1365,13 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                         dummy_pixels[idx + 2] = 64; // B
                         dummy_pixels[idx + 3] = 255; // A
                     }
+                }
+                // Ensure dummy pixels have correct size
+                let safe_width = params.width.max(1);
+                let safe_height = params.height.max(1);
+                let expected_size = (safe_width as usize * safe_height as usize * 4);
+                if dummy_pixels.len() != expected_size {
+                    dummy_pixels.resize(expected_size, 0);
                 }
                 Ok(dummy_pixels)
             }
@@ -1689,8 +1715,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             }
         }
 
-        let mut layouts: Vec<&wgpu::BindGroupLayout> = Vec::new();
-        let mut fallback_bgl_opt: Option<wgpu::BindGroupLayout> = None;
+        let mut owned_layouts: Vec<wgpu::BindGroupLayout> = Vec::new();
         if group_layouts.is_empty() {
             let mut layout_entries: Vec<wgpu::BindGroupLayoutEntry> = Vec::new();
             layout_entries.push(wgpu::BindGroupLayoutEntry {
@@ -1708,25 +1733,24 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                 });
             }
             let fb = self.device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor { label: Some("Bind Group Layout Fallback"), entries: &layout_entries });
-            fallback_bgl_opt = Some(fb);
-            layouts.push(fallback_bgl_opt.as_ref().unwrap());
+            owned_layouts.push(fb.clone());
             let mut entries: Vec<wgpu::BindGroupEntry> = Vec::new();
             entries.push(wgpu::BindGroupEntry { binding: 0, resource: uniform_buffer.as_entire_binding() });
             if let Some(ref pb) = params_buffer {
                 entries.push(wgpu::BindGroupEntry { binding: 1, resource: pb.as_entire_binding() });
             }
-            let fallback_bg = self.device.create_bind_group(&wgpu::BindGroupDescriptor { label: Some("Bind Group Fallback"), layout: fallback_bgl_opt.as_ref().unwrap(), entries: &entries });
+            let fallback_bg = self.device.create_bind_group(&wgpu::BindGroupDescriptor { label: Some("Bind Group Fallback"), layout: owned_layouts.last().unwrap(), entries: &entries });
             bind_groups.push((0, fallback_bg));
         } else {
             group_layouts.sort_by_key(|(g, _)| *g);
             for (_, layout) in &group_layouts {
-                layouts.push(layout);
+                owned_layouts.push(layout.clone());
             }
         }
 
         let pipeline_layout = self.device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Render Pipeline Layout"),
-            bind_group_layouts: &layouts,
+            bind_group_layouts: &owned_layouts.iter().collect::<Vec<_>>(),
             push_constant_ranges: &[],
         });
 
@@ -1834,7 +1858,16 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         }
         drop(data);
         output_buffer.unmap();
-        Ok(result)
+        // Ensure we always return valid pixel data with correct size
+        if result.is_empty() || result.len() != (params.width as usize * params.height as usize * 4) {
+            let safe_width = params.width.max(1);
+            let safe_height = params.height.max(1);
+            let num_pixels = (safe_width as usize * safe_height as usize);
+            let red_pixels = vec![255, 0, 0, 255].into_iter().cycle().take(num_pixels * 4).collect();
+            Ok(red_pixels)
+        } else {
+            Ok(result)
+        }
     }
 
     fn render_pipeline_with_bind_group(&mut self, wgsl_code: &str, params: &RenderParameters, bind_group: wgpu::BindGroup, bind_group_layout: wgpu::BindGroupLayout, texture: wgpu::Texture, texture_view: wgpu::TextureView, _uniform_buffer: wgpu::Buffer, vertex_entry_point: &str, fragment_entry_point: &str) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
@@ -1974,8 +2007,18 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         drop(data);
         output_buffer.unmap();
 
-        if VERBOSE_LOG { println!("SUCCESS: Rendering completed successfully"); }
-        Ok(result)
+        // Ensure we always return valid pixel data with correct size
+        if result.is_empty() || result.len() != (params.width as usize * params.height as usize * 4) {
+            let safe_width = params.width.max(1);
+            let safe_height = params.height.max(1);
+            let num_pixels = (safe_width as usize * safe_height as usize);
+            let red_pixels = vec![255, 0, 0, 255].into_iter().cycle().take(num_pixels * 4).collect();
+            if VERBOSE_LOG { println!("Fixed pixel data size mismatch: expected {}, got {}", num_pixels * 4, result.len()); }
+            Ok(red_pixels)
+        } else {
+            if VERBOSE_LOG { println!("SUCCESS: Rendering completed successfully"); }
+            Ok(result)
+        }
     }
     
     fn render_compute_to_pixels(&mut self, wgsl_code: &str, params: &RenderParameters) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
@@ -2084,7 +2127,18 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         }
         drop(data);
         output_buffer.unmap();
-        Ok(result)
+        
+        // Ensure we always return valid pixel data with correct size
+        if result.is_empty() || result.len() != (params.width as usize * params.height as usize * 4) {
+            let safe_width = params.width.max(1);
+            let safe_height = params.height.max(1);
+            let num_pixels = (safe_width as usize * safe_height as usize);
+            let red_pixels = vec![255, 0, 0, 255].into_iter().cycle().take(num_pixels * 4).collect();
+            if VERBOSE_LOG { println!("Fixed pixel data size mismatch in compute shader: expected {}, got {}", num_pixels * 4, result.len()); }
+            Ok(red_pixels)
+        } else {
+            Ok(result)
+        }
     }
 
     /// Get the preview texture ID for UI display.

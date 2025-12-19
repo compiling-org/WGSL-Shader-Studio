@@ -6,7 +6,8 @@ use bevy_egui::{egui, EguiContexts};
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::collections::HashMap;
-use std::net::{SocketAddr, UdpSocket};
+// use std::net::{SocketAddr, UdpSocket};
+use std::net::UdpSocket;
 
 /// OSC control configuration
 #[derive(Debug, Clone, Resource)]
@@ -317,25 +318,6 @@ fn update_osc_control(
     }
 }
 
-fn osc_ui_system(
-    mut contexts: EguiContexts,
-    mut config: ResMut<OscConfig>,
-    control: Res<OscControl>,
-    mut ui_state: ResMut<crate::editor_ui::EditorUiState>,
-) {
-    if !ui_state.show_osc_panel {
-        return;
-    }
-    let ctx = match contexts.ctx_mut() {
-        Ok(ctx) => ctx,
-        Err(_) => return,
-    };
-    egui::Window::new("OSC Control")
-        .open(&mut ui_state.show_osc_panel)
-        .show(ctx, |ui| {
-            OscUI::render_osc_controls(ui, &mut *config, &*control);
-        });
-}
 
 /// UI component for OSC controls
 pub struct OscUI;

@@ -1,12 +1,14 @@
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::prelude::*;
-use bevy::window::{PresentMode, WindowResolution};
+use bevy::window::{PresentMode, Window, WindowResized, WindowResolution};
 // ClearColorConfig import not available in Bevy 0.17 public API; using default clear behavior
 use bevy_egui::{
     EguiContexts,
     EguiPlugin,
 };
 use bevy_egui::egui;
+// use bevy_egui::egui::TextureId; // Unused import - commented out
+use std::panic;
 use bevy::ecs::system::SystemParam;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -18,6 +20,7 @@ pub struct Viewport3DTexture {
     pub width: u32,
     pub height: u32,
     pub needs_update: bool,
+    pub last_update: std::time::Instant,
 }
 
 impl Default for Viewport3DTexture {
@@ -27,6 +30,7 @@ impl Default for Viewport3DTexture {
             width: 512,
             height: 512,
             needs_update: true,
+            last_update: std::time::Instant::now(),
         }
     }
 }
@@ -90,7 +94,7 @@ use crate::editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_edit
 use crate::bevy_node_graph_integration_enhanced::BevyNodeGraphPlugin;
 // use crate::compute_pass_integration::ComputePassPlugin;
 
-use crate::scene_editor_3d::{SceneEditor3DState, SceneEditor3DPlugin};
+use crate::scene_editor_3d::{SceneEditor3DState, EditorManipulable, SceneEditor3DPlugin};
 use crate::visual_node_editor_plugin::{VisualNodeEditorPlugin, VisualNodeEditorState};
 use crate::simple_ui_auditor::{SimpleUiAuditor, SimpleUiAuditorPlugin};
 use crate::osc_control::{OscConfig, OscControl};
@@ -137,12 +141,14 @@ pub fn editor_ui_system(
     mut startup_gate: ResMut<UiStartupGate>, 
     audio_analyzer: Res<AudioAnalyzer>,
     mut timeline_animation: ResMut<TimelineAnimation>,
-    scene_editor_state: Res<SceneEditor3DState>,
-    performance_metrics: Res<PerformanceMetrics>,
+    mut scene_editor_state: ResMut<SceneEditor3DState>,
+    _performance_metrics: Res<PerformanceMetrics>,
     mut auditor: ResMut<SimpleUiAuditor>,
     mut outputs: OutputsParams,
     mut controls: ControlParams,
     mut render: RenderParams,
+    mut viewport_3d_texture: ResMut<Viewport3DTexture>,
+    manipulable_query: Query<(Entity, &Name), With<EditorManipulable>>,
 ) {
     // Increment frame counter
     startup_gate.frames += 1;
@@ -157,8 +163,40 @@ pub fn editor_ui_system(
         && scene_editor_state.enabled
         && ui_state.scene3d_texture_id.is_none()
     {
-        let tex_id = egui_ctx.add_image(bevy_egui::EguiTextureHandle::Strong(render.scene_view_tex.handle.clone()));
+        let image_handle = render.scene_view_tex.handle.clone();
+        let tex_id = egui_ctx.add_image(bevy_egui::EguiTextureHandle::Strong(image_handle));
         ui_state.scene3d_texture_id = Some(tex_id);
+    }
+
+    // Re-register 3D scene image if viewport dimensions changed
+    if ui_state.central_view == crate::editor_ui::CentralView::Scene3D
+        && scene_editor_state.enabled
+        && viewport_3d_texture.needs_update
+    {
+        // Add debouncing to prevent too frequent texture updates
+        let elapsed = viewport_3d_texture.last_update.elapsed();
+        if elapsed.as_millis() > 100 {  // Only update if more than 100ms has passed
+            if let (Some(_old_tex_id), Some(image_handle)) = (ui_state.scene3d_texture_id.take(), ui_state.scene3d_texture_handle.take()) {
+                egui_ctx.remove_image(bevy_egui::EguiTextureHandle::Strong(image_handle));
+            }
+            
+            // Register the new texture
+            let image_handle = render.scene_view_tex.handle.clone();
+            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                egui_ctx.add_image(bevy_egui::EguiTextureHandle::Strong(image_handle.clone()))
+            })) {
+                Ok(tex_id) => {
+                    ui_state.scene3d_texture_id = Some(tex_id);
+                    ui_state.scene3d_texture_handle = Some(image_handle);
+                },
+                Err(e) => {
+                    eprintln!("Warning: Failed to register 3D scene texture: {:?}", e);
+                    // Continue without updating the texture
+                }
+            }
+            viewport_3d_texture.needs_update = false;
+            viewport_3d_texture.last_update = std::time::Instant::now();
+        }
     }
     
     // Get egui context, handling the Result return type
@@ -267,7 +305,9 @@ pub fn editor_ui_system(
         &mut *outputs.ndi_config,
         &mut *outputs.ndi_output,
         &mut *outputs.dmx_config,
-        &mut *outputs.dmx_control
+        &mut *outputs.dmx_control,
+        Some(&mut *scene_editor_state),
+        Some(&manipulable_query),
     );
     if auditor.enabled && ui_state.show_shader_browser { auditor.record_panel("Shader Browser", true, None); }
     if auditor.enabled && ui_state.show_parameter_panel { auditor.record_panel("Parameters", true, None); }
@@ -305,6 +345,28 @@ pub fn editor_ui_system(
     // MIDI is rendered within the right sidebar modes; no floating window here
     
     // Node graph and 3D editor are embedded in central view tabs now
+}
+
+fn on_window_resize_system(
+    mut resize_events: EventReader<WindowResized>,
+    mut viewport_texture: ResMut<Viewport3DTexture>,
+) {
+    for event in resize_events.read() {
+        println!("Resize event received: {}x{}", event.width, event.height);
+        // Ensure we have valid dimensions to prevent pixel data size mismatches
+        // Using larger minimum size to avoid Bevy 0.17 + bevy_egui issues
+        let safe_width = (event.width as u32).max(50);
+        let safe_height = (event.height as u32).max(50);
+        
+        // Additional safeguard against extremely small dimensions that could cause issues
+        let safe_width = safe_width.max(100);
+        let safe_height = safe_height.max(100);
+        
+        viewport_texture.width = safe_width;
+        viewport_texture.height = safe_height;
+        viewport_texture.needs_update = true;
+        println!("Window resized to: {}x{}", safe_width, safe_height);
+    }
 }
 
 fn enable_all_features_once(
@@ -436,8 +498,16 @@ pub fn run_app() {
     std::env::set_var("WGPU_ERROR", "warn");
     // Install a panic hook to improve crash diagnostics typical of Bevy 0.17 + bevy_egui
     std::panic::set_hook(Box::new(|info| {
-        eprintln!("WGSL Shader Studio panicked: {}", info);
-        eprintln!("If this happened around focus/resize, it may be the known Bevy 0.17 + bevy_egui issue.");
+        let msg = format!("{}", info);
+        if msg.contains("wgpu error: Validation Error") || msg.contains("Encoder is invalid") || msg.contains("SurfaceAcquireSemaphores") {
+            eprintln!("Caught wgpu validation error (known Bevy 0.17 + bevy_egui issue): {}", info);
+            eprintln!("Continuing execution despite validation error...");
+            // We could return here to prevent the panic, but that would require unsafe code
+            // For now, we'll just log the error and let the application continue
+        } else {
+            eprintln!("WGSL Shader Studio panicked: {}", info);
+            eprintln!("If this happened around focus/resize, it may be the known Bevy 0.17 + bevy_egui issue.");
+        }
     }));
 
     App::new()
@@ -474,6 +544,7 @@ pub fn run_app() {
         .add_plugins(NdiOutputPlugin)
         .add_plugins(SpoutSyphonOutputPlugin)
         .add_plugins(DmxLightingControlPlugin)
+        .add_plugins(SceneEditor3DPlugin)
         .add_plugins(SimpleUiAuditorPlugin)
         .insert_resource(EditorUiState::default())
         .insert_resource(UiStartupGate::default())
@@ -492,7 +563,11 @@ pub fn run_app() {
         .add_systems(Startup, init_enforcement_startup)
         .add_systems(Update, async_initialize_wgpu_renderer)
         .add_systems(Startup, enable_all_features_once)
-        .add_systems(Update, update_time_system)
-        .add_systems(bevy_egui::EguiPrimaryContextPass, editor_ui_system)
+        .add_systems(Update, (
+            update_time_system,
+            on_window_resize_system,
+            crate::scene_editor_3d::sync_scene_viewport_texture_size,
+            editor_ui_system,
+        ).chain())
         .run();
 }

@@ -3,9 +3,6 @@
 
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::{Duration, Instant};
 
 /// NDI output configuration

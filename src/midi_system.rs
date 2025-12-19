@@ -4,7 +4,7 @@
 //! and real-time control with learn functionality.
 
 use bevy::prelude::*;
-use midir::{MidiInput, MidiInputConnection, Ignore};
+use midir::{MidiInput, MidiInputConnection};
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use std::error::Error;

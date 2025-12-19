@@ -3,6 +3,7 @@ use bevy::prelude::Projection;
 use bevy::prelude::PerspectiveProjection;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat, TextureUsages};
 use bevy::asset::RenderAssetUsages;
+use crate::bevy_app::Viewport3DTexture;
 // use bevy::render::primitives::{Frustum, Aabb};
 // use bevy::render::view::VisibleEntities;
 
@@ -48,6 +49,114 @@ impl Default for PrimitiveType {
     }
 }
 
+fn sync_shader_preview_texture_size(
+    mut images: ResMut<Assets<Image>>,
+    mut preview_tex: ResMut<ShaderPreviewTexture>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut material_query: Query<(Entity, &bevy::pbr::MeshMaterial3d<StandardMaterial>, &Name)>,
+    ui_state: Res<crate::editor_ui::EditorUiState>,
+) {
+    // Ensure we have valid dimensions to prevent pixel data size mismatches
+    // Using larger minimum size to avoid Bevy 0.17 + bevy_egui issues
+    let desired_w = ui_state.preview_resolution.0.max(50);
+    let desired_h = ui_state.preview_resolution.1.max(50);
+    
+    // Additional safeguard against extremely small dimensions that could cause issues
+    let desired_w = desired_w.max(100);
+    let desired_h = desired_h.max(100);
+    
+    if preview_tex.width == desired_w && preview_tex.height == desired_h {
+        return;
+    }
+    
+    let size = Extent3d {
+        width: desired_w,
+        height: desired_h,
+        depth_or_array_layers: 1,
+    };
+    println!("Creating preview texture with size: {}x{}", desired_w, desired_h);
+    // Create valid pixel data with correct size using new_fill for safety
+    let mut new_image = Image::new_fill(
+        size,
+        TextureDimension::D2,
+        &[0, 0, 0, 255],
+        TextureFormat::Rgba8Unorm,
+        RenderAssetUsages::default(),
+    );
+    new_image.texture_descriptor.usage = TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST;
+    let new_handle = images.add(new_image);
+    preview_tex.handle = new_handle.clone();
+    preview_tex.width = desired_w;
+    preview_tex.height = desired_h;
+    for (_e, mat_comp, name) in material_query.iter_mut() {
+        if name.as_str() == "Shader Preview Quad" {
+            if let Some(mat) = materials.get_mut(&mat_comp.0) {
+                mat.base_color_texture = Some(new_handle.clone());
+            }
+        }
+    }
+}
+
+pub fn sync_scene_viewport_texture_size(
+    mut images: ResMut<Assets<Image>>,
+    mut scene_viewport_tex: ResMut<SceneViewportTexture>,
+    mut viewport_3d_texture: ResMut<Viewport3DTexture>,
+) {
+    if !viewport_3d_texture.needs_update {
+        return;
+    }
+
+    let desired_w = viewport_3d_texture.width;
+    let desired_h = viewport_3d_texture.height;
+    
+    println!("Syncing scene viewport texture: desired {}x{}", desired_w, desired_h);
+
+    // Ensure we have valid dimensions to prevent pixel data size mismatches
+    // Using larger minimum size to avoid Bevy 0.17 + bevy_egui issues
+    let safe_width = desired_w.max(50);
+    let safe_height = desired_h.max(50);
+    
+    // Additional safeguard against extremely small dimensions that could cause issues
+    let safe_width = safe_width.max(100);
+    let safe_height = safe_height.max(100);
+    
+    // Additional debugging
+    println!("Final safe dimensions: {}x{}", safe_width, safe_height);
+    
+    println!("Safe dimensions: {}x{}", safe_width, safe_height);
+
+    if scene_viewport_tex.width == safe_width && scene_viewport_tex.height == safe_height {
+        viewport_3d_texture.needs_update = false;
+        return;
+    }
+
+    let size = Extent3d {
+        width: safe_width,
+        height: safe_height,
+        depth_or_array_layers: 1,
+    };
+    println!("Creating texture with size: {}x{}", safe_width, safe_height);
+    // Create valid pixel data with correct size
+    let expected_size = (safe_width * safe_height * 4) as usize;
+    println!("Expected pixel data size: {}", expected_size);
+    let initial_pixel_data = vec![0; expected_size];
+    println!("Actual pixel data size: {}", initial_pixel_data.len());
+    let mut new_image = Image::new(
+        size,
+        TextureDimension::D2,
+        initial_pixel_data,
+        TextureFormat::Rgba8Unorm,
+        RenderAssetUsages::default(),
+    );
+    new_image.texture_descriptor.usage = TextureUsages::TEXTURE_BINDING | TextureUsages::RENDER_ATTACHMENT | TextureUsages::COPY_DST;
+    let new_handle = images.add(new_image);
+
+    scene_viewport_tex.handle = new_handle.clone();
+    scene_viewport_tex.width = safe_width;
+    scene_viewport_tex.height = safe_height;
+    viewport_3d_texture.needs_update = false;
+}
+
 impl Default for SceneEditor3DState {
     fn default() -> Self {
         Self {
@@ -87,23 +196,45 @@ impl Plugin for SceneEditor3DPlugin {
                 highlight_selected_entity,
                 create_primitive_system,
                 snap_to_grid_system,
-                update_shader_preview_texture,
-            ));
+        update_shader_preview_texture,
+        sync_shader_preview_texture_size,
+        sync_scene_viewport_texture_size,
+    ));
     }
 }
 
-#[derive(Resource, Clone, Default)]
+#[derive(Resource, Clone)]
 pub struct SceneViewportTexture {
     pub handle: Handle<Image>,
     pub width: u32,
     pub height: u32,
 }
 
-#[derive(Resource, Clone, Default)]
+impl Default for SceneViewportTexture {
+    fn default() -> Self {
+        Self {
+            handle: Handle::default(),
+            width: 512,
+            height: 512,
+        }
+    }
+}
+
+#[derive(Resource, Clone)]
 pub struct ShaderPreviewTexture {
     pub handle: Handle<Image>,
     pub width: u32,
     pub height: u32,
+}
+
+impl Default for ShaderPreviewTexture {
+    fn default() -> Self {
+        Self {
+            handle: Handle::default(),
+            width: 512,
+            height: 512,
+        }
+    }
 }
 
 /// Setup the 3D editor with camera and basic scene
@@ -116,9 +247,10 @@ fn setup_editor_3d(
     mut viewport_tex: ResMut<SceneViewportTexture>,
     mut preview_tex: ResMut<ShaderPreviewTexture>,
 ) {
+    // Use consistent dimensions with the default texture size
     let size = Extent3d {
-        width: 800,
-        height: 450,
+        width: 512,
+        height: 512,
         depth_or_array_layers: 1,
     };
     let mut image = Image::new_fill(
@@ -128,7 +260,7 @@ fn setup_editor_3d(
         TextureFormat::Rgba8Unorm,
         RenderAssetUsages::default(),
     );
-    image.texture_descriptor.usage = TextureUsages::TEXTURE_BINDING | TextureUsages::RENDER_ATTACHMENT;
+    image.texture_descriptor.usage = TextureUsages::TEXTURE_BINDING | TextureUsages::RENDER_ATTACHMENT | TextureUsages::COPY_DST;
     let image_handle = images.add(image);
     viewport_tex.handle = image_handle.clone();
     viewport_tex.width = size.width;
@@ -500,108 +632,6 @@ fn spherical_to_cartesian(spherical: SphericalCoords, radius: f32) -> Vec3 {
     )
 }
 
-/// UI system for 3D scene editor panel
-pub fn scene_editor_3d_ui(
-    mut egui_ctx: bevy_egui::EguiContexts,
-    mut editor_state: ResMut<SceneEditor3DState>,
-    manipulable_query: Query<(Entity, &Name), With<EditorManipulable>>,
-) {
-    use bevy_egui::egui;
-    
-    let ctx = match egui_ctx.ctx_mut() {
-        Ok(ctx) => ctx,
-        Err(_) => return,
-    };
-    
-    egui::Window::new("3D Scene Editor")
-        .default_pos([10.0, 50.0])
-        .default_size([300.0, 400.0])
-        .show(ctx, |ui| {
-            ui.heading("3D Scene Controls");
-            ui.separator();
-            
-            // Manipulation mode buttons
-            ui.horizontal(|ui| {
-                ui.label("Mode:");
-                if ui.button("Translate (W)").clicked() {
-                    editor_state.manipulation_mode = ManipulationMode::Translate;
-                }
-                if ui.button("Rotate (E)").clicked() {
-                    editor_state.manipulation_mode = ManipulationMode::Rotate;
-                }
-                if ui.button("Scale (R)").clicked() {
-                    editor_state.manipulation_mode = ManipulationMode::Scale;
-                }
-            });
-            
-            ui.separator();
-            
-            // Primitive creation
-            ui.horizontal(|ui| {
-                ui.label("Create:");
-                egui::ComboBox::from_label("")
-                    .selected_text(format!("{:?}", editor_state.create_primitive_type))
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut editor_state.create_primitive_type, PrimitiveType::Cube, "Cube");
-                        ui.selectable_value(&mut editor_state.create_primitive_type, PrimitiveType::Sphere, "Sphere");
-                        ui.selectable_value(&mut editor_state.create_primitive_type, PrimitiveType::Cylinder, "Cylinder");
-                        ui.selectable_value(&mut editor_state.create_primitive_type, PrimitiveType::Plane, "Plane");
-                    });
-                ui.label("(Ctrl+N)");
-            });
-            
-            ui.separator();
-            
-            // Scene hierarchy
-            ui.heading("Scene Hierarchy");
-            egui::ScrollArea::vertical()
-                .max_height(200.0)
-                .show(ui, |ui| {
-                    for (entity, name) in manipulable_query.iter() {
-                        let is_selected = editor_state.selected_entity == Some(entity);
-                        let response = ui.selectable_label(
-                            is_selected,
-                            format!("{} (Entity {:?})", name.as_str(), entity)
-                        );
-                        
-                        if response.clicked() {
-                            editor_state.selected_entity = Some(entity);
-                        }
-                    }
-                });
-            
-            ui.separator();
-            
-            // Editor options
-            ui.checkbox(&mut editor_state.show_gizmos, "Show Gizmos");
-            ui.checkbox(&mut editor_state.enabled, "Editor Enabled");
-            ui.checkbox(&mut editor_state.snap_to_grid, "Snap to Grid");
-            
-            if editor_state.snap_to_grid {
-                ui.horizontal(|ui| {
-                    ui.label("Grid Size:");
-                    ui.add(egui::DragValue::new(&mut editor_state.grid_size)
-                        .speed(0.1)
-                        .range(0.1..=10.0));
-                });
-                ui.label("Press G to snap selected entities");
-            }
-            
-            ui.separator();
-            
-            // Instructions
-            ui.label("Controls:");
-            ui.label("• Left Click: Select entity");
-            ui.label("• Right Drag: Orbit camera");
-            ui.label("• Middle Drag: Pan camera");
-            ui.label("• Mouse Wheel: Zoom in/out");
-            ui.label("• Q/Z: Zoom out/in");
-            ui.label("• W/E/R: Switch manipulation mode");
-            ui.label("• Ctrl+N: Create new primitive");
-            ui.label("• G: Snap to grid (when enabled)");
-        });
-}
-
 /// System to create new primitives in the scene
 fn create_primitive_system(
     mut commands: Commands,
@@ -665,36 +695,4 @@ fn snap_to_grid_system(
     }
 }
 
-/// 3D viewport panel that can be embedded in the main editor
-pub fn scene_3d_viewport_ui(
-    mut egui_ctx: bevy_egui::EguiContexts,
-    editor_state: Res<crate::scene_editor_3d::SceneEditor3DState>,
-) {
-    use bevy_egui::egui;
-    
-    let ctx = match egui_ctx.ctx_mut() {
-        Ok(ctx) => ctx,
-        Err(_) => return,
-    };
-    
-    egui::Window::new("3D Viewport")
-        .default_pos([320.0, 50.0])
-        .default_size([600.0, 400.0])
-        .show(ctx, |ui| {
-            ui.heading("3D Scene View");
-            
-            if editor_state.enabled {
-                ui.label("3D viewport active - use mouse controls to navigate");
-                ui.label(format!("Selected: {:?}", editor_state.selected_entity));
-                ui.label(format!("Mode: {:?}", editor_state.manipulation_mode));
-            } else {
-                ui.label("3D editor disabled");
-            }
-            
-            // Placeholder for actual 3D viewport rendering
-            // In a full implementation, this would render the 3D scene to a texture
-            // and display it in the egui window
-            ui.separator();
-            ui.label("Note: Full 3D viewport integration requires render-to-texture setup");
-        });
-}
+

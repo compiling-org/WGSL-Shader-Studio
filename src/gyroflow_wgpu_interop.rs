@@ -1,7 +1,7 @@
 //! Gyroflow WGPU Interop Module
 //! Provides zero-copy texture sharing and advanced video processing integration
 
-use std::sync::{Arc, Mutex};
+// use std::sync::{Arc, Mutex};
 use wgpu::{Device, Queue, Texture, TextureFormat, TextureView};
 use serde::{Serialize, Deserialize};
 

@@ -1,84 +1,16 @@
-   Compiling wgsl-shader-studio v0.1.0 (C:\Users\kapil\compiling\WGSL-Shader-Studio)
-warning: unused import: `bevy_egui::egui::TextureId`
-  --> src\bevy_app.rs:10:5
+warning: unused import: `std::panic`
+  --> src\bevy_app.rs:11:5
    |
-10 | use bevy_egui::egui::TextureId;
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+11 | use std::panic;
+   |     ^^^^^^^^^^
    |
    = note: `#[warn(unused_imports)]` on by default
 
-warning: unused import: `SceneEditor3DPlugin`
-  --> src\bevy_app.rs:94:50
-   |
-94 | use crate::scene_editor_3d::{SceneEditor3DState, SceneEditor3DPlugin};
-   |                                                  ^^^^^^^^^^^^^^^^^^^
-
-warning: unused import: `std::sync::mpsc`
- --> src\audio_system.rs:2:5
+warning: unused import: `EguiContexts`
+ --> src\osc_control.rs:5:23
   |
-2 | use std::sync::mpsc;
-  |     ^^^^^^^^^^^^^^^
-
-warning: unnecessary parentheses around assigned value
-   --> src\audio_system.rs:163:27
-    |
-163 |                 sample *= (0.7 + beat_envelope * 0.3); // Beat modulation
-    |                           ^                         ^
-    |
-    = note: `#[warn(unused_parens)]` on by default
-help: remove these parentheses
-    |
-163 -                 sample *= (0.7 + beat_envelope * 0.3); // Beat modulation
-163 +                 sample *= 0.7 + beat_envelope * 0.3; // Beat modulation
-    |
-
-warning: unused import: `Ignore`
- --> src\midi_system.rs:7:45
-  |
-7 | use midir::{MidiInput, MidiInputConnection, Ignore};
-  |                                             ^^^^^^
-
-warning: unused import: `FrameTimeDiagnosticsPlugin`
- --> src\performance_overlay.rs:2:24
-  |
-2 | use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, DiagnosticsStore};
-  |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-warning: unused import: `crate::isf_converter::IsfShader`
- --> src\ffgl_plugin.rs:4:5
-  |
-4 | use crate::isf_converter::IsfShader;
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-warning: unused imports: `CStr` and `CString`
- --> src\ffgl_plugin.rs:9:16
-  |
-9 | use std::ffi::{CStr, CString};
-  |                ^^^^  ^^^^^^^
-
-warning: unused import: `std::sync::Arc`
- --> src\ndi_output.rs:6:5
-  |
-6 | use std::sync::Arc;
-  |     ^^^^^^^^^^^^^^
-
-warning: unused import: `std::sync::Mutex`
- --> src\ndi_output.rs:7:5
-  |
-7 | use std::sync::Mutex;
-  |     ^^^^^^^^^^^^^^^^
-
-warning: unused imports: `IpAddr`, `Ipv4Addr`, and `SocketAddr`
- --> src\ndi_output.rs:8:16
-  |
-8 | use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-  |                ^^^^^^  ^^^^^^^^  ^^^^^^^^^^
-
-warning: unused import: `SocketAddr`
- --> src\osc_control.rs:9:16
-  |
-9 | use std::net::{SocketAddr, UdpSocket};
-  |                ^^^^^^^^^^
+5 | use bevy_egui::{egui, EguiContexts};
+  |                       ^^^^^^^^^^^^
 
 warning: unused import: `super::*`
    --> src\audio_midi_integration.rs:221:9
@@ -99,10 +31,83 @@ warning: unused imports: `InterpolationType` and `PlaybackState`
   |                                          ^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^^
 
 warning: unused import: `crate::audio_system::AudioData`
-   --> src\editor_ui.rs:535:9
+   --> src\editor_ui.rs:555:9
     |
-535 |     use crate::audio_system::AudioData;
+555 |     use crate::audio_system::AudioData;
     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unnecessary parentheses around assigned value
+    --> src\shader_renderer.rs:1322:38
+     |
+1322 |                     let num_pixels = (safe_width as usize * safe_height as usize);
+     |                                      ^                                          ^
+     |
+     = note: `#[warn(unused_parens)]` on by default
+help: remove these parentheses
+     |
+1322 -                     let num_pixels = (safe_width as usize * safe_height as usize);
+1322 +                     let num_pixels = safe_width as usize * safe_height as usize;
+     |
+
+warning: unnecessary parentheses around assigned value
+    --> src\shader_renderer.rs:1348:37
+     |
+1348 |                 let expected_size = (safe_width as usize * safe_height as usize * 4);
+     |                                     ^                                              ^
+     |
+help: remove these parentheses
+     |
+1348 -                 let expected_size = (safe_width as usize * safe_height as usize * 4);
+1348 +                 let expected_size = safe_width as usize * safe_height as usize * 4;
+     |
+
+warning: unnecessary parentheses around assigned value
+    --> src\shader_renderer.rs:1372:37
+     |
+1372 |                 let expected_size = (safe_width as usize * safe_height as usize * 4);
+     |                                     ^                                              ^
+     |
+help: remove these parentheses
+     |
+1372 -                 let expected_size = (safe_width as usize * safe_height as usize * 4);
+1372 +                 let expected_size = safe_width as usize * safe_height as usize * 4;
+     |
+
+warning: unnecessary parentheses around assigned value
+    --> src\shader_renderer.rs:1865:30
+     |
+1865 |             let num_pixels = (safe_width as usize * safe_height as usize);
+     |                              ^                                          ^
+     |
+help: remove these parentheses
+     |
+1865 -             let num_pixels = (safe_width as usize * safe_height as usize);
+1865 +             let num_pixels = safe_width as usize * safe_height as usize;
+     |
+
+warning: unnecessary parentheses around assigned value
+    --> src\shader_renderer.rs:2014:30
+     |
+2014 |             let num_pixels = (safe_width as usize * safe_height as usize);
+     |                              ^                                          ^
+     |
+help: remove these parentheses
+     |
+2014 -             let num_pixels = (safe_width as usize * safe_height as usize);
+2014 +             let num_pixels = safe_width as usize * safe_height as usize;
+     |
+
+warning: unnecessary parentheses around assigned value
+    --> src\shader_renderer.rs:2135:30
+     |
+2135 |             let num_pixels = (safe_width as usize * safe_height as usize);
+     |                              ^                                          ^
+     |
+help: remove these parentheses
+     |
+2135 -             let num_pixels = (safe_width as usize * safe_height as usize);
+2135 +             let num_pixels = safe_width as usize * safe_height as usize;
+     |
 
 warning: unused import: `AstVisitor`
  --> src\shader_transpiler.rs:6:39
@@ -194,12 +199,6 @@ warning: unused imports: `SystemTime` and `UNIX_EPOCH`
 4 | use std::time::{SystemTime, UNIX_EPOCH};
   |                 ^^^^^^^^^^  ^^^^^^^^^^
 
-warning: unused imports: `Arc` and `Mutex`
- --> src\gyroflow_wgpu_interop.rs:4:17
-  |
-4 | use std::sync::{Arc, Mutex};
-  |                 ^^^  ^^^^^
-
 warning: unused imports: `Context` and `bail`
  --> src\advanced_shader_compilation.rs:6:22
   |
@@ -213,9 +212,9 @@ warning: unused import: `PathBuf`
   |                       ^^^^^^^
 
 warning: use of deprecated type alias `bevy::prelude::EventReader`: Renamed to `MessageReader`.
-   --> src\bevy_app.rs:329:24
+   --> src\bevy_app.rs:351:24
     |
-329 |     mut resize_events: EventReader<WindowResized>,
+351 |     mut resize_events: EventReader<WindowResized>,
     |                        ^^^^^^^^^^^
     |
     = note: `#[warn(deprecated)]` on by default
@@ -227,21 +226,21 @@ warning: use of deprecated function `bevy_egui::egui::show_tooltip`: Use `egui::
     |                               ^^^^^^^^^^^^
 
 warning: use of deprecated type alias `bevy::prelude::EventReader`: Renamed to `MessageReader`.
-   --> src\scene_editor_3d.rs:399:30
+   --> src\scene_editor_3d.rs:443:30
     |
-399 |     mut mouse_motion_events: EventReader<bevy::input::mouse::MouseMotion>,
+443 |     mut mouse_motion_events: EventReader<bevy::input::mouse::MouseMotion>,
     |                              ^^^^^^^^^^^
 
 warning: use of deprecated type alias `bevy::prelude::EventReader`: Renamed to `MessageReader`.
-   --> src\scene_editor_3d.rs:447:30
+   --> src\scene_editor_3d.rs:491:30
     |
-447 |     mut mouse_motion_events: EventReader<bevy::input::mouse::MouseMotion>,
+491 |     mut mouse_motion_events: EventReader<bevy::input::mouse::MouseMotion>,
     |                              ^^^^^^^^^^^
 
 warning: use of deprecated type alias `bevy::prelude::EventReader`: Renamed to `MessageReader`.
-   --> src\scene_editor_3d.rs:450:22
+   --> src\scene_editor_3d.rs:494:22
     |
-450 |     mut mouse_wheel: EventReader<bevy::input::mouse::MouseWheel>,
+494 |     mut mouse_wheel: EventReader<bevy::input::mouse::MouseWheel>,
     |                      ^^^^^^^^^^^
 
 warning: use of deprecated associated function `bevy_egui::egui::ComboBox::from_id_source`: Renamed from_id_salt
@@ -323,107 +322,99 @@ warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.clo
     |                            ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:576:24
+   --> src\editor_ui.rs:619:24
     |
-576 |                     ui.close_menu();
+619 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:581:24
+   --> src\editor_ui.rs:624:24
     |
-581 |                     ui.close_menu();
+624 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:587:24
+   --> src\editor_ui.rs:630:24
     |
-587 |                     ui.close_menu();
+630 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:600:24
+   --> src\editor_ui.rs:643:24
     |
-600 |                     ui.close_menu();
+643 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:606:24
+   --> src\editor_ui.rs:649:24
     |
-606 |                     ui.close_menu();
+649 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:648:24
+   --> src\editor_ui.rs:691:24
     |
-648 |                     ui.close_menu();
+691 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:674:24
+   --> src\editor_ui.rs:717:24
     |
-674 |                     ui.close_menu();
+717 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:678:24
+   --> src\editor_ui.rs:721:24
     |
-678 |                     ui.close_menu();
+721 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:683:24
+   --> src\editor_ui.rs:726:24
     |
-683 |                     ui.close_menu();
+726 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:687:24
+   --> src\editor_ui.rs:730:24
     |
-687 |                     ui.close_menu();
+730 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:692:24
+   --> src\editor_ui.rs:735:24
     |
-692 |                     ui.close_menu();
+735 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:696:24
+   --> src\editor_ui.rs:739:24
     |
-696 |                     ui.close_menu();
+739 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated method `bevy_egui::egui::Ui::close_menu`: Use `ui.close()` or `ui.close_kind(UiKind::Menu)` instead
-   --> src\editor_ui.rs:701:24
+   --> src\editor_ui.rs:744:24
     |
-701 |                     ui.close_menu();
+744 |                     ui.close_menu();
     |                        ^^^^^^^^^^
 
 warning: use of deprecated associated function `bevy_egui::egui::ComboBox::from_id_source`: Renamed from_id_salt
-   --> src\editor_ui.rs:921:53
+   --> src\editor_ui.rs:968:53
     |
-921 | ...                   egui::ComboBox::from_id_source(format!("gesture_combo_{}", &p.name))
+968 | ...                   egui::ComboBox::from_id_source(format!("gesture_combo_{}", &p.name))
     |                                       ^^^^^^^^^^^^^^
 
 warning: use of deprecated associated function `bevy_egui::egui::ComboBox::from_id_source`: Renamed from_id_salt
-   --> src\editor_ui.rs:951:53
+   --> src\editor_ui.rs:998:53
     |
-951 | ...                   egui::ComboBox::from_id_source(format!("curve_combo_{}", &p.name))
+998 | ...                   egui::ComboBox::from_id_source(format!("curve_combo_{}", &p.name))
     |                                       ^^^^^^^^^^^^^^
-
-warning: unused variable: `performance_metrics`
-   --> src\bevy_app.rs:142:5
-    |
-142 |     performance_metrics: Res<PerformanceMetrics>,
-    |     ^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_performance_metrics`
-    |
-    = note: `#[warn(unused_variables)]` on by default
 
 warning: variable does not need to be mutable
-   --> src\bevy_app.rs:391:5
+   --> src\bevy_app.rs:423:5
     |
-391 |     mut startup_gate: ResMut<UiStartupGate>
+423 |     mut startup_gate: ResMut<UiStartupGate>
     |     ----^^^^^^^^^^^^
     |     |
     |     help: remove this `mut`
@@ -431,29 +422,30 @@ warning: variable does not need to be mutable
     = note: `#[warn(unused_mut)]` on by default
 
 warning: variable `phase` is assigned to, but never used
-   --> src\audio_system.rs:134:17
+   --> src\audio_system.rs:133:17
     |
-134 |         let mut phase = 0.0f32;
+133 |         let mut phase = 0.0f32;
     |                 ^^^^^
     |
     = note: consider using `_phase` instead
+    = note: `#[warn(unused_variables)]` on by default
 
 warning: unused variable: `i`
-   --> src\audio_system.rs:144:17
+   --> src\audio_system.rs:143:17
     |
-144 |             for i in 0..buffer_size {
+143 |             for i in 0..buffer_size {
     |                 ^ help: if this is intentional, prefix it with an underscore: `_i`
 
 warning: unused variable: `data`
-   --> src\audio_system.rs:130:29
+   --> src\audio_system.rs:129:29
     |
-130 |     fn audio_capture_thread(data: Arc<Mutex<AudioData>>, audio_buffer: Arc<Mutex<Vec<f32>>>) {
+129 |     fn audio_capture_thread(data: Arc<Mutex<AudioData>>, audio_buffer: Arc<Mutex<Vec<f32>>>) {
     |                             ^^^^ help: if this is intentional, prefix it with an underscore: `_data`
 
 warning: unused variable: `data`
-   --> src\audio_system.rs:479:9
+   --> src\audio_system.rs:478:9
     |
-479 |         data: Arc<Mutex<EnhancedAudioData>>, 
+478 |         data: Arc<Mutex<EnhancedAudioData>>, 
     |         ^^^^ help: if this is intentional, prefix it with an underscore: `_data`
 
 warning: variable does not need to be mutable
@@ -515,9 +507,9 @@ warning: unused variable: `exporter`
     |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_exporter`
 
 warning: unused variable: `last`
-   --> src\ndi_output.rs:158:44
+   --> src\ndi_output.rs:155:44
     |
-158 |             fps: if let (Some(start), Some(last)) = (self.start_time, self.last_frame_time) {
+155 |             fps: if let (Some(start), Some(last)) = (self.start_time, self.last_frame_time) {
     |                                            ^^^^ help: if this is intentional, prefix it with an underscore: `_last`
 
 warning: unused variable: `normalized_value`
@@ -595,73 +587,67 @@ warning: unused variable: `mapping`
     |                     ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_mapping`
 
 warning: unused variable: `renderer`
-   --> src\editor_ui.rs:346:21
+   --> src\editor_ui.rs:348:21
     |
-346 |         if let Some(renderer) = self.global_renderer.renderer.lock().unwrap().as_mut() {
+348 |         if let Some(renderer) = self.global_renderer.renderer.lock().unwrap().as_mut() {
     |                     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_renderer`
 
 warning: unused variable: `video_exporter`
-   --> src\editor_ui.rs:413:5
+   --> src\editor_ui.rs:415:5
     |
-413 |     video_exporter: Option<&()> // ScreenshotVideoExporter commented out
+415 |     video_exporter: Option<&()> // ScreenshotVideoExporter commented out
     |     ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_video_exporter`
 
 warning: unused variable: `prompt`
-   --> src\editor_ui.rs:726:36
+   --> src\editor_ui.rs:769:36
     |
-726 | fn generate_shader_with_wgsl_smith(prompt: &str) -> String {
+769 | fn generate_shader_with_wgsl_smith(prompt: &str) -> String {
     |                                    ^^^^^^ help: if this is intentional, prefix it with an underscore: `_prompt`
 
 warning: variable does not need to be mutable
-    --> src\editor_ui.rs:1759:33
+    --> src\editor_ui.rs:1629:33
      |
-1759 | ...                   let mut mf = MultiFormatTranspiler::new();
+1629 | ...                   let mut mf = MultiFormatTranspiler::new();
      |                           ----^^
      |                           |
      |                           help: remove this `mut`
 
-warning: unused variable: `dmx_config`
-    --> src\editor_ui.rs:2533:5
-     |
-2533 |     dmx_config: &mut DmxConfig,
-     |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_dmx_config`
-
 warning: unused variable: `code`
-    --> src\editor_ui.rs:2926:16
+    --> src\editor_ui.rs:2681:16
      |
-2926 |     for (name, code) in test_cases {
+2681 |     for (name, code) in test_cases {
      |                ^^^^ help: if this is intentional, prefix it with an underscore: `_code`
 
 warning: unused variable: `texture_handle`
-    --> src\editor_ui.rs:2965:23
+    --> src\editor_ui.rs:2720:23
      |
-2965 | fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
+2720 | fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
      |                       ^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_texture_handle`
 
 warning: unused variable: `ctx`
-    --> src\editor_ui.rs:2965:61
+    --> src\editor_ui.rs:2720:61
      |
-2965 | fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
+2720 | fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
      |                                                             ^^^ help: if this is intentional, prefix it with an underscore: `_ctx`
 
 warning: variable does not need to be mutable
-   --> src\scene_editor_3d.rs:397:5
+   --> src\scene_editor_3d.rs:441:5
     |
-397 |     mut editor_state: ResMut<SceneEditor3DState>,
+441 |     mut editor_state: ResMut<SceneEditor3DState>,
     |     ----^^^^^^^^^^^^
     |     |
     |     help: remove this `mut`
 
 warning: unused variable: `time`
-   --> src\scene_editor_3d.rs:451:5
+   --> src\scene_editor_3d.rs:495:5
     |
-451 |     time: Res<Time>,
+495 |     time: Res<Time>,
     |     ^^^^ help: if this is intentional, prefix it with an underscore: `_time`
 
 warning: variable does not need to be mutable
-   --> src\scene_editor_3d.rs:696:5
+   --> src\scene_editor_3d.rs:638:5
     |
-696 |     mut editor_state: ResMut<SceneEditor3DState>,
+638 |     mut editor_state: ResMut<SceneEditor3DState>,
     |     ----^^^^^^^^^^^^
     |     |
     |     help: remove this `mut`
@@ -679,21 +665,21 @@ warning: unused variable: `hand_id`
     |                                       ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_hand_id`
 
 warning: unused variable: `output_buffer`
-    --> src\shader_renderer.rs:1251:13
+    --> src\shader_renderer.rs:1249:13
      |
-1251 |         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
+1249 |         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
      |             ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_output_buffer`
 
 warning: unused variable: `e`
-    --> src\shader_renderer.rs:1321:20
+    --> src\shader_renderer.rs:1330:20
      |
-1321 |             Ok(Err(e)) => {
+1330 |             Ok(Err(e)) => {
      |                    ^ help: if this is intentional, prefix it with an underscore: `_e`
 
 warning: unused variable: `shader_module`
-    --> src\shader_renderer.rs:1476:13
+    --> src\shader_renderer.rs:1499:13
      |
-1476 |         let shader_module = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
+1499 |         let shader_module = self.device.create_shader_module(wgpu::ShaderModuleDescriptor {
      |             ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_shader_module`
 
 warning: unused variable: `source`
@@ -718,12 +704,6 @@ warning: unused variable: `source`
    --> src\shader_transpiler.rs:741:31
     |
 741 |     fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
-    |                               ^^^^^^ help: if this is intentional, prefix it with an underscore: `_source`
-
-warning: unused variable: `source`
-   --> src\shader_transpiler.rs:826:31
-    |
-826 |     fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
     |                               ^^^^^^ help: if this is intentional, prefix it with an underscore: `_source`
 
 warning: unused variable: `handle`
@@ -869,29 +849,29 @@ warning: unused variable: `queue`
     |                                                                        ^^^^^ help: if this is intentional, prefix it with an underscore: `_queue`
 
 warning: field `sample_rate` is never read
-  --> src\audio_system.rs:52:5
+  --> src\audio_system.rs:51:5
    |
-47 | pub struct AudioAnalyzer {
+46 | pub struct AudioAnalyzer {
    |            ------------- field in this struct
 ...
-52 |     sample_rate: u32,
+51 |     sample_rate: u32,
    |     ^^^^^^^^^^^
    |
    = note: `#[warn(dead_code)]` on by default
 
 warning: field `parameter_cache` is never read
-  --> src\ffgl_plugin.rs:20:5
+  --> src\ffgl_plugin.rs:18:5
    |
-16 | pub struct FfglPlugin {
+14 | pub struct FfglPlugin {
    |            ---------- field in this struct
 ...
-20 |     parameter_cache: HashMap<String, f32>,
+18 |     parameter_cache: HashMap<String, f32>,
    |     ^^^^^^^^^^^^^^^
 
 warning: field `0` is never read
-   --> src\ffgl_plugin.rs:220:40
+   --> src\ffgl_plugin.rs:218:40
     |
-220 |         struct AudioMidiSystemResource(Arc<AudioMidiSystem>);
+218 |         struct AudioMidiSystemResource(Arc<AudioMidiSystem>);
     |                ----------------------- ^^^^^^^^^^^^^^^^^^^^
     |                |
     |                field in this struct
@@ -900,27 +880,21 @@ warning: field `0` is never read
     = note: `AudioMidiSystemResource` has a derived impl for the trait `Clone`, but this is intentionally ignored during dead code analysis
 
 warning: function `ndi_ui_system` is never used
-   --> src\ndi_output.rs:221:4
+   --> src\ndi_output.rs:218:4
     |
-221 | fn ndi_ui_system(
+218 | fn ndi_ui_system(
     |    ^^^^^^^^^^^^^
 
 warning: field `socket` is never read
-  --> src\osc_control.rs:71:5
+  --> src\osc_control.rs:72:5
    |
-68 | pub struct OscControl {
+69 | pub struct OscControl {
    |            ---------- field in this struct
 ...
-71 |     socket: Option<Arc<Mutex<UdpSocket>>>,
+72 |     socket: Option<Arc<Mutex<UdpSocket>>>,
    |     ^^^^^^
    |
    = note: `OscControl` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
-
-warning: function `osc_ui_system` is never used
-   --> src\osc_control.rs:320:4
-    |
-320 | fn osc_ui_system(
-    |    ^^^^^^^^^^^^^
 
 warning: function `spout_syphon_ui_system` is never used
    --> src\spout_syphon_output.rs:269:4
@@ -935,29 +909,29 @@ warning: function `dmx_ui_system` is never used
     |    ^^^^^^^^^^^^^
 
 warning: function `compile_and_render_shader` is never used
-   --> src\editor_ui.rs:406:4
+   --> src\editor_ui.rs:408:4
     |
-406 | fn compile_and_render_shader(
+408 | fn compile_and_render_shader(
     |    ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 warning: function `render_shader_to_texture` is never used
-   --> src\editor_ui.rs:528:4
+   --> src\editor_ui.rs:548:4
     |
-528 | fn render_shader_to_texture(
+548 | fn render_shader_to_texture(
     |    ^^^^^^^^^^^^^^^^^^^^^^^^
 
 warning: function `get_texture_pixels` is never used
-    --> src\editor_ui.rs:2965:4
+    --> src\editor_ui.rs:2720:4
      |
-2965 | fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
+2720 | fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
      |    ^^^^^^^^^^^^^^^^^^
 
 warning: field `x` is never read
-   --> src\scene_editor_3d.rs:566:5
+   --> src\scene_editor_3d.rs:610:5
     |
-565 | struct SphericalCoords {
+609 | struct SphericalCoords {
     |        --------------- field in this struct
-566 |     x: f32, // radius
+610 |     x: f32, // radius
     |     ^
     |
     = note: `SphericalCoords` has derived impls for the traits `Clone` and `Debug`, but these are intentionally ignored during dead code analysis
@@ -972,12 +946,12 @@ warning: field `time` is never read
    |     ^^^^
 
 warning: method `render_pipeline_with_bind_group` is never used
-    --> src\shader_renderer.rs:1847:8
+    --> src\shader_renderer.rs:1873:8
      |
   92 | impl ShaderRenderer {
      | ------------------- method in this implementation
 ...
-1847 |     fn render_pipeline_with_bind_group(&mut self, wgsl_code: &str, params: &RenderParameters, bind_group: wgpu::BindGroup, bind_group_lay...
+1873 |     fn render_pipeline_with_bind_group(&mut self, wgsl_code: &str, params: &RenderParameters, bind_group: wgpu::BindGroup, bind_group_lay...
      |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 warning: methods `parse_wgsl_for_uniforms`, `extract_group_binding`, `get_type_size`, and `get_type_alignment` are never used
@@ -1381,9 +1355,9 @@ warning: field `supported_formats` is never read
     |     ^^^^^^^^^^^^^^^^^
 
 warning: creating a mutable reference to mutable static
-   --> src\ffgl_plugin.rs:239:9
+   --> src\ffgl_plugin.rs:237:9
     |
-239 |         PLUGIN_INSTANCE.as_mut().unwrap() as *mut _ as *mut c_void
+237 |         PLUGIN_INSTANCE.as_mut().unwrap() as *mut _ as *mut c_void
     |         ^^^^^^^^^^^^^^^^^^^^^^^^ mutable reference to mutable static
     |
     = note: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/static-mut-references.html>
@@ -1494,5 +1468,5 @@ warning: structure field `PERSISTENT_BUFFERS` should have a snake case name
 45 |     pub PERSISTENT_BUFFERS: Option<Vec<String>>,
    |         ^^^^^^^^^^^^^^^^^^ help: convert the identifier to snake case: `persistent_buffers`
 
-warning: `wgsl-shader-studio` (lib) generated 199 warnings (run `cargo fix --lib -p wgsl-shader-studio` to apply 43 suggestions)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.34s
+warning: `wgsl-shader-studio` (lib) generated 190 warnings (run `cargo fix --lib -p wgsl-shader-studio` to apply 38 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.80s

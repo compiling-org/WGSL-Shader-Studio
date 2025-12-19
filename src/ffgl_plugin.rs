@@ -1,16 +1,14 @@
 //! FFGL plugin interface implementation
 
 // FIXED: Removed invalid imports - these don't exist in root crate
-use crate::isf_converter::IsfShader;
 use crate::ShaderValue;
 use crate::audio_system::AudioMidiSystem;
 use bevy::prelude::Resource;
 use crate::ResolumeIsfShadersRustFfgl;
-use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_void, c_int, c_uint, c_float};
 use std::ptr;
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// FFGL plugin instance
 pub struct FfglPlugin {

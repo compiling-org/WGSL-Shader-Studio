@@ -1,0 +1,45 @@
+--- a/src/editor_ui.rs
++++ b/src/editor_ui.rs
+@@ -489,18 +489,25 @@
+                 // Create texture from pixel data
+                 let texture = egui_ctx.load_texture(
+                     "shader_preview_real",
+-                    egui::ColorImage {
+-                        size: [(params.width as usize).max(1), (params.height as usize).max(1)],
+-                        pixels: if pixel_data.is_empty() {
+-                            let width = (params.width as usize).max(1);
+-                            let height = (params.height as usize).max(1);
+-                            vec![egui::Color32::RED; width * height]
+-                        } else {
+-                            pixel_data.chunks(4).map(|chunk| {
+-                                egui::Color32::from_rgba_unmultiplied(chunk[0], chunk[1], chunk[2], chunk[3])
+-                            }).collect()
+-                        },
+-                        source_size: egui::Vec2::new((params.width as f32).max(1.0), (params.height as f32).max(1.0)),
++                    {
++                        let width = (params.width as usize).max(1);
++                        let height = (params.height as usize).max(1);
++                        let expected_pixel_count = width * height;
++                        
++                        let pixels = if pixel_data.is_empty() {
++                            vec![egui::Color32::RED; expected_pixel_count]
++                        } else {
++                            // Validate pixel data size matches expected dimensions
++                            let actual_pixel_count = pixel_data.len() / 4; // 4 bytes per pixel (RGBA)
++                            if actual_pixel_count != expected_pixel_count {
++                                println!("Pixel data size mismatch in real renderer: expected {}, got {}. Using red error image.", expected_pixel_count, actual_pixel_count);
++                                vec![egui::Color32::RED; expected_pixel_count]
++                            } else {
++                                pixel_data.chunks(4).map(|chunk| {
++                                    egui::Color32::from_rgba_unmultiplied(chunk[0], chunk[1], chunk[2], chunk[3])
++                                }).collect()
++                            }
++                        };
++                        egui::ColorImage {
++                            size: [width, height],
++                            pixels,
++                            source_size: egui::Vec2::new((params.width as f32).max(1.0), (params.height as f32).max(1.0)),
++                        }
+                     },
+                     egui::TextureOptions::default()
+                 );

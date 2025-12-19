@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use rustfft::{FftPlanner, num_complex::Complex};
@@ -160,7 +159,7 @@ impl AudioAnalyzer {
                 
                 // Combine all frequencies with beat modulation
                 let mut sample = bass_sample + mid_sample + treble_sample;
-                sample *= (0.7 + beat_envelope * 0.3); // Beat modulation
+                sample *= 0.7 + beat_envelope * 0.3; // Beat modulation
                 
                 // Add some noise for realism
                 let noise = 0.0; // rand::random::<f32>() - 0.5) * 0.05; // rand not available

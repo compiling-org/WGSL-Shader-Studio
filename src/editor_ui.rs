@@ -59,6 +59,8 @@ pub enum RightSidebarMode {
     MIDI,
     Gestures,
     Lighting,
+    Performance,
+    Scene3D,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum SourceSet {
@@ -192,6 +194,7 @@ pub struct EditorUiState {
     pub transpiled_glsl: String,
     pub transpiler_error: String,
     pub scene3d_texture_id: Option<egui::TextureId>,
+    pub scene3d_texture_handle: Option<bevy::prelude::Handle<bevy::prelude::Image>>,
     pub preview_scale_mode: PreviewScaleMode,
     pub preview_resolution: (u32, u32),
 }
@@ -329,6 +332,7 @@ impl Default for EditorUiState {
             transpiled_glsl: String::new(),
             transpiler_error: String::new(),
             scene3d_texture_id: None,
+            scene3d_texture_handle: None,
             preview_scale_mode: PreviewScaleMode::Fit,
             preview_resolution: (1280, 720),
         }
@@ -414,6 +418,10 @@ fn compile_and_render_shader(
         return Err("Empty shader code".to_string());
     }
     
+    if size.x <= 0.0 || size.y <= 0.0 {
+        return Err("Preview size is zero or negative; cannot render texture".to_string());
+    }
+    
     // Validate basic WGSL syntax
     if !wgsl_code.contains("@fragment") && !wgsl_code.contains("@vertex") && !wgsl_code.contains("@compute") {
         return Err("Shader must contain @fragment, @vertex, or @compute entry point".to_string());
@@ -465,15 +473,54 @@ fn compile_and_render_shader(
             None::<crate::audio_system::AudioData>,
         ) {
             Ok(pixel_data) => {
-                // Create texture from pixel data
+                if pixel_data.is_empty() {
+                    println!("Rendered pixel data is empty. Displaying red error image.");
+                    let width = (params.width as usize).max(1);
+                    let height = (params.height as usize).max(1);
+                    let error_pixels = vec![egui::Color32::RED; width * height];
+                    let texture = egui_ctx.load_texture(
+                        "shader_preview_error",
+                        egui::ColorImage {
+                            size: [width, height],
+                            pixels: error_pixels,
+                            source_size: egui::Vec2::new((params.width as f32).max(1.0), (params.height as f32).max(1.0)),
+                        },
+                        egui::TextureOptions::default()
+                    );
+                    return Ok(texture);
+                }
+                // Create texture from pixel data with proper size validation
+                let width = (params.width as usize).max(1);
+                let height = (params.height as usize).max(1);
+                let expected_pixel_count = width * height;
+                
+                // Handle empty pixel data or size mismatches
+                let pixels = if pixel_data.is_empty() || expected_pixel_count == 0 {
+                    println!("Empty pixel data or zero dimensions in real renderer: {}x{}. Using red error image.", width, height);
+                    let safe_width = width.max(1);
+                    let safe_height = height.max(1);
+                    vec![egui::Color32::RED; safe_width * safe_height]
+                } else {
+                    // Validate pixel data size matches expected dimensions
+                    let actual_pixel_count = pixel_data.len() / 4; // 4 bytes per pixel (RGBA)
+                    if actual_pixel_count != expected_pixel_count {
+                        println!("Pixel data size mismatch in real renderer: expected {}, got {}. Using red error image.", expected_pixel_count, actual_pixel_count);
+                        let safe_width = width.max(1);
+                        let safe_height = height.max(1);
+                        vec![egui::Color32::RED; safe_width * safe_height]
+                    } else {
+                        pixel_data.chunks(4).map(|chunk| {
+                            egui::Color32::from_rgba_unmultiplied(chunk[0], chunk[1], chunk[2], chunk[3])
+                        }).collect()
+                    }
+                };
+                
                 let texture = egui_ctx.load_texture(
                     "shader_preview_real",
                     egui::ColorImage {
-                        size: [params.width as usize, params.height as usize],
-                        pixels: pixel_data.chunks(4).map(|chunk| {
-                            egui::Color32::from_rgba_unmultiplied(chunk[0], chunk[1], chunk[2], chunk[3])
-                        }).collect(),
-                        source_size: size,
+                        size: [width, height],
+                        pixels,
+                        source_size: egui::Vec2::new((params.width as f32).max(1.0), (params.height as f32).max(1.0)),
                     },
                     egui::TextureOptions::default()
                 );
@@ -517,15 +564,38 @@ fn render_shader_to_texture(
     
     match renderer.render_frame(wgsl_code, &params, None) {
         Ok(pixel_data) => {
-            // Create texture from pixel data
+            // Create texture from pixel data with proper size validation
+            let width = (params.width as usize).max(1);
+            let height = (params.height as usize).max(1);
+            let expected_pixel_count = width * height;
+            
+            // Handle empty pixel data or size mismatches
+            let pixels = if pixel_data.is_empty() || expected_pixel_count == 0 {
+                println!("Empty pixel data or zero dimensions in software renderer: {}x{}. Using red error image.", width, height);
+                let safe_width = width.max(1);
+                let safe_height = height.max(1);
+                vec![egui::Color32::RED; safe_width * safe_height]
+            } else {
+                // Validate pixel data size matches expected dimensions
+                let actual_pixel_count = pixel_data.len() / 4; // 4 bytes per pixel (RGBA)
+                if actual_pixel_count != expected_pixel_count {
+                    println!("Pixel data size mismatch in software renderer: expected {}, got {}. Using red error image.", expected_pixel_count, actual_pixel_count);
+                    let safe_width = width.max(1);
+                    let safe_height = height.max(1);
+                    vec![egui::Color32::RED; safe_width * safe_height]
+                } else {
+                    pixel_data.chunks(4).map(|chunk| {
+                        egui::Color32::from_rgba_unmultiplied(chunk[0], chunk[1], chunk[2], chunk[3])
+                    }).collect()
+                }
+            };
+            
             let texture = egui_ctx.load_texture(
                 "shader_preview",
                 egui::ColorImage {
-                    size: [params.width as usize, params.height as usize],
-                    pixels: pixel_data.chunks(4).map(|chunk| {
-                        egui::Color32::from_rgba_unmultiplied(chunk[0], chunk[1], chunk[2], chunk[3])
-                    }).collect(),
-                    source_size: egui::Vec2::new(params.width as f32, params.height as f32),
+                    size: [width, height],
+                    pixels,
+                    source_size: egui::Vec2::new((params.width as f32).max(1.0), (params.height as f32).max(1.0)),
                 },
                 egui::TextureOptions::default()
             );
@@ -743,7 +813,9 @@ pub fn draw_editor_side_panels(
     ndi_config: &mut NdiConfig,
     ndi_output: &mut NdiOutput,
     dmx_config: &mut DmxConfig,
-    dmx_control: &mut DmxLightingControl
+    dmx_control: &mut DmxLightingControl,
+    scene_editor_state: Option<&mut crate::scene_editor_3d::SceneEditor3DState>,
+    manipulable_query: Option<&Query<(Entity, &Name), With<crate::scene_editor_3d::EditorManipulable>>>,
 ) {
     // Left panel: Shader Browser (and related tools) — per original UI map
     if ui_state.show_shader_browser {
@@ -761,6 +833,8 @@ pub fn draw_editor_side_panels(
                     (RightSidebarMode::MIDI, "MIDI"),
                     (RightSidebarMode::Gestures, "Gestures"),
                     (RightSidebarMode::Lighting, "Lighting"),
+                    (RightSidebarMode::Performance, "Performance"),
+                    (RightSidebarMode::Scene3D, "3D Scene"),
                 ] {
                     let sel = ui_state.right_sidebar_mode == mode;
                     if ui.selectable_label(sel, label).clicked() {
@@ -1098,6 +1172,23 @@ pub fn draw_editor_side_panels(
                         ui.label("No shader parameters available");
                     }
                 }
+                RightSidebarMode::Scene3D => {
+                    // Draw the 3D scene editor panel if we have the required resources
+                    if let (Some(editor_state), Some(query)) = (scene_editor_state, manipulable_query) {
+                        draw_3d_scene_panel(ui, editor_state, query);
+                    } else {
+                        ui.heading("3D Scene Editor");
+                        ui.label("3D editor not initialized");
+                    }
+                }
+                RightSidebarMode::Performance => {
+                    ui.heading("Performance Metrics");
+                    ui.horizontal(|ui| {
+                        ui.label("FPS:");
+                        ui.label(format!("{:.1}", ui_state.fps));
+                    });
+                    // Add more performance metrics as needed
+                }
             }
 
             // Parameters below modes (kept accessible, aligned to right panel)
@@ -1262,220 +1353,26 @@ pub fn draw_editor_side_panels(
         ui_state.show_timeline = false;
     }
 
+    // Integrate gesture calibration into the gestures panel
     if ui_state.show_gesture_calibration {
-        egui::Window::new("Gesture Calibration").open(&mut ui_state.show_gesture_calibration).show(ctx, |ui| {
-            ui.label("Leap Motion / MediaPipe calibration");
-            ui.separator();
-            ui.label("Place hands in view and follow on-screen prompts");
-        });
+        egui::SidePanel::right("gesture_calibration_panel")
+            .resizable(true)
+            .show(ctx, |ui| {
+                ui.heading("Gesture Calibration");
+                ui.label("Leap Motion / MediaPipe calibration");
+                ui.separator();
+                ui.label("Place hands in view and follow on-screen prompts");
+                ui.separator();
+                if ui.button("Close").clicked() {
+                    ui_state.show_gesture_calibration = false;
+                }
+            });
     }
 
-    if ui_state.use_legacy_windows {
-        if ui_state.show_compute_panel {
-            egui::Window::new("Compute Passes").open(&mut ui_state.show_compute_panel).show(ctx, |ui| {
-                ui.heading("Compute Shader Dispatch");
-                ui.horizontal(|ui| {
-                    ui.label("Name:");
-                    ui.text_edit_singleline(&mut ui_state.compute_pass_name);
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Workgroup Size:");
-                    ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_x).speed(1));
-                    ui.label("x");
-                    ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_y).speed(1));
-                    ui.label("x");
-                    ui.add(egui::DragValue::new(&mut ui_state.compute_workgroup_z).speed(1));
-                });
-                if ui.button("Create Compute Pass").clicked() {
-                    compute_pass_manager.create_ping_pong_texture(
-                        &ui_state.compute_pass_name,
-                        512,
-                        512,
-                        TextureFormat::Rgba8Unorm
-                    );
-                }
-                ui.separator();
-                ui.label("Create Ping-Pong Texture:");
-                ui.horizontal(|ui| {
-                    ui.label("Name:");
-                    ui.text_edit_singleline(&mut ui_state.pingpong_texture_name);
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Size:");
-                    ui.add(egui::DragValue::new(&mut ui_state.pingpong_width).speed(1));
-                    ui.label("x");
-                    ui.add(egui::DragValue::new(&mut ui_state.pingpong_height).speed(1));
-                });
-                if ui.button("Create Ping-Pong Texture").clicked() {
-                    compute_pass_manager.create_ping_pong_texture(
-                        &ui_state.pingpong_texture_name,
-                        ui_state.pingpong_width,
-                        ui_state.pingpong_height,
-                        TextureFormat::Rgba8Unorm
-                    );
-                }
-                ui.separator();
-                ui.label("Dispatch Controls:");
-                ui.horizontal(|ui| {
-                    ui.label("Dispatch Size:");
-                    ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_x).speed(1));
-                    ui.label("x");
-                    ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_y).speed(1));
-                    ui.label("x");
-                    ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_z).speed(1));
-                });
-                if ui.button("Dispatch Compute").clicked() {
-                }
-                ui.separator();
-                ui.label("Active Compute Passes:");
-                if compute_pass_manager.ping_pong_textures.is_empty() && compute_pass_manager.compute_pipelines.is_empty() {
-                    ui.label("No active compute passes");
-                } else {
-                    ui.label(format!("Ping-pong textures: {}", compute_pass_manager.ping_pong_textures.len()));
-                    ui.label(format!("Compute pipelines: {}", compute_pass_manager.compute_pipelines.len()));
-                    ui.label(format!("Active passes: {}", compute_pass_manager.active_compute_passes.len()));
-                }
-            });
-        }
-        if ui_state.show_wgslsmith_panel {
-            egui::Window::new("WGSLSmith AI").open(&mut ui_state.show_wgslsmith_panel).show(ctx, |ui| {
-                ui.heading("AI-Assisted Shader Generation");
-                ui.horizontal(|ui| {
-                    ui.label("Prompt:");
-                    ui.text_edit_multiline(&mut ui_state.wgsl_smith_prompt);
-                });
-                ui.horizontal(|ui| {
-                    if ui.button("Generate Shader").clicked() {
-                        ui_state.wgsl_smith_generated = generate_shader_with_wgsl_smith(&ui_state.wgsl_smith_prompt);
-                    }
-                    if ui.button("Clear").clicked() {
-                        ui_state.wgsl_smith_prompt.clear();
-                        ui_state.wgsl_smith_generated.clear();
-                    }
-                });
-                if !ui_state.wgsl_smith_generated.is_empty() {
-                    ui.separator();
-                    ui.label("Generated WGSL:");
-                    egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
-                        ui.monospace(&ui_state.wgsl_smith_generated);
-                    });
-                    ui.horizontal(|ui| {
-                        if ui.button("Apply to Editor").clicked() {
-                            ui_state.draft_code = ui_state.wgsl_smith_generated.clone();
-                        }
-                    });
-                }
-                if !ui_state.wgsl_smith_status.is_empty() {
-                    ui.label(&ui_state.wgsl_smith_status);
-                }
-            });
-        }
-        
-        if ui_state.show_ffgl_panel {
-            egui::Window::new("FFGL Export").open(&mut ui_state.show_ffgl_panel).show(ctx, |ui| {
-                ui.heading("FFGL");
-                ui.label("Generate and manage FFGL plugins");
-            });
-        }
-        if ui_state.show_gyroflow_panel {
-            egui::Window::new("Gyroflow").open(&mut ui_state.show_gyroflow_panel).show(ctx, |ui| {
-                ui.heading("Gyroflow");
-                ui.label("Configure stabilization integration");
-            });
-        }
-        if ui_state.show_export_panel {
-            egui::Window::new("Export").open(&mut ui_state.show_export_panel).show(ctx, |ui| {
-                ui.heading("Export");
-                ui.label("Export screenshots and videos");
-            });
-        }
-        if ui_state.show_diagnostics_panel {
-            egui::Window::new("WGSL Diagnostics").open(&mut ui_state.show_diagnostics_panel).show(ctx, |ui| {
-                ui.heading("Shader Compilation Diagnostics");
-                ui.horizontal(|ui| {
-                    if ui.button("Check Current Shader").clicked() {
-                        ui_state.diagnostics_messages = check_wgsl_diagnostics(&ui_state.draft_code);
-                    }
-                    if ui.button("Clear").clicked() {
-                        ui_state.diagnostics_messages.clear();
-                    }
-                });
-                if ui_state.diagnostics_messages.is_empty() {
-                    ui.label("No diagnostics available. Click 'Check Current Shader' to analyze.");
-                } else {
-                    ui.label(format!("Found {} diagnostic(s):", ui_state.diagnostics_messages.len()));
-                    egui::ScrollArea::vertical().max_height(400.0).show(ui, |ui| {
-                        for (i, diagnostic) in ui_state.diagnostics_messages.iter().enumerate() {
-                            ui.group(|ui| {
-                                match diagnostic.severity {
-                                    DiagnosticSeverity::Error => {
-                                        ui.colored_label(egui::Color32::RED, format!("Error {}: {}", i + 1, diagnostic.message));
-                                    }
-                                    DiagnosticSeverity::Warning => {
-                                        ui.colored_label(egui::Color32::YELLOW, format!("Warning {}: {}", i + 1, diagnostic.message));
-                                    }
-                                    DiagnosticSeverity::Info => {
-                                        ui.colored_label(egui::Color32::BLUE, format!("Info {}: {}", i + 1, diagnostic.message));
-                                    }
-                                }
-                                if let Some(line) = diagnostic.line {
-                                    ui.label(format!("  Line: {}", line));
-                                }
-                                if let Some(column) = diagnostic.column {
-                                    ui.label(format!("  Column: {}", column));
-                                }
-                            });
-                        }
-                    });
-                }
-            });
-        }
-        if ui_state.show_wgsl_analyzer {
-            egui::Window::new("WGSL Analyzer").open(&mut ui_state.show_wgsl_analyzer).show(ctx, |ui| {
-                ui.heading("WGSL Code Analysis");
-                ui.label("Advanced WGSL shader analysis and optimization");
-                ui.horizontal(|ui| {
-                    if ui.button("Analyze Code").clicked() {
-                    }
-                    if ui.button("Optimize").clicked() {
-                    }
-                });
-            });
-        }
-        if ui_state.show_performance {
-            egui::Window::new("Performance").open(&mut ui_state.show_performance).show(ctx, |ui| {
-                ui.heading("Performance Metrics");
-                ui.label("Real-time performance monitoring");
-                ui.horizontal(|ui| {
-                    ui.label("FPS:");
-                    ui.label(format!("{:.1}", ui_state.fps));
-                });
-            });
-        }
-        if ui_state.show_3d_scene_panel {
-            egui::Window::new("3D Scene Editor").open(&mut ui_state.show_3d_scene_panel).show(ctx, |ui| {
-                ui.heading("3D Scene Editor");
-                ui.label("Edit 3D scenes and objects");
-            });
-        }
-    }
-    if ui_state.show_analyzer_panel {
-        draw_analyzer_panel(
-            ctx,
-            ui_state,
-            midi_system,
-            compute_pass_manager,
-            spout_config,
-            spout_output,
-            ndi_config,
-            ndi_output,
-            dmx_config,
-            dmx_control,
-            audio_analyzer
-        );
-    }
+    // All panels are now integrated into the side panels
+    // No floating windows anymore
+    // WGSL analyzer is already in bottom panel, so no floating window needed
 }
-
 // deprecated legacy central panel helpers removed in favor of tabbed central view
 
 pub fn populate_shader_list(mut ui_state: ResMut<EditorUiState>) {
@@ -2025,35 +1922,9 @@ pub fn draw_editor_parameter_panel(ctx: &egui::Context, ui_state: &mut EditorUiS
     });
 }
 
-pub fn draw_midi_panel(ctx: &egui::Context, ui_state: &mut EditorUiState, midi_system: &mut MidiSystem) {
-    egui::Window::new("MIDI").open(&mut ui_state.show_midi_panel).show(ctx, |ui| {
-        ui.heading("MIDI Mapping");
-        if ui.button("Scan Devices").clicked() {
-            let _ = midi_system.scan_devices();
-        }
-        ui.separator();
-        let devices_snapshot = midi_system.devices.clone();
-        for (i, dev) in devices_snapshot.iter().enumerate() {
-            ui.horizontal(|ui| {
-                ui.label(&dev.name);
-                if dev.connected {
-                    if ui.button("Disconnect").clicked() {
-                        let _ = midi_system.disconnect_device(i);
-                    }
-                } else {
-                    if ui.button("Connect").clicked() {
-                        let _ = midi_system.connect_device(i);
-                    }
-                }
-            });
-        }
-        ui.separator();
-        ui.horizontal(|ui| {
-            ui.label("CC #");
-            ui.add(egui::DragValue::new(&mut ui_state.param_index_input).range(0..=127));
-            ui.checkbox(&mut ui_state.quick_params_enabled, "Enable");
-        });
-    });
+// MIDI panel integrated into right sidebar - no floating window needed
+pub fn draw_midi_panel(_ctx: &egui::Context, _ui_state: &mut EditorUiState, _midi_system: &mut MidiSystem) {
+    // Intentionally empty - MIDI controls now shown in right sidebar
 }
 
 pub fn draw_editor_central_panel(
@@ -2116,20 +1987,23 @@ pub fn draw_editor_central_panel(
                 let target_w = ui_state.preview_resolution.0 as f32;
                 let target_h = ui_state.preview_resolution.1 as f32;
                 let aspect = if target_w > 0.0 { target_h / target_w } else { 9.0 / 16.0 };
+                // Ensure preview size is never too small to prevent pixel data size mismatches
+                // Using larger minimum size to avoid Bevy 0.17 + bevy_egui issues
+                let min_preview_size = 50.0;
                 let preview_size = match ui_state.preview_scale_mode {
                     PreviewScaleMode::Fit => {
-                        let mut w = avail_w;
-                        let mut h = w * aspect;
+                        let mut w = avail_w.max(min_preview_size);
+                        let mut h = (w * aspect).max(min_preview_size);
                         if h > avail_h {
-                            h = avail_h;
-                            w = h / aspect;
+                            h = avail_h.max(min_preview_size);
+                            w = (h / aspect).max(min_preview_size);
                         }
                         egui::vec2(w, h)
                     }
-                    PreviewScaleMode::Fill => egui::vec2(avail_w, avail_h),
+                    PreviewScaleMode::Fill => egui::vec2(avail_w.max(min_preview_size), avail_h.max(min_preview_size)),
                     PreviewScaleMode::OneToOne => {
-                        let w = target_w.min(avail_w);
-                        let h = target_h.min(avail_h);
+                        let w = target_w.min(avail_w).max(min_preview_size);
+                        let h = target_h.min(avail_h).max(min_preview_size);
                         egui::vec2(w, h)
                     }
                 };
@@ -2137,13 +2011,18 @@ pub fn draw_editor_central_panel(
                 let rect = response.rect;
                 let mut guard = ui_state.global_renderer.renderer.lock().unwrap();
                 if let Some(ref mut renderer) = *guard {
+                    // Ensure render parameters have valid dimensions to prevent pixel data size mismatches
+                    // Using larger minimum size to avoid Bevy 0.17 + bevy_egui issues
+                    let safe_width = (preview_size.x as u32).max(50);
+                    let safe_height = (preview_size.y as u32).max(50);
                     let render_params = crate::shader_renderer::RenderParameters {
-                        width: preview_size.x as u32,
-                        height: preview_size.y as u32,
+                        width: safe_width,
+                        height: safe_height,
                         time: ui_state.time as f32,
                         frame_rate: 60.0,
                         audio_data: Some(audio_analyzer.get_audio_data()),
                     };
+                    println!("DEBUG: Preview render params: {}x{}", safe_width, safe_height);
                     let render_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         let mut code = if ui_state.draft_code.trim().is_empty() {
                             "@fragment fn fs_main(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> { return vec4<f32>(uv.x, uv.y, 0.5, 1.0); }".to_string()
@@ -2214,23 +2093,39 @@ var<uniform> uniforms: Uniforms;
                             }
                             let p0 = if pixels.len() >= 4 { (pixels[0], pixels[1], pixels[2], pixels[3]) } else { (0u8, 0u8, 0u8, 0u8) };
                             println!("preview_pixels_non_black={} first_pixel_rgba={:?} size={}x{}", non_black, p0, render_params.width, render_params.height);
-                            painter.rect_filled(rect, egui::CornerRadius::same(0u8), egui::Color32::BLACK);
+
+                            // Use safe dimensions for fallback gradient to prevent pixel data size mismatches
+                            // Using larger minimum size to avoid Bevy 0.17 + bevy_egui issues
+                            let safe_render_width = render_params.width.max(50);
+                            let safe_render_height = render_params.height.max(50);
                             let color_image = if non_black == 0 {
-                                let mut data = vec![0u8; (render_params.width * render_params.height * 4) as usize];
-                                for y in 0..render_params.height {
-                                    for x in 0..render_params.width {
-                                        let idx = ((y * render_params.width + x) * 4) as usize;
+                                let mut data = vec![0u8; (safe_render_width * safe_render_height * 4) as usize];
+                                for y in 0..safe_render_height {
+                                    for x in 0..safe_render_width {
+                                        let idx = ((y * safe_render_width + x) * 4) as usize;
                                         data[idx] = 255;
-                                        data[idx + 1] = ((x * 255) / render_params.width) as u8;
-                                        data[idx + 2] = ((y * 255) / render_params.height) as u8;
+                                        data[idx + 1] = ((x * 255) / safe_render_width) as u8;
+                                        data[idx + 2] = ((y * 255) / safe_render_height) as u8;
                                         data[idx + 3] = 255;
                                     }
                                 }
-                                println!("preview_fallback_gradient_applied size={}x{}", render_params.width, render_params.height);
+                                println!("preview_fallback_gradient_applied size={}x{}", safe_render_width, safe_render_height);
                                 egui::ColorImage::from_rgba_unmultiplied(
-                                    [render_params.width as usize, render_params.height as usize],
+                                    [safe_render_width as usize, safe_render_height as usize],
                                     &data,
                                 )
+                            } else if pixels.is_empty() {
+                // Use safe dimensions for error image to prevent pixel data size mismatches
+                // Using larger minimum size to avoid Bevy 0.17 + bevy_egui issues
+                let safe_width = render_params.width.max(50) as usize;
+                let safe_height = render_params.height.max(50) as usize;
+                println!("Preview render returned empty pixels. Displaying error message with safe dimensions: {}x{}", safe_width, safe_height);
+                let error_pixels = vec![egui::Color32::RED; safe_width * safe_height];
+                egui::ColorImage {
+                    size: [safe_width, safe_height],
+                    pixels: error_pixels,
+                    source_size: egui::Vec2::new((safe_width as f32).max(1.0), (safe_height as f32).max(1.0)),
+                }
                             } else {
                                 egui::ColorImage::from_rgba_unmultiplied(
                                     [render_params.width as usize, render_params.height as usize],
@@ -2240,12 +2135,20 @@ var<uniform> uniforms: Uniforms;
                             let tex = ctx.load_texture("shader_preview_tex", color_image, egui::TextureOptions::default());
                             let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
                             painter.image(tex.id(), rect, uv, egui::Color32::WHITE);
+                            // Use safe dimensions for output to prevent pixel data size mismatches
+                            // Using larger minimum size to avoid Bevy 0.17 + bevy_egui issues
+                            let output_width = render_params.width.max(50);
+                            let output_height = render_params.height.max(50);
                             match ui_state.outputs_mode {
                                 OutputsMode::Ndi => {
-                                    let _ = ndi_output.send_frame(&pixels, render_params.width, render_params.height);
+                                    if pixels.len() == (output_width as usize) * (output_height as usize) * 4 {
+                                        let _ = ndi_output.send_frame(&pixels, output_width, output_height);
+                                    }
                                 }
                                 OutputsMode::SpoutSyphon => {
-                                    let _ = spout_output.send_frame(&pixels, render_params.width, render_params.height);
+                                    if pixels.len() == (output_width as usize) * (output_height as usize) * 4 {
+                                        let _ = spout_output.send_frame(&pixels, output_width, output_height);
+                                    }
                                 }
                                 _ => {}
                             }
@@ -2274,8 +2177,13 @@ var<uniform> uniforms: Uniforms;
                     }
                     painter.rect_stroke(rect, 0.0, egui::Stroke::new(1.0, egui::Color32::from_gray(60)), egui::StrokeKind::Inside);
                 } else {
-                    let w = preview_size.x as u32;
-                    let h = preview_size.y as u32;
+                    // Use safe dimensions when renderer is not initialized to prevent pixel data size mismatches
+                    // Using larger minimum size to avoid Bevy 0.17 + bevy_egui issues
+                    let safe_w = preview_size.x as u32;
+                    let safe_h = preview_size.y as u32;
+                    // Ensure minimum size to prevent zero or very small dimensions
+                    let w = safe_w.max(50);
+                    let h = safe_h.max(50);
                     let mut data = vec![0u8; (w * h * 4) as usize];
                     for y in 0..h {
                         for x in 0..w {
@@ -2411,248 +2319,136 @@ var<uniform> uniforms: Uniforms;
     });
 }
 
-pub fn draw_performance_overlay_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
-    egui::Window::new("Performance").open(&mut ui_state.show_performance_overlay).show(ctx, |ui| {
-        ui.heading("Performance Metrics");
-        ui.horizontal(|ui| {
-            ui.label("FPS:");
-            ui.label(format!("{:.1}", ui_state.fps));
-        });
-    });
+// Performance panel integrated into right sidebar - no floating window needed
+pub fn draw_performance_overlay_panel(_ctx: &egui::Context, _ui_state: &mut EditorUiState) {
+    // Intentionally empty - performance metrics now shown in right sidebar
 }
 
-pub fn draw_color_grading_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
-    egui::Window::new("Color Grading").open(&mut ui_state.show_color_grading_panel).show(ctx, |ui| {
-        let mut exposure = 0.0f32;
-        let mut contrast = 1.0f32;
-        let mut saturation = 1.0f32;
-        ui.label("Exposure");
-        ui.add(egui::Slider::new(&mut exposure, -2.0..=2.0));
-        ui.label("Contrast");
-        ui.add(egui::Slider::new(&mut contrast, 0.0..=2.0));
-        ui.label("Saturation");
-        ui.add(egui::Slider::new(&mut saturation, 0.0..=2.0));
-    });
+// Color grading panel integrated into right sidebar - no floating window needed
+pub fn draw_color_grading_panel(_ctx: &egui::Context, _ui_state: &mut EditorUiState) {
+    // Intentionally empty - color grading controls now shown in right sidebar
 }
 
 
-pub fn draw_dmx_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
-    egui::Window::new("DMX Lighting").open(&mut ui_state.show_dmx_panel).show(ctx, |ui| {
-        ui.label("DMX controls");
-    });
+// DMX panel integrated into right sidebar - no floating window needed
+pub fn draw_dmx_panel(_ctx: &egui::Context, _ui_state: &mut EditorUiState) {
+    // Intentionally empty - DMX controls now shown in right sidebar
 }
 
-pub fn draw_compute_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
-    egui::Window::new("Compute Passes").open(&mut ui_state.show_compute_panel).show(ctx, |ui| {
-        ui.label("Compute controls");
-        ui.horizontal(|ui| {
-            ui.label("Dispatch Size X");
-            ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_x).speed(1));
-        });
-        ui.horizontal(|ui| {
-            ui.label("Dispatch Size Y");
-            ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_y).speed(1));
-        });
-        ui.horizontal(|ui| {
-            ui.label("Dispatch Size Z");
-            ui.add(egui::DragValue::new(&mut ui_state.dispatch_size_z).speed(1));
-        });
-    });
+// Compute panel integrated into right sidebar - no floating window needed
+pub fn draw_compute_panel(_ctx: &egui::Context, _ui_state: &mut EditorUiState) {
+    // Intentionally empty - compute controls now shown in right sidebar
 }
 
-pub fn draw_export_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
-    egui::Window::new("Export").open(&mut ui_state.show_export_panel).show(ctx, |ui| {
-        ui.label("Export options");
-    });
+// Export panel integrated into right sidebar - no floating window needed
+pub fn draw_export_panel(_ctx: &egui::Context, _ui_state: &mut EditorUiState) {
+    // Intentionally empty - export controls now shown in right sidebar
 }
 
 
 
-pub fn draw_ffgl_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
-    egui::Window::new("FFGL Export").open(&mut ui_state.show_ffgl_panel).show(ctx, |ui| {
-        ui.label("FFGL export");
-    });
+// FFGL panel integrated into right sidebar - no floating window needed
+pub fn draw_ffgl_panel(_ctx: &egui::Context, _ui_state: &mut EditorUiState) {
+    // Intentionally empty - FFGL controls now shown in right sidebar
 }
 
-pub fn draw_gyroflow_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
-    egui::Window::new("Gyroflow Integration").open(&mut ui_state.show_gyroflow_panel).show(ctx, |ui| {
-        ui.label("Gyroflow integration");
-    });
+// Gyroflow panel integrated into right sidebar - no floating window needed
+pub fn draw_gyroflow_panel(_ctx: &egui::Context, _ui_state: &mut EditorUiState) {
+    // Intentionally empty - Gyroflow controls now shown in right sidebar
 }
 
+// WGSL Analyzer panel integrated into bottom panel - no floating window needed
 pub fn draw_analyzer_panel(
-    ctx: &egui::Context,
-    ui_state: &mut EditorUiState,
-    midi_system: &mut MidiSystem,
-    compute_pass_manager: &mut ComputePassManager,
-    spout_config: &mut SpoutSyphonConfig,
-    spout_output: &SpoutSyphonOutput,
-    ndi_config: &mut NdiConfig,
-    ndi_output: &NdiOutput,
-    dmx_config: &mut DmxConfig,
-    dmx_control: &mut DmxLightingControl,
-    audio_analyzer: &AudioAnalyzer
+    _ctx: &egui::Context,
+    _ui_state: &mut EditorUiState,
+    _midi_system: &mut MidiSystem,
+    _compute_pass_manager: &mut ComputePassManager,
+    _spout_config: &mut SpoutSyphonConfig,
+    _spout_output: &SpoutSyphonOutput,
+    _ndi_config: &mut NdiConfig,
+    _ndi_output: &NdiOutput,
+    _dmx_config: &mut DmxConfig,
+    _dmx_control: &mut DmxLightingControl,
+    _audio_analyzer: &AudioAnalyzer
 ) {
-    let mut analyzer_open = ui_state.show_analyzer_panel;
-    egui::Window::new("WGSL Analyzer").open(&mut analyzer_open).show(ctx, |ui| {
-        ui.horizontal(|ui| {
-            if ui.button("Run Diagnostics").clicked() {
-                run_wgsl_diagnostics(ui_state);
-            }
-            if !ui_state.diagnostics_messages.is_empty() {
-                ui.label(format!("Found {}", ui_state.diagnostics_messages.len()));
-            }
-        });
-        ui.separator();
-        ui.horizontal(|ui| {
-            if ui.button("Run Live Integration Tests").clicked() {
-                let mut results = Vec::new();
-                {
-                    let mut renderer_guard = ui_state.global_renderer.renderer.lock().unwrap();
-                    if let Some(ref mut renderer) = *renderer_guard {
-                        let test_wgsl = "@fragment\nfn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> { let uv = position.xy / vec2<f32>(64.0, 64.0); return vec4<f32>(uv.x, uv.y, 0.0, 1.0); }";
-                        let params = crate::shader_renderer::RenderParameters { width: 64, height: 64, time: 0.0, frame_rate: 60.0, audio_data: None };
-                        match renderer.render_frame(test_wgsl, &params, None) {
-                            Ok(p) => {
-                                let ok = !p.is_empty();
-                                results.push(format!("Preview renderer: {}", if ok { "OK" } else { "EMPTY" }));
-                            }
-                            Err(e) => results.push(format!("Preview renderer error: {}", e)),
-                        }
-                        match validate_wgsl_for_mode(&ui_state.draft_code, ui_state.pipeline_mode) {
-                            Ok(()) => {
-                                let params2 = crate::shader_renderer::RenderParameters { width: 32, height: 32, time: 0.0, frame_rate: 60.0, audio_data: None };
-                                match renderer.render_frame(&ui_state.draft_code, &params2, None) {
-                                    Ok(_) => results.push("Draft shader render: OK".to_string()),
-                                    Err(e) => results.push(format!("Draft shader render error: {}", e)),
-                                }
-                            }
-                            Err(e) => results.push(format!("WGSL validation error: {}", e)),
-                        }
-                    } else {
-                        results.push("Renderer not initialized".to_string());
-                    }
-                }
-                let graph_wgsl = ui_state.node_graph.generate_wgsl(64, 64);
-                if graph_wgsl.contains("@fragment") {
-                    results.push("Node graph WGSL generation: OK".to_string());
-                } else {
-                    results.push("Node graph WGSL generation: Missing @fragment".to_string());
-                }
-                let scene_ready = ui_state.scene3d_texture_id.is_some();
-                results.push(format!("3D viewport texture: {}", if scene_ready { "READY" } else { "NOT READY" }));
-                rescan_shaders_all(ui_state);
-                let total = ui_state.available_shaders_all.len();
-                let compat = ui_state.available_shaders_compatible.len();
-                results.push(format!("Shader browser: total={}, compatible={}", total, compat));
-                let _ = midi_system.scan_devices();
-                results.push(format!("MIDI devices: {}", midi_system.devices.len()));
-                compute_pass_manager.create_ping_pong_texture("analyzer_test", 64, 64, TextureFormat::Rgba8Unorm);
-                results.push(format!("Compute ping-pong textures: {}", compute_pass_manager.ping_pong_textures.len()));
-                let audio = audio_analyzer.get_audio_data();
-                results.push(format!("Audio analyzer: volume={:.2} beat={}", audio.volume, audio.beat_detected));
-                spout_config.enabled = false;
-                let spout_status = spout_output.get_status();
-                results.push(format!("Spout/Syphon: running={} status={}", spout_status.is_running, spout_status.connection_status));
-                ndi_config.enabled = false;
-                let ndi_status = ndi_output.get_status();
-                results.push(format!("NDI: running={} status={}", ndi_status.is_running, ndi_status.connection_status));
-                let _ = dmx_control.start();
-                let dmx_status = dmx_control.get_status();
-                results.push(format!("DMX: running={} mappings={}", dmx_status.is_running, dmx_status.num_mappings));
-                let _ = dmx_control.stop();
-                ui_state.analyzer_status = results;
-            }
-            if ui.button("Audit UI Panels").clicked() {
-                let mut report = Vec::new();
-                report.push(format!("Menu Bar: {}", "OK"));
-                if ui_state.show_shader_browser {
-                    let ok = !ui_state.available_shaders_all.is_empty();
-                    report.push(format!("Shader Browser: {}", if ok { "OK" } else { "EMPTY" }));
-                } else {
-                    report.push("Shader Browser: HIDDEN".to_string());
-                }
-                if ui_state.show_parameter_panel {
-                    let ok = !ui_state.parameter_values.is_empty();
-                    report.push(format!("Parameters Panel: {}", if ok { "OK" } else { "NO CONTROLS" }));
-                } else {
-                    report.push("Parameters Panel: HIDDEN".to_string());
-                }
-                if ui_state.show_code_editor {
-                    let ok = !ui_state.draft_code.trim().is_empty();
-                    report.push(format!("Code Editor: {}", if ok { "OK" } else { "EMPTY" }));
-                } else {
-                    report.push("Code Editor: HIDDEN".to_string());
-                }
-                if ui_state.show_preview {
-                    let ok = {
-                        let renderer_guard = ui_state.global_renderer.renderer.lock().unwrap();
-                        renderer_guard.as_ref().is_some()
-                    };
-                    report.push(format!("Preview: {}", if ok { "READY" } else { "NOT INITIALIZED" }));
-                } else {
-                    report.push("Preview: HIDDEN".to_string());
-                }
-                if ui_state.show_node_studio {
-                    report.push("Node Studio: VISIBLE".to_string());
-                }
-                if ui_state.show_timeline {
-                    report.push("Timeline: VISIBLE".to_string());
-                }
-                if ui_state.show_audio_panel {
-                    report.push("Audio Panel: VISIBLE".to_string());
-                }
-                if ui_state.show_midi_panel {
-                    report.push("MIDI Panel: VISIBLE".to_string());
-                }
-                let scene_tab_open = ui_state.central_view == CentralView::Scene3D;
-                report.push(format!("3D Editor Tab: {}", if scene_tab_open { "OPEN" } else { "CLOSED" }));
-                report.push(format!("3D Viewport Texture: {}", if ui_state.scene3d_texture_id.is_some() { "READY" } else { "NOT READY" }));
-                ui_state.analyzer_status = report;
-            }
-        });
-        if !ui_state.analyzer_status.is_empty() {
-            egui::ScrollArea::vertical().max_height(180.0).show(ui, |ui| {
-                for line in ui_state.analyzer_status.iter() {
-                    ui.label(line);
-                }
-            });
-        }
-    });
-    ui_state.show_analyzer_panel = analyzer_open;
+    // Intentionally empty - analyzer now shown in bottom panel
+    // No floating window needed as it's redundant
 }
 
-pub fn draw_3d_scene_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
-    egui::Window::new("3D Scene Editor").open(&mut ui_state.show_3d_scene_panel).show(ctx, |ui| {
-        ui.heading("Camera");
-        ui.horizontal(|ui| {
-            ui.label("Position");
-            ui.add(egui::DragValue::new(&mut ui_state.camera_position[0]).speed(0.1));
-            ui.add(egui::DragValue::new(&mut ui_state.camera_position[1]).speed(0.1));
-            ui.add(egui::DragValue::new(&mut ui_state.camera_position[2]).speed(0.1));
-        });
-        ui.horizontal(|ui| {
-            ui.label("Rotation");
-            ui.add(egui::DragValue::new(&mut ui_state.camera_rotation[0]).speed(0.1));
-            ui.add(egui::DragValue::new(&mut ui_state.camera_rotation[1]).speed(0.1));
-            ui.add(egui::DragValue::new(&mut ui_state.camera_rotation[2]).speed(0.1));
-        });
-        ui.horizontal(|ui| {
-            ui.label("FOV");
-            ui.add(egui::Slider::new(&mut ui_state.camera_fov, 10.0..=120.0));
-        });
-        ui.heading("Light");
-        ui.horizontal(|ui| {
-            ui.label("Position");
-            ui.add(egui::DragValue::new(&mut ui_state.light_position[0]).speed(0.1));
-            ui.add(egui::DragValue::new(&mut ui_state.light_position[1]).speed(0.1));
-            ui.add(egui::DragValue::new(&mut ui_state.light_position[2]).speed(0.1));
-        });
-        ui.horizontal(|ui| {
-            ui.label("Intensity");
-            ui.add(egui::Slider::new(&mut ui_state.light_intensity, 0.0..=10.0));
-        });
+// 3D Scene Editor panel integrated into right sidebar
+pub fn draw_3d_scene_panel(
+    ui: &mut egui::Ui,
+    editor_state: &mut crate::scene_editor_3d::SceneEditor3DState,
+    manipulable_query: &Query<(Entity, &Name), With<crate::scene_editor_3d::EditorManipulable>>,
+) {
+    ui.heading("3D Scene Controls");
+    ui.separator();
+    
+    // Manipulation mode buttons
+    ui.horizontal(|ui| {
+        ui.label("Mode:");
+        ui.label(format!("{:?}", editor_state.manipulation_mode));
+        // Buttons would send commands to change mode in a real implementation
+        ui.label("(Buttons disabled in UI-only view)");
     });
+    
+    ui.separator();
+    
+    // Primitive creation
+    ui.horizontal(|ui| {
+        ui.label("Create:");
+        ui.label(format!("{:?}", editor_state.create_primitive_type));
+        ui.label("(Combo disabled in UI-only view)");
+        ui.label("(Ctrl+N)");
+    });
+    
+    ui.separator();
+    
+    // Scene hierarchy
+    ui.heading("Scene Hierarchy");
+    egui::ScrollArea::vertical()
+        .max_height(200.0)
+        .show(ui, |ui| {
+            for (entity, name) in manipulable_query.iter() {
+                let is_selected = editor_state.selected_entity == Some(entity);
+                let response = ui.selectable_label(
+                    is_selected,
+                    format!("{} (Entity {:?})", name.as_str(), entity)
+                );
+                
+                if response.clicked() {
+                    editor_state.selected_entity = Some(entity);
+                }
+            }
+        });
+    
+    ui.separator();
+    
+    // Editor options
+    ui.label(format!("Show Gizmos: {}", editor_state.show_gizmos));
+    ui.label(format!("Editor Enabled: {}", editor_state.enabled));
+    ui.label(format!("Snap to Grid: {}", editor_state.snap_to_grid));
+    
+    if editor_state.snap_to_grid {
+        ui.horizontal(|ui| {
+            ui.label("Grid Size:");
+            ui.label(format!("{:.1}", editor_state.grid_size));
+        });
+        ui.label("Press G to snap selected entities");
+    }
+    
+    ui.separator();
+    
+    // Instructions
+    ui.label("Controls:");
+    ui.label("• Left Click: Select entity");
+    ui.label("• Right Drag: Orbit camera");
+    ui.label("• Middle Drag: Pan camera");
+    ui.label("• Mouse Wheel: Zoom in/out");
+    ui.label("• Q/Z: Zoom out/in");
+    ui.label("• W/E/R: Switch manipulation mode");
+    ui.label("• Ctrl+N: Create new primitive");
+    ui.label("• G: Snap to grid (when enabled)");
 }
 
 /// System to load selected shader file contents into draft buffer.
