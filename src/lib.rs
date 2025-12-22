@@ -32,6 +32,7 @@ pub mod shader_transpiler;
 pub mod isf_loader;
 pub mod isf_converter;
 pub mod enforcement_system;
+pub mod documentation_server;
 
 // Re-export new integration modules
 
@@ -375,6 +376,7 @@ pub mod node_graph;
 pub mod timeline;
 pub mod ui_analyzer;
 pub mod ui_analyzer_enhanced;
+pub mod wgpu_integration;
 
 // Re-export UI analyzer types for external use
 pub use ui_analyzer::{UIAnalyzer, FeatureCheck, FeatureStatus, Priority, WgpuDiagnostics, UiStateDiagnostics};

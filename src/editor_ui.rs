@@ -746,6 +746,63 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
             });
 
             ui.separator();
+            ui.menu_button("Documentation", |ui| {
+                if ui.button("Shader Studio Cookbook").clicked() {
+                    // TODO: Open documentation in browser
+                    println!("Opening Shader Studio Cookbook...");
+                    ui.close_menu();
+                }
+                if ui.button("WGSL Fundamentals").clicked() {
+                    // TODO: Open WGSL fundamentals documentation
+                    println!("Opening WGSL Fundamentals...");
+                    ui.close_menu();
+                }
+                if ui.button("GLSL Fundamentals").clicked() {
+                    // TODO: Open GLSL fundamentals documentation
+                    println!("Opening GLSL Fundamentals...");
+                    ui.close_menu();
+                }
+                if ui.button("HLSL Fundamentals").clicked() {
+                    // TODO: Open HLSL fundamentals documentation
+                    println!("Opening HLSL Fundamentals...");
+                    ui.close_menu();
+                }
+                if ui.button("ISF Fundamentals").clicked() {
+                    // TODO: Open ISF fundamentals documentation
+                    println!("Opening ISF Fundamentals...");
+                    ui.close_menu();
+                }
+                if ui.button("Shader Conversion Framework").clicked() {
+                    // TODO: Open shader conversion framework documentation
+                    println!("Opening Shader Conversion Framework...");
+                    ui.close_menu();
+                }
+                if ui.button("Application Usage Guide").clicked() {
+                    // TODO: Open application usage guide
+                    println!("Opening Application Usage Guide...");
+                    ui.close_menu();
+                }
+                if ui.button("Technical Architecture").clicked() {
+                    // TODO: Open technical architecture documentation
+                    println!("Opening Technical Architecture...");
+                    ui.close_menu();
+                }
+                if ui.button("Advanced Features").clicked() {
+                    // TODO: Open advanced features documentation
+                    println!("Opening Advanced Features...");
+                    ui.close_menu();
+                }
+                if ui.button("API Reference").clicked() {
+                    // TODO: Open API reference in browser
+                    println!("Opening API Reference...");
+                    ui.close_menu();
+                }
+                if ui.button("Online Documentation").clicked() {
+                    // TODO: Open online documentation
+                    println!("Opening Online Documentation...");
+                    ui.close_menu();
+                }
+            });
 
             ui.separator();
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {

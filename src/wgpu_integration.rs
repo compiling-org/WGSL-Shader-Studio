@@ -1,15 +1,17 @@
 use bevy::prelude::*;
-use bevy::render::render_resource::{TextureFormat, Extent3d};
-use bevy::render::renderer::{RenderDevice, RenderQueue};
-use bevy::window::PrimaryWindow;
+// Removed unused imports
+// use bevy::render::render_resource::{TextureFormat, Extent3d};
+// use bevy::render::renderer::{RenderDevice, RenderQueue};
+// use bevy::window::PrimaryWindow;
 use bevy_egui::egui;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crate::shader_renderer::{ShaderRenderer, RenderParameters, Uniforms};
+use crate::shader_renderer::{ShaderRenderer, RenderParameters};
 use crate::audio_system::AudioAnalyzer;
-use crate::timeline::Timeline;
-use crate::editor_ui::EditorUiState;
+// Removed unused imports
+// use crate::timeline::Timeline;
+// use crate::editor_ui::EditorUiState;
 
 /// Resource that manages the WGPU shader rendering pipeline
 #[derive(Resource)]
@@ -89,7 +91,7 @@ impl WgpuRenderPipeline {
                     audio_data: audio_data.cloned(),
                 };
                 
-                match renderer.render_frame_with_params(shader_code, &render_params, parameter_values) {
+                match renderer.render_frame_with_params(shader_code, &render_params, parameter_values, audio_data.cloned()) {
                     Ok(pixels) => {
                         println!("✅ Shader rendered successfully: {}x{} pixels", width, height);
                         Ok(pixels)
@@ -190,7 +192,7 @@ pub fn live_preview_system(
     let current_time = time.elapsed_secs();
     
     // Get audio data if available
-    let audio_data = if audio_analyzer.is_enabled() {
+    let audio_data = if audio_analyzer.enabled {
         Some(crate::audio_system::AudioData {
             volume: audio_analyzer.get_volume(),
             bass_level: audio_analyzer.get_bass(),

@@ -475,7 +475,7 @@ impl ExportUI {
         ui.collapsing("📸 Screenshot", |ui| {
             ui.horizontal(|ui| {
                 ui.label("Format:");
-                egui::ComboBox::from_id_source("screenshot_format")
+                egui::ComboBox::from_id_salt("screenshot_format")
                     .selected_text(format!("{:?}", settings.format))
                     .show_ui(ui, |ui| {
                         ui.selectable_value(&mut settings.format, ExportFormat::Png, "PNG");
@@ -551,7 +551,7 @@ impl ExportUI {
             ui.collapsing("Video Settings", |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Format:");
-                    egui::ComboBox::from_id_source("video_format")
+                    egui::ComboBox::from_id_salt("video_format")
                         .selected_text(format!("{:?}", video_settings.format))
                         .show_ui(ui, |ui| {
                             ui.selectable_value(&mut video_settings.format, VideoFormat::Mp4, "MP4");

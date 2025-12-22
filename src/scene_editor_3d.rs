@@ -440,7 +440,7 @@ fn update_shader_preview_texture(
 fn gizmo_manipulation_system(
     mut editor_state: ResMut<SceneEditor3DState>,
     mut manipulable_query: Query<&mut Transform, With<EditorManipulable>>,
-    mut mouse_motion_events: EventReader<bevy::input::mouse::MouseMotion>,
+    mut mouse_motion_events: MessageReader<bevy::input::mouse::MouseMotion>,
     mouse_button: Res<ButtonInput<MouseButton>>,
 ) {
     if !editor_state.enabled {
@@ -488,10 +488,10 @@ fn gizmo_manipulation_system(
 /// Update editor camera with pan/orbit controls
 fn update_editor_camera(
     mut camera_query: Query<(&mut Transform, &mut Projection), With<EditorCamera3D>>,
-    mut mouse_motion_events: EventReader<bevy::input::mouse::MouseMotion>,
+    mut mouse_motion_events: MessageReader<bevy::input::mouse::MouseMotion>,
     mouse_button: Res<ButtonInput<MouseButton>>,
     key_input: Res<ButtonInput<KeyCode>>,
-    mut mouse_wheel: EventReader<bevy::input::mouse::MouseWheel>,
+    mut mouse_wheel: MessageReader<bevy::input::mouse::MouseWheel>,
     time: Res<Time>,
 ) {
     if let Ok((mut transform, _projection)) = camera_query.single_mut() {

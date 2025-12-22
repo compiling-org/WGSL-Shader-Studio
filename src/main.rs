@@ -6,6 +6,7 @@
 use resolume_isf_shaders_rust_ffgl::node_graph;
 use resolume_isf_shaders_rust_ffgl::isf_converter;
 use resolume_isf_shaders_rust_ffgl::wgsl_diagnostics;
+use resolume_isf_shaders_rust_ffgl::ui_analyzer::UIAnalyzer;
 
 // Import the specific types we need
 use resolume_isf_shaders_rust_ffgl::audio_system::AudioAnalyzer;
@@ -54,6 +55,12 @@ fn run_gui() {
     resolume_isf_shaders_rust_ffgl::bevy_app::run_app();
 }
 
+fn run_ui_analysis() {
+    let mut analyzer = UIAnalyzer::new();
+    let report = analyzer.run_comprehensive_analysis();
+    println!("{}", report);
+}
+
 fn run_cli() {
     println!("WGSL Shader Studio - CLI Mode");
     println!("===============================");
@@ -66,6 +73,7 @@ fn run_cli() {
         println!("       {} --test-compute", args[0]);
         println!("       {} --test-audio", args[0]);
         println!("       {} --test-nodes", args[0]);
+        println!("       {} --analyze-ui", args[0]);
         println!("       {} --glsl-to-wgsl <input.glsl>", args[0]);
         println!("       {} --hlsl-to-wgsl <input.hlsl>", args[0]);
         println!("       {} --wgsl-to-glsl <input.wgsl>", args[0]);
@@ -85,6 +93,10 @@ fn run_cli() {
         "--test-nodes" => {
             println!("Testing node graph system...");
             test_node_graph();
+        }
+        "--analyze-ui" => {
+            println!("Running comprehensive UI analysis...");
+            run_ui_analysis();
         }
         "--glsl-to-wgsl" => {
             if args.len() < 3 {

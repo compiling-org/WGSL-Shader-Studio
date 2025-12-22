@@ -75,6 +75,8 @@ serde_yaml = "0.9"
 # lezer = "0.1"  # This is a JavaScript parser generator, not available in Rust
 uuid = { version = "1.0", features = ["v4", "serde"] }
 once_cell = "1.20"
+hyper = "0.14"
+hyper-staticfile = "0.9"
 
 # Cross-platform networking (replacing tokio-tun)
 tun-rs = { version = "2.0", optional = true }
@@ -93,4 +95,5 @@ default = ["gui", "networking", "naga_integration"]
 gui = ["dep:bevy_egui"]
 networking = ["dep:tun-rs"]
 naga_integration = []
+3d_preview = []
 

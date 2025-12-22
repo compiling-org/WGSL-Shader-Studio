@@ -718,15 +718,15 @@ fn draw_single_node(
     drag_state: Option<&DragState>,
 ) {
     let rect = egui::Rect::from_min_size(node.position, node.size);
-    let response = ui.allocate_ui_at_rect(rect, |ui| {
-            let frame = egui::Frame::none()
+    let response = ui.allocate_new_ui(egui::UiBuilder::new().max_rect(rect), |ui| {
+            let frame = egui::Frame::NONE
                 .fill(node.color)
                 .stroke(egui::Stroke::new(2.0, if node.selected { 
                     egui::Color32::YELLOW 
                 } else { 
                     egui::Color32::GRAY 
                 }))
-                .rounding(8.0);
+                .corner_radius(8.0);
             
             frame.show(ui, |ui| {
                 ui.vertical(|ui| {
@@ -875,44 +875,44 @@ fn draw_node_graph_toolbar(
                 ui.menu_button("Add Node", |ui| {
                     if ui.button("Input → Time").clicked() {
                         node_graph.graph.add_node(ShaderNodeType::Time, "Time", vec![], vec!["time".to_string()]);
-                        ui.close_menu();
+                        ui.close();
                     }
                     if ui.button("Input → Resolution").clicked() {
                         node_graph.graph.add_node(ShaderNodeType::Resolution, "Resolution", vec![], vec!["resolution".to_string()]);
-                        ui.close_menu();
+                        ui.close();
                     }
                     if ui.button("Input → UV").clicked() {
                         node_graph.graph.add_node(ShaderNodeType::UV, "UV", vec![], vec!["uv".to_string()]);
-                        ui.close_menu();
+                        ui.close();
                     }
                     
                     ui.separator();
                     
                     if ui.button("Math → Add").clicked() {
                         node_graph.graph.add_node(ShaderNodeType::Add, "Add", vec!["a".to_string(), "b".to_string()], vec!["result".to_string()]);
-                        ui.close_menu();
+                        ui.close();
                     }
                     if ui.button("Math → Multiply").clicked() {
                         node_graph.graph.add_node(ShaderNodeType::Multiply, "Multiply", vec!["a".to_string(), "b".to_string()], vec!["result".to_string()]);
-                        ui.close_menu();
+                        ui.close();
                     }
                     if ui.button("Math → Sin").clicked() {
                         node_graph.graph.add_node(ShaderNodeType::Sin, "Sin", vec!["input".to_string()], vec!["result".to_string()]);
-                        ui.close_menu();
+                        ui.close();
                     }
                     
                     ui.separator();
                     
                     if ui.button("Color → Color Mix").clicked() {
                         node_graph.graph.add_node(ShaderNodeType::ColorMix, "Color Mix", vec!["a".to_string(), "b".to_string(), "factor".to_string()], vec!["result".to_string()]);
-                        ui.close_menu();
+                        ui.close();
                     }
                     
                     ui.separator();
                     
                     if ui.button("Output → Fragment Output").clicked() {
                         node_graph.graph.add_node(ShaderNodeType::FragmentOutput, "Fragment Output", vec!["color".to_string()], vec![]);
-                        ui.close_menu();
+                        ui.close();
                     }
                 });
                 

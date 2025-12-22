@@ -363,7 +363,7 @@ impl DiagnosticRenderer {
                     }
                     
                     if ui.add(egui::Button::new("").sense(egui::Sense::hover())).hovered() {
-                        egui::show_tooltip(ui.ctx(), egui::Id::new(&diagnostic.code), |ui| {
+                        egui::show_tooltip_at_pointer(ui.ctx(), egui::LayerId::new(egui::Order::Tooltip, egui::Id::new("wgsl_tooltip_integration")), egui::Id::new(&diagnostic.code), |ui| {
                             ui.label(diagnostic.message.as_str());
                             ui.weak(format!("Code: {}", diagnostic.code));
                             match diagnostic.source {

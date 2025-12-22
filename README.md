@@ -1,5 +1,23 @@
 # WGSL Shader Studio
 
+## Documentation
+
+For comprehensive guides on shader development, conversion, and best practices, see our [Shader Studio Cookbook](docs/SHADER_STUDIO_COOKBOOK.md).
+
+### Complete Documentation Suite
+
+Our comprehensive documentation suite includes:
+
+- [WGSL Fundamentals](docs/WGSL_FUNDAMENTALS.md) - Complete reference for WebGPU Shading Language
+- [GLSL Fundamentals](docs/GLSL_FUNDAMENTALS.md) - Comprehensive guide to OpenGL Shading Language
+- [HLSL Fundamentals](docs/HLSL_FUNDAMENTALS.md) - Detailed documentation for High Level Shading Language
+- [ISF Fundamentals](docs/ISF_FUNDAMENTALS.md) - Complete guide to Interactive Shader Format
+- [Shader Conversion Framework](docs/SHADER_CONVERSION_FRAMEWORK.md) - System for converting between shading languages
+- [Application Usage Guide](docs/APPLICATION_USAGE_GUIDE_COMPLETE.md) - Complete guide to using WGSL Shader Studio
+- [Technical Architecture](docs/WGSL_SHADER_STUDIO_ARCHITECTURE.md) - Detailed technical architecture documentation
+- [Advanced Features](docs/ADVANCED_FEATURES.md) - Documentation for professional-grade features
+- [Comprehensive Documentation Index](docs/COMPREHENSIVE_DOCUMENTATION_INDEX.md) - Complete index of all documentation
+
 ## Current State (2025-12-16)
 - App boot: reliable after egui context scheduling fixes; UI systems run on the proper pass to prevent early context use.
 - Preview: renderer output textures use `Rgba8Unorm` (src/shader_renderer.rs:914). 3D preview textures aligned to `Rgba8Unorm` (src/scene_editor_3d.rs:128, 141). Pixel size validation prevents Bevy image panics (src/scene_editor_3d.rs:297–299). Black preview resolved by unifying formats.

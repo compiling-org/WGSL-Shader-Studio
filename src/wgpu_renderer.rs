@@ -96,12 +96,12 @@ impl WgpuShaderRenderer {
         let safe_height = size.height.max(1);
         let surface_config = SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::COPY_DST,
-            format: TextureFormat::Bgra8UnormSrgb,
+            format: TextureFormat::Rgba8Unorm,
             width: safe_width,
             height: safe_height,
             present_mode: PresentMode::Fifo,
             alpha_mode: CompositeAlphaMode::Auto,
-            view_formats: vec![TextureFormat::Bgra8UnormSrgb],
+            view_formats: vec![TextureFormat::Rgba8Unorm],
         };
         
         surface.configure(&device, &surface_config);
@@ -117,9 +117,9 @@ impl WgpuShaderRenderer {
             mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D2,
-            format: TextureFormat::Bgra8UnormSrgb,
+            format: TextureFormat::Rgba8Unorm,
             usage: TextureUsages::COPY_SRC | TextureUsages::RENDER_ATTACHMENT,
-            view_formats: &[TextureFormat::Bgra8UnormSrgb],
+            view_formats: &[TextureFormat::Rgba8Unorm],
         });
 
         let render_target = device.create_texture(&TextureDescriptor {
@@ -132,9 +132,9 @@ impl WgpuShaderRenderer {
             mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D2,
-            format: TextureFormat::Bgra8UnormSrgb,
+            format: TextureFormat::Rgba8Unorm,
             usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
-            view_formats: &[TextureFormat::Bgra8UnormSrgb],
+            view_formats: &[TextureFormat::Rgba8Unorm],
         });
 
         Ok(Self {
@@ -228,7 +228,7 @@ impl WgpuShaderRenderer {
                 module: &shader_module,
                 entry_point: Some("fs_main"),
                 targets: &[Some(ColorTargetState {
-                    format: TextureFormat::Bgra8UnormSrgb,
+                    format: TextureFormat::Rgba8Unorm,
                     blend: Some(BlendState::ALPHA_PREMULTIPLIED),
                     write_mask: ColorWrites::ALL,
                 })],
@@ -387,9 +387,9 @@ impl WgpuShaderRenderer {
             mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D2,
-            format: TextureFormat::Bgra8UnormSrgb,
+            format: TextureFormat::Rgba8Unorm,
             usage: TextureUsages::COPY_SRC | TextureUsages::RENDER_ATTACHMENT,
-            view_formats: &[TextureFormat::Bgra8UnormSrgb],
+            view_formats: &[TextureFormat::Rgba8Unorm],
         });
 
         self.render_target = self.device.create_texture(&TextureDescriptor {
@@ -402,9 +402,9 @@ impl WgpuShaderRenderer {
             mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D2,
-            format: TextureFormat::Bgra8UnormSrgb,
+            format: TextureFormat::Rgba8Unorm,
             usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
-            view_formats: &[TextureFormat::Bgra8UnormSrgb],
+            view_formats: &[TextureFormat::Rgba8Unorm],
         });
 
         self.output_view = self.output_texture.create_view(&TextureViewDescriptor::default());
@@ -438,9 +438,9 @@ impl WgpuShaderRenderer {
             mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D2,
-            format: TextureFormat::Rgba8UnormSrgb,
+            format: TextureFormat::Rgba8Unorm,
             usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-            view_formats: &[TextureFormat::Rgba8UnormSrgb],
+            view_formats: &[TextureFormat::Rgba8Unorm],
         });
 
         self.queue.write_texture(

@@ -12,6 +12,43 @@ use std::panic;
 use bevy::ecs::system::SystemParam;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::net::SocketAddr;
+use crate::documentation_server::start_documentation_server;
+
+/// Resource to manage documentation server
+#[derive(Resource, Clone)]
+pub struct DocumentationServer {
+    pub addr: SocketAddr,
+    pub shutdown_notify: Arc<tokio::sync::Notify>,
+}
+
+/// Startup system to initialize the documentation server
+pub fn start_documentation_server_system(mut commands: Commands) {
+    // Use tokio to spawn the async server start
+    let handle = std::thread::spawn(|| {
+        let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
+        rt.block_on(async {
+            match start_documentation_server("./docs").await {
+                Ok((addr, notify)) => {
+                    println!("Documentation server started at http://{}", addr);
+                    Some((addr, notify))
+                }
+                Err(e) => {
+                    eprintln!("Failed to start documentation server: {}", e);
+                    None
+                }
+            }
+        })
+    });
+    
+    // Wait for the server to start (this will block briefly)
+    if let Ok(Some((addr, notify))) = handle.join() {
+        commands.insert_resource(DocumentationServer {
+            addr,
+            shutdown_notify: notify,
+        });
+    }
+}
 
 /// Resource to manage 3D viewport texture data
 #[derive(Resource, Clone)]
@@ -94,6 +131,9 @@ use crate::editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_edit
 use crate::bevy_node_graph_integration_enhanced::BevyNodeGraphPlugin;
 // use crate::compute_pass_integration::ComputePassPlugin;
 
+// Feature flag for 3D preview functionality
+const ENABLE_3D_PREVIEW: bool = cfg!(feature = "3d_preview");
+
 use crate::scene_editor_3d::{SceneEditor3DState, EditorManipulable, SceneEditor3DPlugin};
 use crate::visual_node_editor_plugin::{VisualNodeEditorPlugin, VisualNodeEditorState};
 use crate::simple_ui_auditor::{SimpleUiAuditor, SimpleUiAuditorPlugin};
@@ -159,6 +199,7 @@ pub fn editor_ui_system(
     }
     
     // Register 3D scene image (only once) before borrowing context
+    #[cfg(feature = "3d_preview")]
     if ui_state.central_view == crate::editor_ui::CentralView::Scene3D
         && scene_editor_state.enabled
         && ui_state.scene3d_texture_id.is_none()
@@ -169,6 +210,7 @@ pub fn editor_ui_system(
     }
 
     // Re-register 3D scene image if viewport dimensions changed
+    #[cfg(feature = "3d_preview")]
     if ui_state.central_view == crate::editor_ui::CentralView::Scene3D
         && scene_editor_state.enabled
         && viewport_3d_texture.needs_update
@@ -544,13 +586,20 @@ pub fn run_app() {
         .add_plugins(NdiOutputPlugin)
         .add_plugins(SpoutSyphonOutputPlugin)
         .add_plugins(DmxLightingControlPlugin)
+        // Conditionally add 3D preview plugin based on feature flag
+        #[cfg(feature = "3d_preview")]
         .add_plugins(SceneEditor3DPlugin)
         .add_plugins(SimpleUiAuditorPlugin)
         .insert_resource(EditorUiState::default())
         .insert_resource(UiStartupGate::default())
+        // Conditionally add 3D preview resources based on feature flag
+        #[cfg(feature = "3d_preview")]
         .insert_resource(Viewport3DTexture::default())
+        #[cfg(feature = "3d_preview")]
         .insert_resource(crate::scene_editor_3d::SceneEditor3DState::default())
+        #[cfg(feature = "3d_preview")]
         .insert_resource(crate::scene_editor_3d::SceneViewportTexture::default())
+        #[cfg(feature = "3d_preview")]
         .insert_resource(crate::scene_editor_3d::ShaderPreviewTexture::default())
         .insert_resource(MidiSystem::new())
         .insert_resource(crate::screenshot_video_export::ScreenshotVideoExporter::new())
@@ -561,13 +610,16 @@ pub fn run_app() {
         .add_systems(Startup, crate::editor_ui::populate_shader_list)
         .add_systems(Startup, start_audio_analysis_system)
         .add_systems(Startup, init_enforcement_startup)
+        .add_systems(Startup, start_documentation_server_system)
         .add_systems(Update, async_initialize_wgpu_renderer)
         .add_systems(Startup, enable_all_features_once)
         .add_systems(Update, (
             update_time_system,
             on_window_resize_system,
-            crate::scene_editor_3d::sync_scene_viewport_texture_size,
             editor_ui_system,
         ).chain())
+        // Conditionally add 3D preview system based on feature flag
+        #[cfg(feature = "3d_preview")]
+        .add_systems(Update, crate::scene_editor_3d::sync_scene_viewport_texture_size)
         .run();
 }

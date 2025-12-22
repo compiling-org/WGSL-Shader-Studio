@@ -419,11 +419,7 @@ impl DiagnosticRenderer {
                     }
                     
                     if ui.add(egui::Button::new("").sense(egui::Sense::hover())).hovered() {
-                        egui::show_tooltip(
-                            ui.ctx(),
-                            egui::LayerId::new(egui::Order::Tooltip, egui::Id::new("wgsl_analyzer_tooltip")),
-                            egui::Id::new(&diagnostic.code),
-                            |ui| {
+                        egui::show_tooltip_at_pointer(ui.ctx(), egui::LayerId::new(egui::Order::Tooltip, egui::Id::new("wgsl_tooltip")), egui::Id::new(&diagnostic.code), |ui| {
                             ui.label(&diagnostic.message);
                             ui.weak(format!("Code: {}", diagnostic.code));
                             ui.weak(format!("Line: {}:{}", diagnostic.line, diagnostic.column));
@@ -440,8 +436,7 @@ impl DiagnosticRenderer {
                                     ui.weak(format!("  → {}", related.message));
                                 }
                             }
-                            }
-                        );
+                        });
                     }
                 }
             });
