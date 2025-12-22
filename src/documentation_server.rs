@@ -71,7 +71,7 @@ pub async fn start_documentation_server(docs_path: &str) -> Result<(SocketAddr, 
                             .header("content-type", "text/html")
                             .body(Body::from(index_content))
                             .unwrap();
-                        return Ok(response);
+                        return Ok::<Response<Body>, hyper::Error>(response);
                     }
                     
                     // Serve the file
@@ -85,7 +85,7 @@ pub async fn start_documentation_server(docs_path: &str) -> Result<(SocketAddr, 
                                 hyper::header::ACCESS_CONTROL_ALLOW_ORIGIN,
                                 hyper::header::HeaderValue::from_static("*")
                             );
-                            Ok(resp)
+                            Ok::<Response<Body>, hyper::Error>(resp)
                         }
                         Err(_) => {
                             // Return a 404 response
@@ -93,7 +93,7 @@ pub async fn start_documentation_server(docs_path: &str) -> Result<(SocketAddr, 
                                 .status(StatusCode::NOT_FOUND)
                                 .body(Body::from("Not Found"))
                                 .unwrap();
-                            Ok(response)
+                            Ok::<Response<Body>, hyper::Error>(response)
                         }
                     }
                 }

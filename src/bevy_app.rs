@@ -1,19 +1,30 @@
-use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use bevy::app::{App, Plugin, Startup, Update};
+use bevy::diagnostic::DiagnosticsPlugin;
+use bevy::ecs::system::Commands;
+use bevy::window::{WindowPlugin, WindowResolution};
+use bevy_egui::EguiPlugin;
+use crate::audio_midi_integration::AudioMidiIntegrationPlugin;
+use crate::audio_system::{AudioAnalysisPlugin, EnhancedAudioAnalyzer, EnhancedAudioPlugin};
+use crate::backend_systems::BackendSystemsPlugin;
+use crate::bevy_node_graph_integration_enhanced::BevyNodeGraphPlugin;
+use crate::compute_pass::ComputePassPlugin;
+use crate::dmx_lighting_control::DmxLightingControlPlugin;
+use crate::ffgl_plugin::FfglPlugin;
+use crate::gesture_control::GestureControlPlugin;
+use crate::gyroflow_interop_integration::GyroflowInteropPlugin;
+use crate::midi_system::MidiSystemPlugin;
+use crate::ndi_output::NdiOutputPlugin;
+use crate::osc_control::OscControlPlugin;
+use crate::performance_overlay::PerformanceOverlayPlugin;
+use crate::scene_editor_3d::SceneEditor3DPlugin;
+use crate::screenshot_video_export::ExportPlugin;
+use crate::simple_ui_auditor::SimpleUiAuditorPlugin;
+use crate::spout_syphon_output::SpoutSyphonOutputPlugin;
+use crate::timeline::TimelinePlugin;
+use crate::visual_node_editor_plugin::{VisualNodeEditorPlugin, VisualNodeEditorState};
+use crate::wgsl_analyzer::WgslAnalyzerPlugin;
 use bevy::prelude::*;
-use bevy::window::{PresentMode, Window, WindowResized, WindowResolution};
-// ClearColorConfig import not available in Bevy 0.17 public API; using default clear behavior
-use bevy_egui::{
-    EguiContexts,
-    EguiPlugin,
-};
-use bevy_egui::egui;
-// use bevy_egui::egui::TextureId; // Unused import - commented out
-use std::panic;
-use bevy::ecs::system::SystemParam;
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::net::SocketAddr;
-use crate::documentation_server::start_documentation_server;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Resource to manage documentation server
 #[derive(Resource, Clone)]
@@ -579,27 +590,19 @@ pub fn run_app() {
         .add_plugins(ComputePassPlugin)
         .add_plugins(BevyNodeGraphPlugin)
         .add_plugins(VisualNodeEditorPlugin)
-        
         .add_plugins(OscControlPlugin)
         .add_plugins(AudioMidiIntegrationPlugin)
         .add_plugins(WgslAnalyzerPlugin)
         .add_plugins(NdiOutputPlugin)
         .add_plugins(SpoutSyphonOutputPlugin)
         .add_plugins(DmxLightingControlPlugin)
-        // Conditionally add 3D preview plugin based on feature flag
-        #[cfg(feature = "3d_preview")]
         .add_plugins(SceneEditor3DPlugin)
         .add_plugins(SimpleUiAuditorPlugin)
         .insert_resource(EditorUiState::default())
         .insert_resource(UiStartupGate::default())
-        // Conditionally add 3D preview resources based on feature flag
-        #[cfg(feature = "3d_preview")]
         .insert_resource(Viewport3DTexture::default())
-        #[cfg(feature = "3d_preview")]
         .insert_resource(crate::scene_editor_3d::SceneEditor3DState::default())
-        #[cfg(feature = "3d_preview")]
         .insert_resource(crate::scene_editor_3d::SceneViewportTexture::default())
-        #[cfg(feature = "3d_preview")]
         .insert_resource(crate::scene_editor_3d::ShaderPreviewTexture::default())
         .insert_resource(MidiSystem::new())
         .insert_resource(crate::screenshot_video_export::ScreenshotVideoExporter::new())
@@ -618,8 +621,6 @@ pub fn run_app() {
             on_window_resize_system,
             editor_ui_system,
         ).chain())
-        // Conditionally add 3D preview system based on feature flag
-        #[cfg(feature = "3d_preview")]
         .add_systems(Update, crate::scene_editor_3d::sync_scene_viewport_texture_size)
         .run();
 }

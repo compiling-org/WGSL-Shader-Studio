@@ -1,5 +1,5 @@
-# LIVE APPLICATION TRACKER - CONTINUOUS MONITORING
-# Tracks application compilation, runtime errors, and system health
+# COMPREHENSIVE UI ANALYZER & APPLICATION TRACKER - CONTINUOUS MONITORING
+# Tracks application compilation, runtime errors, system health, and UI component analysis
 
 param(
     [int]$CheckInterval = 5,  # Check every 5 seconds
@@ -47,10 +47,10 @@ function Check-ApplicationRuntime {
     Write-Log "Checking application runtime status..." "CHECK"
     
     # Check if the application binary exists
-    if (Test-Path "target\release\wgsl-shader-studio.exe") {
+    if (Test-Path "target\release\isf-shaders.exe") {
         Write-Log "Application binary EXISTS" "SUCCESS"
         return $true
-    } elseif (Test-Path "target\debug\wgsl-shader-studio.exe") {
+    } elseif (Test-Path "target\debug\isf-shaders.exe") {
         Write-Log "Application binary exists in DEBUG mode" "WARNING"
         return $true
     } else {
@@ -116,6 +116,126 @@ function Check-SystemHealth {
     return $true
 }
 
+function Analyze-UIComponents {
+    Write-Log "Analyzing UI components..." "CHECK"
+    
+    # Check for UI panel definitions in editor_ui.rs
+    $uiStateFile = "src/editor_ui.rs"
+    if (Test-Path $uiStateFile) {
+        $content = Get-Content $uiStateFile -Raw
+        
+        # Count total UI panels
+        $panelCount = ($content | Select-String -Pattern "pub show_[a-zA-Z_]+_panel:" -AllMatches).Matches.Count
+        Write-Log "Total UI panels defined: $panelCount" "UI_ANALYSIS"
+        
+        # Check for 3D Scene panel specifically
+        if ($content -match "show_3d_scene_panel") {
+            Write-Log "3D Scene panel is properly defined" "UI_ANALYSIS"
+        } else {
+            Write-Log "3D Scene panel definition missing" "UI_WARNING"
+        }
+        
+        # Check for UI integration patterns
+        $checkboxCount = ($content | Select-String -Pattern "ui.checkbox\(" -AllMatches).Matches.Count
+        $menuButtonCount = ($content | Select-String -Pattern "ui.menu_button\(" -AllMatches).Matches.Count
+        Write-Log "UI Elements - Checkboxes: $checkboxCount, Menu Buttons: $menuButtonCount" "UI_METRICS"
+        
+        # Check for deprecated UI patterns
+        if ($content -match "close_menu\(") {
+            $deprecatedCount = ($content | Select-String -Pattern "close_menu\(").Matches.Count
+            Write-Log "Deprecated close_menu() calls found: $deprecatedCount" "UI_DEPRECATED"
+        }
+        
+        # Check for ComboBox usage
+        if ($content -match "ComboBox::from_id_source") {
+            $comboBoxCount = ($content | Select-String -Pattern "ComboBox::from_id_source").Matches.Count
+            Write-Log "ComboBox::from_id_source usage found: $comboBoxCount (deprecated)" "UI_DEPRECATED"
+        }
+        
+        return $true
+    } else {
+        Write-Log "UI state file not found: $uiStateFile" "UI_ERROR"
+        return $false
+    }
+    
+    # Check disk space
+    try {
+        $disk = Get-WmiObject -Class Win32_LogicalDisk -Filter "DeviceID='C:'"
+        $freeSpace = [math]::Round($disk.FreeSpace / 1GB, 2)
+        $totalSpace = [math]::Round($disk.Size / 1GB, 2)
+        
+        # Prevent division by zero
+        if ($totalSpace -gt 0) {
+            $diskUsage = [math]::Round((($totalSpace - $freeSpace) / $totalSpace) * 100, 1)
+        } else {
+            $diskUsage = 0
+        }
+        
+        Write-Log ("Disk Usage: {0}% ({1} GB free of {2} GB)" -f $diskUsage, $freeSpace, $totalSpace) "METRIC"
+    } catch {
+        Write-Log "Failed to get disk info: $_" "ERROR"
+        $diskUsage = 0
+        $freeSpace = 0
+    }
+    
+    # Check if memory usage is critical
+    if ($memoryUsage -gt 90) {
+        Write-Log "CRITICAL: Memory usage at $memoryUsage%" "CRITICAL"
+        return $false
+    }
+    
+    # Check if disk space is critical
+    if ($freeSpace -lt 1) {
+        Write-Log "CRITICAL: Low disk space - $freeSpace GB remaining" "CRITICAL"
+        return $false
+    }
+    
+    return $true
+}
+
+function Analyze-UIComponents {
+    Write-Log "Analyzing UI components..." "CHECK"
+    
+    # Check for UI panel definitions in editor_ui.rs
+    $uiStateFile = "src/editor_ui.rs"
+    if (Test-Path $uiStateFile) {
+        $content = Get-Content $uiStateFile -Raw
+        
+        # Count total UI panels
+        $panelCount = ($content | Select-String -Pattern "pub show_[a-zA-Z_]+_panel:" -AllMatches).Matches.Count
+        Write-Log "Total UI panels defined: $panelCount" "UI_ANALYSIS"
+        
+        # Check for 3D Scene panel specifically
+        if ($content -match "show_3d_scene_panel") {
+            Write-Log "3D Scene panel is properly defined" "UI_ANALYSIS"
+        } else {
+            Write-Log "3D Scene panel definition missing" "UI_WARNING"
+        }
+        
+        # Check for UI integration patterns
+        $checkboxCount = ($content | Select-String -Pattern "ui.checkbox\(" -AllMatches).Matches.Count
+        $menuButtonCount = ($content | Select-String -Pattern "ui.menu_button\(" -AllMatches).Matches.Count
+        Write-Log "UI Elements - Checkboxes: $checkboxCount, Menu Buttons: $menuButtonCount" "UI_METRICS"
+        
+        # Check for deprecated UI patterns
+        if ($content -match "close_menu\(") {
+            $deprecatedCount = ($content | Select-String -Pattern "close_menu\(").Matches.Count
+            Write-Log "Deprecated close_menu() calls found: $deprecatedCount" "UI_DEPRECATED"
+        }
+        
+        # Check for ComboBox usage
+        if ($content -match "ComboBox::from_id_source") {
+            $comboBoxCount = ($content | Select-String -Pattern "ComboBox::from_id_source").Matches.Count
+            Write-Log "ComboBox::from_id_source usage found: $comboBoxCount (deprecated)" "UI_DEPRECATED"
+        }
+        
+        return $true
+    } else {
+        Write-Log "UI state file not found: $uiStateFile" "UI_ERROR"
+        return $false
+    }
+}
+
 # MAIN TRACKING LOOP
 Write-Log "STARTING LIVE APPLICATION TRACKER" "STARTUP"
 Write-Log "Monitoring interval: $CheckInterval seconds" "CONFIG"
@@ -140,6 +260,9 @@ try {
         # Check system health
         $systemOk = Check-SystemHealth
         
+        # Analyze UI components
+        $uiOk = Analyze-UIComponents
+        
         # Track consecutive failures
         if (-not $compilationOk) {
             $consecutiveFailures++
@@ -155,9 +278,9 @@ try {
         }
         
         # Overall status
-        if ($compilationOk -and $runtimeOk -and $systemOk) {
+        if ($compilationOk -and $runtimeOk -and $systemOk -and $uiOk) {
             Write-Log "SYSTEM HEALTHY - All checks passed" "HEALTHY"
-        } elseif ($compilationOk -and $runtimeOk) {
+        } elseif ($compilationOk -and $runtimeOk -and $uiOk) {
             Write-Log "SYSTEM STABLE - Minor issues detected" "STABLE"
         } else {
             Write-Log "SYSTEM UNSTABLE - Critical issues detected" "UNSTABLE"

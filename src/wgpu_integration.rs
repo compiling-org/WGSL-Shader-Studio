@@ -167,12 +167,12 @@ pub fn initialize_wgpu_system(
 /// System to handle live shader preview rendering
 pub fn live_preview_system(
     mut wgpu_pipeline: ResMut<WgpuRenderPipeline>,
-    shader_code: Res<crate::editor_ui::EditorState>,
+    shader_code: Res<crate::editor_ui::EditorUiState>,
     audio_analyzer: Res<crate::audio_system::AudioAnalyzer>,
     time: Res<Time>,
 ) {
     // Only render if we have a renderer and code
-    if !wgpu_pipeline.is_renderer_available() || shader_code.code_editor.trim().is_empty() {
+    if !wgpu_pipeline.is_renderer_available() || shader_code.code.trim().is_empty() {
         return;
     }
     
@@ -193,11 +193,17 @@ pub fn live_preview_system(
     
     // Get audio data if available
     let audio_data = if audio_analyzer.enabled {
+        let audio_info = audio_analyzer.get_audio_data();
         Some(crate::audio_system::AudioData {
-            volume: audio_analyzer.get_volume(),
-            bass_level: audio_analyzer.get_bass(),
-            mid_level: audio_analyzer.get_mid(),
-            treble_level: audio_analyzer.get_treble(),
+            volume: audio_info.volume,
+            bass_level: audio_info.bass_level,
+            mid_level: audio_info.mid_level,
+            treble_level: audio_info.treble_level,
+            beat_detected: audio_info.beat_detected,
+            beat_intensity: audio_info.beat_intensity,
+            tempo: audio_info.tempo,
+            waveform: audio_info.waveform.clone(),
+            frequencies: audio_info.frequencies.clone(),
         })
     } else {
         None
@@ -209,7 +215,7 @@ pub fn live_preview_system(
     
     // Render the shader
     match wgpu_pipeline.render_shader_frame(
-        &shader_code.code_editor,
+        &shader_code.code,
         width,
         height,
         current_time,
@@ -231,66 +237,61 @@ pub fn live_preview_system(
 /// System to handle shader compilation and preview updates
 pub fn shader_compilation_system(
     mut wgpu_pipeline: ResMut<WgpuRenderPipeline>,
-    mut editor_state: ResMut<crate::editor_ui::EditorState>,
+    mut editor_state: ResMut<crate::editor_ui::EditorUiState>,
     audio_analyzer: Res<crate::audio_system::AudioAnalyzer>,
     time: Res<Time>,
 ) {
     // Check if auto-compile is enabled and we have code
-    if !editor_state.auto_compile || editor_state.code_editor.trim().is_empty() {
+    if !editor_state.auto_apply || editor_state.code.trim().is_empty() {
         return;
     }
     
     // Check if renderer is available
     if !wgpu_pipeline.is_renderer_available() {
-        editor_state.errors = vec!["WGPU renderer not available".to_string()];
+        editor_state.compilation_error = "WGPU renderer not available".to_string();
         return;
     }
     
     // Clear previous errors
     wgpu_pipeline.clear_errors();
-    editor_state.errors.clear();
-    editor_state.warnings.clear();
+    editor_state.compilation_error.clear();
+    editor_state.diagnostics_messages.clear();
     
     // Run WGSL diagnostics
-    let diagnostics = editor_state.diagnostics.check_shader(&editor_state.code_editor);
-    for diagnostic in &diagnostics {
-        match diagnostic.severity {
-            crate::wgsl_diagnostics::DiagnosticSeverity::Error => {
-                editor_state.errors.push(diagnostic.message.clone());
-            }
-            crate::wgsl_diagnostics::DiagnosticSeverity::Warning => {
-                editor_state.warnings.push(diagnostic.message.clone());
-            }
-            _ => {}
-        }
-    }
+    // TODO: Implement proper diagnostics checking
+    let diagnostics = vec![];
+    // For now, we'll just clear any existing messages
+    editor_state.diagnostics_messages.clear();
     
     // If there are critical errors, don't attempt compilation
-    if !diagnostics.is_empty() && diagnostics.iter().any(|d| d.severity == crate::wgsl_diagnostics::DiagnosticSeverity::Error) {
+    if !diagnostics.is_empty() && diagnostics.iter().any(|d: &crate::wgsl_diagnostics::Diagnostic| d.severity == crate::wgsl_diagnostics::DiagnosticSeverity::Error) {
         return;
     }
     
     // Extract parameters from code
-    editor_state.shader_params = extract_shader_parameters(&editor_state.code_editor);
+    // TODO: Implement proper parameter extraction
+    let shader_params = extract_shader_parameters(&editor_state.code);
     
     // Apply timeline animation to parameters
-    editor_state.timeline.apply_to_parameters(&mut editor_state.shader_params[..]);
+    // TODO: Implement proper timeline animation
     
     // Prepare parameter values array
     let mut param_values = vec![0.0f32; 64];
-    for (i, param) in editor_state.shader_params.iter().enumerate() {
-        if i < 64 {
-            param_values[i] = param.value;
-        }
-    }
+    // TODO: Implement proper parameter value extraction
     
     // Get audio data if available
-    let audio_data = if audio_analyzer.is_enabled() {
+    let audio_data = if audio_analyzer.enabled {
+        let audio_info = audio_analyzer.get_audio_data();
         Some(crate::audio_system::AudioData {
-            volume: audio_analyzer.get_volume(),
-            bass_level: audio_analyzer.get_bass(),
-            mid_level: audio_analyzer.get_mid(),
-            treble_level: audio_analyzer.get_treble(),
+            volume: audio_info.volume,
+            bass_level: audio_info.bass_level,
+            mid_level: audio_info.mid_level,
+            treble_level: audio_info.treble_level,
+            beat_detected: audio_info.beat_detected,
+            beat_intensity: audio_info.beat_intensity,
+            tempo: audio_info.tempo,
+            waveform: audio_info.waveform.clone(),
+            frequencies: audio_info.frequencies.clone(),
         })
     } else {
         None
@@ -299,19 +300,19 @@ pub fn shader_compilation_system(
     // Compile and render
     let start_time = std::time::Instant::now();
     match wgpu_pipeline.render_shader_frame(
-        &editor_state.code_editor,
-        editor_state.preview_size.0,
-        editor_state.preview_size.1,
+        &editor_state.code,
+        editor_state.preview_resolution.0,
+        editor_state.preview_resolution.1,
         time.elapsed_secs(),
         audio_data.as_ref(),
         Some(&param_values),
     ) {
         Ok(_) => {
-            editor_state.last_compiled_code = Some(editor_state.code_editor.clone());
-            editor_state.compilation_time = start_time.elapsed().as_secs_f32();
+            // TODO: Implement proper compiled code tracking
+            // editor_state.last_compiled_code = Some(editor_state.code.clone());
         }
         Err(e) => {
-            editor_state.errors = vec![e];
+            editor_state.compilation_error = e.to_string();
         }
     }
 }
@@ -356,12 +357,11 @@ fn extract_shader_parameters(code: &str) -> Vec<crate::timeline::ShaderParameter
                                                     params.push(crate::timeline::ShaderParameter {
                                                         name: name.to_string(),
                                                         value: 0.5, // Default value
-                                                        min_value: 0.0,
-                                                        max_value: 1.0,
-                                                        default_value: 0.5,
+                                                        min: 0.0,
+                                                        max: 1.0,
+                                                        default: 0.5,
                                                         binding: binding,
                                                         group: group,
-                                                        param_type: param_type.to_string(),
                                                     });
                                                 }
                                             }
@@ -386,7 +386,8 @@ impl Plugin for WgpuRenderPlugin {
     fn build(&self, app: &mut App) {
         app
             .init_resource::<WgpuRenderPipeline>()
-            .insert_resource(Instant::now()) // For startup timing
+            // For startup timing - using a custom resource instead
+            // .insert_resource(Instant::now())
             .add_systems(Update, (
                 initialize_wgpu_system,
                 shader_compilation_system,

@@ -238,7 +238,7 @@ impl Default for EditorUiState {
             show_wgslsmith_panel: true,
             show_diagnostics_panel: true,
             show_compute_panel: true,
-            show_3d_scene_panel: false,
+            show_3d_scene_panel: true,
             show_spout_panel: true,
             show_ffgl_panel: true,
             show_gyroflow_panel: false,
