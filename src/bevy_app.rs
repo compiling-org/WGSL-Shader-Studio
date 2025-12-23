@@ -2,12 +2,12 @@ use bevy::app::{App, Plugin, Startup, Update};
 use bevy::diagnostic::DiagnosticsPlugin;
 use bevy::ecs::system::Commands;
 use bevy::window::{WindowPlugin, WindowResolution};
-use bevy_egui::EguiPlugin;
+use bevy_egui::{EguiPlugin, EguiContexts};
 use crate::audio_midi_integration::AudioMidiIntegrationPlugin;
 use crate::audio_system::{AudioAnalysisPlugin, EnhancedAudioAnalyzer, EnhancedAudioPlugin};
-use crate::backend_systems::BackendSystemsPlugin;
+
 use crate::bevy_node_graph_integration_enhanced::BevyNodeGraphPlugin;
-use crate::compute_pass::ComputePassPlugin;
+
 use crate::dmx_lighting_control::DmxLightingControlPlugin;
 use crate::ffgl_plugin::FfglPlugin;
 use crate::gesture_control::GestureControlPlugin;
@@ -25,6 +25,13 @@ use crate::visual_node_editor_plugin::{VisualNodeEditorPlugin, VisualNodeEditorS
 use crate::wgsl_analyzer::WgslAnalyzerPlugin;
 use bevy::prelude::*;
 use std::sync::atomic::{AtomicBool, Ordering};
+use bevy::ecs::system::SystemParam;
+use std::net::SocketAddr;
+use std::sync::{Arc, Mutex};
+use crate::documentation_server::start_documentation_server;
+use crate::audio_system::AudioAnalyzer;
+use bevy::window::WindowResized;
+use bevy::window::PresentMode;
 
 /// Resource to manage documentation server
 #[derive(Resource, Clone)]
@@ -102,36 +109,28 @@ fn update_time_system(
 }
 
 /// Apply theme settings to the egui context
-fn apply_theme(ctx: &egui::Context, ui_state: &super::editor_ui::EditorUiState) {
+fn apply_theme(ctx: &bevy_egui::egui::Context, ui_state: &super::editor_ui::EditorUiState) {
     let theme = if ui_state.dark_mode {
-        egui::Visuals::dark()
+        bevy_egui::egui::Visuals::dark()
     } else {
-        egui::Visuals::light()
+        bevy_egui::egui::Visuals::light()
     };
     ctx.set_visuals(theme);
 }
 
-use crate::audio_system::{AudioAnalyzer, AudioAnalysisPlugin, EnhancedAudioPlugin, EnhancedAudioAnalyzer};
 
-use crate::midi_system::{MidiSystem, MidiSystemPlugin};
 
-use crate::performance_overlay::{PerformanceOverlayPlugin, PerformanceMetrics};
-use crate::ffgl_plugin::FfglPlugin;
-use crate::gyroflow_interop_integration::GyroflowInteropPlugin;
-use crate::screenshot_video_export::ExportPlugin;
-use crate::ndi_output::NdiOutputPlugin;
-use crate::osc_control::OscControlPlugin;
-use crate::audio_midi_integration::AudioMidiIntegrationPlugin;
-use crate::wgsl_analyzer::WgslAnalyzerPlugin;
-use crate::spout_syphon_output::SpoutSyphonOutputPlugin;
-use crate::dmx_lighting_control::DmxLightingControlPlugin;
+use crate::midi_system::MidiSystem;
 
-use crate::timeline::{TimelinePlugin, TimelineAnimation, PlaybackState};
+use crate::performance_overlay::PerformanceMetrics;
 
-use crate::gesture_control::{GestureControlSystem, GestureControlPlugin};
+
+use crate::timeline::{TimelineAnimation, PlaybackState};
+
+use crate::gesture_control::GestureControlSystem;
 
 // Import compute pass integration (local crate)
-use crate::compute_pass_integration::{ComputePassPlugin, ComputePassManager};
+use crate::compute_pass_integration::ComputePassManager;
 
 // Import responsive backend system - check if it exists
 // use super::backend_systems::{ResponsiveBackend, ResponsiveBackendPlugin};
@@ -139,15 +138,14 @@ use crate::compute_pass_integration::{ComputePassPlugin, ComputePassManager};
 use crate::editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_editor_side_panels, draw_editor_central_panel};
 
 
-use crate::bevy_node_graph_integration_enhanced::BevyNodeGraphPlugin;
 // use crate::compute_pass_integration::ComputePassPlugin;
 
 // Feature flag for 3D preview functionality
 const ENABLE_3D_PREVIEW: bool = cfg!(feature = "3d_preview");
 
-use crate::scene_editor_3d::{SceneEditor3DState, EditorManipulable, SceneEditor3DPlugin};
-use crate::visual_node_editor_plugin::{VisualNodeEditorPlugin, VisualNodeEditorState};
-use crate::simple_ui_auditor::{SimpleUiAuditor, SimpleUiAuditorPlugin};
+use crate::scene_editor_3d::{SceneEditor3DState, EditorManipulable};
+
+use crate::simple_ui_auditor::SimpleUiAuditor;
 use crate::osc_control::{OscConfig, OscControl};
 use crate::enforcement_system::initialize_enforcement;
 
@@ -576,8 +574,7 @@ pub fn run_app() {
             }),
         )
         .add_plugins(EguiPlugin::default())
-        .add_plugins(FrameTimeDiagnosticsPlugin::default())
-        .add_plugins(LogDiagnosticsPlugin::default())
+        .add_plugins(DiagnosticsPlugin::default())
         .add_plugins(PerformanceOverlayPlugin)
         .add_plugins(AudioAnalysisPlugin)
         .add_plugins(EnhancedAudioPlugin)
@@ -587,7 +584,7 @@ pub fn run_app() {
         .add_plugins(ExportPlugin)
         .add_plugins(TimelinePlugin)
         .add_plugins(GestureControlPlugin)
-        .add_plugins(ComputePassPlugin)
+
         .add_plugins(BevyNodeGraphPlugin)
         .add_plugins(VisualNodeEditorPlugin)
         .add_plugins(OscControlPlugin)
@@ -616,11 +613,9 @@ pub fn run_app() {
         .add_systems(Startup, start_documentation_server_system)
         .add_systems(Update, async_initialize_wgpu_renderer)
         .add_systems(Startup, enable_all_features_once)
-        .add_systems(Update, (
-            update_time_system,
-            on_window_resize_system,
-            editor_ui_system,
-        ).chain())
+        .add_systems(Update, update_time_system)
+        .add_systems(Update, on_window_resize_system)
+        .add_systems(Update, editor_ui_system)
         .add_systems(Update, crate::scene_editor_3d::sync_scene_viewport_texture_size)
         .run();
 }
