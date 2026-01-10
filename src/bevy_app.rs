@@ -1,10 +1,15 @@
-use bevy::app::{App, Plugin, Startup, Update};
-use bevy::diagnostic::DiagnosticsPlugin;
+use bevy::app::{App, Startup, Update};
 use bevy::ecs::system::Commands;
-use bevy::window::{WindowPlugin, WindowResolution};
+use bevy::window::{WindowPlugin, WindowResolution, WindowPosition, MonitorSelection};
+use bevy::render::settings::{WgpuSettings, WgpuFeatures, WgpuLimits};
 use bevy_egui::{EguiPlugin, EguiContexts};
+
 use crate::audio_midi_integration::AudioMidiIntegrationPlugin;
 use crate::audio_system::{AudioAnalysisPlugin, EnhancedAudioAnalyzer, EnhancedAudioPlugin};
+
+
+use crate::bevy_node_graph_integration_enhanced::BevyNodeGraphPlugin;
+
 
 use crate::bevy_node_graph_integration_enhanced::BevyNodeGraphPlugin;
 
@@ -22,9 +27,11 @@ use crate::simple_ui_auditor::SimpleUiAuditorPlugin;
 use crate::spout_syphon_output::SpoutSyphonOutputPlugin;
 use crate::timeline::TimelinePlugin;
 use crate::visual_node_editor_plugin::{VisualNodeEditorPlugin, VisualNodeEditorState};
+use crate::enhanced_visual_node_editor_plugin::EnhancedVisualNodeEditorPlugin;
 use crate::wgsl_analyzer::WgslAnalyzerPlugin;
+use crate::particle_physics::ParticlePhysicsPlugin;
 use bevy::prelude::*;
-use std::sync::atomic::{AtomicBool, Ordering};
+
 use bevy::ecs::system::SystemParam;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
@@ -115,7 +122,14 @@ fn apply_theme(ctx: &bevy_egui::egui::Context, ui_state: &super::editor_ui::Edit
     } else {
         bevy_egui::egui::Visuals::light()
     };
-    ctx.set_visuals(theme);
+    
+    // Use a panic-safe approach to set visuals
+    if std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        ctx.set_visuals(theme);
+    })).is_err() {
+        // If setting visuals fails, skip it for this frame
+        return;
+    }
 }
 
 
@@ -138,7 +152,7 @@ use crate::compute_pass_integration::ComputePassManager;
 use crate::editor_ui::{EditorUiState, UiStartupGate, draw_editor_menu, draw_editor_side_panels, draw_editor_central_panel};
 
 
-// use crate::compute_pass_integration::ComputePassPlugin;
+use crate::compute_pass_integration::ComputePassPlugin;
 
 // Feature flag for 3D preview functionality
 const ENABLE_3D_PREVIEW: bool = cfg!(feature = "3d_preview");
@@ -170,7 +184,6 @@ pub struct ControlParams<'w> {
 #[derive(SystemParam)]
 pub struct RenderParams<'w> {
     pub scene_view_tex: Res<'w, crate::scene_editor_3d::SceneViewportTexture>,
-    pub node_graph_res: ResMut<'w, crate::bevy_node_graph_integration_enhanced::NodeGraphResource>,
     pub compute_manager: ResMut<'w, ComputePassManager>,
     pub exporter: Res<'w, crate::screenshot_video_export::ScreenshotVideoExporter>,
 }
@@ -196,14 +209,14 @@ pub fn editor_ui_system(
     mut outputs: OutputsParams,
     mut controls: ControlParams,
     mut render: RenderParams,
-    mut viewport_3d_texture: ResMut<Viewport3DTexture>,
+    mut node_graph_res: Option<ResMut<crate::bevy_node_graph_integration_enhanced::NodeGraphResource>>,
+    mut _viewport_3d_texture: ResMut<Viewport3DTexture>,
     manipulable_query: Query<(Entity, &Name), With<EditorManipulable>>,
 ) {
     // Increment frame counter
     startup_gate.frames += 1;
     
-    // Wait a few frames for egui context to initialize properly
-    if startup_gate.frames < 5 {
+    if startup_gate.frames < 10 {
         return;
     }
     
@@ -222,71 +235,81 @@ pub fn editor_ui_system(
     #[cfg(feature = "3d_preview")]
     if ui_state.central_view == crate::editor_ui::CentralView::Scene3D
         && scene_editor_state.enabled
-        && viewport_3d_texture.needs_update
+        && _viewport_3d_texture.needs_update
     {
         // Add debouncing to prevent too frequent texture updates
-        let elapsed = viewport_3d_texture.last_update.elapsed();
+        let elapsed = _viewport_3d_texture.last_update.elapsed();
         if elapsed.as_millis() > 100 {  // Only update if more than 100ms has passed
             if let (Some(_old_tex_id), Some(image_handle)) = (ui_state.scene3d_texture_id.take(), ui_state.scene3d_texture_handle.take()) {
                 egui_ctx.remove_image(bevy_egui::EguiTextureHandle::Strong(image_handle));
             }
             
-            // Register the new texture
+            // Register the new texture only if it has valid data
             let image_handle = render.scene_view_tex.handle.clone();
-            match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                egui_ctx.add_image(bevy_egui::EguiTextureHandle::Strong(image_handle.clone()))
-            })) {
-                Ok(tex_id) => {
-                    ui_state.scene3d_texture_id = Some(tex_id);
-                    ui_state.scene3d_texture_handle = Some(image_handle);
-                },
-                Err(e) => {
-                    eprintln!("Warning: Failed to register 3D scene texture: {:?}", e);
-                    // Continue without updating the texture
+            
+            // Only register the texture if we have a valid handle and it's not the default handle
+            if render.scene_view_tex.handle.id().is_some() && !render.scene_view_tex.handle.is_default() {
+                match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    egui_ctx.add_image(bevy_egui::EguiTextureHandle::Strong(image_handle.clone()))
+                })) {
+                    Ok(tex_id) => {
+                        ui_state.scene3d_texture_id = Some(tex_id);
+                        ui_state.scene3d_texture_handle = Some(image_handle);
+                    },
+                    Err(e) => {
+                        eprintln!("Warning: Failed to register 3D scene texture: {:?}", e);
+                        // Continue without updating the texture
+                    }
                 }
+            } else {
+                eprintln!("Warning: Scene texture handle not ready or is default, skipping registration");
             }
-            viewport_3d_texture.needs_update = false;
-            viewport_3d_texture.last_update = std::time::Instant::now();
+            _viewport_3d_texture.needs_update = false;
+            _viewport_3d_texture.last_update = std::time::Instant::now();
         }
     }
     
     // Get egui context, handling the Result return type
-    let ctx = match egui_ctx.ctx_mut() {
+    let ctx_result = egui_ctx.ctx_mut();
+    
+    // If we can't get the context, skip this frame
+    let ctx = match ctx_result {
         Ok(ctx) => ctx,
-        Err(_) => return, // Context not ready yet, skip this frame
+        Err(_) => {
+            println!("DEBUG: Failed to get Egui context!");
+            return;
+        },
     };
     
     // Apply theme settings
     apply_theme(&ctx, &ui_state);
     
-    
     // Ensure UI panels are visible by default and initialize content
-        if startup_gate.frames == 5 {
-            println!("Initializing UI state with default content...");
-            ui_state.show_shader_browser = true;
-            ui_state.show_parameter_panel = true;
-            ui_state.show_preview = true;
-            ui_state.show_code_editor = true;
-            ui_state.show_node_studio = true;
-            ui_state.show_timeline = false; // Keep timeline hidden initially
-            ui_state.show_audio_panel = true;
-            ui_state.show_midi_panel = true;
-            ui_state.show_gesture_panel = true;
-            ui_state.show_compute_panel = true;
-            ui_state.show_3d_scene_panel = false; // Embedded via central tabs
-            
-            // Initialize with a known-good gradient fragment (works with default vertex shader)
-            ui_state.draft_code = String::from("// WGSL Shader Studio\n// Starter gradient shader\n\n@fragment\nfn fs_main(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {\n    let color = vec3<f32>(uv.x, uv.y, 0.5);\n    return vec4<f32>(color, 1.0);\n}");
-        
-        // CRITICAL: Actually populate the shader browser with real files
-        println!("Initializing shader browser with real WGSL files...");
-        
-        // populate_shader_list will be called as a separate startup system
-        // This will scan directories and load actual WGSL and ISF files
-        
-        println!("UI state initialized with {} lines of code", 
-                 ui_state.draft_code.lines().count());
-    }
+    // Make sure panels are visible from the start
+    println!("Initializing UI state with default content...");
+    ui_state.show_shader_browser = true;
+    ui_state.show_parameter_panel = true;
+    ui_state.show_preview = true;
+    ui_state.show_code_editor = true;
+    ui_state.show_node_studio = true;
+    ui_state.show_timeline = false; // Keep timeline hidden initially
+    ui_state.show_audio_panel = true;
+    ui_state.show_midi_panel = true;
+    ui_state.show_gesture_panel = true;
+    ui_state.show_compute_panel = true;
+    ui_state.show_3d_scene_panel = false; // Embedded via central tabs
+    
+    // Initialize with a known-good gradient fragment (works with default vertex shader)
+    // ui_state.draft_code was being reset here - removed to persist user edits
+
+    // CRITICAL: Actually populate the shader browser with real files
+    println!("Initializing shader browser with real WGSL files...");
+    
+    // populate_shader_list will be called as a separate startup system
+    // This will scan directories and load actual WGSL and ISF files
+    
+    println!("UI state initialized with {} lines of code", 
+             ui_state.draft_code.lines().count());
     
     // Apply timeline animation to shader parameters
     if timeline_animation.timeline.playback_state == PlaybackState::Playing {
@@ -317,6 +340,10 @@ pub fn editor_ui_system(
         }
     }
     
+    if startup_gate.frames % 60 == 0 {
+        println!("DEBUG: Reached draw_editor_menu");
+    }
+    
     // Draw menu bar
     draw_editor_menu(ctx, &mut *ui_state);
     if auditor.enabled { auditor.record_panel("Menu Bar", true, None); }
@@ -339,6 +366,10 @@ pub fn editor_ui_system(
         for (param_name, val) in osc_params.iter() {
             ui_state.set_parameter_value(param_name, *val);
         }
+    }
+    
+    if startup_gate.frames % 60 == 0 {
+        println!("DEBUG: Reached draw_editor_side_panels");
     }
     
     draw_editor_side_panels(
@@ -371,7 +402,7 @@ pub fn editor_ui_system(
             &mut *ui_state, 
             &*audio_analyzer, 
             None, 
-            &mut *render.node_graph_res, 
+            node_graph_res.as_deref_mut(), 
             &*scene_editor_state,
             &mut *timeline_animation,
             &mut *outputs.spout_output,
@@ -458,8 +489,19 @@ fn init_enforcement_startup() {
     let _ = pollster::block_on(initialize_enforcement());
 }
 pub fn setup_camera(mut commands: Commands) {
+    // commands.insert_resource(ClearColor(Color::srgb(1.0, 0.0, 1.0))); // Diagnostic Removed
     commands.spawn(Camera3d::default());
-    commands.spawn((Camera2d, Camera { order: 100, ..Default::default() }));
+    commands.spawn((
+        Camera2d {
+            clear_color: bevy::core_pipeline::clear_color::ClearColorConfig::None,
+            ..Default::default()
+        },
+        Camera {
+            order: 1,
+            is_active: true,
+            ..Default::default()
+        },
+    )); 
 }
 
 fn start_audio_analysis_system(mut audio_analyzer: ResMut<AudioAnalyzer>) {
@@ -471,15 +513,30 @@ fn start_audio_analysis_system(mut audio_analyzer: ResMut<AudioAnalyzer>) {
 /// Async system to initialize the real WGPU renderer
 fn async_initialize_wgpu_renderer(
     mut ui_state: ResMut<EditorUiState>,
-    mut startup_gate: ResMut<UiStartupGate>
+    startup_gate: ResMut<UiStartupGate>
 ) {
     // Only attempt initialization after UI is stable
     if startup_gate.frames < 5 {
         return;
     }
     
-    // Check if we already have a renderer
-    let has_renderer = ui_state.global_renderer.renderer.lock().unwrap().is_some();
+    // Check if we already have a renderer - do this without a closure to avoid borrow conflicts
+    let has_renderer = {
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            ui_state.global_renderer.renderer.lock().map(|guard| guard.is_some())
+        })) {
+            Ok(Ok(result)) => result,
+            Ok(Err(_)) => {
+                println!("Mutex poisoned in renderer check");
+                return;
+            },
+            Err(_) => {
+                println!("Panic during renderer check");
+                return;
+            }
+        }
+    };
+    
     if has_renderer {
         return;
     }
@@ -487,29 +544,60 @@ fn async_initialize_wgpu_renderer(
     println!("Attempting async WGPU renderer initialization...");
     
     // Use pollster to block on the async initialization
-    match pollster::block_on(async {
-        super::shader_renderer::ShaderRenderer::new_with_size((800, 600)).await
-    }) {
-        Ok(renderer) => {
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        pollster::block_on(async {
+            super::shader_renderer::ShaderRenderer::new_with_size((800, 600)).await
+        })
+    }));
+    
+    // Process the initialization result
+    match result {
+        Ok(Ok(mut renderer)) => {
             println!("✅ WGPU renderer initialized successfully!");
             let working_examples_count = renderer.working_examples.len();
-            *ui_state.global_renderer.renderer.lock().unwrap() = Some(renderer);
             
-            // Update UI state to reflect successful initialization
-            ui_state.wgpu_initialized = true;
-            ui_state.compilation_error.clear();
+            // Store the renderer in the global state
+            let store_success = {
+                match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    ui_state.global_renderer.renderer.lock().map(|mut guard| {
+                        *guard = Some(renderer);
+                        true
+                    })
+                })) {
+                    Ok(Ok(_)) => true,
+                    Ok(Err(_)) => {
+                        println!("Failed to acquire renderer lock for storing initialized renderer");
+                        false
+                    },
+                    Err(_) => {
+                        println!("Panic during renderer lock for storing initialized renderer");
+                        false
+                    }
+                }
+            };
             
-            println!("WGPU renderer ready with {} working examples", 
-                     working_examples_count);
+            // Update UI state after the mutex operation is complete
+            if store_success {
+                ui_state.wgpu_initialized = true;
+                ui_state.compilation_error.clear();
+                println!("WGPU renderer ready with {} working examples", working_examples_count);
+            } else {
+                ui_state.wgpu_initialized = false;
+                ui_state.compilation_error = "Failed to acquire renderer lock".to_string();
+            }
         }
-        Err(e) => {
+        Ok(Err(e)) => {
             println!("WGPU renderer initialization failed: {}", e);
             println!("Continuing without renderer; UI will show 'Renderer not initialized'.");
             ui_state.wgpu_initialized = false;
             ui_state.compilation_error = format!("WGPU initialization failed: {}", e);
-            // Do not panic; keep app running so user can inspect UI and logs
         }
-    }
+        Err(_) => {
+            println!("Panic during WGPU renderer initialization");
+            ui_state.wgpu_initialized = false;
+            ui_state.compilation_error = "WGPU renderer initialization panicked".to_string();
+        }
+    };
 }
 
 fn blocking_initialize_wgpu_renderer(mut ui_state: ResMut<EditorUiState>) {
@@ -520,7 +608,11 @@ fn blocking_initialize_wgpu_renderer(mut ui_state: ResMut<EditorUiState>) {
         let mut lock = ui_state.global_renderer.renderer.lock().unwrap();
         if lock.is_none() {
             println!("Initializing WGPU renderer (blocking)...");
-            match pollster::block_on(super::shader_renderer::ShaderRenderer::new()) {
+            // Initialize without spawning a thread to avoid Send trait issues
+            let result = pollster::block_on(super::shader_renderer::ShaderRenderer::new_with_size((800, 600)))
+                .map_err(|e| e.to_string());
+            
+            match result {
                 Ok(renderer) => {
                     println!("WGPU renderer initialized");
                     *lock = Some(renderer);
@@ -529,6 +621,18 @@ fn blocking_initialize_wgpu_renderer(mut ui_state: ResMut<EditorUiState>) {
                 Err(e) => {
                     println!("Renderer init failed: {}", e);
                     init_err = Some(format!("{}", e));
+                    // Initialize with a fallback renderer to prevent crashes
+                    match pollster::block_on(super::shader_renderer::ShaderRenderer::new_with_size((512, 512))) {
+                        Ok(fallback_renderer) => {
+                            println!("Fallback WGPU renderer initialized");
+                            *lock = Some(fallback_renderer);
+                            init_ok = true;
+                        }
+                        Err(fallback_e) => {
+                            println!("Fallback renderer init also failed: {}", fallback_e);
+                            init_err = Some(format!("Primary: {}; Fallback: {}", e, fallback_e));
+                        }
+                    }
                 }
             }
         } else {
@@ -550,11 +654,13 @@ pub fn run_app() {
     // Install a panic hook to improve crash diagnostics typical of Bevy 0.17 + bevy_egui
     std::panic::set_hook(Box::new(|info| {
         let msg = format!("{}", info);
+        let _ = std::fs::write("panic_log.txt", format!("Panic occurred at {}:\n{}\n", chrono::Local::now(), msg));
         if msg.contains("wgpu error: Validation Error") || msg.contains("Encoder is invalid") || msg.contains("SurfaceAcquireSemaphores") {
             eprintln!("Caught wgpu validation error (known Bevy 0.17 + bevy_egui issue): {}", info);
             eprintln!("Continuing execution despite validation error...");
-            // We could return here to prevent the panic, but that would require unsafe code
-            // For now, we'll just log the error and let the application continue
+        } else if msg.contains("Unable to find a GPU!") {
+            eprintln!("GPU not found, falling back to CPU rendering: {}", info);
+            eprintln!("Please install appropriate GPU drivers for hardware acceleration");
         } else {
             eprintln!("WGSL Shader Studio panicked: {}", info);
             eprintln!("If this happened around focus/resize, it may be the known Bevy 0.17 + bevy_egui issue.");
@@ -567,14 +673,17 @@ pub fn run_app() {
                 primary_window: Some(Window {
                     title: "WGSL Shader Studio".to_string(),
                     resolution: WindowResolution::new(1600, 900),
-                    present_mode: PresentMode::AutoVsync,
+                    present_mode: PresentMode::Fifo,
+                    focused: true,
+                    resizable: true,
+                    decorations: true,
+                    position: WindowPosition::Centered(MonitorSelection::Primary),
                     ..Default::default()
                 }),
                 ..Default::default()
-            }),
+            })
         )
         .add_plugins(EguiPlugin::default())
-        .add_plugins(DiagnosticsPlugin::default())
         .add_plugins(PerformanceOverlayPlugin)
         .add_plugins(AudioAnalysisPlugin)
         .add_plugins(EnhancedAudioPlugin)
@@ -587,6 +696,8 @@ pub fn run_app() {
 
         .add_plugins(BevyNodeGraphPlugin)
         .add_plugins(VisualNodeEditorPlugin)
+        .add_plugins(EnhancedVisualNodeEditorPlugin)
+        .add_plugins(ComputePassPlugin)
         .add_plugins(OscControlPlugin)
         .add_plugins(AudioMidiIntegrationPlugin)
         .add_plugins(WgslAnalyzerPlugin)
@@ -595,6 +706,7 @@ pub fn run_app() {
         .add_plugins(DmxLightingControlPlugin)
         .add_plugins(SceneEditor3DPlugin)
         .add_plugins(SimpleUiAuditorPlugin)
+        .add_plugins(ParticlePhysicsPlugin)
         .insert_resource(EditorUiState::default())
         .insert_resource(UiStartupGate::default())
         .insert_resource(Viewport3DTexture::default())
@@ -609,10 +721,10 @@ pub fn run_app() {
         .add_systems(Startup, setup_camera)
         .add_systems(Startup, crate::editor_ui::populate_shader_list)
         .add_systems(Startup, start_audio_analysis_system)
-        .add_systems(Startup, init_enforcement_startup)
+        // .add_systems(Startup, init_enforcement_startup)
         .add_systems(Startup, start_documentation_server_system)
-        .add_systems(Update, async_initialize_wgpu_renderer)
-        .add_systems(Startup, enable_all_features_once)
+        // .add_systems(Update, async_initialize_wgpu_renderer)  // Removed: renderer is initialized once at startup
+        .add_systems(Startup, enable_all_features_once)  // Enable all UI features
         .add_systems(Update, update_time_system)
         .add_systems(Update, on_window_resize_system)
         .add_systems(Update, editor_ui_system)
