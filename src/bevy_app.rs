@@ -10,9 +10,6 @@ use crate::audio_system::{AudioAnalysisPlugin, EnhancedAudioAnalyzer, EnhancedAu
 
 use crate::bevy_node_graph_integration_enhanced::BevyNodeGraphPlugin;
 
-
-use crate::bevy_node_graph_integration_enhanced::BevyNodeGraphPlugin;
-
 use crate::dmx_lighting_control::DmxLightingControlPlugin;
 use crate::ffgl_plugin::FfglPlugin;
 use crate::gesture_control::GestureControlPlugin;
