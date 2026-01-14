@@ -45,3 +45,22 @@ node_modules/
 
 # Git
 .git/
+
+# Comprehensive Garbage / Temporary Files
+*.log
+*.txt
+*.pdb
+*.tmp
+*.temp
+*backup*
+*demo*
+test_*
+analyze_project
+*.stackdump
+build_out.txt
+build_err.txt
+cargo_*.txt
+check_*.txt
+debug_*.txt
+runtime_*.log
+enforcement.log
