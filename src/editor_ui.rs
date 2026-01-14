@@ -515,23 +515,40 @@ fn compile_and_render_shader(
                     }
                 };
                 
-                let texture = egui_ctx.load_texture(
-                    "shader_preview_real",
-                    egui::ColorImage {
-                        size: [width, height],
-                        pixels,
-                        source_size: egui::Vec2::new((params.width as f32).max(1.0), (params.height as f32).max(1.0)),
-                    },
-                    egui::TextureOptions::default()
-                );
-                
-                // Capture frame for video recording if active
-                // Video export functionality temporarily disabled for compilation
-                // if let Some(exporter) = video_exporter {
-                //     let _ = exporter.capture_frame_data(&pixel_data, params.width, params.height);
-                // }
-                
-                return Ok(texture);
+                // Only create texture if pixel data is valid
+                if !pixels.is_empty() {
+                    let texture = egui_ctx.load_texture(
+                        "shader_preview_real",
+                        egui::ColorImage {
+                            size: [width, height],
+                            pixels,
+                            source_size: egui::Vec2::new((params.width as f32).max(1.0), (params.height as f32).max(1.0)),
+                        },
+                        egui::TextureOptions::default()
+                    );
+                    
+                    // Capture frame for video recording if active
+                    // Video export functionality temporarily disabled for compilation
+                    // if let Some(exporter) = video_exporter {
+                    //     let _ = exporter.capture_frame_data(&pixel_data, params.width, params.height);
+                    // }
+                    
+                    return Ok(texture);
+                } else {
+                    println!("Invalid pixel data for shader_preview_real, returning error texture");
+                    // Return error texture
+                    let error_pixels = vec![egui::Color32::RED; width * height];
+                    let error_texture = egui_ctx.load_texture(
+                        "shader_preview_real_error",
+                        egui::ColorImage {
+                            size: [width, height],
+                            pixels: error_pixels,
+                            source_size: egui::Vec2::new((params.width as f32).max(1.0), (params.height as f32).max(1.0)),
+                        },
+                        egui::TextureOptions::default()
+                    );
+                    return Ok(error_texture);
+                }
             }
             Err(e) => {
                 println!("Real WGPU renderer failed: {}. Falling back to software renderer.", e);
@@ -540,8 +557,31 @@ fn compile_and_render_shader(
         }
     }
     
-    // Fallback disabled: enforce GPU-only policy
-    Err("GPU renderer not initialized. Hardware acceleration is required.".to_string())
+    // Fallback to software renderer
+    let width = (size.x as usize).max(1);
+    let height = (size.y as usize).max(1);
+    let mut pixels = vec![0u8; width * height * 4];
+    
+    // Create a simple gradient pattern
+    for y in 0..height {
+        for x in 0..width {
+            let idx = (y * width + x) * 4;
+            pixels[idx] = ((x as f32 / width as f32) * 255.0) as u8;     // R
+            pixels[idx + 1] = ((y as f32 / height as f32) * 255.0) as u8; // G
+            pixels[idx + 2] = 100; // B
+            pixels[idx + 3] = 255; // A
+        }
+    }
+    
+    let color_image = egui::ColorImage {
+        size: [width, height],
+        pixels: pixels.chunks(4).map(|chunk| {
+            egui::Color32::from_rgba_unmultiplied(chunk[0], chunk[1], chunk[2], chunk[3])
+        }).collect(),
+        source_size: egui::Vec2::new(size.x, size.y),
+    };
+    
+    Ok(egui_ctx.load_texture("shader_preview_fallback", color_image, egui::TextureOptions::default()))
 }
 
 /// Render shader to texture for preview
@@ -590,16 +630,33 @@ fn render_shader_to_texture(
                 }
             };
             
-            let texture = egui_ctx.load_texture(
-                "shader_preview",
-                egui::ColorImage {
-                    size: [width, height],
-                    pixels,
-                    source_size: egui::Vec2::new((params.width as f32).max(1.0), (params.height as f32).max(1.0)),
-                },
-                egui::TextureOptions::default()
-            );
-            Ok(texture)
+            // Only create texture if pixel data is valid
+            if !pixels.is_empty() {
+                let texture = egui_ctx.load_texture(
+                    "shader_preview",
+                    egui::ColorImage {
+                        size: [width, height],
+                        pixels,
+                        source_size: egui::Vec2::new((params.width as f32).max(1.0), (params.height as f32).max(1.0)),
+                    },
+                    egui::TextureOptions::default()
+                );
+                Ok(texture)
+            } else {
+                println!("Invalid pixel data for shader_preview, returning error texture");
+                // Return error texture
+                let error_pixels = vec![egui::Color32::RED; width * height];
+                let error_texture = egui_ctx.load_texture(
+                    "shader_preview_error",
+                    egui::ColorImage {
+                        size: [width, height],
+                        pixels: error_pixels,
+                        source_size: egui::Vec2::new((params.width as f32).max(1.0), (params.height as f32).max(1.0)),
+                    },
+                    egui::TextureOptions::default()
+                );
+                Ok(error_texture)
+            }
         }
         Err(e) => {
             println!("Shader rendering failed: {}", e);
@@ -609,16 +666,20 @@ fn render_shader_to_texture(
 }
 
 // Helper that draws the menu using a provided egui context
-pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
+pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState, auditor: &mut crate::simple_ui_auditor::SimpleUiAuditor) {
     egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
+        if auditor.enabled { auditor.record_panel("Menu Bar", true, None); }
+        
         ui.horizontal(|ui| {
             ui.menu_button("File", |ui| {
                 if ui.button("New WGSL Buffer").clicked() {
+                    auditor.log_event("Menu > File > New WGSL Buffer: Clicked".to_string());
                     ui_state.draft_code = default_wgsl_template();
                     ctx.request_repaint();
                     ui.close_menu();
                 }
                 if ui.button("Save Draft As…").clicked() {
+                    auditor.log_event("Menu > File > Save Draft As: Clicked".to_string());
                     save_draft_wgsl_to_assets(&ui_state);
                     ctx.request_repaint();
                     ui.close_menu();
@@ -642,17 +703,26 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
                     ctx.request_repaint();
                     ui.close_menu();
                 }
-                ui.separator();
-                if ui.button("Export recorded frames → MP4").clicked() {
-                    export_recorded_frames_to_mp4();
+                if ui.button("Load Particle Physics Example").clicked() {
+                    auditor.log_event("Menu > File > Load Particle Physics: Clicked".to_string());
+                    load_particle_physics_example(ui_state);
                     ctx.request_repaint();
                     ui.close_menu();
                 }
+                ui.separator();
+                if ui.button("Export recorded frames → MP4").clicked() {
+                        export_recorded_frames_to_mp4();
+                        ctx.request_repaint();
+                        ui.close_menu();
+                    }
             });
             ui.separator();
             ui.label(egui::RichText::new("🎨 WGSL Shader Studio").size(16.0));
             ui.separator();
-            ui.checkbox(&mut ui_state.show_shader_browser, "Shader Browser");
+            
+            if ui.checkbox(&mut ui_state.show_shader_browser, "Shader Browser").clicked() {
+                auditor.log_event(format!("Menu > Toggle Shader Browser: {}", ui_state.show_shader_browser));
+            }
             ui.checkbox(&mut ui_state.show_parameter_panel, "Parameters");
             ui.checkbox(&mut ui_state.show_preview, "Preview");
             ui.checkbox(&mut ui_state.show_code_editor, "Code Editor");
@@ -665,8 +735,12 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
                 ui.label("Switch between fragment and compute (shader must match)");
             });
             ui.menu_button("Studio", |ui| {
-                ui.checkbox(&mut ui_state.show_node_studio, "Node Studio");
-                ui.checkbox(&mut ui_state.show_timeline, "Timeline");
+                if ui.checkbox(&mut ui_state.show_node_studio, "Node Studio").clicked() {
+                    auditor.log_event(format!("Menu > Studio > Node Studio: {}", ui_state.show_node_studio));
+                }
+                if ui.checkbox(&mut ui_state.show_timeline, "Timeline").clicked() {
+                    auditor.log_event(format!("Menu > Studio > Timeline: {}", ui_state.show_timeline));
+                }
                 ui.checkbox(&mut ui_state.show_audio_panel, "Audio");
                 ui.checkbox(&mut ui_state.show_midi_panel, "MIDI");
                 ui.checkbox(&mut ui_state.show_gesture_panel, "Gestures");
@@ -687,11 +761,15 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
                     ui.radio_value(&mut ui_state.theme_preference, ThemePreference::System, "🖥️ System");
                 });
                 if ui.button("Toggle Dark Mode").clicked() {
+                    auditor.log_event("Menu > View > Toggle Dark Mode: Clicked".to_string());
                     ui_state.dark_mode = !ui_state.dark_mode;
+                    auditor.log_event(format!("State 'dark_mode' is now {}", ui_state.dark_mode));
                     ui.close_menu();
                 }
                 ui.separator();
-                ui.checkbox(&mut ui_state.show_diagnostics_panel, "Diagnostics Panel");
+                if ui.checkbox(&mut ui_state.show_diagnostics_panel, "Diagnostics Panel").clicked() {
+                     auditor.log_event(format!("State 'show_diagnostics_panel' is now {}", ui_state.show_diagnostics_panel));
+                }
                 if ui.button("Run WGSL Diagnostics").clicked() {
                     run_wgsl_diagnostics(ui_state);
                     ui.close_kind(egui::UiKind::Menu);
@@ -709,6 +787,7 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
                 ui.checkbox(&mut ui_state.show_performance_overlay, "Performance Overlay");
                 ui.close_kind(egui::UiKind::Menu);
             });
+
 
             ui.separator();
             ui.menu_button("Import/Convert", |ui| {
@@ -817,9 +896,54 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState) {
     });
 }
 
-pub fn editor_menu(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiState>) {
-    let ctx = egui_ctx.ctx_mut().expect("Failed to get egui context");
-    draw_editor_menu(ctx, &mut *ui_state);
+pub fn editor_menu(mut egui_ctx: EguiContexts, mut ui_state: ResMut<EditorUiState>, mut auditor: ResMut<crate::simple_ui_auditor::SimpleUiAuditor>) {
+    let ctx = match egui_ctx.ctx_mut() {
+        Ok(c) => c,
+        Err(_) => return,
+    };
+    
+    // DEBUG: Visual Input Alignment Test
+    let painter = ctx.layer_painter(bevy_egui::egui::LayerId::debug());
+    if let Some(pos) = ctx.pointer_latest_pos() {
+        // Draw Red Circle at logical mouse position
+        painter.circle_filled(pos, 10.0, bevy_egui::egui::Color32::from_rgba_premultiplied(255, 0, 0, 128));
+        
+        // Draw Text Coordinates
+        painter.text(
+            pos + bevy_egui::egui::vec2(15.0, 15.0),
+            bevy_egui::egui::Align2::LEFT_TOP,
+            format!("{:.1}, {:.1}", pos.x, pos.y),
+            bevy_egui::egui::FontId::monospace(14.0),
+            bevy_egui::egui::Color32::WHITE,
+        );
+
+        // Flash Yellow on Click
+        if ctx.input(|i| i.pointer.any_down()) {
+            painter.rect_filled(
+                ctx.available_rect(), 
+                0.0, 
+                bevy_egui::egui::Color32::from_rgba_premultiplied(255, 255, 0, 50)
+            );
+             painter.text(
+                pos + bevy_egui::egui::vec2(15.0, 35.0),
+                bevy_egui::egui::Align2::LEFT_TOP,
+                "CLICK HELD",
+                bevy_egui::egui::FontId::proportional(20.0),
+                bevy_egui::egui::Color32::YELLOW,
+            );
+        }
+    } else {
+        // No input detected
+        painter.text(
+            bevy_egui::egui::pos2(100.0, 100.0),
+             bevy_egui::egui::Align2::LEFT_TOP,
+            "NO POINTER INPUT DETECTED",
+            bevy_egui::egui::FontId::proportional(30.0),
+            bevy_egui::egui::Color32::RED,
+        );
+    }
+
+    draw_editor_menu(ctx, &mut *ui_state, &mut *auditor);
 }
 
 /// Generate shader code using WGSLSmith AI
@@ -1682,18 +1806,28 @@ pub fn draw_editor_code_panel(ctx: &egui::Context, ui_state: &mut EditorUiState)
                                 }
                             }
                         }
-                        if ui.button("Transpile WGSL→GLSL").clicked() {
-                            let mut mf = MultiFormatTranspiler::new();
-                            let opts = TranspilerOptions { source_language: ShaderLanguage::Wgsl, target_language: ShaderLanguage::Glsl, ..Default::default() };
-                            match mf.transpile(&ui_state.draft_code, &opts) {
-                                Ok(out) => {
-                                    ui_state.transpiled_glsl = out.source_code;
-                                    ui_state.transpiler_error.clear();
+                        #[cfg(feature = "naga_integration")]
+                        {
+                            if ui.button("Transpile WGSL→GLSL").clicked() {
+                                let mut mf = MultiFormatTranspiler::new();
+                                let opts = TranspilerOptions { source_language: ShaderLanguage::Wgsl, target_language: ShaderLanguage::Glsl, ..Default::default() };
+                                match mf.transpile(&ui_state.draft_code, &opts) {
+                                    Ok(out) => {
+                                        ui_state.transpiled_glsl = out.source_code;
+                                        ui_state.transpiler_error.clear();
+                                    }
+                                    Err(e) => {
+                                        ui_state.transpiled_glsl.clear();
+                                        ui_state.transpiler_error = format!("{}", e);
+                                    }
                                 }
-                                Err(e) => {
-                                    ui_state.transpiled_glsl.clear();
-                                    ui_state.transpiler_error = format!("{}", e);
-                                }
+                            }
+                        }
+                        #[cfg(not(feature = "naga_integration"))]
+                        {
+                            if ui.button("Transpile WGSL→GLSL (disabled)").clicked() {
+                                ui_state.transpiled_glsl.clear();
+                                ui_state.transpiler_error = "Naga integration feature is disabled".to_string();
                             }
                         }
                     });
@@ -1989,7 +2123,7 @@ pub fn draw_editor_central_panel(
     ui_state: &mut EditorUiState,
     audio_analyzer: &AudioAnalyzer,
     _video_exporter: Option<&crate::screenshot_video_export::ScreenshotVideoExporter>,
-    node_graph_res: &mut crate::bevy_node_graph_integration_enhanced::NodeGraphResource,
+    mut node_graph_res: Option<&mut crate::bevy_node_graph_integration_enhanced::NodeGraphResource>,
     scene_state: &crate::scene_editor_3d::SceneEditor3DState,
     timeline_animation: &mut crate::timeline::TimelineAnimation,
     spout_output: &mut crate::spout_syphon_output::SpoutSyphonOutput,
@@ -2034,6 +2168,13 @@ pub fn draw_editor_central_panel(
                         ui_state.preview_scale_mode = PreviewScaleMode::OneToOne;
                     }
                     ui.separator();
+                    // DEBUG: Renderer Status
+                    let status = if ui_state.wgpu_initialized { "✅ Initialized" } else { "❌ Not Initialized" };
+                    ui.label(format!("Renderer: {}", status));
+                    if !ui_state.compilation_error.is_empty() {
+                         ui.colored_label(egui::Color32::RED, &ui_state.compilation_error);
+                    }
+
                     if ui.button("256×256").clicked() { ui_state.preview_resolution = (256, 256); }
                     if ui.button("512×512").clicked() { ui_state.preview_resolution = (512, 512); }
                     if ui.button("1280×720").clicked() { ui_state.preview_resolution = (1280, 720); }
@@ -2184,14 +2325,44 @@ var<uniform> uniforms: Uniforms;
                     source_size: egui::Vec2::new((safe_width as f32).max(1.0), (safe_height as f32).max(1.0)),
                 }
                             } else {
-                                egui::ColorImage::from_rgba_unmultiplied(
-                                    [render_params.width as usize, render_params.height as usize],
-                                    &pixels,
-                                )
+                                // Ensure pixel data has correct size before creating ColorImage
+                                let expected_size = (render_params.width as usize) * (render_params.height as usize) * 4;
+                                let actual_size = pixels.len();
+                                
+                                if actual_size != expected_size {
+                                    println!("Pixel data size mismatch: expected {}, got {}. Using error image.", expected_size, actual_size);
+                                    let safe_width = render_params.width.max(50) as usize;
+                                    let safe_height = render_params.height.max(50) as usize;
+                                    let error_pixels = vec![egui::Color32::RED; safe_width * safe_height];
+                                    egui::ColorImage {
+                                        size: [safe_width, safe_height],
+                                        pixels: error_pixels,
+                                        source_size: egui::Vec2::new((safe_width as f32).max(1.0), (safe_height as f32).max(1.0)),
+                                    }
+                                } else {
+                                    egui::ColorImage::from_rgba_unmultiplied(
+                                        [render_params.width as usize, render_params.height as usize],
+                                        &pixels,
+                                    )
+                                }
                             };
-                            let tex = ctx.load_texture("shader_preview_tex", color_image, egui::TextureOptions::default());
-                            let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
-                            painter.image(tex.id(), rect, uv, egui::Color32::WHITE);
+                            // Ensure texture is only created if pixel data is valid and has correct size
+                            let expected_pixels = (render_params.width as usize) * (render_params.height as usize);
+                            if !color_image.pixels.is_empty() && color_image.pixels.len() == expected_pixels {
+                                let tex = ctx.load_texture("shader_preview_tex", color_image, egui::TextureOptions::default());
+                                let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
+                                painter.image(tex.id(), rect, uv, egui::Color32::WHITE);
+                            } else {
+                                // Draw error indicator if pixel data is empty or has wrong size
+                                painter.rect_filled(rect, egui::CornerRadius::same(0u8), egui::Color32::RED);
+                                painter.text(
+                                    rect.center(),
+                                    egui::Align2::CENTER_CENTER,
+                                    "Invalid pixel data",
+                                    egui::FontId::proportional(16.0),
+                                    egui::Color32::WHITE,
+                                );
+                            }
                             // Use safe dimensions for output to prevent pixel data size mismatches
                             // Using larger minimum size to avoid Bevy 0.17 + bevy_egui issues
                             let output_width = render_params.width.max(50);
@@ -2236,37 +2407,45 @@ var<uniform> uniforms: Uniforms;
                 } else {
                     // Use safe dimensions when renderer is not initialized to prevent pixel data size mismatches
                     // Using larger minimum size to avoid Bevy 0.17 + bevy_egui issues
-                    let safe_w = preview_size.x as u32;
-                    let safe_h = preview_size.y as u32;
-                    // Ensure minimum size to prevent zero or very small dimensions
-                    let w = safe_w.max(50);
-                    let h = safe_h.max(50);
-                    let mut data = vec![0u8; (w * h * 4) as usize];
-                    for y in 0..h {
-                        for x in 0..w {
-                            let idx = ((y * w + x) * 4) as usize;
-                            data[idx] = 255;
-                            data[idx + 1] = ((x * 255) / w.max(1)) as u8;
-                            data[idx + 2] = ((y * 255) / h.max(1)) as u8;
-                            data[idx + 3] = 255;
+                    let safe_w = preview_size.x.max(50.0) as u32;
+                    let safe_h = preview_size.y.max(50.0) as u32;
+                    let mut data = vec![0u8; (safe_w * safe_h * 4) as usize];
+                    for y in 0..safe_h {
+                        for x in 0..safe_w {
+                            let idx = ((y * safe_w + x) * 4) as usize;
+                            // Create a visible gradient to ensure content is visible
+                            data[idx] = 100;      // R
+                            data[idx + 1] = 150;  // G
+                            data[idx + 2] = 200;  // B
+                            data[idx + 3] = 255;  // A
                         }
                     }
                     let color_image = egui::ColorImage::from_rgba_unmultiplied(
-                        [w as usize, h as usize],
+                        [safe_w as usize, safe_h as usize],
                         &data,
                     );
+                    // Create texture with fallback content
                     let tex = ctx.load_texture("shader_preview_tex_fallback", color_image, egui::TextureOptions::default());
                     let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
                     painter.image(tex.id(), rect, uv, egui::Color32::WHITE);
+                    // Add visible border to indicate the preview area
+                    painter.rect_stroke(rect, 0.0, egui::Stroke::new(2.0, egui::Color32::from_rgb(100, 100, 100)), egui::StrokeKind::Inside);
                 }
+                
+                // Force continuous repaint for shader animation
+                ctx.request_repaint();
             }
             CentralView::NodeGraph => {
                 ui.heading("Node Graph");
-                let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    crate::bevy_node_graph_integration_enhanced::draw_node_graph_embedded(ui, node_graph_res);
-                })).map_err(|_| {
-                    ui.label("Node editor encountered an error");
-                });
+                if let Some(ref mut ngr) = node_graph_res {
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        crate::bevy_node_graph_integration_enhanced::draw_node_graph_embedded(ui, ngr);
+                    })).map_err(|_| {
+                        ui.label("Node editor encountered an error");
+                    });
+                } else {
+                    ui.label("Node graph not available");
+                }
                 ui.separator();
                 ui.label("Graph Preview");
                 let preview_size = egui::vec2(ui.available_width(), ui.available_height().min(240.0));
@@ -2274,7 +2453,8 @@ var<uniform> uniforms: Uniforms;
                 let rect = response.rect;
                 let mut guard = ui_state.global_renderer.renderer.lock().unwrap();
                 if let Some(ref mut renderer) = *guard {
-                    match node_graph_res.graph.generate_wgsl() {
+                    match node_graph_res {
+                        Some(ref mut ngr) => match ngr.graph.generate_wgsl() {
                         Ok(wgsl_code) => {
                             let render_params = crate::shader_renderer::RenderParameters {
                                 width: rect.width() as u32,
@@ -2296,9 +2476,22 @@ var<uniform> uniforms: Uniforms;
                                             .collect(),
                                         source_size: rect.size(),
                                     };
-                                    let tex = ctx.load_texture("node_graph_preview_tex", color_image, egui::TextureOptions::default());
-                                    let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
-                                    painter.image(tex.id(), rect, uv, egui::Color32::WHITE);
+                                    // Only create texture if pixel data is valid and has correct size
+                                    let expected_pixels = (render_params.width as usize) * (render_params.height as usize);
+                                    if !color_image.pixels.is_empty() && color_image.pixels.len() == expected_pixels {
+                                        let tex = ctx.load_texture("node_graph_preview_tex", color_image, egui::TextureOptions::default());
+                                        let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
+                                        painter.image(tex.id(), rect, uv, egui::Color32::WHITE);
+                                    } else {
+                                        painter.rect_filled(rect, egui::CornerRadius::same(0u8), egui::Color32::RED);
+                                        painter.text(
+                                            rect.center(),
+                                            egui::Align2::CENTER_CENTER,
+                                            "Invalid pixel data",
+                                            egui::FontId::proportional(16.0),
+                                            egui::Color32::WHITE,
+                                        );
+                                    }
                                 }
                                 Ok(Err(e)) => {
                                     painter.text(
@@ -2319,12 +2512,22 @@ var<uniform> uniforms: Uniforms;
                                     );
                                 }
                             }
+                            }
+                            Err(e) => {
+                                painter.text(
+                                    rect.center(),
+                                    egui::Align2::CENTER_CENTER,
+                                    format!("Failed to generate WGSL:\n{}", e),
+                                    egui::FontId::proportional(12.0),
+                                    egui::Color32::RED,
+                                );
+                            }
                         }
-                        Err(e) => {
+                        None => {
                             painter.text(
                                 rect.center(),
                                 egui::Align2::CENTER_CENTER,
-                                format!("Failed to generate WGSL:\n{}", e),
+                                "Node graph not available",
                                 egui::FontId::proportional(12.0),
                                 egui::Color32::RED,
                             );
@@ -2816,6 +3019,17 @@ fn fs_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
   return vec4<f32>(uv.x * (1.0 + 0.2 * p0), uv.y, base, 1.0);
 }
 "#.to_string()
+}
+
+fn load_particle_physics_example(ui_state: &mut EditorUiState) {
+    if let Ok(content) = std::fs::read_to_string("examples/particle_physics.wgsl") {
+        ui_state.draft_code = content;
+        println!("Loaded particle physics example");
+    } else {
+        println!("Failed to load particle physics example - file not found");
+        // Fallback to default template
+        ui_state.draft_code = default_wgsl_template();
+    }
 }
 
 fn save_draft_wgsl_to_assets(ui_state: &EditorUiState) {

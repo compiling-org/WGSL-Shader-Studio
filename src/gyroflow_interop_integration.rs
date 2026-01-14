@@ -124,7 +124,7 @@ impl InteropIntegration {
             handle: 0,
             width,
             height,
-            format: InteropTextureFormat::Rgba8Unorm,
+            format: InteropTextureFormat::Rgba8UnormSrgb,
             graphics_api,
         };
         let zero = ZeroCopyTexture {

@@ -20,7 +20,7 @@ Our comprehensive documentation suite includes:
 
 ## Current State (2025-12-16)
 - App boot: reliable after egui context scheduling fixes; UI systems run on the proper pass to prevent early context use.
-- Preview: renderer output textures use `Rgba8Unorm` (src/shader_renderer.rs:914). 3D preview textures aligned to `Rgba8Unorm` (src/scene_editor_3d.rs:128, 141). Pixel size validation prevents Bevy image panics (src/scene_editor_3d.rs:297–299). Black preview resolved by unifying formats.
+- Preview: renderer output textures use `Rgba8UnormSrgb` (src/shader_renderer.rs:914). 3D preview textures aligned to `Rgba8UnormSrgb` (src/scene_editor_3d.rs:128, 141). Pixel size validation prevents Bevy image panics (src/scene_editor_3d.rs:297–299). Black preview resolved by unifying formats.
 - Node graph: WGSL generation stabilized; crashes addressed by generating pipeline-compatible WGSL and safe defaults. Ongoing verification for edge cases; UI exposure active.
 - 3D editor: viewport texture created and preview quad displays the shader; camera orbit/pan implemented. See src/scene_editor_3d.rs:151–164 for camera setup and 173–183 for preview quad.
 - Outputs UI: NDI/Spout/Syphon/OSC/DMX controls live in the right sidebar `Outputs` section; floating windows removed. See UI integration in src/editor_ui.rs:1030–1094.

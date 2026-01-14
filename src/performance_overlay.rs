@@ -85,7 +85,7 @@ impl PerformanceMetrics {
 fn update_performance_metrics(
     diagnostics: Res<DiagnosticsStore>,
     mut metrics: ResMut<PerformanceMetrics>,
-    time: Res<Time>,
+    _time: Res<Time>,
 ) {
     // Update FPS from Bevy diagnostics
     if let Some(fps) = diagnostics.get(&bevy::diagnostic::FrameTimeDiagnosticsPlugin::FPS) {

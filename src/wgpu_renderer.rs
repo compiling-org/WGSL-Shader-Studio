@@ -96,12 +96,12 @@ impl WgpuShaderRenderer {
         let safe_height = size.height.max(1);
         let surface_config = SurfaceConfiguration {
             usage: TextureUsages::RENDER_ATTACHMENT | TextureUsages::COPY_DST,
-            format: TextureFormat::Rgba8Unorm,
+            format: TextureFormat::Rgba8UnormSrgb,
             width: safe_width,
             height: safe_height,
             present_mode: PresentMode::Fifo,
             alpha_mode: CompositeAlphaMode::Auto,
-            view_formats: vec![TextureFormat::Rgba8Unorm],
+            view_formats: vec![TextureFormat::Rgba8UnormSrgb],
         };
         
         surface.configure(&device, &surface_config);

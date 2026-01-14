@@ -11,7 +11,7 @@ use crate::audio_system::AudioData;
 // --- Data Structures for External Use (e.g., passing from a GUI/Main loop) ---
 
 /// Parameters controlling the shader rendering environment.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RenderParameters {
     pub width: u32,
     pub height: u32,
@@ -19,6 +19,10 @@ pub struct RenderParameters {
     pub frame_rate: f32,
     pub audio_data: Option<AudioData>,
 }
+
+// Ensure RenderParameters implements necessary traits for multi-threading
+unsafe impl Send for RenderParameters {}
+unsafe impl Sync for RenderParameters {}
 
 impl Default for RenderParameters {
     fn default() -> Self {
@@ -99,11 +103,17 @@ impl ShaderRenderer {
     pub async fn new_with_size(size: (u32, u32)) -> Result<Self, Box<dyn std::error::Error>> {
         if VERBOSE_LOG { println!("Initializing WGPU renderer..."); }
 
-        let instance = Instance::new(&wgpu::InstanceDescriptor::default());
+        let instance = Instance::new(&wgpu::InstanceDescriptor { backends: wgpu::Backends::all(), ..Default::default() });
         if VERBOSE_LOG { println!("SUCCESS: WGPU instance created"); }
 
         let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions::default())
+            .request_adapter(
+                &wgpu::RequestAdapterOptions {
+                    power_preference: wgpu::PowerPreference::HighPerformance,  // Prioritize dedicated GPU
+                    compatible_surface: None,
+                    force_fallback_adapter: false,
+                }
+            )
             .await
             .map_err(|e| format!("Failed to find a suitable GPU adapter: {}. Make sure you have a compatible graphics card and drivers installed.", e))?;
         if VERBOSE_LOG { println!("SUCCESS: GPU adapter found: {:?}", adapter.get_info().name); }
@@ -1213,6 +1223,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         }
 
         // --- 6. Execute Render Pass (FIXED: Enhanced error handling) ---
+        // Create a new encoder for this specific render operation to avoid conflicts
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder"),
         });
@@ -1240,28 +1251,25 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                 render_pass.set_bind_group(*group_idx, bg, &[]);
             }
             render_pass.draw(0..3, 0..1);
-        }
+        } // render_pass ends here, releasing the borrow on encoder
 
         // --- 7. Copy Texture to Read-back Buffer (FIXED: Synchronization) ---
-        let pixel_count = (params.width * params.height) as usize;
+        let pixel_count = params.width as usize * params.height as usize;
         let buffer_size = pixel_count * 4; // 4 bytes per pixel (RGBA8)
-
-        let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Output Buffer"),
-            size: buffer_size as u64,
-            usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-            mapped_at_creation: false,
-        });
 
         // Copy texture to buffer for readback with proper alignment
         let bytes_per_row = params.width * 4;
         let aligned_bytes_per_row = ((bytes_per_row + 255) / 256) * 256; // Align to 256 bytes as required by WGPU
         
-        // Recreate buffer with proper size if needed
-        let buffer_size = (aligned_bytes_per_row * params.height) as u64;
+        // Ensure minimum dimensions to prevent crashes
+        let safe_width = params.width.max(16);
+        let safe_height = params.height.max(16);
+        let safe_aligned_bytes_per_row = ((safe_width * 4 + 255) / 256) * 256;
+        let safe_buffer_size = (safe_aligned_bytes_per_row * safe_height) as u64;
+        
         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Output Buffer Aligned"),
-            size: buffer_size,
+            size: safe_buffer_size,
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
             mapped_at_creation: false,
         });
@@ -1277,20 +1285,23 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                 buffer: &output_buffer,
                 layout: wgpu::TexelCopyBufferLayout {
                     offset: 0,
-                    bytes_per_row: Some(aligned_bytes_per_row),
-                    rows_per_image: Some(params.height),
+                    bytes_per_row: Some(safe_aligned_bytes_per_row),
+                    rows_per_image: Some(safe_height),
                 },
             },
             wgpu::Extent3d {
-                width: params.width,
-                height: params.height,
+                width: safe_width,
+                height: safe_height,
                 depth_or_array_layers: 1,
             },
         );
 
-        // --- 8. Submit Commands (FIXED: Simplified synchronization) ---
+        // --- 8. Submit Commands (FIXED: Proper encoder lifecycle) ---
         let command_buffer = encoder.finish();
         self.queue.submit(std::iter::once(command_buffer));
+        
+        // Ensure proper synchronization to prevent validation errors with Bevy 0.17 + bevy_egui
+        self.device.poll(wgpu::PollType::Wait);
 
         // --- 9. Read Back with Enhanced Error Handling ---
         let buffer_slice = output_buffer.slice(..);
@@ -1305,31 +1316,37 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                 let data = buffer_slice.get_mapped_range();
                 
                 // Extract actual pixel data, skipping alignment padding
-                let mut pixel_data = Vec::with_capacity((params.width * params.height * 4) as usize);
-                for y in 0..params.height {
-                    let row_start = (y * aligned_bytes_per_row) as usize;
-                    let row_end = row_start + (params.width * 4) as usize;
+                let mut pixel_data = Vec::with_capacity((safe_width * safe_height * 4) as usize);
+                for y in 0..safe_height {
+                    let row_start = (y * safe_aligned_bytes_per_row) as usize;
+                    let row_end = row_start + (safe_width * 4) as usize;
                     pixel_data.extend_from_slice(&data[row_start..row_end]);
                 }
                 
                 drop(data);
                 output_buffer.unmap();
                 
-                // Ensure we always return valid pixel data with correct size
-                if pixel_data.is_empty() || pixel_data.len() != (params.width as usize * params.height as usize * 4) {
-                    let safe_width = params.width.max(1);
-                    let safe_height = params.height.max(1);
-                    let num_pixels = (safe_width as usize * safe_height as usize);
-                    let red_pixels = vec![255, 0, 0, 255].into_iter().cycle().take(num_pixels * 4).collect();
-                    if VERBOSE_LOG { println!("Fixed pixel data size mismatch in render_frame: expected {}, got {}", num_pixels * 4, pixel_data.len()); }
+                // Ensure we always return valid pixel data with correct size based on original params
+                let expected_size = params.width as usize * params.height as usize * 4;
+                if pixel_data.is_empty() || pixel_data.len() != expected_size {
+                    let num_pixels = params.width as usize * params.height as usize;
+                    let red_pixels = vec![255, 0, 0, 255].into_iter().cycle().take(expected_size).collect();
+                    if VERBOSE_LOG { println!("Fixed pixel data size mismatch in render_frame: expected {}, got {}", expected_size, pixel_data.len()); }
                     Ok(red_pixels)
                 } else {
-                    Ok(pixel_data)
+                    // Resize pixel data to match expected size if needed
+                    if pixel_data.len() != expected_size {
+                        let mut resized_data = vec![255u8, 0, 0, 255]; // Start with red pixel
+                        resized_data.resize(expected_size, 0);
+                        Ok(resized_data)
+                    } else {
+                        Ok(pixel_data)
+                    }
                 }
             }
             Ok(Err(e)) => {
                 // Enhanced fallback with debug pattern
-                let pixel_count = (params.width * params.height) as usize;
+                let pixel_count = params.width as usize * params.height as usize;
                 let mut dummy_pixels = vec![0u8; pixel_count * 4];
                 
                 // Create a debug pattern instead of solid gray
@@ -1343,9 +1360,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                     }
                 }
                 // Ensure dummy pixels have correct size
-                let safe_width = params.width.max(1);
-                let safe_height = params.height.max(1);
-                let expected_size = (safe_width as usize * safe_height as usize * 4);
+                let expected_size = params.width as usize * params.height as usize * 4;
                 if dummy_pixels.len() != expected_size {
                     dummy_pixels.resize(expected_size, 0);
                 }
@@ -1353,7 +1368,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             }
             Err(_e) => {
                 // Return a simple pattern instead of hanging
-                let pixel_count = (params.width * params.height) as usize;
+                let pixel_count = params.width as usize * params.height as usize;
                 let mut dummy_pixels = vec![0u8; pixel_count * 4];
                 
                 // Create a simple gradient pattern
@@ -1367,9 +1382,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                     }
                 }
                 // Ensure dummy pixels have correct size
-                let safe_width = params.width.max(1);
-                let safe_height = params.height.max(1);
-                let expected_size = (safe_width as usize * safe_height as usize * 4);
+                let expected_size = params.width as usize * params.height as usize * 4;
                 if dummy_pixels.len() != expected_size {
                     dummy_pixels.resize(expected_size, 0);
                 }
@@ -1420,12 +1433,12 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     
     pub fn render_frame_with_params(&mut self, wgsl_code: &str, params: &RenderParameters, parameter_values: Option<&[f32]>, audio_data: Option<AudioData>) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         if params.width == 0 || params.height == 0 {
-            let pixel_count = (params.width.max(1) * params.height.max(1)) as usize;
+            let pixel_count = params.width.max(1) as usize * params.height.max(1) as usize;
             return Ok(vec![0u8; pixel_count * 4]);
         }
         // Quick return for empty code to prevent hanging
         if wgsl_code.trim().is_empty() {
-            let pixel_count = (params.width * params.height) as usize;
+            let pixel_count = params.width as usize * params.height as usize;
             return Ok(vec![0u8; pixel_count * 4]);
         }
         if wgsl_code.contains("@compute") && !wgsl_code.contains("@fragment") {
@@ -1479,10 +1492,10 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            // FIXED: Use Rgba8Unorm instead of Rgba8UnormSrgb for WGSL compatibility
+            // FIXED: Use Rgba8Unorm to match Bevy 0.17 + bevy_egui format expectations
             format: wgpu::TextureFormat::Rgba8Unorm,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
-            view_formats: &[],
+            view_formats: &[wgpu::TextureFormat::Rgba8UnormSrgb],
         };
 
         let texture = self.device.create_texture(&texture_desc);
@@ -1677,7 +1690,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                                 dimension: if dim3 { wgpu::TextureDimension::D3 } else { wgpu::TextureDimension::D2 },
                                 format: wgpu::TextureFormat::Rgba8Unorm,
                                 usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-                                view_formats: &[],
+                                view_formats: &[wgpu::TextureFormat::Rgba8UnormSrgb],
                             });
                             let tmp_view = Box::new(tmp_tex.create_view(&wgpu::TextureViewDescriptor::default()));
                             temp_views_all.push(tmp_view);
@@ -1825,7 +1838,12 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
         let bytes_per_row = params.width * 4;
         let aligned_bytes_per_row = ((bytes_per_row + 255) / 256) * 256;
-        let buffer_size = (aligned_bytes_per_row * params.height) as u64;
+        
+        // Ensure minimum dimensions to prevent crashes
+        let safe_width = params.width.max(16);
+        let safe_height = params.height.max(16);
+        let safe_aligned_bytes_per_row = ((safe_width * 4 + 255) / 256) * 256;
+        let buffer_size = (safe_aligned_bytes_per_row * safe_height) as u64;
         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Output Buffer"),
             size: buffer_size,
@@ -1837,36 +1855,45 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             wgpu::TexelCopyTextureInfo { texture: &texture, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
             wgpu::TexelCopyBufferInfo {
                 buffer: &output_buffer,
-                layout: wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(aligned_bytes_per_row), rows_per_image: Some(params.height) },
+                layout: wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(safe_aligned_bytes_per_row), rows_per_image: Some(safe_height) },
             },
-            wgpu::Extent3d { width: params.width, height: params.height, depth_or_array_layers: 1 },
+            wgpu::Extent3d { width: safe_width, height: safe_height, depth_or_array_layers: 1 },
         );
 
         self.queue.submit(std::iter::once(encoder.finish()));
 
+        // Ensure proper synchronization with Bevy's render system to avoid conflicts
+        self.device.poll(wgpu::PollType::Wait);
+        
         let slice = output_buffer.slice(..);
         let (tx, rx) = std::sync::mpsc::channel();
         slice.map_async(wgpu::MapMode::Read, move |r| { let _ = tx.send(r); });
         let _ = self.device.poll(wgpu::PollType::Wait);
         rx.recv().unwrap()?;
         let data = slice.get_mapped_range();
-        let mut result = Vec::with_capacity((params.width * params.height * 4) as usize);
-        for y in 0..params.height {
-            let row_start = (y * aligned_bytes_per_row) as usize;
-            let row_end = row_start + (params.width * 4) as usize;
+        let mut result = Vec::with_capacity((safe_width * safe_height * 4) as usize);
+        for y in 0..safe_height {
+            let row_start = (y * safe_aligned_bytes_per_row) as usize;
+            let row_end = row_start + (safe_width * 4) as usize;
             result.extend_from_slice(&data[row_start..row_end]);
         }
         drop(data);
         output_buffer.unmap();
-        // Ensure we always return valid pixel data with correct size
-        if result.is_empty() || result.len() != (params.width as usize * params.height as usize * 4) {
-            let safe_width = params.width.max(1);
-            let safe_height = params.height.max(1);
-            let num_pixels = (safe_width as usize * safe_height as usize);
-            let red_pixels = vec![255, 0, 0, 255].into_iter().cycle().take(num_pixels * 4).collect();
+        // Ensure we always return valid pixel data with correct size based on original params
+        let expected_size = params.width as usize * params.height as usize * 4;
+        if result.is_empty() || result.len() != expected_size {
+            let num_pixels = params.width as usize * params.height as usize;
+            let red_pixels = vec![255, 0, 0, 255].into_iter().cycle().take(expected_size).collect();
             Ok(red_pixels)
         } else {
-            Ok(result)
+            // Resize result to match expected size if needed
+            if result.len() != expected_size {
+                let mut resized_data = vec![255u8, 0, 0, 255]; // Start with red pixel
+                resized_data.resize(expected_size, 0);
+                Ok(resized_data)
+            } else {
+                Ok(result)
+            }
         }
     }
 
@@ -1923,6 +1950,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         });
 
         // Execute render pass
+        // Create a new encoder for this specific render operation to avoid conflicts
         let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder"),
         });
@@ -1947,7 +1975,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             render_pass.set_pipeline(&pipeline);
             render_pass.set_bind_group(0, &bind_group, &[]);
             render_pass.draw(0..3, 0..1); // Draw full-screen triangle
-        }
+        } // render_pass ends here, releasing the borrow on encoder
 
         // Copy texture to buffer with proper alignment
         let bytes_per_row = params.width * 4;
@@ -1983,7 +2011,11 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             },
         );
 
-        self.queue.submit(std::iter::once(encoder.finish()));
+        let command_buffer = encoder.finish();
+        self.queue.submit(std::iter::once(command_buffer));
+        
+        // Ensure proper synchronization to prevent validation errors with Bevy 0.17 + bevy_egui
+        self.device.poll(wgpu::PollType::Wait);
 
         // Map buffer and read data
         let buffer_slice = output_buffer.slice(..);
@@ -2007,17 +2039,23 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         drop(data);
         output_buffer.unmap();
 
-        // Ensure we always return valid pixel data with correct size
-        if result.is_empty() || result.len() != (params.width as usize * params.height as usize * 4) {
-            let safe_width = params.width.max(1);
-            let safe_height = params.height.max(1);
-            let num_pixels = (safe_width as usize * safe_height as usize);
-            let red_pixels = vec![255, 0, 0, 255].into_iter().cycle().take(num_pixels * 4).collect();
-            if VERBOSE_LOG { println!("Fixed pixel data size mismatch: expected {}, got {}", num_pixels * 4, result.len()); }
+        // Ensure we always return valid pixel data with correct size based on original params
+        let expected_size = params.width as usize * params.height as usize * 4;
+        if result.is_empty() || result.len() != expected_size {
+            let num_pixels = params.width as usize * params.height as usize;
+            let red_pixels = vec![255, 0, 0, 255].into_iter().cycle().take(expected_size).collect();
+            if VERBOSE_LOG { println!("Fixed pixel data size mismatch: expected {}, got {}", expected_size, result.len()); }
             Ok(red_pixels)
         } else {
-            if VERBOSE_LOG { println!("SUCCESS: Rendering completed successfully"); }
-            Ok(result)
+            // Resize result to match expected size if needed
+            if result.len() != expected_size {
+                let mut resized_data = vec![255u8, 0, 0, 255]; // Start with red pixel
+                resized_data.resize(expected_size, 0);
+                Ok(resized_data)
+            } else {
+                if VERBOSE_LOG { println!("SUCCESS: Rendering completed successfully"); }
+                Ok(result)
+            }
         }
     }
     
@@ -2035,7 +2073,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8Unorm,
             usage: wgpu::TextureUsages::STORAGE_BINDING | wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::COPY_DST,
-            view_formats: &[],
+            view_formats: &[wgpu::TextureFormat::Rgba8UnormSrgb],
         });
         let storage_view = storage_texture.create_view(&wgpu::TextureViewDescriptor::default());
         
@@ -2094,7 +2132,12 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         
         let bytes_per_row = params.width * 4;
         let aligned_bytes_per_row = ((bytes_per_row + 255) / 256) * 256;
-        let buffer_size = (aligned_bytes_per_row * params.height) as u64;
+        
+        // Ensure minimum dimensions to prevent crashes
+        let safe_width = params.width.max(16);
+        let safe_height = params.height.max(16);
+        let safe_aligned_bytes_per_row = ((safe_width * 4 + 255) / 256) * 256;
+        let buffer_size = (safe_aligned_bytes_per_row * safe_height) as u64;
         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Compute Output"),
             size: buffer_size,
@@ -2106,12 +2149,15 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             wgpu::TexelCopyTextureInfo { texture: &storage_texture, mip_level: 0, origin: wgpu::Origin3d::ZERO, aspect: wgpu::TextureAspect::All },
             wgpu::TexelCopyBufferInfo {
                 buffer: &output_buffer,
-                layout: wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(aligned_bytes_per_row), rows_per_image: Some(params.height) },
+                layout: wgpu::TexelCopyBufferLayout { offset: 0, bytes_per_row: Some(safe_aligned_bytes_per_row), rows_per_image: Some(safe_height) },
             },
-            wgpu::Extent3d { width: params.width, height: params.height, depth_or_array_layers: 1 },
+            wgpu::Extent3d { width: safe_width, height: safe_height, depth_or_array_layers: 1 },
         );
         
         self.queue.submit(std::iter::once(encoder.finish()));
+        
+        // Ensure proper synchronization with Bevy's render system to avoid conflicts
+        self.device.poll(wgpu::PollType::Wait);
         
         let slice = output_buffer.slice(..);
         let (tx, rx) = std::sync::mpsc::channel();
@@ -2119,25 +2165,31 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         let _ = self.device.poll(wgpu::PollType::Wait);
         rx.recv().unwrap()?;
         let data = slice.get_mapped_range();
-        let mut result = Vec::with_capacity((params.width * params.height * 4) as usize);
-        for y in 0..params.height {
-            let row_start = (y * aligned_bytes_per_row) as usize;
-            let row_end = row_start + (params.width * 4) as usize;
+        let mut result = Vec::with_capacity((safe_width * safe_height * 4) as usize);
+        for y in 0..safe_height {
+            let row_start = (y * safe_aligned_bytes_per_row) as usize;
+            let row_end = row_start + (safe_width * 4) as usize;
             result.extend_from_slice(&data[row_start..row_end]);
         }
         drop(data);
         output_buffer.unmap();
         
-        // Ensure we always return valid pixel data with correct size
-        if result.is_empty() || result.len() != (params.width as usize * params.height as usize * 4) {
-            let safe_width = params.width.max(1);
-            let safe_height = params.height.max(1);
-            let num_pixels = (safe_width as usize * safe_height as usize);
-            let red_pixels = vec![255, 0, 0, 255].into_iter().cycle().take(num_pixels * 4).collect();
-            if VERBOSE_LOG { println!("Fixed pixel data size mismatch in compute shader: expected {}, got {}", num_pixels * 4, result.len()); }
+        // Ensure we always return valid pixel data with correct size based on original params
+        let expected_size = params.width as usize * params.height as usize * 4;
+        if result.is_empty() || result.len() != expected_size {
+            let num_pixels = params.width as usize * params.height as usize;
+            let red_pixels = vec![255, 0, 0, 255].into_iter().cycle().take(expected_size).collect();
+            if VERBOSE_LOG { println!("Fixed pixel data size mismatch in compute shader: expected {}, got {}", expected_size, result.len()); }
             Ok(red_pixels)
         } else {
-            Ok(result)
+            // Resize result to match expected size if needed
+            if result.len() != expected_size {
+                let mut resized_data = vec![255u8, 0, 0, 255]; // Start with red pixel
+                resized_data.resize(expected_size, 0);
+                Ok(resized_data)
+            } else {
+                Ok(result)
+            }
         }
     }
 

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use anyhow::Result;
-use crate::converter::diagnostics::{Diagnostics, DiagnosticSeverity};
+use super::diagnostics::{Diagnostics, DiagnosticSeverity, Diagnostic};
 
 /// WGSL code emitter with comment and uniform preservation
 pub struct WgslEmitter {

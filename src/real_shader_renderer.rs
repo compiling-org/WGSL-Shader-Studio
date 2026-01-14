@@ -121,7 +121,7 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<
                 module: &shader_module,
                 entry_point: Some("fs_main"),
                 targets: &[Some(ColorTargetState {
-                    format: TextureFormat::Bgra8UnormSrgb,
+                    format: TextureFormat::Rgba8UnormSrgb,
                     blend: Some(BlendState::ALPHA_PREMULTIPLIED),
                     write_mask: ColorWrites::ALL,
                 })],
@@ -224,9 +224,9 @@ fn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<
             mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D2,
-            format: TextureFormat::Rgba8Unorm,
+            format: TextureFormat::Rgba8UnormSrgb,
             usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-            view_formats: view_formats: &[TextureFormat::Rgba8Unorm][TextureFormat::Rgba8Unorm],
+            view_formats: &[TextureFormat::Rgba8UnormSrgb],
         });
 
         self.queue.write_texture(

@@ -33,6 +33,17 @@ pub mod isf_loader;
 pub mod isf_converter;
 pub mod enforcement_system;
 pub mod documentation_server;
+pub mod converter;
+
+// UI panel modules - temporarily commented out due to compilation issues
+// pub mod parameter_panel;
+// pub mod audio_panel;
+// pub mod preview_window;
+// pub mod diagnostics_panel;
+// pub mod midi_panel;
+// pub mod code_editor;
+// pub mod export_panel;
+// pub mod d3_scene;
 
 // Re-export new integration modules
 
@@ -370,13 +381,13 @@ pub mod isf_auto_converter;
 // pub mod isf_conversion_tester;
 pub mod wgsl_reflect_integration;
 // pub mod wgslsmith_integration;
-pub mod converter;
 pub mod simple_ui_auditor;
 pub mod node_graph;
 pub mod timeline;
 pub mod ui_analyzer;
 pub mod ui_analyzer_enhanced;
 pub mod wgpu_integration;
+pub mod wesl_integration;
 
 // Re-export UI analyzer types for external use
 pub use ui_analyzer::{UIAnalyzer, FeatureCheck, FeatureStatus, Priority, WgpuDiagnostics, UiStateDiagnostics};
@@ -386,7 +397,16 @@ pub mod backend_systems;
 pub mod visual_node_editor;
 pub mod visual_node_editor_plugin;
 pub mod visual_node_editor_adapter;
+pub mod enhanced_visual_node_editor;
+pub mod new_visual_node_editor;
+pub mod enhanced_visual_node_editor_plugin;
+pub mod visual_language_compiler;
+pub mod visual_language_integration;
+pub mod visual_language_parser;
+pub mod visual_language_bridge;
+pub mod visual_language_manager;
 pub mod gyroflow_wgpu_interop;
+pub mod particle_physics;
 #[cfg(feature = "naga_integration")]
 pub mod advanced_shader_compilation;
 #[cfg(feature = "naga_integration")]

@@ -80,7 +80,7 @@ fn sync_shader_preview_texture_size(
         size,
         TextureDimension::D2,
         &[0, 0, 0, 255],
-        TextureFormat::Rgba8Unorm,
+        TextureFormat::Rgba8UnormSrgb,
         RenderAssetUsages::default(),
     );
     new_image.texture_descriptor.usage = TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST;
@@ -145,7 +145,7 @@ pub fn sync_scene_viewport_texture_size(
         size,
         TextureDimension::D2,
         initial_pixel_data,
-        TextureFormat::Rgba8Unorm,
+        TextureFormat::Rgba8UnormSrgb,
         RenderAssetUsages::default(),
     );
     new_image.texture_descriptor.usage = TextureUsages::TEXTURE_BINDING | TextureUsages::RENDER_ATTACHMENT | TextureUsages::COPY_DST;
@@ -257,7 +257,7 @@ fn setup_editor_3d(
         size,
         TextureDimension::D2,
         &[0, 0, 0, 255],
-        TextureFormat::Rgba8Unorm,
+        TextureFormat::Rgba8UnormSrgb,
         RenderAssetUsages::default(),
     );
     image.texture_descriptor.usage = TextureUsages::TEXTURE_BINDING | TextureUsages::RENDER_ATTACHMENT | TextureUsages::COPY_DST;
@@ -270,7 +270,7 @@ fn setup_editor_3d(
         size,
         TextureDimension::D2,
         &[0, 0, 0, 255],
-        TextureFormat::Rgba8Unorm,
+        TextureFormat::Rgba8UnormSrgb,
         RenderAssetUsages::default(),
     );
     preview_image.texture_descriptor.usage = TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST;

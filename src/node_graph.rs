@@ -706,3 +706,13 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
         "0.0".to_string()
     }
 }
+
+// Resource for use with Bevy
+use bevy::prelude::Resource;
+
+#[derive(Resource, Default)]
+pub struct NodeGraphResource {
+    pub graph: NodeGraph,
+    pub selected_node: Option<NodeId>,
+    pub selected_nodes: std::collections::HashSet<NodeId>,
+}

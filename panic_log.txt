@@ -1,0 +1,9 @@
+Panic occurred at 2026-01-14 02:20:52.958880100 +05:30:
+panicked at C:\Users\kapil\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\wgpu-26.0.1\src\backend\wgpu_core.rs:1327:26:
+wgpu error: Validation Error
+
+Caused by:
+  In Device::create_render_pipeline, label = 'egui_pipeline'
+    Internal error in ShaderStages(FRAGMENT) shader: HLSL: Unimplemented("push-constant 'offset' has non-struct type; tracked by: https://github.com/gfx-rs/wgpu/issues/5683")
+
+

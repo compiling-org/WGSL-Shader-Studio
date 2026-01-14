@@ -18,7 +18,7 @@ impl Default for InteropConfig {
     fn default() -> Self {
         Self {
             enable_zero_copy: true,
-            texture_format: InteropTextureFormat::Rgba8Unorm,
+            texture_format: InteropTextureFormat::Rgba8UnormSrgb,
             graphics_api: GraphicsApi::Vulkan,
             max_texture_size: 4096,
         }
@@ -27,7 +27,7 @@ impl Default for InteropConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum InteropTextureFormat {
-    Rgba8Unorm,
+    Rgba8UnormSrgb,
     Bgra8Unorm,
     Rgba16Float,
     Bgra8UnormSrgb,
@@ -83,7 +83,7 @@ impl WgpuInteropManager {
     }
     
     /// Import texture from Gyroflow
-    pub fn import_texture(&mut self, native_info: NativeTextureInfo, device: &Device, queue: &Queue) -> InteropResult<u64> {
+    pub fn import_texture(&mut self, native_info: NativeTextureInfo, device: &Device, _queue: &Queue) -> InteropResult<u64> {
         if !self.config.enable_zero_copy {
             return InteropResult::NotSupported;
         }
@@ -104,7 +104,7 @@ impl WgpuInteropManager {
     }
     
     /// Export texture to Gyroflow
-    pub fn export_texture(&mut self, texture_id: u64, device: &Device, queue: &Queue) -> InteropResult<NativeTextureInfo> {
+    pub fn export_texture(&mut self, texture_id: u64, _device: &Device, _queue: &Queue) -> InteropResult<NativeTextureInfo> {
         match self.textures.get(&texture_id) {
             Some(zero_copy) => InteropResult::Success(zero_copy.native_info.clone()),
             None => InteropResult::Error("Texture not found".to_string()),
@@ -114,7 +114,7 @@ impl WgpuInteropManager {
     /// Create WGPUT texture from native handle
     fn create_wgpu_texture_from_native(&self, native_info: &NativeTextureInfo, device: &Device) -> Texture {
         let format = match native_info.format {
-            InteropTextureFormat::Rgba8Unorm => TextureFormat::Rgba8Unorm,
+            InteropTextureFormat::Rgba8UnormSrgb => TextureFormat::Rgba8UnormSrgb,
             InteropTextureFormat::Bgra8Unorm => TextureFormat::Bgra8Unorm,
             InteropTextureFormat::Rgba16Float => TextureFormat::Rgba16Float,
             InteropTextureFormat::Bgra8UnormSrgb => TextureFormat::Bgra8UnormSrgb,

@@ -90,10 +90,10 @@ impl Default for WgslRenderConfig {
         Self {
             width: 1920,
             height: 1080,
-            format: wgpu::TextureFormat::Bgra8UnormSrgb,
+            format: wgpu::TextureFormat::Rgba8Unorm,
             present_mode: wgpu::PresentMode::AutoVsync,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
-            view_formats: vec![wgpu::TextureFormat::Bgra8UnormSrgb],
+            view_formats: vec![wgpu::TextureFormat::Rgba8Unorm],
         }
     }
 }
@@ -457,7 +457,7 @@ impl WgslRenderPipeline {
                 module: shader,
                 entry_point: Some("fs_main"),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format: wgpu::TextureFormat::Bgra8UnormSrgb,
+                    format: wgpu::TextureFormat::Rgba8UnormSrgb,
                     blend: Some(wgpu::BlendState::REPLACE),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],

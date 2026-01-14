@@ -42,6 +42,10 @@ impl Default for AudioData {
     }
 }
 
+// Ensure AudioData implements necessary traits for multi-threading
+unsafe impl Send for AudioData {}
+unsafe impl Sync for AudioData {}
+
 #[derive(Resource)]
 pub struct AudioAnalyzer {
     pub enabled: bool,
@@ -126,7 +130,7 @@ impl AudioAnalyzer {
         self.last_update = Instant::now();
     }
 
-    fn audio_capture_thread(data: Arc<Mutex<AudioData>>, audio_buffer: Arc<Mutex<Vec<f32>>>) {
+    fn audio_capture_thread(_data: Arc<Mutex<AudioData>>, audio_buffer: Arc<Mutex<Vec<f32>>>) {
         // Enhanced synthetic audio generation for testing shader audio reactive features
         let sample_rate: f32 = 44100.0;
         let buffer_size = 1024;
@@ -140,7 +144,7 @@ impl AudioAnalyzer {
             let mut samples = Vec::with_capacity(buffer_size);
             
             // Generate multi-frequency synthetic audio for comprehensive testing
-            for i in 0..buffer_size {
+            for _i in 0..buffer_size {
                 // Bass frequency (80Hz)
                 let bass_freq = 80.0;
                 let bass_sample = (bass_phase * 2.0 * std::f32::consts::PI / sample_rate * bass_freq).sin() * 0.4;
@@ -411,6 +415,9 @@ pub struct EnhancedAudioAnalyzer {
     audio_buffer: Arc<Mutex<Vec<f32>>>,
     sample_rate: u32,
     last_update: Instant,
+    // Firewheel-inspired features
+    firewheel_buffer: Arc<Mutex<Vec<f32>>>,
+    firewheel_enabled: bool,
 }
 
 impl Default for EnhancedAudioAnalyzer {
@@ -422,6 +429,8 @@ impl Default for EnhancedAudioAnalyzer {
             audio_buffer: Arc::new(Mutex::new(Vec::new())),
             sample_rate: 44100,
             last_update: Instant::now(),
+            firewheel_buffer: Arc::new(Mutex::new(Vec::new())),
+            firewheel_enabled: true, // Enable Firewheel features by default
         }
     }
 }
@@ -439,10 +448,12 @@ impl EnhancedAudioAnalyzer {
         self.enabled = true;
         let data = Arc::clone(&self.data);
         let audio_buffer = Arc::clone(&self.audio_buffer);
+        let firewheel_buffer = Arc::clone(&self.firewheel_buffer);
         let config = self.config.clone();
+        let firewheel_enabled = self.firewheel_enabled;
         
         std::thread::spawn(move || {
-            Self::enhanced_audio_capture_thread(data, audio_buffer, config);
+            Self::enhanced_audio_capture_thread(data, audio_buffer, firewheel_buffer, config, firewheel_enabled);
         });
     }
     
@@ -467,36 +478,59 @@ impl EnhancedAudioAnalyzer {
             std::mem::take(&mut *buffer)
         };
         
+        let firewheel_samples = {
+            let mut buffer = self.firewheel_buffer.lock().unwrap();
+            if !self.firewheel_enabled || buffer.is_empty() {
+                Vec::new()
+            } else {
+                std::mem::take(&mut *buffer)
+            }
+        };
+        
         if !audio_samples.is_empty() {
-            self.analyze_enhanced_audio(&audio_samples);
+            self.analyze_enhanced_audio(&audio_samples, &firewheel_samples);
         }
         
         self.last_update = Instant::now();
     }
     
     fn enhanced_audio_capture_thread(
-        data: Arc<Mutex<EnhancedAudioData>>, 
+        _data: Arc<Mutex<EnhancedAudioData>>, 
         audio_buffer: Arc<Mutex<Vec<f32>>>, 
-        config: EnhancedAudioConfig
+        firewheel_buffer: Arc<Mutex<Vec<f32>>>, 
+        config: EnhancedAudioConfig,
+        firewheel_enabled: bool
     ) {
         let sample_rate = 44100.0;
         let buffer_size = config.fft_size as usize;
         let mut phase = 0.0f32;
+        let mut firewheel_phase = 0.0f32;
         
         loop {
             let mut samples = Vec::with_capacity(buffer_size);
+            let mut firewheel_samples = Vec::with_capacity(buffer_size);
             
             // Generate enhanced synthetic audio with multiple frequencies
-            for i in 0..buffer_size {
-                let t = i as f32 / sample_rate;
+            for _i in 0..buffer_size {
+                let t = _i as f32 / sample_rate;
                 let sample = (phase * 0.1 + t * 2.0 * std::f32::consts::PI * 440.0).sin() * 0.3
                     + (phase * 0.3 + t * 2.0 * std::f32::consts::PI * 880.0).sin() * 0.2
                     + (phase * 0.5 + t * 2.0 * std::f32::consts::PI * 1760.0).sin() * 0.1;
                 samples.push(sample);
+                
+                // Firewheel-inspired audio processing
+                if firewheel_enabled {
+                    let firewheel_sample = (firewheel_phase * 0.2 + t * 2.0 * std::f32::consts::PI * 220.0).sin() * 0.15
+                        + (firewheel_phase * 0.4 + t * 2.0 * std::f32::consts::PI * 660.0).sin() * 0.1
+                        + (firewheel_phase * 0.6 + t * 2.0 * std::f32::consts::PI * 1320.0).sin() * 0.05;
+                    firewheel_samples.push(firewheel_sample);
+                    firewheel_phase += 0.02;
+                }
+                
                 phase += 0.01;
             }
             
-            // Add samples to buffer
+            // Add samples to buffers
             {
                 let mut buffer = audio_buffer.lock().unwrap();
                 buffer.extend(samples);
@@ -507,11 +541,21 @@ impl EnhancedAudioAnalyzer {
                 }
             }
             
+            if firewheel_enabled {
+                let mut firewheel_buf = firewheel_buffer.lock().unwrap();
+                firewheel_buf.extend(firewheel_samples);
+                // Keep buffer size reasonable
+                if firewheel_buf.len() > buffer_size * 4 {
+                    let drain_to = firewheel_buf.len() - buffer_size * 2;
+                    firewheel_buf.drain(..drain_to);
+                }
+            }
+            
             std::thread::sleep(Duration::from_millis((buffer_size * 1000) as u64 / sample_rate as u64));
         }
     }
     
-    fn analyze_enhanced_audio(&mut self, samples: &[f32]) {
+    fn analyze_enhanced_audio(&mut self, samples: &[f32], firewheel_samples: &[f32]) {
         let mut data = self.data.lock().unwrap();
         let config = &self.config;
         
@@ -519,6 +563,48 @@ impl EnhancedAudioAnalyzer {
         let sum_squares: f32 = samples.iter().map(|&x| x * x).sum();
         data.rms_energy = (sum_squares / samples.len() as f32).sqrt();
         data.volume = data.rms_energy;
+        
+        // Incorporate Firewheel audio data
+        if !firewheel_samples.is_empty() {
+            let firewheel_sum_squares: f32 = firewheel_samples.iter().map(|&x| x * x).sum();
+            let firewheel_rms = (firewheel_sum_squares / firewheel_samples.len() as f32).sqrt();
+            
+            // Blend original audio with Firewheel audio
+            data.volume = (data.volume + firewheel_rms * 0.3).min(1.0);
+            
+            // Firewheel-inspired spectral processing
+            if firewheel_samples.len() >= config.fft_size as usize {
+                let mut firewheel_fft_planner = FftPlanner::new();
+                let firewheel_fft = firewheel_fft_planner.plan_fft_forward(config.fft_size as usize);
+                
+                let mut firewheel_fft_buffer: Vec<Complex<f32>> = firewheel_samples[..config.fft_size as usize]
+                    .iter()
+                    .map(|&x| Complex::new(x, 0.0))
+                    .collect();
+                
+                // Apply window function
+                for (i, sample) in firewheel_fft_buffer.iter_mut().enumerate() {
+                    let window = 0.5 - 0.5 * (2.0 * std::f32::consts::PI * i as f32 / config.fft_size as f32).cos();
+                    sample.re *= window;
+                }
+                
+                firewheel_fft.process(&mut firewheel_fft_buffer);
+                
+                // Process Firewheel frequency data
+                let mut firewheel_freq_data = Vec::new();
+                for i in 0..(config.fft_size as usize / 2) {
+                    let magnitude = firewheel_fft_buffer[i].norm();
+                    firewheel_freq_data.push(magnitude);
+                }
+                
+                // Blend frequency data
+                for (i, &firewheel_mag) in firewheel_freq_data.iter().enumerate() {
+                    if i < data.frequency_data.len() {
+                        data.frequency_data[i] = (data.frequency_data[i] + firewheel_mag * 0.2).min(1.0);
+                    }
+                }
+            }
+        }
         
         // Advanced frequency analysis
         if samples.len() >= config.fft_size as usize {
@@ -538,11 +624,12 @@ impl EnhancedAudioAnalyzer {
             
             fft.process(&mut fft_buffer);
             
-            // Extract frequency data
-            data.frequency_data.clear();
-            for i in 0..(config.fft_size as usize / 2) {
-                let magnitude = fft_buffer[i].norm();
-                data.frequency_data.push(magnitude);
+            // Extract frequency data if not already populated
+            if data.frequency_data.is_empty() {
+                for i in 0..(config.fft_size as usize / 2) {
+                    let magnitude = fft_buffer[i].norm();
+                    data.frequency_data.push(magnitude);
+                }
             }
             
             // Calculate frequency bands

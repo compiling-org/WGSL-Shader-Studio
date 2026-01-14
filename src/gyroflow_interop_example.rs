@@ -84,7 +84,7 @@ impl GyroflowInteropExample {
             texture_ptr: std::ptr::null_mut(), // Would be actual native pointer
             width: 1920,
             height: 1080,
-            format: wgpu::TextureFormat::Rgba8Unorm,
+            format: wgpu::TextureFormat::Rgba8UnormSrgb,
             is_srgb: true,
         };
 

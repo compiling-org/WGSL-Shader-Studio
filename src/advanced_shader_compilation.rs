@@ -8,6 +8,38 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use thiserror::Error;
+use crate::converter::diagnostics::Diagnostics;
+use crate::converter::WESLConverter;
+
+// Placeholder structures for the converter implementations
+#[derive(Debug, Clone)]
+pub struct SymbolInfo { 
+    pub name: String, 
+    pub wgsl_type: String 
+}
+
+#[derive(Debug, Clone)]
+pub struct UniformBlock { 
+    pub name: String, 
+    pub members: Vec<SymbolInfo> 
+}
+
+#[derive(Debug, Clone)]
+pub struct TextureDeclaration { 
+    pub name: String, 
+    pub wgsl_type: String 
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstantBuffer { 
+    pub name: String, 
+    pub members: Vec<SymbolInfo> 
+}
+
+#[derive(Debug, Clone)]
+pub struct SamplerState { 
+    pub name: String 
+}
 
 /// Error types for shader compilation
 #[derive(Debug, Error)]
@@ -43,6 +75,7 @@ pub struct AdvancedShaderCompiler {
     glsl_converter: GLSLConverter,
     hlsl_converter: HLSLConverter,
     isf_converter: ISFConverter,
+    wesl_converter: WESLConverter,
     optimization_level: OptimizationLevel,
 }
 
@@ -204,6 +237,7 @@ impl AdvancedShaderCompiler {
             glsl_converter: GLSLConverter::new(),
             hlsl_converter: HLSLConverter::new(),
             isf_converter: ISFConverter::new(),
+            wesl_converter: WESLConverter::new(),
             optimization_level: OptimizationLevel::Basic,
         }
     }
@@ -234,6 +268,7 @@ impl AdvancedShaderCompiler {
             ShaderFormat::GLSL => self.compile_glsl(source_code, shader_name).await?,
             ShaderFormat::HLSL => self.compile_hlsl(source_code, shader_name).await?,
             ShaderFormat::ISF => self.compile_isf(source_code, shader_name).await?,
+            ShaderFormat::WESL => self.compile_wesl(source_code, shader_name).await?,
         };
 
         // Cache the result
@@ -296,6 +331,24 @@ impl AdvancedShaderCompiler {
     async fn compile_isf(&mut self, source: &str, name: &str) -> Result<CompiledShader> {
         // Convert ISF to WGSL for VJ software compatibility
         let wgsl_code = self.isf_converter.convert_to_wgsl(source, name)?;
+        self.compile_wgsl(&wgsl_code, name).await
+    }
+
+    async fn compile_wesl(&mut self, source: &str, name: &str) -> Result<CompiledShader> {
+        // Compile WESL to WGSL using the WESL integration module
+        use crate::wesl_integration::WeslCompiler;
+        let mut wesl_compiler = WeslCompiler::new();
+        let wgsl_code = wesl_compiler.compile_wesl_to_wgsl(source, name)?;
+        
+        // Check for any diagnostics
+        let diagnostics = wesl_compiler.get_diagnostics();
+        if diagnostics.has_errors() {
+            for diagnostic in diagnostics.get_diagnostics() {
+                eprintln!("WESL Compilation Error: {}", diagnostic.message);
+            }
+            bail!("WESL compilation failed with errors");
+        }
+        
         self.compile_wgsl(&wgsl_code, name).await
     }
 
@@ -400,6 +453,7 @@ pub enum ShaderFormat {
     GLSL,
     HLSL,
     ISF,
+    WESL,
 }
 
 impl GLSLConverter {
@@ -529,17 +583,8 @@ impl ISFConverter {
     }
 }
 
-// Placeholder structures for the converter implementations
-#[derive(Debug, Clone)]
-struct SymbolInfo { name: String, wgsl_type: String }
-#[derive(Debug, Clone)]
-struct UniformBlock { name: String, members: Vec<SymbolInfo> }
-#[derive(Debug, Clone)]
-struct TextureDeclaration { name: String, wgsl_type: String }
-#[derive(Debug, Clone)]
-struct ConstantBuffer { name: String, members: Vec<SymbolInfo> }
-#[derive(Debug, Clone)]
-struct SamplerState { name: String }
+
+
 
 #[cfg(test)]
 mod tests {
