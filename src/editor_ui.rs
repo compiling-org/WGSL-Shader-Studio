@@ -745,6 +745,7 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState, audit
                 ui.checkbox(&mut ui_state.show_midi_panel, "MIDI");
                 ui.checkbox(&mut ui_state.show_gesture_panel, "Gestures");
                 ui.checkbox(&mut ui_state.show_wgslsmith_panel, "WGSLSmith");
+                ui.checkbox(&mut ui_state.show_3d_scene_panel, "3D Scene");
                 {
                     let prev = ui_state.show_compute_panel;
                     ui.checkbox(&mut ui_state.show_compute_panel, "Compute Passes");

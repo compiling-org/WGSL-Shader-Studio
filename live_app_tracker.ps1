@@ -17,10 +17,12 @@ function Monitor-Loop {
     Write-Header "LIVE MONITORING - WAITING FOR APP..."
     
     while ($true) {
+        # Reduce flicker by only clearing if we have data or periodically
+        # But Clear-Host is smoothest for now
         Clear-Host
         Write-Header "LIVE APP DIAGNOSTICS (Ctrl+C to Stop)"
         $now = Get-Date
-        Write-Host "Monitor Time: $($now.ToString('HH:mm:ss'))" -ForegroundColor Gray
+        Write-Host "Monitor Time: $($now.ToString('HH:mm:ss.fff'))" -ForegroundColor Gray
         
         # 1. Check for Panic Log
         if (Test-Path $PanicLog) {
@@ -34,11 +36,11 @@ function Monitor-Loop {
         # 2. Check UI Audit State
         if (Test-Path $AuditFile) {
             try {
-                # Read with retry
+                # Read with retry to avoid lock contention
                 $jsonStr = $null
                 $attempts = 0
-                while ($attempts -lt 3 -and $null -eq $jsonStr) {
-                    try { $jsonStr = Get-Content $AuditFile -Raw -ErrorAction Stop } catch { Start-Sleep -Milliseconds 50 }
+                while ($attempts -lt 5 -and $null -eq $jsonStr) {
+                    try { $jsonStr = Get-Content $AuditFile -Raw -ErrorAction Stop } catch { Start-Sleep -Milliseconds 20 }
                     $attempts++
                 }
 
@@ -49,9 +51,10 @@ function Monitor-Loop {
                     $appTime = [datetimeOffset]::FromUnixTimeSeconds($json.timestamp).LocalDateTime
                     $lag = ($now - $appTime).TotalSeconds
                     $statusColor = "Green"
-                    $statusText = "ACTIVE"
+                    $statusText = "ACTIVE (Updates: < 0.2s)"
+                    
                     if ($lag -gt 5) { $statusColor = "Red"; $statusText = "STALLED ($([math]::Round($lag, 1))s lag)"; }
-                    elseif ($lag -gt 2) { $statusColor = "Yellow"; $statusText = "SLOW ($([math]::Round($lag, 1))s lag)"; }
+                    elseif ($lag -gt 1) { $statusColor = "Yellow"; $statusText = "SLOW ($([math]::Round($lag, 1))s lag)"; }
                     
                     Write-Host "`nApp Status: [$statusText]" -ForegroundColor $statusColor
                     
@@ -59,33 +62,45 @@ function Monitor-Loop {
                     Write-Host "`n🖱️  INPUT DIAGNOSTICS:" -ForegroundColor Cyan
                     if ($json.input_stats) {
                         $s = $json.input_stats
+                        
+                        # Mouse Position
                         if ($s.mouse_pos) {
                             $mx = [math]::Round($s.mouse_pos[0], 0)
                             $my = [math]::Round($s.mouse_pos[1], 0)
-                            Write-Host "   Mouse: [$mx, $my]" -ForegroundColor Green
-                            
-                            $clickColor = "Gray"
-                            if ($s.any_button_clicked) { $clickColor = "Yellow" }
-                            Write-Host "   Click: $($s.any_button_clicked)" -ForegroundColor $clickColor
-                            
-                            $hoverColor = "Gray"
-                            if ($s.any_button_hovered) { $hoverColor = "White" }
-                            Write-Host "   Hover: $($s.any_button_hovered)" -ForegroundColor $hoverColor
+                            Write-Host "   Mouse Pos: [$mx, $my]" -ForegroundColor Green
                         } else {
-                            Write-Host "   Mouse: NONE (Not detected)" -ForegroundColor Red
+                            Write-Host "   Mouse Pos: NONE (Outside window?)" -ForegroundColor Red
                         }
+
+                        # Mouse Buttons
+                        $lmb = if ($s.primary_clicked) { "DOWN" } else { "UP" }
+                        $rmb = if ($s.secondary_clicked) { "DOWN" } else { "UP" }
+                        $mmb = if ($s.middle_clicked) { "DOWN" } else { "UP" }
+                        
+                        $btnColor = if ($s.any_button_clicked -or $s.any_button_hovered) { "Yellow" } else { "Gray" }
+                        
+                        Write-Host "   Buttons:   LMB:[$lmb]  RMB:[$rmb]  MMB:[$mmb]" -ForegroundColor $btnColor
+                        
+                        # Key Presses
+                        if ($s.keys_pressed -and $s.keys_pressed.Count -gt 0) {
+                            Write-Host "   Keys:      [ $($s.keys_pressed -join ' + ') ]" -ForegroundColor Magenta
+                        } else {
+                            Write-Host "   Keys:      (None)" -ForegroundColor DarkGray
+                        }
+                        
+                        Write-Host "   Interact:  $($s.interactions) total clicks" -ForegroundColor Gray
                     } else {
                         Write-Host "   (No input stats available)" -ForegroundColor DarkGray
                     }
 
                     # --- EVENT LOG ---
-                    Write-Host "`n📜 RECENT EVENTS:" -ForegroundColor Cyan
+                    Write-Host "`n📜 RECENT EVENTS (Last 5):" -ForegroundColor Cyan
                     if ($json.events -and $json.events.Count -gt 0) {
-                        $json.events | Select-Object -Last 10 | ForEach-Object {
+                        $json.events | Select-Object -Last 5 | ForEach-Object {
                             Write-Host "   $_" -ForegroundColor Yellow
                         }
                     } else {
-                        Write-Host "   (No events triggered yet - Try clicking 'File')" -ForegroundColor DarkGray
+                        Write-Host "   (No events triggered yet)" -ForegroundColor DarkGray
                     }
                     
                     # --- PANEL STATUS ---
@@ -110,7 +125,7 @@ function Monitor-Loop {
             Write-Host "Waiting for ui_audit.json..." -ForegroundColor Yellow
         }
         
-        Start-Sleep -Seconds 0.5
+        Start-Sleep -Milliseconds 100
     }
 }
 

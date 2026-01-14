@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy_egui::EguiContexts;
 use std::collections::HashMap;
 use serde::Serialize;
+use bevy::input::keyboard::KeyCode;
 
 /// Simple UI auditor that tracks what's actually rendered vs placeholders
 #[derive(Resource)]
@@ -10,6 +11,7 @@ pub struct SimpleUiAuditor {
     pub panels_found: HashMap<String, PanelInfo>,
     pub events: Vec<String>, // Circular buffer of last N events
     pub input_stats: InputStats,
+    pub last_save_time: f64,
 }
 
 #[derive(Default, Clone, Serialize)]
@@ -17,6 +19,10 @@ pub struct InputStats {
     pub mouse_pos: Option<Vec2>,
     pub any_button_hovered: bool,
     pub any_button_clicked: bool,
+    pub primary_clicked: bool,
+    pub secondary_clicked: bool,
+    pub middle_clicked: bool,
+    pub keys_pressed: Vec<String>,
     pub interactions: usize,
 }
 
@@ -27,6 +33,7 @@ impl Default for SimpleUiAuditor {
             panels_found: HashMap::new(),
             events: Vec::new(),
             input_stats: InputStats::default(),
+            last_save_time: 0.0,
         }
     }
 }
@@ -55,11 +62,7 @@ impl SimpleUiAuditor {
     pub fn record_panel(&mut self, name: &str, has_content: bool, reason: Option<String>) {
         let info = self.panels_found.entry(name.to_string()).or_default();
         info.has_real_content = has_content;
-        // Reset widget count if we assume this runs every frame? 
-        // No, let's accumulate. But realistically, we should likely reset per frame if we wanted per-frame stats.
-        // For now, let's just make it cumulative and the tracker can diff it, OR we just check presence.
-        // To properly track "widgets per frame", we would need a per-frame reset logic.
-        // We'll increment here, but the tracker relying on "presence" is safer for now.
+        
         if let Some(r) = reason {
             if !info.placeholder_reasons.contains(&r) {
                 info.placeholder_reasons.push(r);
@@ -71,22 +74,25 @@ impl SimpleUiAuditor {
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
-            .as_secs() % 10000; // Just keep small timestamp
+            .as_secs() % 10000;
             
         let entry = format!("[{}] {}", timestamp, event);
-        if self.events.len() >= 20 {
+        if self.events.len() >= 50 { // Increased buffer size
             self.events.remove(0);
         }
         self.events.push(entry);
     }
     
-    pub fn update_input_stats(&mut self, ctx: &bevy_egui::egui::Context) {
+    pub fn update_input_stats(&mut self, ctx: &bevy_egui::egui::Context, keys: &ButtonInput<KeyCode>) {
         // Safe readout of input state
         ctx.input(|i| {
            self.input_stats.mouse_pos = i.pointer.latest_pos().map(|p| Vec2::new(p.x, p.y));
            self.input_stats.any_button_hovered = i.pointer.any_down(); 
            
-           // Log actual clicks to event buffer for diagnostics
+           self.input_stats.primary_clicked = i.pointer.primary_down();
+           self.input_stats.secondary_clicked = i.pointer.secondary_down();
+           self.input_stats.middle_clicked = i.pointer.middle_down();
+           
            if i.pointer.primary_clicked() {
                self.log_event(format!("Global Input: Left Click at {:?}", i.pointer.interact_pos()));
                self.input_stats.interactions += 1;
@@ -94,8 +100,15 @@ impl SimpleUiAuditor {
            }
            if i.pointer.secondary_clicked() {
                self.log_event("Global Input: Right Click".to_string());
+               self.input_stats.any_button_clicked = true;
            }
         });
+        
+        // Track pressed keys
+        self.input_stats.keys_pressed = keys.get_pressed()
+            .take(5) // Limit to 5 simultaneous keys to avoid spam
+            .map(|k| format!("{:?}", k))
+            .collect();
     }
 
     pub fn save_report(&self) {
@@ -108,14 +121,14 @@ impl SimpleUiAuditor {
         };
 
         if let Ok(json_str) = serde_json::to_string_pretty(&report) {
-           let _ = std::fs::write("ui_audit.json", json_str);
+           // Use a temp file and rename to avoid read/write collisions
+           let _ = std::fs::write("ui_audit.json.tmp", &json_str);
+           let _ = std::fs::rename("ui_audit.json.tmp", "ui_audit.json");
         }
     }
     
     pub fn clear(&mut self) {
-        // We don't verify clear panels often, but we might want to clear input stats
         self.panels_found.clear();
-        // Keep events? No, let user clear events manually if needed, or keep rolling buffer.
     }
 }
 
@@ -131,11 +144,16 @@ pub fn ui_audit_system(
         Ok(c) => c,
         Err(_) => return, // Skip if egui context not available
     };
-    auditor.update_input_stats(ctx);
+    
+    // We need to clone keys or pass reference. Since update_input_stats needs specific types,
+    // let's just pass the resource reference.
+    auditor.update_input_stats(ctx, &keys);
 
-    // Auto-save every 5 seconds to reduce file contention with Tracker
-    if time.elapsed_secs() % 5.0 < 0.1 {
+    // High frequency updates (10Hz / every 0.1s) for live tracking feel
+    let now = time.elapsed_seconds_f64();
+    if now - auditor.last_save_time > 0.1 {
          auditor.save_report();
+         auditor.last_save_time = now;
     }
     
     // Also save on F12
