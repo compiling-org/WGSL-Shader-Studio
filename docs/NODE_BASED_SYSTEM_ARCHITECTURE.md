@@ -6,35 +6,35 @@ This document explains the planned node-based shader editing system for WGSL Sha
 
 ## 🚨 Current Status
 
-**⚠️ CRITICAL**: This entire node-based system is **NOT IMPLEMENTED**. All descriptions below represent the **PLANNED ARCHITECTURE** that needs to be built from scratch.
+**⚠️ CURRENT REALITY**: A substantial node system is implemented in `src/bevy_node_graph_integration_enhanced.rs` (resource/state, UI rendering, connections, and WGSL generation). End-to-end preview/diagnostics wiring is still partial and requires hardening.
 
 ```mermaid
 flowchart TD
     A[Node-Based Shader System] --> B{Implementation Status}
-    B --> C[❌ Node Editor - Missing]
-    B --> D[❌ Code Generation - Missing]
-    B --> E[❌ Visual Programming - Missing]
-    B --> F[❌ Real-time Preview - Missing]
+    B --> C[⚠️ Node Editor UI - Present]
+    B --> D[⚠️ Code Generation - Present]
+    B --> E[⚠️ Visual Programming - Present]
+    B --> F[⚠️ Real-time Preview Wiring - Partial]
     
-    C --> C1[No Node Palette]
-    C --> C2[No Canvas System]
-    C --> C3[No Connection Logic]
-    C --> C4[No Visual Feedback]
+    C --> C1[Node palette exists]
+    C --> C2[Canvas/grid exists]
+    C --> C3[Connection logic exists]
+    C --> C4[Interaction feedback exists]
     
-    D --> D1[No Graph Parsing]
-    D --> D2[No Topological Sort]
-    D --> D3[No WGSL Generation]
-    D --> D4[No Compilation Pipeline]
+    D --> D1[Graph traversal implemented]
+    D --> D2[Dependency ordering implemented]
+    D --> D3[WGSL generation implemented]
+    D --> D4[Compile/preview integration needs hardening]
     
-    E --> E1[No Drag-and-Drop]
-    E --> E2[No Node Library]
-    E --> E3[No Property Editing]
-    E --> E4[No Graph Management]
+    E --> E1[Drag interactions present]
+    E --> E2[Node type library present]
+    E --> E3[Node/port UI present]
+    E --> E4[Undo/redo and clipboard partially scaffolded]
     
-    F --> F1[No Live Updates]
-    F --> F2[No Node Previews]
-    F --> F3[No Performance Overlay]
-    F --> F4[No Error Visualization]
+    F --> F1[Live updates partial]
+    F --> F2[Preview routing partial]
+    F --> F3[Performance overlay available elsewhere]
+    F --> F4[Diagnostics integration partial]
     
 ```
 
@@ -367,6 +367,6 @@ flowchart LR
 
 ---
 
-**Document Status**: Comprehensive visual node-based system architecture with elegant mermaid diagrams  
-**Last Updated**: 2025-11-17  
-**Implementation Status**: ❌ **NOT IMPLEMENTED** - This represents the complete target architecture for the node-based shader editing system
+**Document Status**: Comprehensive visual node-based system architecture with mermaid diagrams  
+**Last Updated**: 2026-03-06  
+**Implementation Status**: ⚠️ **PARTIALLY IMPLEMENTED** - Node editor UI, graph state, connections, and WGSL generation exist; end-to-end preview/diagnostics wiring remains in progress

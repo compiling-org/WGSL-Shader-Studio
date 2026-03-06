@@ -21,7 +21,6 @@ pub mod audio_midi_integration;
 pub mod wgsl_analyzer;
 pub mod spout_syphon_output;
 pub mod bevy_node_graph_integration_enhanced;
-pub mod dmx_lighting_control;
 pub mod editor_ui;
 pub mod scene_editor_3d;
 pub mod gesture_control;
@@ -34,6 +33,9 @@ pub mod isf_converter;
 pub mod enforcement_system;
 pub mod documentation_server;
 pub mod converter;
+pub mod ffgl_exporter;
+pub mod utils;
+pub mod particle_system_gpu;
 
 // UI panel modules - temporarily commented out due to compilation issues
 // pub mod parameter_panel;
@@ -372,8 +374,8 @@ mod tests {
     }
 }
 
+
 // Module declarations
-// Keep unique module declarations only; duplicates are defined above
 pub mod ui;
 pub mod wgsl_bindgen_integration;
 pub mod wgsl_diagnostics;

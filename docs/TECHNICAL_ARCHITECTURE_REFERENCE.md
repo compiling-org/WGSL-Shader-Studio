@@ -8,44 +8,29 @@ This document provides the comprehensive technical architecture for the WGSL Sha
 
 This document is the planned technical architecture reference. It describes target systems and designs for WGSL Shader Studio. For the actual wired-but-incomplete state, see `docs/WGSL_Shader_Studio_Technical_Architecture_Current.md`.
 
-## 🚨 Current Reality Check
+## Planned Architecture Context
 
 ```mermaid
 flowchart TD
-    A[WGSL Shader Studio Architecture] --> B[System Status]
-    B --> C[Framework Ready]
-    B --> D[Core Systems Missing]
-    B --> E[Advanced Features Missing]
-    B --> F[Integration Broken]
-    C --> C1[Bevy 0.17 - Available]
-    C --> C2[bevy_egui 0.38 - Available]
-    C --> C3[Basic Window - Working]
-    D --> D1[WGPU Integration - Missing]
-    D --> D2[Shader Compiler - Missing]
-    D --> D3[File System - Missing]
-    D --> D4[UI Layout - Broken]
-    E --> E1[Node Editor - Missing]
-    E --> E2[Audio Analysis - Missing]
-    E --> E3[Timeline - Missing]
-    E --> E4[Export System - Missing]
-    F --> F1[33 Compilation Errors]
-    F --> F2[Missing Dependencies]
-    F --> F3[Broken Function Signatures]
+    A[WGSL Shader Studio Architecture] --> B[Document Type]
+    B --> C[Planned target design]
+    B --> D[Not a live status tracker]
+    C --> C1[Framework baseline: Bevy + bevy_egui]
+    C --> C2[Rendering, node graph, timeline, export goals]
+    D --> D1[For current implementation status, see]
+    D1 --> D2[WGSL_Shader_Studio_Technical_Architecture_Current.md]
 ```
 ## 🎯 Core Application Architecture
 
 ### Framework Foundation
 ```mermaid
 flowchart LR
-    Bevy[Bevy 0.17] --> ECS[ECS Architecture]
-    Egui[bevy_egui 0.38] --> GUI[Immediate Mode GUI]
+    Bevy[Bevy (see Cargo.toml for current version)] --> ECS[ECS Architecture]
+    Egui[bevy_egui (see Cargo.toml for current version)] --> GUI[Immediate Mode GUI]
     WGPU[WGPU Backend] --> GFX[Cross-platform Graphics]
     Main[Main] --> FF[Feature Flag]
     FF --> RunApp[Run App]
     FF --> CLI[CLI Fallback]
-    Errors[Compilation Errors] --> BrokenUI[Broken UI System]
-    MissingWGPU[Missing WGPU] --> NoRender[No Rendering]
-    NoFS[No File System] --> Isolated[Isolated Experience]
 ```
 
 ### Application Entry Flow
@@ -57,17 +42,17 @@ sequenceDiagram
     participant UI
     participant Renderer
     
-    Note over User,Renderer: CURRENTLY BROKEN - NONE OF THIS WORKS
+    Note over User,Renderer: TARGET FLOW (implementation progress tracked in current-state doc)
     
     User->>App: Launch Application
     App->>App: Check feature flag
     App->>Bevy: Initialize Bevy App
     Bevy->>UI: Setup bevy_egui context
-    Note right of UI: ❌ UI systems broken
+    Note right of UI: UI systems are implemented in varying maturity levels
     UI->>Renderer: Request WGPU setup
-    Note right of Renderer: ❌ No WGPU integration
-    Renderer->>User: Show broken interface
-    Note right of User: ❌ Nothing functional
+    Note right of Renderer: Rendering modules exist; wiring maturity varies
+    Renderer->>User: Show evolving interface
+    Note right of User: Functional surface exists; integration depth varies by subsystem
 ```
 
 ## 🎨 UI Panel Architecture (PLANNED)
@@ -658,6 +643,6 @@ graph LR
 
 ---
 
-**Document Status**: Comprehensive visual architecture reference with elegant mermaid diagrams  
-**Last Updated**: 2025-11-17  
-**Current Reality**: All systems described are **NOT IMPLEMENTED** - this represents the target visual architecture for reconstruction
+**Document Status**: Comprehensive visual architecture reference with mermaid diagrams  
+**Last Updated**: 2026-03-06  
+**Current Reality Note**: This file describes target architecture. For implementation status and blockers, use `WGSL_Shader_Studio_Technical_Architecture_Current.md`.

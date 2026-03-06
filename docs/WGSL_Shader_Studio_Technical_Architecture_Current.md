@@ -1,6 +1,6 @@
 # WGSL Shader Studio - Technical Architecture (Current Reality)
 
-## Current Reality (Updated 2025-12-14)
+## Current Reality (Updated 2026-03-06)
 
 ```mermaid
 flowchart TD
@@ -19,8 +19,8 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    Bevy[Bevy 0.17] --> Windowing[Cross-platform Windowing]
-    Egui[bevy_egui 0.38] --> UIF[UI Framework]
+    Bevy[Bevy 0.18] --> Windowing[Cross-platform Windowing]
+    Egui[bevy_egui 0.39] --> UIF[UI Framework]
     WGPU[wgpu] --> Render[Rendering Modules]
     Naga[naga] --> Compile[Shader Validation/Compilation]
     Rfd[rfd] --> Dialogs[File Dialogs]
@@ -30,8 +30,8 @@ flowchart LR
 
 | Component | Current Version | Status | Required For |
 |-----------|-----------------|---------|--------------|
-| Bevy | 0.17 | ✅ Available | Window management |
-| bevy_egui | 0.38 | ✅ Available | UI rendering |
+| Bevy | 0.18 | ✅ Available | Window management |
+| bevy_egui | 0.39 | ✅ Available | UI rendering |
 | wgpu | Present (modules) | ⚠️ Wired; preview unstable | GPU rendering |
 | naga | Available | ⚠️ Wired; validation active | Shader compilation |
 | rfd | 0.15.x | ⚠️ Wired in UI | File dialogs |
@@ -82,16 +82,16 @@ flowchart TD
 
 ### UI Layout Integration (Updated)
 - No floating windows are used for normal panels; layout uses `egui::SidePanel`, `egui::CentralPanel`, and `egui::TopBottomPanel` exclusively.
-- Top menu toggles under `Studio` map to embedded views, switching the central tab instead of opening windows (`src/editor_ui.rs:1000`–`src/editor_ui.rs:1006`).
-- Central tabs: Preview, Node Graph, 3D Editor, Timeline are defined and rendered in the central panel (`src/editor_ui.rs:1822`–`src/editor_ui.rs:1830`, `src/editor_ui.rs:1839`–`src/editor_ui.rs:2066`).
-- Right sidebar modes switch between Parameters, Compute, Outputs, Audio, MIDI, Gestures, Lighting (`src/editor_ui.rs:735`–`src/editor_ui.rs:746`, `src/editor_ui.rs:754`–`src/editor_ui.rs:800`).
-- Legacy floating windows are disabled by default (`src/editor_ui.rs:311`), and any legacy window code is gated behind `use_legacy_windows` (`src/editor_ui.rs:1017`).
-- Timeline UI is embedded in the central panel and uses a snapshot pattern for track/keyframe data (`src/editor_ui.rs:2063`–`src/editor_ui.rs:2066`, `src/timeline.rs:467`).
+- Main menu and central-view tab switching are implemented in `src/editor_ui.rs` and `src/ui/central_panel.rs`.
+- Central tabs for Preview, Node Graph, 3D Editor, and Timeline are implemented in `src/ui/central_panel.rs`.
+- Right sidebar mode switching for Parameters/Compute/Outputs/Audio/MIDI/Gestures is implemented in the editor UI layer.
+- Legacy floating-window paths still exist in places, but the primary workflow is embedded panels.
+- Timeline UI is implemented in `src/timeline.rs` and rendered from the central panel.
 
 ### Optional Dialogs Policy
 - A small set of optional dialogs is allowed and does not classify as floating panels.
 - Examples:
-  - Gesture calibration dialog (`Gesture Calibration`) toggled by `show_gesture_calibration` (`src/editor_ui.rs:1009`–`src/editor_ui.rs:1015`).
+  - Gesture calibration dialog (`Gesture Calibration`) toggled by `show_gesture_calibration`.
   - Advanced mapping dialogs (e.g., MIDI mapping) may be added as optional dialogs; default off and opened explicitly.
 - Rule: Core panels remain embedded; optional dialogs are few, contextual, and never open by default.
 
@@ -99,13 +99,13 @@ flowchart TD
 - Parameter control is primary; MIDI/OSC/Gestures influence shader parameters rather than a separate mapping layer.
 - DMX and other outputs derive from shader-driven parameter values and preview data.
 - Embedded mapping UIs:
-  - MIDI parameter mapping in the right sidebar under `MIDI` (`src/editor_ui.rs:895`–`src/editor_ui.rs:926`).
-  - Gestures parameter mapping embedded under `Gestures` mode (`src/editor_ui.rs:832`–`src/editor_ui.rs:916`).
-  - DMX lighting controls and parameter-to-DMX mapping under `Lighting` (`src/editor_ui.rs:895`–`src/editor_ui.rs:925`).
- - OSC configuration appears as an optional section in the right sidebar (`src/editor_ui.rs:960`–`src/editor_ui.rs:964`).
-  - OSC embedded controls include enable, start/stop, config apply, and per-parameter mapping (`src/editor_ui.rs:1095`–`src/editor_ui.rs:1135`).
+  - MIDI parameter mapping in the right sidebar under `MIDI`.
+  - Gestures parameter mapping embedded under `Gestures` mode.
+  - DMX/lighting controls and parameter-to-output mapping in right-sidebar output/control sections.
+- OSC configuration appears as an optional section in the right sidebar.
+  - OSC embedded controls include enable, start/stop, config apply, and per-parameter mapping.
 
-### File System Integration (❌ MISSING)
+### File System Integration (⚠️ PARTIAL)
 
 ```mermaid
 flowchart TD
@@ -113,14 +113,13 @@ flowchart TD
     Required --> Import[Import ISF/GLSL/HLSL]
     Required --> Export[Export Formats]
     Required --> Projects[Project Management]
-    Current[Current Status] --> NoDialogs[File dialogs partially wired]
-    Current --> NoOps[Limited file operations]
-    Current --> NoImportExport[Import/Export pending]
-    Current --> NoSaveLoad[Project save/load pending]
-    Missing[Missing Infrastructure] --> RfdIntegration[rfd integration completion]
+    Current[Current Status] --> DialogsWired[File dialogs wired]
+    Current --> BasicOps[Open/Import/Export actions present]
+    Current --> SaveLoadPartial[Project save/load paths partially implemented]
+    Missing[Missing Infrastructure] --> Hardening[Flow hardening and consistency]
     Missing --> Filters[File filters]
     Missing --> Recent[Recent files]
-    Missing --> Format[Project format]
+    Missing --> Format[Stable project format]
 ```
 
 ## Data Flow Architecture (Operational Flow)
@@ -145,31 +144,25 @@ flowchart LR
     P3[Three-Panel UI] --> P3s[⚠️ Partial]
     P4[File Operations] --> P4s[⚠️ Partial]
     P5[WGSL Highlighting] --> P5s[⚠️ Partial]
-    P6[Parameter Controls] --> P6s[❌ Missing]
+    P6[Parameter Controls] --> P6s[⚠️ Present]
     P7[Live Preview] --> P7s[⚠️ Unstable]
-    P8[Error System] --> P8s[❌ Missing]
+    P8[Error System] --> P8s[⚠️ Present]
     P9[Node Editor] --> P9s[⚠️ UI present; wiring pending]
-    P10[Timeline] --> P10s[❌ Missing]
+    P10[Timeline] --> P10s[⚠️ Present]
     P11[Audio/MIDI] --> P11s[⚠️ Wired; mapping pending]
-    P12[Export/Import] --> P12s[❌ Missing]
+    P12[Export/Import] --> P12s[⚠️ Present]
 ```
 
-## Compilation Error Analysis
+## Compilation Status Snapshot
 
 ```mermaid
 flowchart TD
-    Errors[Compilation Errors Present] --> Fields[Field Missing: ~8]
-    Errors --> Signatures[Function Signature: ~12]
-    Errors --> Types[Type Mismatch: ~7]
-    Errors --> Imports[Import Issues: ~6]
-    Fields --> ShaderBrowser[shader_browser field missing]
-    Fields --> Diagnostics[diagnostic methods missing]
-    Signatures --> CompileFunctions[Broken compile functions]
-    Signatures --> ParamTypes[Missing parameter types]
-    Types --> Return[Wrong return types]
-    Types --> Conflicts[Parameter type conflicts]
-    Imports --> Missing[Missing imports]
-    Imports --> WrongPaths[Wrong module paths]
+    Now[Current cargo check] --> Fail[Failing]
+    Fail --> Delim[Unclosed delimiter]
+    Delim --> File[src/editor_ui.rs]
+    File --> EOF[Failure reported at end-of-file line]
+    Context[Context] --> Prior[Prior broad error categories were historical]
+    Context --> Current[Current blocker is parse/syntax closure]
 ```
 
 ## Recovery Roadmap
@@ -213,7 +206,7 @@ flowchart TD
 
 **FOCUS**: Stabilize wiring, unify state, refine integrations; progress features to reliable baseline.
 
-**⚠️ CRITICAL**: Development should align with Bevy 0.17 + bevy_egui 0.38 and the current wired dependencies.
+**⚠️ CRITICAL**: Development should align with Bevy 0.18 + bevy_egui 0.39 and the current wired dependencies.
 
 ---
 

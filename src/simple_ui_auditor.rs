@@ -120,11 +120,13 @@ impl SimpleUiAuditor {
             input_stats: self.input_stats.clone(),
         };
 
-        if let Ok(json_str) = serde_json::to_string_pretty(&report) {
-           // Use a temp file and rename to avoid read/write collisions
-           let _ = std::fs::write("ui_audit.json.tmp", &json_str);
-           let _ = std::fs::rename("ui_audit.json.tmp", "ui_audit.json");
-        }
+        std::thread::spawn(move || {
+            if let Ok(json_str) = serde_json::to_string_pretty(&report) {
+                // Use a temp file and rename to avoid read/write collisions
+                let _ = std::fs::write("ui_audit.json.tmp", &json_str);
+                let _ = std::fs::rename("ui_audit.json.tmp", "ui_audit.json");
+            }
+        });
     }
     
     pub fn clear(&mut self) {
@@ -149,9 +151,9 @@ pub fn ui_audit_system(
     // let's just pass the resource reference.
     auditor.update_input_stats(ctx, &keys);
 
-    // High frequency updates (10Hz / every 0.1s) for live tracking feel
-    let now = time.elapsed_seconds_f64();
-    if now - auditor.last_save_time > 0.1 {
+    // Save less frequently to avoid disk I/O stutter (every 5 seconds)
+    let now = time.elapsed_secs_f64();
+    if now - auditor.last_save_time > 5.0 {
          auditor.save_report();
          auditor.last_save_time = now;
     }

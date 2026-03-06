@@ -59,6 +59,8 @@ pub struct BindingInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UniformInfo {
     pub name: String,
+    pub group: u32,
+    pub binding: u32,
     pub offset: u32,
     pub size: u32,
     pub align: u32,
@@ -314,27 +316,99 @@ impl WgslReflectAnalyzer {
         Ok(())
     }
 
-    /// Extract uniforms from WGSL code
+    /// Extract uniforms from WGSL code using naga for robust reflection
     fn extract_uniforms(&mut self, wgsl_code: &str) -> Result<()> {
         self.uniforms.clear();
         
-        let mut in_struct = false;
-        let mut current_struct = String::new();
-        
-        for line in wgsl_code.lines() {
-            let line = line.trim();
-            
-            if line.starts_with("struct ") && line.contains("uniform") {
-                in_struct = true;
-                current_struct = line.to_string();
-            } else if in_struct {
-                if line == "}" {
-                    in_struct = false;
-                    Self::parse_uniform_struct(&current_struct)?;
-                    current_struct.clear();
+        let module = match naga::front::wgsl::parse(wgsl_code) {
+            Ok(m) => m,
+            Err(e) => return Err(anyhow!("Naga parse error: {}", e)),
+        };
+
+        for (_, global) in module.global_variables.iter() {
+            if global.space == naga::AddressSpace::Uniform {
+                let name = global.name.clone().unwrap_or_else(|| "unnamed_uniform".to_string());
+                let (group, binding) = if let Some(ref binding) = global.binding {
+                    (binding.group, binding.binding)
                 } else {
-                    current_struct.push('\n');
-                    current_struct.push_str(line);
+                    (0, 0)
+                };
+                
+                // Get type info
+                let type_handle = global.ty;
+                let type_inner = &module.types[type_handle].inner;
+                
+                match type_inner {
+                    naga::TypeInner::Struct { members, span: _ } => {
+                        // This is a uniform block
+                        for member in members {
+                            let member_name = member.name.clone().unwrap_or_else(|| "unnamed_member".to_string());
+                            let member_type = &module.types[member.ty].inner;
+                            
+                            let (base_type, components) = match member_type {
+                                naga::TypeInner::Scalar { kind, width: _ } => (format!("{:?}", kind), 1),
+                                naga::TypeInner::Vector { size, kind, width: _ } => (format!("{:?}", kind), *size as u32),
+                                _ => ("unknown".to_string(), 0),
+                            };
+
+                            self.uniforms.push(UniformInfo {
+                                name: member_name,
+                                group,
+                                binding,
+                                offset: member.offset,
+                                size: 4 * components, // Approximate for simple types
+                                align: 4,
+                                type_info: TypeInfo {
+                                    base_type,
+                                    components,
+                                    rows: None,
+                                    columns: None,
+                                    array_size: None,
+                                    struct_members: Vec::new(),
+                                },
+                                default_value: None,
+                            });
+                        }
+                    },
+                    naga::TypeInner::Scalar { kind, width: _ } => {
+                        self.uniforms.push(UniformInfo {
+                            name,
+                            group,
+                            binding,
+                            offset: 0,
+                            size: 4,
+                            align: 4,
+                            type_info: TypeInfo {
+                                base_type: format!("{:?}", kind),
+                                components: 1,
+                                rows: None,
+                                columns: None,
+                                array_size: None,
+                                struct_members: Vec::new(),
+                            },
+                            default_value: None,
+                        });
+                    },
+                    naga::TypeInner::Vector { size, kind, width: _ } => {
+                        self.uniforms.push(UniformInfo {
+                            name,
+                            group,
+                            binding,
+                            offset: 0,
+                            size: 4 * (*size as u32),
+                            align: 4,
+                            type_info: TypeInfo {
+                                base_type: format!("{:?}", kind),
+                                components: *size as u32,
+                                rows: None,
+                                columns: None,
+                                array_size: None,
+                                struct_members: Vec::new(),
+                            },
+                            default_value: None,
+                        });
+                    },
+                    _ => {}
                 }
             }
         }
@@ -342,54 +416,89 @@ impl WgslReflectAnalyzer {
         Ok(())
     }
 
-    /// Extract textures from WGSL code
     fn extract_textures(&mut self, wgsl_code: &str) -> Result<()> {
         self.textures.clear();
-        
-        for line in wgsl_code.lines() {
-            let line = line.trim();
-            
-            if line.contains("texture_2d") || line.contains("texture_3d") || line.contains("texture_cube") {
-                if let Some(texture_info) = Self::parse_texture_declaration(line) {
-                    self.textures.push(texture_info);
-                }
+        let module = naga::front::wgsl::parse(wgsl_code).map_err(|e| anyhow!("Naga parse error: {}", e))?;
+
+        for (_, global) in module.global_variables.iter() {
+            if let naga::TypeInner::Image { dim, class, .. } = module.types[global.ty].inner {
+                let name = global.name.clone().unwrap_or_else(|| "unnamed_texture".to_string());
+                let (group, binding) = if let Some(ref binding) = global.binding {
+                    (binding.group, binding.binding)
+                } else {
+                    (0, 0)
+                };
+
+                self.textures.push(TextureInfo {
+                    name,
+                    binding,
+                    group,
+                    texture_type: format!("{:?}", dim),
+                    format: Some(format!("{:?}", class)),
+                    dimensions: None,
+                    sample_count: None,
+                });
             }
         }
-        
         Ok(())
     }
 
-    /// Extract samplers from WGSL code
     fn extract_samplers(&mut self, wgsl_code: &str) -> Result<()> {
         self.samplers.clear();
-        
-        for line in wgsl_code.lines() {
-            let line = line.trim();
-            
-            if line.contains("sampler") && !line.contains("texture") {
-                if let Some(sampler_info) = Self::parse_sampler_declaration(line) {
-                    self.samplers.push(sampler_info);
-                }
+        let module = naga::front::wgsl::parse(wgsl_code).map_err(|e| anyhow!("Naga parse error: {}", e))?;
+
+        for (_, global) in module.global_variables.iter() {
+            if let naga::TypeInner::Sampler { comparison } = module.types[global.ty].inner {
+                let name = global.name.clone().unwrap_or_else(|| "unnamed_sampler".to_string());
+                let (group, binding) = if let Some(ref binding) = global.binding {
+                    (binding.group, binding.binding)
+                } else {
+                    (0, 0)
+                };
+
+                self.samplers.push(SamplerInfo {
+                    name,
+                    binding,
+                    group,
+                    sampler_type: if comparison { "comparison".to_string() } else { "filtering".to_string() },
+                    filtering: None,
+                    addressing: None,
+                });
             }
         }
-        
         Ok(())
     }
 
-    /// Extract storage buffers from WGSL code
     fn extract_storage_buffers(&mut self, wgsl_code: &str) -> Result<()> {
         self.storage_buffers.clear();
-        
-        for line in wgsl_code.lines() {
-            let line = line.trim();
-            
-            if line.contains("var<storage>") {
-                if let Some(buffer_info) = Self::parse_storage_buffer_declaration(line) {
-                    self.storage_buffers.push(buffer_info);
-                }
+        let module = naga::front::wgsl::parse(wgsl_code).map_err(|e| anyhow!("Naga parse error: {}", e))?;
+
+        for (_, global) in module.global_variables.iter() {
+            if global.space == naga::AddressSpace::Storage {
+                let name = global.name.clone().unwrap_or_else(|| "unnamed_storage".to_string());
+                let (group, binding) = if let Some(ref binding) = global.binding {
+                    (binding.group, binding.binding)
+                } else {
+                    (0, 0)
+                };
+
+                self.storage_buffers.push(StorageBufferInfo {
+                    name,
+                    binding,
+                    group,
+                    size: None,
+                    readonly: true, // Need to check access
+                    type_info: TypeInfo {
+                        base_type: "storage".to_string(),
+                        components: 0,
+                        rows: None,
+                        columns: None,
+                        array_size: None,
+                        struct_members: Vec::new(),
+                    },
+                });
             }
         }
-        
         Ok(())
     }
 

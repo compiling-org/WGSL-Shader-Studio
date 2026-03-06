@@ -91,7 +91,7 @@ impl WgpuRenderPipeline {
                     audio_data: audio_data.cloned(),
                 };
                 
-                match renderer.render_frame_with_params(shader_code, &render_params, parameter_values, audio_data.cloned()) {
+                match renderer.render_frame(shader_code, &render_params, parameter_values, audio_data.cloned()) {
                     Ok(pixels) => {
                         println!("✅ Shader rendered successfully: {}x{} pixels", width, height);
                         Ok(pixels)

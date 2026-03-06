@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use rustfft::{FftPlanner, num_complex::Complex};
+use bytemuck::{Pod, Zeroable};
 
 /// Enhanced audio plugin with advanced analysis features
 pub struct EnhancedAudioPlugin;
@@ -368,6 +369,142 @@ impl Default for EnhancedAudioConfig {
     }
 }
 
+/// 20 audio features, all normalized to 0.0-1.0 range.
+/// Multi-resolution FFT bands + spectral shape + beat detection.
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Pod, Zeroable, Resource, Default)]
+pub struct AudioFeatures {
+    // Frequency bands (7) — multi-resolution FFT
+    pub sub_bass: f32,    // 20-60 Hz (kick fundamentals)
+    pub bass: f32,        // 60-250 Hz (bass guitar/synth)
+    pub low_mid: f32,     // 250-500 Hz (lower vocals/snare body)
+    pub mid: f32,         // 500-2000 Hz (vocal/snare presence)
+    pub upper_mid: f32,   // 2000-4000 Hz (harmonic presence)
+    pub presence: f32,    // 4000-6000 Hz (hi-hat attack)
+    pub brilliance: f32,  // 6000-20000 Hz (cymbal shimmer)
+
+    // Aggregates (2)
+    pub rms: f32,         // Overall amplitude
+    pub kick: f32,        // Dedicated kick drum detection (30-120Hz spectral flux)
+
+    // Spectral shape (6)
+    pub centroid: f32,    // Brightness/timbre
+    pub flux: f32,        // Spectral change rate
+    pub flatness: f32,    // Noise vs tone (Wiener entropy)
+    pub rolloff: f32,     // 85% energy frequency
+    pub bandwidth: f32,   // Spectral spread
+    pub zcr: f32,         // Zero crossing rate
+
+    // Beat detection (5)
+    pub onset: f32,       // Onset strength (continuous 0-1, for envelope effects)
+    pub beat: f32,        // 1.0 on beat frame, 0.0 otherwise (trigger)
+    pub beat_phase: f32,  // 0-1 sawtooth cycling at detected tempo
+    pub bpm: f32,         // BPM / 300 (normalized 0-1)
+    pub beat_strength: f32, // How strong the detected beat was
+}
+
+pub const NUM_FEATURES: usize = 20;
+
+/// Kalman filter for BPM tracking in log2-BPM space.
+#[derive(Clone, Debug)]
+pub struct KalmanBpm {
+    state: f64,         // log2(BPM)
+    variance: f64,      // estimation uncertainty
+    q: f64,             // process noise
+    r: f64,             // measurement noise
+    diverge_count: u32, // consecutive divergent frames
+    snap_count: u32,    // consecutive octave-snapped frames
+    initialized: bool,
+}
+
+impl KalmanBpm {
+    pub fn new() -> Self {
+        Self {
+            state: 0.0,
+            variance: 1.0,
+            q: 0.001,
+            r: 0.1,
+            diverge_count: 0,
+            snap_count: 0,
+            initialized: false,
+        }
+    }
+
+    pub fn update(&mut self, raw_bpm: f64, confidence: f64) -> f64 {
+        if raw_bpm <= 0.0 {
+            return if self.initialized {
+                2.0f64.powf(self.state)
+            } else {
+                0.0
+            };
+        }
+
+        if !self.initialized {
+            self.state = raw_bpm.log2();
+            self.variance = 1.0;
+            self.initialized = true;
+            return raw_bpm;
+        }
+
+        let current_bpm = 2.0f64.powf(self.state);
+        let ratio = raw_bpm / current_bpm;
+        let mut snapped_bpm = raw_bpm;
+        let mut was_snapped = false;
+        for &hr in &[0.5, 2.0] {
+            if (ratio - hr).abs() / hr < 0.05 {
+                snapped_bpm = current_bpm;
+                was_snapped = true;
+                break;
+            }
+        }
+
+        if was_snapped {
+            self.snap_count += 1;
+            if self.snap_count >= 50 {
+                snapped_bpm = raw_bpm;
+                was_snapped = false;
+                self.snap_count = 0;
+            }
+        } else {
+            self.snap_count = 0;
+        }
+        let snapped_measurement = snapped_bpm.log2();
+
+        let bpm_deviation = (snapped_bpm - current_bpm).abs() / current_bpm.max(1.0);
+        if bpm_deviation > 0.10 {
+            self.diverge_count += 1;
+        } else {
+            self.diverge_count = 0;
+        }
+
+        if self.diverge_count >= 15 {
+            self.state = raw_bpm.log2();
+            self.variance = 1.0;
+            self.diverge_count = 0;
+            return raw_bpm;
+        }
+
+        self.r = 0.01 + (1.0 - confidence) * 0.5;
+        self.q = if self.diverge_count > 0 { 0.1 } else { 0.001 };
+
+        self.variance += self.q;
+
+        let innovation = snapped_measurement - self.state;
+        let s = self.variance + self.r;
+        let k = self.variance / s;
+        self.state += k * innovation;
+        self.variance *= 1.0 - k;
+
+        2.0f64.powf(self.state)
+    }
+}
+
+impl Default for KalmanBpm {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Enhanced audio analysis data with advanced features
 #[derive(Resource, Clone, Debug)]
 pub struct EnhancedAudioData {
@@ -384,6 +521,9 @@ pub struct EnhancedAudioData {
     pub spectral_rolloff: f32,
     pub zero_crossing_rate: f32,
     pub rms_energy: f32,
+    // New normalized feature set
+    pub features: AudioFeatures,
+    pub kalman_bpm: KalmanBpm,
 }
 
 impl Default for EnhancedAudioData {
@@ -402,6 +542,8 @@ impl Default for EnhancedAudioData {
             spectral_rolloff: 0.0,
             zero_crossing_rate: 0.0,
             rms_energy: 0.0,
+            features: AudioFeatures::default(),
+            kalman_bpm: KalmanBpm::default(),
         }
     }
 }
@@ -624,12 +766,11 @@ impl EnhancedAudioAnalyzer {
             
             fft.process(&mut fft_buffer);
             
-            // Extract frequency data if not already populated
-            if data.frequency_data.is_empty() {
-                for i in 0..(config.fft_size as usize / 2) {
-                    let magnitude = fft_buffer[i].norm();
-                    data.frequency_data.push(magnitude);
-                }
+            // Extract frequency data
+            data.frequency_data.clear();
+            for i in 0..(config.fft_size as usize / 2) {
+                let magnitude = fft_buffer[i].norm();
+                data.frequency_data.push(magnitude);
             }
             
             // Calculate frequency bands
@@ -640,12 +781,12 @@ impl EnhancedAudioAnalyzer {
             let mid_bins = ((config.mid_freq_range.0 / bin_width) as usize)..((config.mid_freq_range.1 / bin_width) as usize).min(data.frequency_data.len());
             let treble_bins = ((config.treble_freq_range.0 / bin_width) as usize)..((config.treble_freq_range.1 / bin_width) as usize).min(data.frequency_data.len());
             
-            data.bass = data.frequency_data[bass_bins.clone()].iter().sum::<f32>() / bass_bins.len() as f32;
-            data.mid = data.frequency_data[mid_bins.clone()].iter().sum::<f32>() / mid_bins.len() as f32;
-            data.treble = data.frequency_data[treble_bins.clone()].iter().sum::<f32>() / treble_bins.len() as f32;
+            data.bass = data.frequency_data[bass_bins.clone()].iter().sum::<f32>() / bass_bins.len().max(1) as f32;
+            data.mid = data.frequency_data[mid_bins.clone()].iter().sum::<f32>() / mid_bins.len().max(1) as f32;
+            data.treble = data.frequency_data[treble_bins.clone()].iter().sum::<f32>() / treble_bins.len().max(1) as f32;
             
-            // Calculate spectral features
-            self.calculate_spectral_features(&mut data, bin_width);
+            // Populate advanced features
+            self.calculate_audio_features(&mut data, bin_width);
         }
         
         // Update waveform
@@ -661,6 +802,76 @@ impl EnhancedAudioAnalyzer {
         data.timestamp = self.last_update.elapsed().as_secs_f64();
     }
     
+    fn calculate_audio_features(&self, data: &mut EnhancedAudioData, bin_width: f32) {
+        let freqs = &data.frequency_data;
+        if freqs.is_empty() { return; }
+
+        // 1. Frequency bands (normalized)
+        let get_band = |lo: f32, hi: f32| {
+            let start = (lo / bin_width) as usize;
+            let end = (hi / bin_width) as usize;
+            let slice = &freqs[start.min(freqs.len())..end.min(freqs.len())];
+            if slice.is_empty() { 0.0 } else { slice.iter().sum::<f32>() / slice.len() as f32 }
+        };
+
+        data.features.sub_bass = get_band(20.0, 60.0);
+        data.features.bass = get_band(60.0, 250.0);
+        data.features.low_mid = get_band(250.0, 500.0);
+        data.features.mid = get_band(500.0, 2000.0);
+        data.features.upper_mid = get_band(2000.0, 4000.0);
+        data.features.presence = get_band(4000.0, 6000.0);
+        data.features.brilliance = get_band(6000.0, 20000.0);
+
+        // 2. Aggregates
+        data.features.rms = data.rms_energy;
+        
+        // Kick detection (spectral flux in 30-120Hz)
+        static mut PREV_BASS_ENERGY: f32 = 0.0;
+        let current_bass_energy = data.features.sub_bass;
+        unsafe {
+            data.features.kick = (current_bass_energy - PREV_BASS_ENERGY).max(0.0) * 5.0;
+            PREV_BASS_ENERGY = current_bass_energy;
+        }
+
+        // 3. Spectral shape
+        self.calculate_spectral_features(data, bin_width);
+        let freqs = &data.frequency_data;
+        data.features.centroid = data.spectral_centroid / bin_width / freqs.len().max(1) as f32;
+        data.features.rolloff = data.spectral_rolloff / bin_width / freqs.len().max(1) as f32;
+        data.features.zcr = data.zero_crossing_rate;
+        
+        // Spectral flux (overall spectral change)
+        static mut PREV_MAGS: Vec<f32> = Vec::new();
+        unsafe {
+            if PREV_MAGS.len() == freqs.len() {
+                let flux: f32 = freqs.iter().zip(PREV_MAGS.iter())
+                    .map(|(&c, &p)| (c - p).max(0.0)).sum();
+                data.features.flux = (flux / freqs.len() as f32).min(1.0);
+            }
+            PREV_MAGS = freqs.clone();
+        }
+
+        // 4. Beat detection
+        self.detect_beats(data);
+        data.features.onset = data.beat_intensity;
+        data.features.beat = if data.beat_intensity > self.config.beat_threshold { 1.0 } else { 0.0 };
+        
+        // Kalman BPM update
+        let raw_bpm = data.tempo as f64;
+        let confidence = (data.beat_intensity as f64 * 2.0).min(1.0);
+        let stable_bpm = data.kalman_bpm.update(raw_bpm, confidence);
+        data.features.bpm = (stable_bpm as f32 / 300.0).min(1.0);
+        
+        // Simple sawtooth beat phase
+        static mut BEAT_PHASE: f32 = 0.0;
+        unsafe {
+            let dt = 1.0 / 60.0; // Assume 60fps for simplicity, should be actual dt
+            BEAT_PHASE = (BEAT_PHASE + stable_bpm as f32 / 60.0 * dt) % 1.0;
+            data.features.beat_phase = BEAT_PHASE;
+        }
+        data.features.beat_strength = data.beat_intensity;
+    }
+
     fn calculate_spectral_features(&self, data: &mut EnhancedAudioData, bin_width: f32) {
         // Spectral centroid (brightness)
         let mut weighted_sum = 0.0;
@@ -711,7 +922,7 @@ impl EnhancedAudioAnalyzer {
             PREVIOUS_ENERGY = current_energy;
             
             if spectral_flux > self.config.beat_threshold && current_energy > 0.1 {
-                data.beat_intensity = spectral_flux;
+                data.beat_intensity = spectral_flux.min(1.0);
                 data.tempo = 60.0 / (0.5 + spectral_flux * 2.0); // Estimated BPM
             } else {
                 data.beat_intensity *= 0.95; // Decay

@@ -544,37 +544,85 @@ impl ShaderNodeGraph {
     }
     
     fn generate_single_node_variable(&self, node: &ShaderNode) -> Result<String, String> {
+        let nid = node.id.0;
         match &node.node_type {
-            ShaderNodeType::Time => Ok(format!("let node_{}_time = uniforms.time;", node.id.0)),
-            ShaderNodeType::Resolution => Ok(format!("let node_{}_resolution = uniforms.resolution;", node.id.0)),
-            ShaderNodeType::UV => Ok(format!("let node_{}_uv = input.uv;", node.id.0)),
-            ShaderNodeType::Sin => {
-                if let Some(input_conn) = self.get_input_connection(node.id, 0) {
-                    Ok(format!("let node_{}_result = sin({});", 
-                        node.id.0, self.get_connection_variable(&input_conn)))
-                } else {
-                    Ok(format!("let node_{}_result = sin(uniforms.time);", node.id.0))
-                }
+            ShaderNodeType::Time => Ok(format!("let node_{}_time = uniforms.time;", nid)),
+            ShaderNodeType::Resolution => Ok(format!("let node_{}_resolution = uniforms.resolution;", nid)),
+            ShaderNodeType::UV => Ok(format!("let node_{}_uv = input.uv;", nid)),
+            ShaderNodeType::Mouse => Ok(format!("let node_{}_mouse = uniforms.mouse;", nid)),
+            
+            ShaderNodeType::Add => {
+                let a = self.get_input_or_val(node.id, 0, "0.0");
+                let b = self.get_input_or_val(node.id, 1, "0.0");
+                Ok(format!("let node_{}_result = {} + {};", nid, a, b))
             }
+            ShaderNodeType::Subtract => {
+                let a = self.get_input_or_val(node.id, 0, "0.0");
+                let b = self.get_input_or_val(node.id, 1, "0.0");
+                Ok(format!("let node_{}_result = {} - {};", nid, a, b))
+            }
+            ShaderNodeType::Multiply => {
+                let a = self.get_input_or_val(node.id, 0, "1.0");
+                let b = self.get_input_or_val(node.id, 1, "1.0");
+                Ok(format!("let node_{}_result = {} * {};", nid, a, b))
+            }
+            ShaderNodeType::Divide => {
+                let a = self.get_input_or_val(node.id, 0, "1.0");
+                let b = self.get_input_or_val(node.id, 1, "1.0");
+                Ok(format!("let node_{}_result = {} / {};", nid, a, b))
+            }
+            ShaderNodeType::Sin => Ok(format!("let node_{}_result = sin({});", nid, self.get_input_or_val(node.id, 0, "uniforms.time"))),
+            ShaderNodeType::Cos => Ok(format!("let node_{}_result = cos({});", nid, self.get_input_or_val(node.id, 0, "uniforms.time"))),
+            ShaderNodeType::Abs => Ok(format!("let node_{}_result = abs({});", nid, self.get_input_or_val(node.id, 0, "0.0"))),
+            ShaderNodeType::Fract => Ok(format!("let node_{}_result = fract({});", nid, self.get_input_or_val(node.id, 0, "0.0"))),
+            ShaderNodeType::Floor => Ok(format!("let node_{}_result = floor({});", nid, self.get_input_or_val(node.id, 0, "0.0"))),
+            ShaderNodeType::Ceil => Ok(format!("let node_{}_result = ceil({});", nid, self.get_input_or_val(node.id, 0, "0.0"))),
+            ShaderNodeType::Sqrt => Ok(format!("let node_{}_result = sqrt({});", nid, self.get_input_or_val(node.id, 0, "0.0"))),
+            
+            ShaderNodeType::Mix => {
+                let a = self.get_input_or_val(node.id, 0, "0.0");
+                let b = self.get_input_or_val(node.id, 1, "1.0");
+                let t = self.get_input_or_val(node.id, 2, "0.5");
+                Ok(format!("let node_{}_result = mix3({}, {}, {});", nid, a, b, t))
+            }
+            ShaderNodeType::Step => {
+                let edge = self.get_input_or_val(node.id, 0, "0.5");
+                let x = self.get_input_or_val(node.id, 1, "0.0");
+                Ok(format!("let node_{}_result = step({}, {});", nid, edge, x))
+            }
+            ShaderNodeType::SmoothStep => {
+                let edge0 = self.get_input_or_val(node.id, 0, "0.0");
+                let edge1 = self.get_input_or_val(node.id, 1, "1.0");
+                let x = self.get_input_or_val(node.id, 2, "0.0");
+                Ok(format!("let node_{}_result = smoothstep({}, {}, {});", nid, edge0, edge1, x))
+            }
+            
+            ShaderNodeType::Normalize => Ok(format!("let node_{}_result = normalize({});", nid, self.get_input_or_val(node.id, 0, "vec3<f32>(1.0)"))),
+            ShaderNodeType::Length => Ok(format!("let node_{}_result = length({});", nid, self.get_input_or_val(node.id, 0, "vec3<f32>(0.0)"))),
+            ShaderNodeType::Dot => {
+                let a = self.get_input_or_val(node.id, 0, "vec3<f32>(0.0)");
+                let b = self.get_input_or_val(node.id, 1, "vec3<f32>(0.0)");
+                Ok(format!("let node_{}_result = dot({}, {});", nid, a, b))
+            }
+            
             ShaderNodeType::Color => {
-                Ok(format!("let node_{}_color = vec3<f32>(0.5 + 0.5 * sin(uniforms.time), 0.5 + 0.5 * cos(uniforms.time), 0.5 + 0.5 * sin(uniforms.time * 1.3));", node.id.0))
+                Ok(format!("let node_{}_color = vec3<f32>(0.5 + 0.5 * sin(uniforms.time), 0.5 + 0.5 * cos(uniforms.time), 0.5 + 0.5 * sin(uniforms.time * 1.3));", nid))
             }
             ShaderNodeType::ColorMix => {
-                if let (Some(a_conn), Some(b_conn), Some(factor_conn)) = (
-                    self.get_input_connection(node.id, 0),
-                    self.get_input_connection(node.id, 1),
-                    self.get_input_connection(node.id, 2)
-                ) {
-                    Ok(format!("let node_{}_result = mix3({}, {}, {});", 
-                        node.id.0, 
-                        self.get_connection_variable(&a_conn),
-                        self.get_connection_variable(&b_conn),
-                        self.get_connection_variable(&factor_conn)))
-                } else {
-                    Ok(format!("let node_{}_result = vec3<f32>(0.5, 0.5, 0.5);", node.id.0))
-                }
+                let a = self.get_input_or_val(node.id, 0, "vec3<f32>(0.0)");
+                let b = self.get_input_or_val(node.id, 1, "vec3<f32>(1.0)");
+                let factor = self.get_input_or_val(node.id, 2, "0.5");
+                Ok(format!("let node_{}_result = mix3({}, {}, {});", nid, a, b, factor))
             }
             _ => Ok(String::new()),
+        }
+    }
+    
+    fn get_input_or_val(&self, node_id: NodeId, input_index: usize, default: &str) -> String {
+        if let Some(conn) = self.get_input_connection(node_id, input_index) {
+            self.get_connection_variable(&conn)
+        } else {
+            default.to_string()
         }
     }
     
@@ -586,14 +634,14 @@ impl ShaderNodeGraph {
     
     fn get_connection_variable(&self, connection: &NodeConnection) -> String {
         let from_node = &self.nodes[&connection.from_node];
+        let nid = connection.from_node.0;
         match &from_node.node_type {
-            ShaderNodeType::Time => format!("node_{}_time", connection.from_node.0),
-            ShaderNodeType::Resolution => format!("node_{}_resolution", connection.from_node.0),
-            ShaderNodeType::UV => format!("node_{}_uv", connection.from_node.0),
-            ShaderNodeType::Sin => format!("node_{}_result", connection.from_node.0),
-            ShaderNodeType::Color => format!("node_{}_color", connection.from_node.0),
-            ShaderNodeType::ColorMix => format!("node_{}_result", connection.from_node.0),
-            _ => format!("node_{}_out", connection.from_node.0),
+            ShaderNodeType::Time => format!("node_{}_time", nid),
+            ShaderNodeType::Resolution => format!("node_{}_resolution", nid),
+            ShaderNodeType::UV => format!("node_{}_uv", nid),
+            ShaderNodeType::Mouse => format!("node_{}_mouse", nid),
+            ShaderNodeType::Color => format!("node_{}_color", nid),
+            _ => format!("node_{}_result", nid),
         }
     }
 }
@@ -855,9 +903,9 @@ fn handle_canvas_interactions(ui: &mut egui::Ui, node_graph: &mut NodeGraphResou
 fn draw_node_graph_toolbar(
     mut node_graph: ResMut<NodeGraphResource>,
     mut egui_ctx: EguiContexts,
-    ui_state: Res<crate::editor_ui::EditorUiState>,
+    mut ui_state: ResMut<crate::editor_ui::EditorUiState>,
 ) {
-    if !ui_state.show_node_studio {
+    if ui_state.central_view != crate::editor_ui::CentralView::NodeGraph {
         return;
     }
     let ctx = match egui_ctx.ctx_mut() {
@@ -922,8 +970,9 @@ fn draw_node_graph_toolbar(
                 if ui.button("Generate WGSL").clicked() {
                     match node_graph.graph.generate_wgsl() {
                         Ok(wgsl_code) => {
-                            println!("Generated WGSL code:");
-                            println!("{}", wgsl_code);
+                            println!("Generated WGSL code and applied to editor.");
+                            ui_state.draft_code = wgsl_code;
+                            ui_state.apply_requested = true;
                         }
                         Err(e) => {
                             eprintln!("Failed to generate WGSL: {}", e);
@@ -1018,7 +1067,7 @@ fn draw_node_graph_ui(
     mut egui_ctx: EguiContexts,
     ui_state: Res<crate::editor_ui::EditorUiState>,
 ) {
-    if !ui_state.show_node_studio {
+    if ui_state.central_view != crate::editor_ui::CentralView::NodeGraph {
         return;
     }
     let ctx = match egui_ctx.ctx_mut() {

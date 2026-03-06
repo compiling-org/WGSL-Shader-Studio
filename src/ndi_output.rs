@@ -221,7 +221,7 @@ fn ndi_ui_system(
     mut output: ResMut<NdiOutput>,
     mut ui_state: ResMut<crate::editor_ui::EditorUiState>,
 ) {
-    if !ui_state.show_ndi_panel {
+    if ui_state.outputs_mode != crate::ui::state::OutputsMode::Ndi {
         return;
     }
     let ctx = match contexts.ctx_mut() {
@@ -229,7 +229,6 @@ fn ndi_ui_system(
         Err(_) => return,
     };
     egui::Window::new("NDI Output")
-        .open(&mut ui_state.show_ndi_panel)
         .show(ctx, |ui| {
             NdiUI::render_ndi_controls(ui, &mut *config, &mut *output);
         });

@@ -270,9 +270,9 @@ fn spout_syphon_ui_system(
     mut contexts: EguiContexts,
     mut config: ResMut<SpoutSyphonConfig>,
     mut output: ResMut<SpoutSyphonOutput>,
-    mut ui_state: ResMut<crate::editor_ui::EditorUiState>,
+    mut ui_state: ResMut<crate::ui::state::EditorUiState>,
 ) {
-    if !ui_state.show_spout_panel {
+    if ui_state.outputs_mode != crate::ui::state::OutputsMode::SpoutSyphon {
         return;
     }
     let ctx = match contexts.ctx_mut() {
@@ -280,7 +280,6 @@ fn spout_syphon_ui_system(
         Err(_) => return,
     };
     egui::Window::new("Spout/Syphon")
-        .open(&mut ui_state.show_spout_panel)
         .show(ctx, |ui| {
             SpoutSyphonUI::render_spout_syphon_controls(ui, &mut *config, &mut *output);
         });

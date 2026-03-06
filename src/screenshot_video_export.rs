@@ -178,7 +178,7 @@ impl ScreenshotVideoExporter {
             tx.send(result).unwrap();
         });
 
-        let _ = device.poll(wgpu::PollType::Wait);
+        let _ = device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None });
         
         if rx.recv().unwrap().is_err() {
             return Err("Failed to map buffer".to_string());
@@ -312,7 +312,7 @@ impl ScreenshotVideoExporter {
             tx.send(result).unwrap();
         });
 
-        let _ = device.poll(wgpu::PollType::Wait);
+        let _ = device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None });
         
         if rx.recv().unwrap().is_err() {
             return Err("Failed to map buffer".to_string());

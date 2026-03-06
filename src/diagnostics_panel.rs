@@ -2,21 +2,7 @@ use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
 use crate::editor_ui::EditorUiState;
 
-#[derive(Debug, Clone)]
-pub struct DiagnosticMessage {
-    pub message: String,
-    pub severity: DiagnosticSeverity,
-    pub line_number: Option<usize>,
-    pub position: Option<(usize, usize)>, // (start, end) character positions
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum DiagnosticSeverity {
-    Error,
-    Warning,
-    Info,
-    Hint,
-}
+// Use DiagnosticMessage and DiagnosticSeverity from EditorUiState (ui::state)
 
 pub fn draw_diagnostics_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
     egui::Window::new("Diagnostics Panel")
@@ -42,13 +28,10 @@ pub fn draw_diagnostics_panel(ctx: &egui::Context, ui_state: &mut EditorUiState)
                     .filter(|d| d.severity == DiagnosticSeverity::Warning).count();
                 let infos: usize = ui_state.diagnostics_messages.iter()
                     .filter(|d| d.severity == DiagnosticSeverity::Info).count();
-                let hints: usize = ui_state.diagnostics_messages.iter()
-                    .filter(|d| d.severity == DiagnosticSeverity::Hint).count();
                 
                 ui.label(format!("Errors: {}", errors));
                 ui.label(format!("Warnings: {}", warnings));
                 ui.label(format!("Infos: {}", infos));
-                ui.label(format!("Hints: {}", hints));
             });
             
             ui.separator();
@@ -89,14 +72,11 @@ pub fn draw_diagnostics_panel(ctx: &egui::Context, ui_state: &mut EditorUiState)
                                 DiagnosticSeverity::Info => {
                                     ui.colored_label(egui::Color32::LIGHT_BLUE, "ℹ️ INFO");
                                 },
-                                DiagnosticSeverity::Hint => {
-                                    ui.colored_label(egui::Color32::LIGHT_GREEN, "💡 HINT");
-                                },
                             }
                             
                             ui.label(&diagnostic.message);
                             
-                            if let Some(line) = diagnostic.line_number {
+                            if let Some(line) = diagnostic.line {
                                 ui.label(format!("Line: {}", line));
                             }
                             
@@ -149,8 +129,8 @@ pub fn run_wgsl_diagnostics(ui_state: &mut EditorUiState) {
         ui_state.diagnostics_messages.push(DiagnosticMessage {
             message: "No issues found in shader code".to_string(),
             severity: DiagnosticSeverity::Info,
-            line_number: None,
-            position: None,
+            line: None,
+            column: None,
         });
     }
 }
@@ -178,8 +158,8 @@ fn check_basic_syntax(code: &str, ui_state: &mut EditorUiState) {
             ui_state.diagnostics_messages.push(DiagnosticMessage {
                 message: format!("Unmatched closing bracket on line {}", line_num + 1),
                 severity: DiagnosticSeverity::Error,
-                line_number: Some(line_num + 1),
-                position: None,
+                line: Some(line_num + 1),
+                column: None,
             });
         }
     }
@@ -189,8 +169,8 @@ fn check_basic_syntax(code: &str, ui_state: &mut EditorUiState) {
         ui_state.diagnostics_messages.push(DiagnosticMessage {
             message: "Unmatched opening braces".to_string(),
             severity: DiagnosticSeverity::Error,
-            line_number: None,
-            position: None,
+            line: None,
+            column: None,
         });
     }
     
@@ -219,8 +199,8 @@ fn check_wgsl_specific_issues(code: &str, ui_state: &mut EditorUiState) {
         ui_state.diagnostics_messages.push(DiagnosticMessage {
             message: "Shader code should contain at least one entry point (@vertex, @fragment, or @compute)".to_string(),
             severity: DiagnosticSeverity::Warning,
-            line_number: None,
-            position: None,
+            line: None,
+            column: None,
         });
     }
     
@@ -232,8 +212,8 @@ fn check_wgsl_specific_issues(code: &str, ui_state: &mut EditorUiState) {
                 ui_state.diagnostics_messages.push(DiagnosticMessage {
                     message: format!("Uniform variable on line {} may be missing type declaration", line_num + 1),
                     severity: DiagnosticSeverity::Warning,
-                    line_number: Some(line_num + 1),
-                    position: None,
+                    line: Some(line_num + 1),
+                    column: None,
                 });
             }
         }
@@ -243,8 +223,8 @@ fn check_wgsl_specific_issues(code: &str, ui_state: &mut EditorUiState) {
             ui_state.diagnostics_messages.push(DiagnosticMessage {
                 message: format!("Function declaration on line {} may be incomplete", line_num + 1),
                 severity: DiagnosticSeverity::Warning,
-                line_number: Some(line_num + 1),
-                position: None,
+                line: Some(line_number + 1),
+                column: None,
             });
         }
     }

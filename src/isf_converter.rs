@@ -75,11 +75,6 @@ impl IsfToWgslConverter {
         wgsl_code.push_str("\n");
         
         // Generate main function
-        wgsl_code.push_str("@vertex\n");
-        wgsl_code.push_str("fn vs_main(@location(0) position: vec2<f32>) -> @builtin(position) vec4<f32> {\n");
-        wgsl_code.push_str("    return vec4<f32>(position, 0.0, 1.0);\n");
-        wgsl_code.push_str("}\n\n");
-        
         wgsl_code.push_str("@fragment\n");
         wgsl_code.push_str("fn fs_main(@builtin(position) coord: vec4<f32>) -> @location(0) vec4<f32> {\n");
         wgsl_code.push_str("    let uv = (coord.xy / uniforms.renderSize);\n");

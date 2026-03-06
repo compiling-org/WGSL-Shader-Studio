@@ -279,10 +279,14 @@ fn setup_editor_3d(
     preview_tex.width = size.width;
     preview_tex.height = size.height;
     
-    // Create editor camera
+    // Create editor camera targeting the viewport texture
     let camera_entity = commands.spawn((
         Camera3d::default(),
-        Camera { order: 1, target: image_handle.clone().into(), ..Default::default() },
+        Camera { 
+            order: 1, 
+            target: bevy::render::camera::RenderTarget::Image(image_handle.clone()), 
+            ..Default::default() 
+        },
         Transform::from_translation(Vec3::new(5.0, 5.0, 5.0))
             .looking_at(Vec3::ZERO, Vec3::Y),
         Projection::Perspective(PerspectiveProjection {
@@ -330,7 +334,7 @@ fn setup_editor_3d(
     ));
     
     // Add ambient light
-    commands.insert_resource(AmbientLight {
+    commands.spawn(AmbientLight {
         color: Color::WHITE,
         brightness: 0.1,
         affects_lightmapped_meshes: false,
@@ -424,7 +428,7 @@ fn update_shader_preview_texture(
                 frame_rate: 60.0,
                 audio_data: Some(audio_analyzer.get_audio_data()),
             };
-            if let Ok(pixels) = renderer.render_frame(&ui_state.draft_code, &params, params.audio_data.clone()) {
+            if let Ok(pixels) = renderer.render_frame(&ui_state.draft_code, &params, None, params.audio_data.clone()) {
                 if let Some(img) = images.get_mut(&preview_tex.handle) {
                     let expected_len = (preview_tex.width as usize) * (preview_tex.height as usize) * 4;
                     if pixels.len() == expected_len {
@@ -565,7 +569,7 @@ fn highlight_selected_entity(
             let pos = transform.translation();
             
             // Draw selection highlight box
-            gizmos.cuboid(
+            gizmos.cube(
                 Transform::from_translation(pos).with_scale(Vec3::splat(1.2)),
                 Color::srgb(1.0, 1.0, 0.0), // Yellow
             );
@@ -586,15 +590,15 @@ fn highlight_selected_entity(
                 }
                 ManipulationMode::Scale => {
                     // Draw scale handles
-                    gizmos.cuboid(
+                    gizmos.cube(
                         Transform::from_translation(pos + Vec3::X * 0.4).with_scale(Vec3::splat(0.1)),
                         Color::srgb(1.0, 0.0, 0.0), // Red
                     );
-                    gizmos.cuboid(
+                    gizmos.cube(
                         Transform::from_translation(pos + Vec3::Y * 0.4).with_scale(Vec3::splat(0.1)),
                         Color::srgb(0.0, 1.0, 0.0), // Green
                     );
-                    gizmos.cuboid(
+                    gizmos.cube(
                         Transform::from_translation(pos + Vec3::Z * 0.4).with_scale(Vec3::splat(0.1)),
                         Color::srgb(0.0, 0.0, 1.0), // Blue
                     );
@@ -692,6 +696,17 @@ fn snap_to_grid_system(
         }
         
         println!("Snapped entities to grid (size: {})", editor_state.grid_size);
+    }
+}
+
+/// Reset the 3D editor camera to default position
+pub fn reset_editor_camera(
+    mut camera_query: Query<&mut Transform, With<EditorCamera3D>>,
+) {
+    if let Ok(mut transform) = camera_query.get_single_mut() {
+        *transform = Transform::from_translation(Vec3::new(5.0, 5.0, 5.0))
+            .looking_at(Vec3::ZERO, Vec3::Y);
+        println!("3D Viewport Reset");
     }
 }
 

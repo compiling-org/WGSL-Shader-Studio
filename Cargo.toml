@@ -41,11 +41,11 @@ anyhow = "1.0"
 ash = "0.38.0"
 console_log = "1.0.0"
 directories = "5.0"
-bevy = "0.17"
+bevy = "0.18"
 petgraph = "0.6"
 # bevy_shader_graph = { git = "https://github.com/Neopallium/bevy_shader_graph.git" }
 # space_editor = { git = "https://github.com/rewin123/space_editor.git" }  # Bevy version mismatch (0.14 vs 0.17)
-bevy_egui = { version = "0.38", optional = true }
+bevy_egui = { version = "0.39", optional = true }
 image = "0.25"
 # Note: Leap Motion and MediaPipe would require platform-specific SDKs
 # midir = "0.10.3"  # MIDI support
@@ -61,11 +61,11 @@ rustfft = "6.4.1"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 thiserror = "2.0"
-wgpu = "26.0.1"
+wgpu = "27.0.1"
 winit = "0.30.12"
 bytemuck = { version = "1.15", features = ["derive"] }
 regex = "1.10"
-naga = { version = "26.0.0", features = ["wgsl-in"] }
+naga = { version = "27.0.0", features = ["wgsl-in"] }
 convert_case = "0.6.0"
 chrono = { version = "0.4", features = ["serde"] }
 walkdir = "2.4"
@@ -94,8 +94,14 @@ rand = "0.8"
 
 [features]
 default = ["gui", "networking", "naga_integration"]
-gui = ["dep:bevy_egui"]
-networking = ["dep:tun-rs"]
+gui = ["bevy_egui"]
+networking = ["tun-rs"]
 naga_integration = []
 3d_preview = []
 
+# Linker optimization for faster builds
+[profile.dev]
+opt-level = 1
+# This significantly slow down the initial build, removing for speed.
+# [profile.dev.package."*"]
+# opt-level = 3

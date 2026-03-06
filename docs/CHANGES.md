@@ -2,6 +2,20 @@
 
 ## Version History and Development Progress
 
+### 2026-03-06 - Documentation Reality Sync
+**Documentation Corrections**
+- Updated roadmap and architecture docs to reflect current implementation reality: core modules exist, wiring is incomplete.
+- Removed outdated claims that all features are missing or that the project has zero working systems.
+- Corrected dependency versions in technical docs to match `Cargo.toml` (Bevy 0.18, `bevy_egui` 0.39).
+
+**Build Reality**
+- Current `cargo check` is failing with an unclosed delimiter in `src/editor_ui.rs` (line at end-of-file).
+- Prior “`cargo check` passes” statements are historical and should not be treated as current status.
+
+**Status**
+- Node graph, timeline, parameter controls, and file import/export paths are present in code.
+- Stabilization priority remains: restore passing build, then continue wiring and preview reliability work.
+
 ### 2025-12-16 - Stabilization and UI Integration
 **Fixes**
 - Prevented preview crash by aligning 3D preview textures to `Rgba8Unorm` and validating pixel data size before upload (src/scene_editor_3d.rs:128, 141, 297–299).
