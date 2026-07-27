@@ -67,8 +67,11 @@ impl NdiOutput {
         }
 
         println!("Initializing NDI output: {}", self.config.source_name);
-        println!("Resolution: {}x{} @ {} FPS", self.config.width, self.config.height, self.config.fps);
-        
+        println!(
+            "Resolution: {}x{} @ {} FPS",
+            self.config.width, self.config.height, self.config.fps
+        );
+
         // In a real implementation, this would initialize the NDI SDK
         // For now, we'll simulate the initialization
         self.connection_status = "Initialized (simulated)".to_string();
@@ -86,15 +89,15 @@ impl NdiOutput {
         }
 
         self.initialize()?;
-        
+
         self.is_running = true;
         self.start_time = Some(Instant::now());
         self.last_frame_time = Some(Instant::now());
         self.frame_count = 0;
-        
+
         self.connection_status = "Running (simulated)".to_string();
         println!("NDI output started: {}", self.config.source_name);
-        
+
         Ok(())
     }
 
@@ -106,12 +109,15 @@ impl NdiOutput {
 
         self.is_running = false;
         self.connection_status = "Stopped".to_string();
-        
+
         if let Some(start_time) = self.start_time {
             let duration = start_time.elapsed();
-            println!("NDI output stopped after {} frames in {:?}", self.frame_count, duration);
+            println!(
+                "NDI output stopped after {} frames in {:?}",
+                self.frame_count, duration
+            );
         }
-        
+
         Ok(())
     }
 
@@ -123,15 +129,20 @@ impl NdiOutput {
 
         // Validate frame dimensions
         if width != self.config.width || height != self.config.height {
-            return Err(format!("Frame dimensions mismatch: expected {}x{}, got {}x{}", 
-                             self.config.width, self.config.height, width, height));
+            return Err(format!(
+                "Frame dimensions mismatch: expected {}x{}, got {}x{}",
+                self.config.width, self.config.height, width, height
+            ));
         }
 
         // Validate pixel data size (RGBA = 4 bytes per pixel)
         let expected_size = (width * height * 4) as usize;
         if pixel_data.len() != expected_size {
-            return Err(format!("Pixel data size mismatch: expected {} bytes, got {}", 
-                             expected_size, pixel_data.len()));
+            return Err(format!(
+                "Pixel data size mismatch: expected {} bytes, got {}",
+                expected_size,
+                pixel_data.len()
+            ));
         }
 
         self.frame_count += 1;
@@ -140,7 +151,10 @@ impl NdiOutput {
         // In a real implementation, this would send the frame to the NDI SDK
         // For now, we'll simulate frame transmission
         if self.frame_count % 60 == 0 {
-            println!("NDI: Sent {} frames to {}", self.frame_count, self.config.source_name);
+            println!(
+                "NDI: Sent {} frames to {}",
+                self.frame_count, self.config.source_name
+            );
         }
 
         Ok(())
@@ -168,7 +182,7 @@ impl NdiOutput {
     /// Update configuration
     pub fn update_config(&mut self, new_config: NdiConfig) -> Result<(), String> {
         let was_running = self.is_running;
-        
+
         if was_running {
             self.stop()?;
         }
@@ -205,10 +219,7 @@ impl Plugin for NdiOutputPlugin {
 }
 
 /// System to update NDI output
-fn update_ndi_output(
-    config: Res<NdiConfig>,
-    mut ndi_output: ResMut<NdiOutput>,
-) {
+fn update_ndi_output(config: Res<NdiConfig>, mut ndi_output: ResMut<NdiOutput>) {
     // Update NDI output if configuration changed
     if config.is_changed() {
         let _ = ndi_output.update_config(config.clone());
@@ -228,44 +239,39 @@ fn ndi_ui_system(
         Ok(ctx) => ctx,
         Err(_) => return,
     };
-    egui::Window::new("NDI Output")
-        .show(ctx, |ui| {
-            NdiUI::render_ndi_controls(ui, &mut *config, &mut *output);
-        });
+    egui::Window::new("NDI Output").show(ctx, |ui| {
+        NdiUI::render_ndi_controls(ui, &mut *config, &mut *output);
+    });
 }
 
 /// UI component for NDI controls
 pub struct NdiUI;
 
 impl NdiUI {
-    pub fn render_ndi_controls(
-        ui: &mut egui::Ui,
-        config: &mut NdiConfig,
-        output: &mut NdiOutput,
-    ) {
+    pub fn render_ndi_controls(ui: &mut egui::Ui, config: &mut NdiConfig, output: &mut NdiOutput) {
         ui.heading("🌐 NDI Output");
-        
+
         ui.separator();
-        
+
         // Enable/disable NDI output
         ui.checkbox(&mut config.enabled, "Enable NDI Output");
-        
+
         if config.enabled {
             ui.separator();
-            
+
             // Source configuration
             ui.horizontal(|ui| {
                 ui.label("Source Name:");
                 ui.text_edit_singleline(&mut config.source_name);
             });
-            
+
             ui.horizontal(|ui| {
                 ui.label("Group Name:");
                 ui.text_edit_singleline(&mut config.group_name);
             });
-            
+
             ui.separator();
-            
+
             // Video settings
             ui.horizontal(|ui| {
                 ui.label("Resolution:");
@@ -273,25 +279,25 @@ impl NdiUI {
                 ui.label("x");
                 ui.add(egui::DragValue::new(&mut config.height).speed(1.0));
             });
-            
+
             ui.horizontal(|ui| {
                 ui.label("FPS:");
                 ui.add(egui::DragValue::new(&mut config.fps).speed(1.0));
                 ui.label("Bitrate (kbps):");
                 ui.add(egui::DragValue::new(&mut config.bitrate).speed(100.0));
             });
-            
+
             ui.separator();
-            
+
             // Network settings
             ui.collapsing("Network Settings", |ui| {
                 ui.checkbox(&mut config.multicast, "Use Multicast");
                 ui.checkbox(&mut config.tcp_mode, "TCP Mode");
                 ui.checkbox(&mut config.low_bandwidth, "Low Bandwidth Mode");
             });
-            
+
             ui.separator();
-            
+
             // Status display
             let status = output.get_status();
             ui.horizontal(|ui| {
@@ -302,17 +308,17 @@ impl NdiUI {
                     ui.label(egui::RichText::new("Stopped").color(egui::Color32::RED));
                 }
             });
-            
+
             ui.label(format!("Connection: {}", status.connection_status));
             ui.label(format!("Frames Sent: {}", status.frame_count));
             ui.label(format!("FPS: {:.1}", status.fps));
-            
+
             if let Some(uptime) = status.uptime {
                 ui.label(format!("Uptime: {:?}", uptime));
             }
-            
+
             ui.separator();
-            
+
             // Control buttons
             ui.horizontal(|ui| {
                 if status.is_running {
@@ -332,7 +338,7 @@ impl NdiUI {
 /// Test NDI output functionality
 pub fn test_ndi_output() {
     println!("Testing NDI output functionality...");
-    
+
     let config = NdiConfig {
         enabled: true,
         source_name: "Test Source".to_string(),
@@ -341,13 +347,13 @@ pub fn test_ndi_output() {
         height: 1080,
         ..Default::default()
     };
-    
+
     let mut ndi_output = NdiOutput::new(config);
-    
+
     match ndi_output.start() {
         Ok(_) => {
             println!("NDI output test started successfully");
-            
+
             // Simulate sending a few frames
             let test_frame = vec![128u8; 1920 * 1080 * 4]; // Gray frame
             for i in 0..5 {
@@ -356,10 +362,10 @@ pub fn test_ndi_output() {
                     Err(e) => println!("Failed to send frame {}: {}", i + 1, e),
                 }
             }
-            
+
             let status = ndi_output.get_status();
             println!("Test completed. Status: {:?}", status);
-            
+
             ndi_output.stop().unwrap();
         }
         Err(e) => println!("Failed to start NDI output: {}", e),

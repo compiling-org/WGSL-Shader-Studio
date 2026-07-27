@@ -2,7 +2,7 @@ use resolume_isf_shaders_rust_ffgl::isf_auto_converter::*;
 
 fn main() {
     let mut converter = IsfAutoConverter::new();
-    
+
     let basic_isf = r#"
     /*{
         "NAME": "Basic Color",
@@ -19,7 +19,7 @@ fn main() {
         gl_FragColor = vec4(color, 1.0);
     }
     "#;
-    
+
     match converter.convert_to_wgsl_advanced(basic_isf) {
         Ok(result) => {
             println!("=== GENERATED WGSL ===");

@@ -1,9 +1,9 @@
-use std::sync::Arc;
-use std::time::{Duration, Instant};
-use tokio::sync::RwLock;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::sync::RwLock;
 
 /// Enforcement system for preventing psychotic loops and maintaining discipline
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,7 +57,10 @@ impl EnforcementSystem {
 
     pub fn record_file_modification(&mut self, file_path: &str) -> Result<()> {
         let exceeded_limit = {
-            let count = self.file_modification_counts.entry(file_path.to_string()).or_insert(0);
+            let count = self
+                .file_modification_counts
+                .entry(file_path.to_string())
+                .or_insert(0);
             *count += 1;
             *count > self.max_file_changes_per_session
         };
@@ -67,8 +70,7 @@ impl EnforcementSystem {
                 ViolationType::ExcessiveFileModifications,
                 format!(
                     "File '{}' modified more than {} times",
-                    file_path,
-                    self.max_file_changes_per_session
+                    file_path, self.max_file_changes_per_session
                 ),
                 ViolationSeverity::Critical,
             );
@@ -80,18 +82,22 @@ impl EnforcementSystem {
     pub fn check_framework_compliance(&mut self, code_content: &str) -> Result<bool> {
         // Check for eframe violations
         if code_content.contains("eframe::egui") || code_content.contains("use eframe") {
-            self.add_violation(ViolationType::FrameworkViolation,
-                             "eframe usage detected - this violates Bevy architecture".to_string(),
-                             ViolationSeverity::Fatal);
+            self.add_violation(
+                ViolationType::FrameworkViolation,
+                "eframe usage detected - this violates Bevy architecture".to_string(),
+                ViolationSeverity::Fatal,
+            );
             self.lock_system();
             return Ok(false);
         }
 
         // Check for correct bevy_egui usage
         if !code_content.contains("bevy_egui") && code_content.contains("egui") {
-            self.add_violation(ViolationType::FrameworkViolation,
-                             "egui usage without bevy_egui wrapper detected".to_string(),
-                             ViolationSeverity::Critical);
+            self.add_violation(
+                ViolationType::FrameworkViolation,
+                "egui usage without bevy_egui wrapper detected".to_string(),
+                ViolationSeverity::Critical,
+            );
             return Ok(false);
         }
 
@@ -100,9 +106,15 @@ impl EnforcementSystem {
 
     pub fn check_compilation_status(&mut self, has_errors: bool, error_count: usize) -> Result<()> {
         if has_errors {
-            self.add_violation(ViolationType::CompilationError,
-                             format!("{} compilation errors detected", error_count),
-                             if error_count > 10 { ViolationSeverity::Fatal } else { ViolationSeverity::Critical });
+            self.add_violation(
+                ViolationType::CompilationError,
+                format!("{} compilation errors detected", error_count),
+                if error_count > 10 {
+                    ViolationSeverity::Fatal
+                } else {
+                    ViolationSeverity::Critical
+                },
+            );
         }
         Ok(())
     }
@@ -110,24 +122,33 @@ impl EnforcementSystem {
     pub fn check_psychotic_loop_patterns(&mut self, recent_actions: &[String]) -> Result<()> {
         // Detect psychotic loop patterns
         if recent_actions.len() >= 3 {
-            let last_three = &recent_actions[recent_actions.len()-3..];
-            if last_three.iter().all(|action| action.contains("visual_node_editor")) {
-                self.add_violation(ViolationType::PsychoticLoopDetected,
-                                 "Visual node editor obsession pattern detected".to_string(),
-                                 ViolationSeverity::Fatal);
+            let last_three = &recent_actions[recent_actions.len() - 3..];
+            if last_three
+                .iter()
+                .all(|action| action.contains("visual_node_editor"))
+            {
+                self.add_violation(
+                    ViolationType::PsychoticLoopDetected,
+                    "Visual node editor obsession pattern detected".to_string(),
+                    ViolationSeverity::Fatal,
+                );
                 self.lock_system();
             }
         }
 
         // Check for repeated false completion claims
-        let false_claims = self.violations.iter()
+        let false_claims = self
+            .violations
+            .iter()
             .filter(|v| matches!(v.violation_type, ViolationType::FalseCompletionClaim))
             .count();
 
         if false_claims > 3 {
-            self.add_violation(ViolationType::PsychoticLoopDetected,
-                             "Repeated false completion claims pattern".to_string(),
-                             ViolationSeverity::Fatal);
+            self.add_violation(
+                ViolationType::PsychoticLoopDetected,
+                "Repeated false completion claims pattern".to_string(),
+                ViolationSeverity::Fatal,
+            );
             self.lock_system();
         }
 
@@ -136,15 +157,25 @@ impl EnforcementSystem {
 
     pub fn check_reference_integration(&mut self, has_references: bool) -> Result<()> {
         if !has_references {
-            self.add_violation(ViolationType::ReferenceIntegrationFailure,
-                             "Missing reference repository integration".to_string(),
-                             ViolationSeverity::Critical);
+            self.add_violation(
+                ViolationType::ReferenceIntegrationFailure,
+                "Missing reference repository integration".to_string(),
+                ViolationSeverity::Critical,
+            );
         }
         Ok(())
     }
 
-    fn add_violation(&mut self, violation_type: ViolationType, description: String, severity: ViolationSeverity) {
-        println!("🚨 ENFORCEMENT VIOLATION: {:?} - {}", violation_type, description);
+    fn add_violation(
+        &mut self,
+        violation_type: ViolationType,
+        description: String,
+        severity: ViolationSeverity,
+    ) {
+        println!(
+            "🚨 ENFORCEMENT VIOLATION: {:?} - {}",
+            violation_type, description
+        );
         let violation = Violation {
             timestamp: Utc::now(),
             violation_type,
@@ -155,8 +186,15 @@ impl EnforcementSystem {
         self.last_activity = Utc::now();
 
         // Check if system should be locked
-        let critical_count = self.violations.iter()
-            .filter(|v| matches!(v.severity, ViolationSeverity::Critical | ViolationSeverity::Fatal))
+        let critical_count = self
+            .violations
+            .iter()
+            .filter(|v| {
+                matches!(
+                    v.severity,
+                    ViolationSeverity::Critical | ViolationSeverity::Fatal
+                )
+            })
             .count();
 
         if critical_count >= self.max_violations_before_reset as usize {
@@ -171,9 +209,21 @@ impl EnforcementSystem {
 
     pub fn generate_report(&self) -> EnforcementReport {
         let session_duration = Utc::now() - self.session_start;
-        let warning_count = self.violations.iter().filter(|v| matches!(v.severity, ViolationSeverity::Warning)).count();
-        let critical_count = self.violations.iter().filter(|v| matches!(v.severity, ViolationSeverity::Critical)).count();
-        let fatal_count = self.violations.iter().filter(|v| matches!(v.severity, ViolationSeverity::Fatal)).count();
+        let warning_count = self
+            .violations
+            .iter()
+            .filter(|v| matches!(v.severity, ViolationSeverity::Warning))
+            .count();
+        let critical_count = self
+            .violations
+            .iter()
+            .filter(|v| matches!(v.severity, ViolationSeverity::Critical))
+            .count();
+        let fatal_count = self
+            .violations
+            .iter()
+            .filter(|v| matches!(v.severity, ViolationSeverity::Fatal))
+            .count();
 
         EnforcementReport {
             session_start: self.session_start,
@@ -218,18 +268,36 @@ pub struct EnforcementReport {
 impl std::fmt::Display for EnforcementReport {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "🔍 ENFORCEMENT REPORT")?;
-        writeln!(f, "Session Start: {}", self.session_start.format("%Y-%m-%d %H:%M:%S"))?;
-        writeln!(f, "Session Duration: {} minutes", self.session_duration.num_minutes())?;
+        writeln!(
+            f,
+            "Session Start: {}",
+            self.session_start.format("%Y-%m-%d %H:%M:%S")
+        )?;
+        writeln!(
+            f,
+            "Session Duration: {} minutes",
+            self.session_duration.num_minutes()
+        )?;
         writeln!(f, "Total Violations: {}", self.total_violations)?;
         writeln!(f, "Warnings: {}", self.warning_count)?;
         writeln!(f, "Critical: {}", self.critical_count)?;
         writeln!(f, "Fatal: {}", self.fatal_count)?;
-        writeln!(f, "System Locked: {}", if self.is_system_locked { "YES" } else { "NO" })?;
-        
+        writeln!(
+            f,
+            "System Locked: {}",
+            if self.is_system_locked { "YES" } else { "NO" }
+        )?;
+
         if !self.top_violations.is_empty() {
             writeln!(f, "\nTop Recent Violations:")?;
             for (i, violation) in self.top_violations.iter().enumerate() {
-                writeln!(f, "{}. {:?} - {}", i + 1, violation.violation_type, violation.description)?;
+                writeln!(
+                    f,
+                    "{}. {:?} - {}",
+                    i + 1,
+                    violation.violation_type,
+                    violation.description
+                )?;
             }
         }
 
@@ -245,7 +313,7 @@ impl std::fmt::Display for EnforcementReport {
 }
 
 /// Global enforcement system instance
-pub static ENFORCEMENT_SYSTEM: once_cell::sync::Lazy<Arc<RwLock<EnforcementSystem>>> = 
+pub static ENFORCEMENT_SYSTEM: once_cell::sync::Lazy<Arc<RwLock<EnforcementSystem>>> =
     once_cell::sync::Lazy::new(|| Arc::new(RwLock::new(EnforcementSystem::new())));
 
 /// Initialize the enforcement system
@@ -259,13 +327,13 @@ pub async fn initialize_enforcement() -> Result<()> {
 /// Check if current code changes comply with enforcement rules
 pub async fn check_code_compliance(code_content: &str, file_path: &str) -> Result<bool> {
     let mut system = ENFORCEMENT_SYSTEM.write().await;
-    
+
     // Record file modification
     system.record_file_modification(file_path)?;
-    
+
     // Check framework compliance
     let is_compliant = system.check_framework_compliance(code_content)?;
-    
+
     Ok(is_compliant)
 }
 

@@ -1,4 +1,4 @@
-use crate::ui_analyzer::{UIAnalyzer, FeatureCheck, FeatureStatus, Priority};
+use crate::ui_analyzer::{FeatureCheck, FeatureStatus, Priority, UIAnalyzer};
 
 pub struct AnalysisSummary {
     pub total_features: usize,
@@ -14,7 +14,9 @@ pub struct UIAnalyzerEnhanced {
 
 impl UIAnalyzerEnhanced {
     pub fn new() -> Self {
-        Self { inner: UIAnalyzer::new() }
+        Self {
+            inner: UIAnalyzer::new(),
+        }
     }
 
     pub fn analyze_current_codebase(&mut self) {
@@ -25,8 +27,13 @@ impl UIAnalyzerEnhanced {
         self.inner.get_features_by_status(status)
     }
 
-    pub fn get_features_by_status_and_priority(&self, status: FeatureStatus, priority: Priority) -> Vec<FeatureCheck> {
-        self.inner.get_features_by_status_and_priority(status, priority)
+    pub fn get_features_by_status_and_priority(
+        &self,
+        status: FeatureStatus,
+        priority: Priority,
+    ) -> Vec<FeatureCheck> {
+        self.inner
+            .get_features_by_status_and_priority(status, priority)
     }
 
     pub fn get_summary(&self) -> AnalysisSummary {
@@ -34,7 +41,11 @@ impl UIAnalyzerEnhanced {
         let functional = self.inner.get_functional_features_count();
         let broken = self.inner.get_broken_features_count();
         let missing = self.inner.get_missing_features_count();
-        let completion = if total > 0 { (functional as f32 / total as f32) * 100.0 } else { 0.0 };
+        let completion = if total > 0 {
+            (functional as f32 / total as f32) * 100.0
+        } else {
+            0.0
+        };
         AnalysisSummary {
             total_features: total,
             functional_count: functional,
@@ -53,11 +64,21 @@ impl UIAnalyzerEnhanced {
         out.push_str(&format!("Functional: {}\n", summary.functional_count));
         out.push_str(&format!("Broken: {}\n", summary.broken_count));
         out.push_str(&format!("Missing: {}\n", summary.missing_count));
-        out.push_str(&format!("Completion: {:.1}%\n\n", summary.completion_percentage));
+        out.push_str(&format!(
+            "Completion: {:.1}%\n\n",
+            summary.completion_percentage
+        ));
         out.push_str("Detailed Features:\n");
-        for status in [FeatureStatus::Functional, FeatureStatus::Partial, FeatureStatus::Broken, FeatureStatus::Missing] {
+        for status in [
+            FeatureStatus::Functional,
+            FeatureStatus::Partial,
+            FeatureStatus::Broken,
+            FeatureStatus::Missing,
+        ] {
             let list = self.get_features_by_status(status.clone());
-            if list.is_empty() { continue; }
+            if list.is_empty() {
+                continue;
+            }
             out.push_str(&format!("\n{:?}:\n", status));
             for f in list {
                 out.push_str(&format!("- {} ({})\n", f.name, f.category));

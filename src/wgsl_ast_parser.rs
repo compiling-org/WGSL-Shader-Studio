@@ -1,37 +1,70 @@
 //! Advanced WGSL AST Parser with Naga Integration
-//! 
+//!
 //! This module implements a comprehensive WGSL parser based on use.gpu patterns,
 //! providing AST construction, symbol table management, and type inference.
 //! Uses Rust-native naga library instead of JavaScript Lezer for compatibility.
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::result::Result as StdResult;
-use serde::{Serialize, Deserialize};
 
 /// WGSL AST Node types based on use.gpu patterns
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AstNode {
     Module(ModuleNode),
     Function(FunctionNode),
-    FunctionDecl { name: String, parameters: Vec<String>, return_type: Option<String>, body: Box<AstNode> },
+    FunctionDecl {
+        name: String,
+        parameters: Vec<String>,
+        return_type: Option<String>,
+        body: Box<AstNode>,
+    },
     Struct(StructNode),
-    StructDecl { name: String, fields: Vec<String>, members: Vec<AstNode> },
-    StructMember { name: String, type_name: String },
+    StructDecl {
+        name: String,
+        fields: Vec<String>,
+        members: Vec<AstNode>,
+    },
+    StructMember {
+        name: String,
+        type_name: String,
+    },
     Variable(VariableNode),
     TypeAlias(TypeAliasNode),
-    TypeAliasDecl { name: String, target_type: String },
+    TypeAliasDecl {
+        name: String,
+        target_type: String,
+    },
     Constant(ConstantNode),
-    ConstDecl { name: String, value: String },
+    ConstDecl {
+        name: String,
+        value: String,
+    },
     Attribute(AttributeNode),
     Statement(StatementNode),
     Expression(ExpressionNode),
-    ImportDecl { path: String },
-    OverrideDecl { name: String },
-    GlobalVarDecl { name: String, type_name: String, initializer: Option<String> },
+    ImportDecl {
+        path: String,
+    },
+    OverrideDecl {
+        name: String,
+    },
+    GlobalVarDecl {
+        name: String,
+        type_name: String,
+        initializer: Option<String>,
+    },
     BlockStatement(Vec<AstNode>),
     ReturnStatement(Option<String>),
-    AssignmentStatement { target: String, value: String },
-    IfStatement { condition: String, then_branch: Box<AstNode>, else_branch: Option<Box<AstNode>> },
+    AssignmentStatement {
+        target: String,
+        value: String,
+    },
+    IfStatement {
+        condition: String,
+        then_branch: Box<AstNode>,
+        else_branch: Option<Box<AstNode>>,
+    },
     TranslationUnit,
 }
 
@@ -583,17 +616,23 @@ pub struct ParseError {
 
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Parse error at {}:{}: {} ({})", self.line, self.column, self.message, 
-               match self.error_type {
-                   ParseErrorType::SyntaxError => "syntax error",
-                   ParseErrorType::TypeError => "type error",
-                   ParseErrorType::SemanticError => "semantic error",
-                   ParseErrorType::UndefinedSymbol => "undefined symbol",
-                   ParseErrorType::Redefinition => "redefinition",
-                   ParseErrorType::InvalidAttribute => "invalid attribute",
-                   ParseErrorType::InvalidBinding => "invalid binding",
-                   ParseErrorType::UnexpectedToken => "unexpected token",
-               })
+        write!(
+            f,
+            "Parse error at {}:{}: {} ({})",
+            self.line,
+            self.column,
+            self.message,
+            match self.error_type {
+                ParseErrorType::SyntaxError => "syntax error",
+                ParseErrorType::TypeError => "type error",
+                ParseErrorType::SemanticError => "semantic error",
+                ParseErrorType::UndefinedSymbol => "undefined symbol",
+                ParseErrorType::Redefinition => "redefinition",
+                ParseErrorType::InvalidAttribute => "invalid attribute",
+                ParseErrorType::InvalidBinding => "invalid binding",
+                ParseErrorType::UnexpectedToken => "unexpected token",
+            }
+        )
     }
 }
 
@@ -649,10 +688,10 @@ impl WgslAstParser {
 
         // Parse using naga library (Rust-native WGSL parser)
         let module = self.parse_module(source)?;
-        
+
         // Validate the AST
         self.validate_module(&module)?;
-        
+
         self.current_module = Some(module.clone());
         Ok(module)
     }
@@ -670,10 +709,10 @@ impl WgslAstParser {
         // Parse global attributes
         // Parse imports
         // Parse declarations
-        
+
         // For now, create a basic module structure
         // This would be replaced with actual Lezer grammar parsing
-        
+
         Ok(module)
     }
 
@@ -683,7 +722,7 @@ impl WgslAstParser {
         // Check for type consistency
         // Check for valid bindings
         // Check for shader stage requirements
-        
+
         if !self.errors.is_empty() {
             return Err(ParseError {
                 message: format!("Parse errors: {:?}", self.errors),
@@ -692,7 +731,7 @@ impl WgslAstParser {
                 error_type: ParseErrorType::SyntaxError,
             });
         }
-        
+
         Ok(())
     }
 
@@ -817,7 +856,8 @@ pub mod ast_utils {
 
     /// Get all function names in the module
     pub fn get_function_names(module: &ModuleNode) -> Vec<String> {
-        module.declarations
+        module
+            .declarations
             .iter()
             .filter_map(|decl| {
                 if let DeclarationNode::Function(func) = decl {
@@ -831,7 +871,8 @@ pub mod ast_utils {
 
     /// Get all struct names in the module
     pub fn get_struct_names(module: &ModuleNode) -> Vec<String> {
-        module.declarations
+        module
+            .declarations
             .iter()
             .filter_map(|decl| {
                 if let DeclarationNode::Struct(struct_node) = decl {
@@ -845,7 +886,8 @@ pub mod ast_utils {
 
     /// Get all uniform variables in the module
     pub fn get_uniform_variables(module: &ModuleNode) -> Vec<&VariableNode> {
-        module.declarations
+        module
+            .declarations
             .iter()
             .filter_map(|decl| {
                 if let DeclarationNode::Variable(var) = decl {
@@ -863,14 +905,16 @@ pub mod ast_utils {
 
     /// Check if a function is an entry point
     pub fn is_entry_point(function: &FunctionNode) -> bool {
-        function.attributes.iter().any(|attr| {
-            matches!(attr.name.as_str(), "vertex" | "fragment" | "compute")
-        })
+        function
+            .attributes
+            .iter()
+            .any(|attr| matches!(attr.name.as_str(), "vertex" | "fragment" | "compute"))
     }
 
     /// Get entry point functions
     pub fn get_entry_points(module: &ModuleNode) -> Vec<&FunctionNode> {
-        module.declarations
+        module
+            .declarations
             .iter()
             .filter_map(|decl| {
                 if let DeclarationNode::Function(func) = decl {
@@ -894,9 +938,9 @@ mod tests {
     #[test]
     fn test_symbol_table() {
         let mut symbol_table = SymbolTable::new();
-        
+
         symbol_table.enter_scope();
-        
+
         let entry = SymbolEntry {
             name: "test_var".to_string(),
             symbol_type: SymbolType::Variable,
@@ -906,12 +950,15 @@ mod tests {
             attributes: Vec::new(),
             binding_info: None,
         };
-        
+
         symbol_table.add_symbol(entry);
-        
+
         assert!(symbol_table.lookup_symbol("test_var").is_some());
-        assert_eq!(symbol_table.lookup_symbol("test_var").unwrap().name, "test_var");
-        
+        assert_eq!(
+            symbol_table.lookup_symbol("test_var").unwrap().name,
+            "test_var"
+        );
+
         symbol_table.exit_scope();
         assert!(symbol_table.lookup_symbol("test_var").is_none());
     }
@@ -926,7 +973,7 @@ mod tests {
             exports: Vec::new(),
             attributes: Vec::new(),
         };
-        
+
         assert!(visitor.visit_module(&module).is_ok());
     }
 }
@@ -942,16 +989,16 @@ pub mod integration {
     pub fn ast_to_compiled_shader(module: &ModuleNode, source: &str) -> Result<CompiledShader> {
         // Extract metadata
         let metadata = extract_shader_metadata(module)?;
-        
+
         // Extract uniforms
         let uniforms = extract_uniforms(module)?;
-        
+
         // Extract functions
         let functions = extract_functions(module)?;
-        
+
         // Generate WGSL code
         let wgsl_code = generate_wgsl_from_ast(module)?;
-        
+
         Ok(CompiledShader {
             wgsl_code,
             metadata,
@@ -990,7 +1037,7 @@ pub mod integration {
     /// Extract uniforms from AST
     fn extract_uniforms(module: &ModuleNode) -> Result<Vec<crate::advanced_shader_compilation::UniformInfo>> {
         let mut uniforms = Vec::new();
-        
+
         for var in ast_utils::get_uniform_variables(module) {
             if let (Some(binding), Some(group)) = (var.binding, var.group) {
                 uniforms.push(crate::advanced_shader_compilation::UniformInfo {
@@ -1005,17 +1052,17 @@ pub mod integration {
                 });
             }
         }
-        
+
         Ok(uniforms)
     }
 
     /// Extract functions from AST
     fn extract_functions(module: &ModuleNode) -> Result<Vec<crate::advanced_shader_compilation::FunctionInfo>> {
         let mut functions = Vec::new();
-        
+
         for func in ast_utils::get_entry_points(module) {
             let mut parameters = Vec::new();
-            
+
             for param in &func.parameters {
                 parameters.push(crate::advanced_shader_compilation::ParameterInfo {
                     name: param.name.clone(),
@@ -1027,7 +1074,7 @@ pub mod integration {
                     },
                 });
             }
-            
+
             functions.push(crate::advanced_shader_compilation::FunctionInfo {
                 name: func.name.clone(),
                 return_type: func.return_type.as_ref()
@@ -1038,7 +1085,7 @@ pub mod integration {
                 line_number: 0, // TODO: Track line numbers
             });
         }
-        
+
         Ok(functions)
     }
 
@@ -1104,7 +1151,7 @@ pub mod integration {
                 };
                 let array_suffix = if texture.is_array { "_array" } else { "" };
                 let multisampled_suffix = if texture.is_multisampled { "_ms" } else { "" };
-                
+
                 format!("texture_{}{}{}<{}>", dimension, array_suffix, multisampled_suffix, sample_type)
             },
             TypeNode::Sampler(sampler) => match sampler {
@@ -1121,12 +1168,12 @@ pub mod integration {
     /// Generate WGSL code from AST
     fn generate_wgsl_from_ast(module: &ModuleNode) -> Result<String> {
         let mut code = String::new();
-        
+
         // Generate imports
         for import in &module.imports {
             // TODO: Generate import statements
         }
-        
+
         // Generate declarations
         for declaration in &module.declarations {
             match declaration {
@@ -1152,14 +1199,14 @@ pub mod integration {
                 }
             }
         }
-        
+
         Ok(code)
     }
 
     /// Generate WGSL for function
     fn generate_function_wgsl(function: &FunctionNode) -> Result<String> {
         let mut code = String::new();
-        
+
         // Generate attributes
         for attr in &function.attributes {
             code.push_str(&format!("@{}", attr.name));
@@ -1171,10 +1218,10 @@ pub mod integration {
             }
             code.push('\n');
         }
-        
+
         // Generate function signature
         code.push_str(&format!("fn {}(", function.name));
-        
+
         let params: Vec<String> = function.parameters.iter()
             .map(|param| {
                 let mut param_str = String::new();
@@ -1187,28 +1234,28 @@ pub mod integration {
                 param_str
             })
             .collect();
-        
+
         code.push_str(&params.join(", "));
         code.push(')');
-        
+
         if let Some(return_type) = &function.return_type {
             code.push_str(&format!(" -> {}", type_node_to_string(return_type)));
         }
-        
+
         if let Some(body) = &function.body {
             code.push(' ');
             code.push_str(&generate_block_wgsl(body)?);
         } else {
             code.push_str(";");
         }
-        
+
         Ok(code)
     }
 
     /// Generate WGSL for struct
     fn generate_struct_wgsl(struct_node: &StructNode) -> Result<String> {
         let mut code = String::new();
-        
+
         // Generate attributes
         for attr in &struct_node.attributes {
             code.push_str(&format!("@{}", attr.name));
@@ -1220,24 +1267,24 @@ pub mod integration {
             }
             code.push('\n');
         }
-        
+
         code.push_str(&format!(r#"struct {} {{
 "#, struct_node.name));
-        
+
         for member in &struct_node.members {
             code.push_str(&format!(r#"    {}: {},
 "#, member.name, type_node_to_string(&member.data_type)));
         }
-        
+
         code.push('}');
-        
+
         Ok(code)
     }
 
     /// Generate WGSL for variable
     fn generate_variable_wgsl(variable: &VariableNode) -> Result<String> {
         let mut code = String::new();
-        
+
         // Generate attributes
         for attr in &variable.attributes {
             code.push_str(&format!("@{}", attr.name));
@@ -1249,35 +1296,35 @@ pub mod integration {
             }
             code.push('\n');
         }
-        
+
         let var_keyword = match variable.var_type {
             VarType::Var => "var",
             VarType::Let => "let",
             VarType::Const => "const",
         };
-        
+
         code.push_str(var_keyword);
         code.push(' ');
-        
+
         if let (Some(group), Some(binding)) = (variable.group, variable.binding) {
             code.push_str(&format!("@group({}) @binding({}) ", group, binding));
         }
-        
+
         code.push_str(&format!("{}: {}", variable.name, type_node_to_string(&variable.data_type)));
-        
+
         if let Some(init) = &variable.initializer {
             code.push_str(&format!(" = {}", expression_to_string(init)));
         }
-        
+
         code.push(';');
-        
+
         Ok(code)
     }
 
     /// Generate WGSL for type alias
     fn generate_type_alias_wgsl(alias: &TypeAliasNode) -> Result<String> {
         let mut code = String::new();
-        
+
         // Generate attributes
         for attr in &alias.attributes {
             code.push_str(&format!("@{}", attr.name));
@@ -1289,16 +1336,16 @@ pub mod integration {
             }
             code.push('\n');
         }
-        
+
         code.push_str(&format!("alias {} = {};", alias.name, type_node_to_string(&alias.aliased_type)));
-        
+
         Ok(code)
     }
 
     /// Generate WGSL for constant
     fn generate_constant_wgsl(constant: &ConstantNode) -> Result<String> {
         let mut code = String::new();
-        
+
         // Generate attributes
         for attr in &constant.attributes {
             code.push_str(&format!("@{}", attr.name));
@@ -1310,32 +1357,32 @@ pub mod integration {
             }
             code.push('\n');
         }
-        
+
         code.push_str(&format!("const {}" , constant.name));
-        
+
         if let Some(data_type) = &constant.data_type {
             code.push_str(&format!(": {}", type_node_to_string(data_type)));
         }
-        
+
         code.push_str(&format!(" = {};", expression_to_string(&constant.value)));
-        
+
         Ok(code)
     }
 
     /// Generate WGSL for block
     fn generate_block_wgsl(block: &BlockNode) -> Result<String> {
         let mut code = String::new();
-        
+
         code.push('{');
-        
+
         for statement in &block.statements {
             code.push('\n');
             code.push_str(&generate_statement_wgsl(statement)?);
         }
-        
+
         code.push('\n');
         code.push('}');
-        
+
         Ok(code)
     }
 

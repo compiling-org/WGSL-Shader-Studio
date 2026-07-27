@@ -1,6 +1,7 @@
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
+use naga::AddressSpace;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 
 /// Analyze WGSL shader and return reflection information
 pub fn analyze_shader_reflection(wgsl_code: &str) -> Result<WgslReflectAnalyzer> {
@@ -171,7 +172,7 @@ impl WgslReflectAnalyzer {
         self.extract_textures(wgsl_code)?;
         self.extract_samplers(wgsl_code)?;
         self.extract_storage_buffers(wgsl_code)?;
-        
+
         Ok(())
     }
 
@@ -182,30 +183,39 @@ impl WgslReflectAnalyzer {
             let line = line.trim();
             if line.starts_with("//") {
                 if line.contains("@name") {
-                    self.shader_info.name = line.split("@name").nth(1).map(|s| s.trim().to_string());
+                    self.shader_info.name =
+                        line.split("@name").nth(1).map(|s| s.trim().to_string());
                 } else if line.contains("@version") {
-                    self.shader_info.version = line.split("@version").nth(1).map(|s| s.trim().to_string());
+                    self.shader_info.version =
+                        line.split("@version").nth(1).map(|s| s.trim().to_string());
                 } else if line.contains("@description") {
-                    self.shader_info.description = line.split("@description").nth(1).map(|s| s.trim().to_string());
+                    self.shader_info.description = line
+                        .split("@description")
+                        .nth(1)
+                        .map(|s| s.trim().to_string());
                 } else if line.contains("@author") {
-                    self.shader_info.author = line.split("@author").nth(1).map(|s| s.trim().to_string());
+                    self.shader_info.author =
+                        line.split("@author").nth(1).map(|s| s.trim().to_string());
                 }
             }
         }
-        
+
         Ok(())
     }
 
     /// Extract entry points from WGSL code
     fn extract_entry_points(&mut self, wgsl_code: &str) -> Result<()> {
         self.entry_points.clear();
-        
+
         let mut lines = wgsl_code.lines().peekable();
         while let Some(line) = lines.next() {
             let line = line.trim();
-            
+
             // Look for entry point attributes
-            if line.starts_with("@vertex") || line.starts_with("@fragment") || line.starts_with("@compute") {
+            if line.starts_with("@vertex")
+                || line.starts_with("@fragment")
+                || line.starts_with("@compute")
+            {
                 let stage = if line.starts_with("@vertex") {
                     ShaderStage::Vertex
                 } else if line.starts_with("@fragment") {
@@ -213,21 +223,28 @@ impl WgslReflectAnalyzer {
                 } else {
                     ShaderStage::Compute
                 };
-                
+
                 // Handle same-line declaration: "@fragment fn name(...)"
                 let same_line_fn = if line.contains("fn ") {
-                    Some(line.split("fn ").nth(1)
-                        .and_then(|s| s.split('(').next())
-                        .unwrap_or("unknown")
-                        .trim()
-                        .to_string())
-                } else { None };
+                    Some(
+                        line.split("fn ")
+                            .nth(1)
+                            .and_then(|s| s.split('(').next())
+                            .unwrap_or("unknown")
+                            .trim()
+                            .to_string(),
+                    )
+                } else {
+                    None
+                };
 
                 let fn_name = if let Some(name) = same_line_fn {
                     name
                 } else if let Some(next_line) = lines.peek() {
                     if next_line.contains("fn ") {
-                        next_line.split("fn ").nth(1)
+                        next_line
+                            .split("fn ")
+                            .nth(1)
                             .and_then(|s| s.split('(').next())
                             .unwrap_or("unknown")
                             .trim()
@@ -247,7 +264,7 @@ impl WgslReflectAnalyzer {
                         inputs: Vec::new(),
                         outputs: Vec::new(),
                     };
-                    
+
                     if matches!(stage, ShaderStage::Compute) && line.contains("workgroup_size") {
                         if let Some(size_str) = line.split("workgroup_size").nth(1) {
                             if let Some(sizes) = Self::parse_workgroup_size(size_str) {
@@ -255,25 +272,25 @@ impl WgslReflectAnalyzer {
                             }
                         }
                     }
-                    
+
                     self.entry_points.push(entry_point);
                 }
             }
         }
-        
+
         Ok(())
     }
 
     /// Extract bind groups from WGSL code
     fn extract_bind_groups(&mut self, wgsl_code: &str) -> Result<()> {
         self.bind_groups.clear();
-        
+
         let mut current_group: Option<u32> = None;
         let mut current_bindings: Vec<BindingInfo> = Vec::new();
-        
+
         for line in wgsl_code.lines() {
             let line = line.trim();
-            
+
             // Look for @group attribute (allow combined attribute lines)
             if line.contains("@group(") {
                 if let Some(group_num) = Self::extract_group_number(line) {
@@ -296,7 +313,7 @@ impl WgslReflectAnalyzer {
                     }
                 }
             }
-            
+
             // Look for @binding attribute (support both standalone and combined with @group)
             if line.contains("@binding(") && current_group.is_some() {
                 if let Some(binding_info) = Self::extract_binding_info(line, wgsl_code) {
@@ -304,7 +321,7 @@ impl WgslReflectAnalyzer {
                 }
             }
         }
-        
+
         // Save last group
         if let Some(group) = current_group {
             self.bind_groups.push(BindGroupInfo {
@@ -312,42 +329,52 @@ impl WgslReflectAnalyzer {
                 bindings: current_bindings,
             });
         }
-        
+
         Ok(())
     }
 
     /// Extract uniforms from WGSL code using naga for robust reflection
     fn extract_uniforms(&mut self, wgsl_code: &str) -> Result<()> {
         self.uniforms.clear();
-        
-        let module = match naga::front::wgsl::parse(wgsl_code) {
+
+        let module = match naga::front::wgsl::parse_str(wgsl_code) {
             Ok(m) => m,
             Err(e) => return Err(anyhow!("Naga parse error: {}", e)),
         };
 
         for (_, global) in module.global_variables.iter() {
             if global.space == naga::AddressSpace::Uniform {
-                let name = global.name.clone().unwrap_or_else(|| "unnamed_uniform".to_string());
+                let name = global
+                    .name
+                    .clone()
+                    .unwrap_or_else(|| "unnamed_uniform".to_string());
                 let (group, binding) = if let Some(ref binding) = global.binding {
                     (binding.group, binding.binding)
                 } else {
                     (0, 0)
                 };
-                
+
                 // Get type info
                 let type_handle = global.ty;
                 let type_inner = &module.types[type_handle].inner;
-                
+
                 match type_inner {
                     naga::TypeInner::Struct { members, span: _ } => {
                         // This is a uniform block
                         for member in members {
-                            let member_name = member.name.clone().unwrap_or_else(|| "unnamed_member".to_string());
+                            let member_name = member
+                                .name
+                                .clone()
+                                .unwrap_or_else(|| "unnamed_member".to_string());
                             let member_type = &module.types[member.ty].inner;
-                            
+
                             let (base_type, components) = match member_type {
-                                naga::TypeInner::Scalar { kind, width: _ } => (format!("{:?}", kind), 1),
-                                naga::TypeInner::Vector { size, kind, width: _ } => (format!("{:?}", kind), *size as u32),
+                                naga::TypeInner::Scalar(scalar) => {
+                                    (format!("{:?}", scalar.kind), 1)
+                                }
+                                naga::TypeInner::Vector { size, scalar, .. } => {
+                                    (format!("{:?}", scalar.kind), *size as u32)
+                                }
                                 _ => ("unknown".to_string(), 0),
                             };
 
@@ -369,8 +396,8 @@ impl WgslReflectAnalyzer {
                                 default_value: None,
                             });
                         }
-                    },
-                    naga::TypeInner::Scalar { kind, width: _ } => {
+                    }
+                    naga::TypeInner::Scalar(scalar) => {
                         self.uniforms.push(UniformInfo {
                             name,
                             group,
@@ -379,7 +406,7 @@ impl WgslReflectAnalyzer {
                             size: 4,
                             align: 4,
                             type_info: TypeInfo {
-                                base_type: format!("{:?}", kind),
+                                base_type: format!("{:?}", scalar.kind),
                                 components: 1,
                                 rows: None,
                                 columns: None,
@@ -388,8 +415,8 @@ impl WgslReflectAnalyzer {
                             },
                             default_value: None,
                         });
-                    },
-                    naga::TypeInner::Vector { size, kind, width: _ } => {
+                    }
+                    naga::TypeInner::Vector { size, scalar, .. } => {
                         self.uniforms.push(UniformInfo {
                             name,
                             group,
@@ -398,7 +425,7 @@ impl WgslReflectAnalyzer {
                             size: 4 * (*size as u32),
                             align: 4,
                             type_info: TypeInfo {
-                                base_type: format!("{:?}", kind),
+                                base_type: format!("{:?}", scalar.kind),
                                 components: *size as u32,
                                 rows: None,
                                 columns: None,
@@ -407,22 +434,26 @@ impl WgslReflectAnalyzer {
                             },
                             default_value: None,
                         });
-                    },
+                    }
                     _ => {}
                 }
             }
         }
-        
+
         Ok(())
     }
 
     fn extract_textures(&mut self, wgsl_code: &str) -> Result<()> {
         self.textures.clear();
-        let module = naga::front::wgsl::parse(wgsl_code).map_err(|e| anyhow!("Naga parse error: {}", e))?;
+        let module = naga::front::wgsl::parse_str(wgsl_code)
+            .map_err(|e| anyhow!("Naga parse error: {}", e))?;
 
         for (_, global) in module.global_variables.iter() {
             if let naga::TypeInner::Image { dim, class, .. } = module.types[global.ty].inner {
-                let name = global.name.clone().unwrap_or_else(|| "unnamed_texture".to_string());
+                let name = global
+                    .name
+                    .clone()
+                    .unwrap_or_else(|| "unnamed_texture".to_string());
                 let (group, binding) = if let Some(ref binding) = global.binding {
                     (binding.group, binding.binding)
                 } else {
@@ -445,11 +476,15 @@ impl WgslReflectAnalyzer {
 
     fn extract_samplers(&mut self, wgsl_code: &str) -> Result<()> {
         self.samplers.clear();
-        let module = naga::front::wgsl::parse(wgsl_code).map_err(|e| anyhow!("Naga parse error: {}", e))?;
+        let module = naga::front::wgsl::parse_str(wgsl_code)
+            .map_err(|e| anyhow!("Naga parse error: {}", e))?;
 
         for (_, global) in module.global_variables.iter() {
             if let naga::TypeInner::Sampler { comparison } = module.types[global.ty].inner {
-                let name = global.name.clone().unwrap_or_else(|| "unnamed_sampler".to_string());
+                let name = global
+                    .name
+                    .clone()
+                    .unwrap_or_else(|| "unnamed_sampler".to_string());
                 let (group, binding) = if let Some(ref binding) = global.binding {
                     (binding.group, binding.binding)
                 } else {
@@ -460,7 +495,11 @@ impl WgslReflectAnalyzer {
                     name,
                     binding,
                     group,
-                    sampler_type: if comparison { "comparison".to_string() } else { "filtering".to_string() },
+                    sampler_type: if comparison {
+                        "comparison".to_string()
+                    } else {
+                        "filtering".to_string()
+                    },
                     filtering: None,
                     addressing: None,
                 });
@@ -471,11 +510,15 @@ impl WgslReflectAnalyzer {
 
     fn extract_storage_buffers(&mut self, wgsl_code: &str) -> Result<()> {
         self.storage_buffers.clear();
-        let module = naga::front::wgsl::parse(wgsl_code).map_err(|e| anyhow!("Naga parse error: {}", e))?;
+        let module = naga::front::wgsl::parse_str(wgsl_code)
+            .map_err(|e| anyhow!("Naga parse error: {}", e))?;
 
         for (_, global) in module.global_variables.iter() {
-            if global.space == naga::AddressSpace::Storage {
-                let name = global.name.clone().unwrap_or_else(|| "unnamed_storage".to_string());
+            if matches!(global.space, AddressSpace::Storage { .. }) {
+                let name = global
+                    .name
+                    .clone()
+                    .unwrap_or_else(|| "unnamed_storage".to_string());
                 let (group, binding) = if let Some(ref binding) = global.binding {
                     (binding.group, binding.binding)
                 } else {
@@ -509,10 +552,11 @@ impl WgslReflectAnalyzer {
         if let Some(start) = size_str.find('(') {
             if let Some(end) = size_str.find(')') {
                 let params = &size_str[start + 1..end];
-                let parts: Vec<u32> = params.split(',')
+                let parts: Vec<u32> = params
+                    .split(',')
                     .filter_map(|s| s.trim().parse().ok())
                     .collect();
-                
+
                 if parts.len() == 3 {
                     return Some((parts[0], parts[1], parts[2]));
                 }
@@ -522,7 +566,8 @@ impl WgslReflectAnalyzer {
     }
 
     fn extract_group_number(line: &str) -> Option<u32> {
-        line.split("@group(").nth(1)
+        line.split("@group(")
+            .nth(1)
             .and_then(|s| s.split(')').next())
             .and_then(|s| s.parse().ok())
     }
@@ -530,27 +575,32 @@ impl WgslReflectAnalyzer {
     fn extract_binding_info(line: &str, wgsl_code: &str) -> Option<BindingInfo> {
         // This is a simplified extraction - in a real implementation,
         // you would parse the full WGSL structure
-        let binding = line.split("@binding(").nth(1)
+        let binding = line
+            .split("@binding(")
+            .nth(1)
             .and_then(|s| s.split(')').next())
             .and_then(|s| s.parse().ok())?;
-        
+
         // Look for variable declaration on the same or next line
         let var_line = if line.contains("var") {
             line.to_string()
         } else {
             // Find next line with variable declaration
-            wgsl_code.lines()
+            wgsl_code
+                .lines()
                 .skip_while(|l| !l.contains(line))
                 .skip(1)
                 .find(|l| l.contains("var"))?
                 .to_string()
         };
-        
-        let name = var_line.split(':').nth(0)?
+
+        let name = var_line
+            .split(':')
+            .nth(0)?
             .split_whitespace()
             .last()?
             .to_string();
-        
+
         let binding_type = if var_line.contains("uniform") {
             BindingType::UniformBuffer
         } else if var_line.contains("storage") {
@@ -562,7 +612,7 @@ impl WgslReflectAnalyzer {
         } else {
             BindingType::UniformBuffer
         };
-        
+
         Some(BindingInfo {
             binding,
             name,
@@ -600,9 +650,9 @@ impl WgslReflectAnalyzer {
     /// Generate reflection report
     pub fn generate_report(&self) -> String {
         let mut report = String::new();
-        
+
         report.push_str("# WGSL Shader Reflection Report\n\n");
-        
+
         // Shader info
         if let Some(name) = &self.shader_info.name {
             report.push_str(&format!("**Name:** {}\n", name));
@@ -614,41 +664,49 @@ impl WgslReflectAnalyzer {
             report.push_str(&format!("**Description:** {}\n", description));
         }
         report.push('\n');
-        
+
         // Entry points
         if !self.entry_points.is_empty() {
             report.push_str("## Entry Points\n\n");
             for entry_point in &self.entry_points {
-                report.push_str(&format!("- **{}** ({:?})\n", entry_point.name, entry_point.stage));
+                report.push_str(&format!(
+                    "- **{}** ({:?})\n",
+                    entry_point.name, entry_point.stage
+                ));
                 if let Some((x, y, z)) = entry_point.workgroup_size {
                     report.push_str(&format!("  - Workgroup size: ({}, {}, {})\n", x, y, z));
                 }
             }
             report.push('\n');
         }
-        
+
         // Bind groups
         if !self.bind_groups.is_empty() {
             report.push_str("## Bind Groups\n\n");
             for bind_group in &self.bind_groups {
                 report.push_str(&format!("**Group {}**\n", bind_group.group));
                 for binding in &bind_group.bindings {
-                    report.push_str(&format!("- Binding {}: {} ({:?})\n", binding.binding, binding.name, binding.binding_type));
+                    report.push_str(&format!(
+                        "- Binding {}: {} ({:?})\n",
+                        binding.binding, binding.name, binding.binding_type
+                    ));
                 }
                 report.push('\n');
             }
         }
-        
+
         // Uniforms
         if !self.uniforms.is_empty() {
             report.push_str("## Uniforms\n\n");
             for uniform in &self.uniforms {
-                report.push_str(&format!("- **{}**: offset={}, size={}, align={}\n", 
-                    uniform.name, uniform.offset, uniform.size, uniform.align));
+                report.push_str(&format!(
+                    "- **{}**: offset={}, size={}, align={}\n",
+                    uniform.name, uniform.offset, uniform.size, uniform.align
+                ));
             }
             report.push('\n');
         }
-        
+
         report
     }
 }

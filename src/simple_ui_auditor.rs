@@ -1,8 +1,8 @@
+use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 use bevy_egui::EguiContexts;
-use std::collections::HashMap;
 use serde::Serialize;
-use bevy::input::keyboard::KeyCode;
+use std::collections::HashMap;
 
 /// Simple UI auditor that tracks what's actually rendered vs placeholders
 #[derive(Resource)]
@@ -62,50 +62,60 @@ impl SimpleUiAuditor {
     pub fn record_panel(&mut self, name: &str, has_content: bool, reason: Option<String>) {
         let info = self.panels_found.entry(name.to_string()).or_default();
         info.has_real_content = has_content;
-        
+
         if let Some(r) = reason {
             if !info.placeholder_reasons.contains(&r) {
                 info.placeholder_reasons.push(r);
             }
         }
     }
-    
+
     pub fn log_event(&mut self, event: String) {
         let timestamp = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
-            .as_secs() % 10000;
-            
+            .as_secs()
+            % 10000;
+
         let entry = format!("[{}] {}", timestamp, event);
-        if self.events.len() >= 50 { // Increased buffer size
+        if self.events.len() >= 50 {
+            // Increased buffer size
             self.events.remove(0);
         }
         self.events.push(entry);
     }
-    
-    pub fn update_input_stats(&mut self, ctx: &bevy_egui::egui::Context, keys: &ButtonInput<KeyCode>) {
+
+    pub fn update_input_stats(
+        &mut self,
+        ctx: &bevy_egui::egui::Context,
+        keys: &ButtonInput<KeyCode>,
+    ) {
         // Safe readout of input state
         ctx.input(|i| {
-           self.input_stats.mouse_pos = i.pointer.latest_pos().map(|p| Vec2::new(p.x, p.y));
-           self.input_stats.any_button_hovered = i.pointer.any_down(); 
-           
-           self.input_stats.primary_clicked = i.pointer.primary_down();
-           self.input_stats.secondary_clicked = i.pointer.secondary_down();
-           self.input_stats.middle_clicked = i.pointer.middle_down();
-           
-           if i.pointer.primary_clicked() {
-               self.log_event(format!("Global Input: Left Click at {:?}", i.pointer.interact_pos()));
-               self.input_stats.interactions += 1;
-               self.input_stats.any_button_clicked = true;
-           }
-           if i.pointer.secondary_clicked() {
-               self.log_event("Global Input: Right Click".to_string());
-               self.input_stats.any_button_clicked = true;
-           }
+            self.input_stats.mouse_pos = i.pointer.latest_pos().map(|p| Vec2::new(p.x, p.y));
+            self.input_stats.any_button_hovered = i.pointer.any_down();
+
+            self.input_stats.primary_clicked = i.pointer.primary_down();
+            self.input_stats.secondary_clicked = i.pointer.secondary_down();
+            self.input_stats.middle_clicked = i.pointer.middle_down();
+
+            if i.pointer.primary_clicked() {
+                self.log_event(format!(
+                    "Global Input: Left Click at {:?}",
+                    i.pointer.interact_pos()
+                ));
+                self.input_stats.interactions += 1;
+                self.input_stats.any_button_clicked = true;
+            }
+            if i.pointer.secondary_clicked() {
+                self.log_event("Global Input: Right Click".to_string());
+                self.input_stats.any_button_clicked = true;
+            }
         });
-        
+
         // Track pressed keys
-        self.input_stats.keys_pressed = keys.get_pressed()
+        self.input_stats.keys_pressed = keys
+            .get_pressed()
             .take(5) // Limit to 5 simultaneous keys to avoid spam
             .map(|k| format!("{:?}", k))
             .collect();
@@ -113,7 +123,10 @@ impl SimpleUiAuditor {
 
     pub fn save_report(&self) {
         let report = AuditReport {
-            timestamp: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
             panel_count: self.panels_found.len(),
             panels: self.panels_found.clone(),
             events: self.events.clone(),
@@ -128,7 +141,7 @@ impl SimpleUiAuditor {
             }
         });
     }
-    
+
     pub fn clear(&mut self) {
         self.panels_found.clear();
     }
@@ -146,7 +159,7 @@ pub fn ui_audit_system(
         Ok(c) => c,
         Err(_) => return, // Skip if egui context not available
     };
-    
+
     // We need to clone keys or pass reference. Since update_input_stats needs specific types,
     // let's just pass the resource reference.
     auditor.update_input_stats(ctx, &keys);
@@ -154,10 +167,10 @@ pub fn ui_audit_system(
     // Save less frequently to avoid disk I/O stutter (every 5 seconds)
     let now = time.elapsed_secs_f64();
     if now - auditor.last_save_time > 5.0 {
-         auditor.save_report();
-         auditor.last_save_time = now;
+        auditor.save_report();
+        auditor.last_save_time = now;
     }
-    
+
     // Also save on F12
     if keys.just_pressed(KeyCode::F12) {
         println!("\n=== EVENTS LOG ===");

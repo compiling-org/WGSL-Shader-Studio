@@ -1,8 +1,8 @@
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use regex::Regex;
 
 /// ISF input parameter types
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -15,7 +15,11 @@ pub enum IsfInputType {
     #[serde(rename = "color")]
     Color { default: [f32; 4] },
     #[serde(rename = "point2D")]
-    Point2D { default: [f32; 2], min: [f32; 2], max: [f32; 2] },
+    Point2D {
+        default: [f32; 2],
+        min: [f32; 2],
+        max: [f32; 2],
+    },
     #[serde(rename = "image")]
     Image,
     #[serde(rename = "audio")]
@@ -83,26 +87,30 @@ impl IsfAutoConverter {
     }
 
     /// Convert ISF shader to WGSL
-    pub fn convert_isf_to_wgsl(&mut self, isf_code: &str, file_path: Option<&PathBuf>) -> Result<WgslConversionResult> {
+    pub fn convert_isf_to_wgsl(
+        &mut self,
+        isf_code: &str,
+        file_path: Option<&PathBuf>,
+    ) -> Result<WgslConversionResult> {
         let start_time = std::time::Instant::now();
-        
+
         // Parse ISF metadata from JSON comment
         let metadata = self.parse_isf_metadata(isf_code)?;
-        
+
         // Extract GLSL code (everything after the JSON comment)
         let glsl_code = self.extract_glsl_code(isf_code);
-        
+
         // Convert GLSL to WGSL
         let wgsl_code = self.convert_glsl_to_wgsl(&glsl_code, &metadata)?;
-        
+
         // Generate bind groups from inputs
         let bind_groups = self.generate_bind_groups(&metadata);
-        
+
         // Generate performance hints
         let performance_hints = self.generate_performance_hints(&wgsl_code);
-        
+
         let conversion_time_ms = start_time.elapsed().as_secs_f64() * 1000.0;
-        
+
         let result = WgslConversionResult {
             metadata: metadata.clone(),
             wgsl_code: wgsl_code.clone(),
@@ -111,29 +119,33 @@ impl IsfAutoConverter {
             performance_hints,
             conversion_time_ms,
             entry_points: vec!["fs_main".to_string()], // Standard fragment shader entry point
-            converted_wgsl: None, // Will be set if needed
+            converted_wgsl: None,                      // Will be set if needed
             conversion_notes: vec!["ISF auto-conversion successful".to_string()],
             vertex_shader: "// Vertex shader would be generated here".to_string(),
             fragment_shader: wgsl_code,
         };
-        
+
         // Cache result if file path provided
         if let Some(path) = file_path {
             self.conversion_cache.insert(path.clone(), result.clone());
         }
-        
+
         Ok(result)
     }
 
     /// Parse ISF metadata from JSON comment
     fn parse_isf_metadata(&self, isf_code: &str) -> Result<IsfMetadata> {
         // Find JSON comment block
-        let json_start = isf_code.find("/*{").ok_or_else(|| anyhow!("No ISF metadata found"))?;
-        let json_end = isf_code.find("}*/").ok_or_else(|| anyhow!("No ISF metadata end found"))?;
-        
+        let json_start = isf_code
+            .find("/*{")
+            .ok_or_else(|| anyhow!("No ISF metadata found"))?;
+        let json_end = isf_code
+            .find("}*/")
+            .ok_or_else(|| anyhow!("No ISF metadata end found"))?;
+
         let json_str = &isf_code[json_start + 2..json_end + 2];
         let metadata: IsfMetadata = serde_json::from_str(json_str)?;
-        
+
         Ok(metadata)
     }
 
@@ -149,22 +161,26 @@ impl IsfAutoConverter {
     /// Convert GLSL code to WGSL
     fn convert_glsl_to_wgsl(&self, glsl_code: &str, metadata: &IsfMetadata) -> Result<String> {
         let mut wgsl_code = String::new();
-        
+
         // Add struct definitions
         wgsl_code.push_str("struct VertexOutput {\n");
         wgsl_code.push_str("    @builtin(position) position: vec4<f32>,\n");
         wgsl_code.push_str("    @location(0) uv: vec2<f32>,\n");
         wgsl_code.push_str("}\n\n");
-        
+
         // Add uniform struct
         wgsl_code.push_str("struct Uniforms {\n");
         wgsl_code.push_str("    time: f32,\n");
         wgsl_code.push_str("    resolution: vec2<f32>,\n");
-        
+
         if let Some(inputs) = &metadata.inputs {
             for input in inputs {
                 match &input.input_type {
-                    IsfInputType::Float { default: _, min: _, max: _ } => {
+                    IsfInputType::Float {
+                        default: _,
+                        min: _,
+                        max: _,
+                    } => {
                         wgsl_code.push_str(&format!("    {}: f32,\n", input.name));
                     }
                     IsfInputType::Bool { default: _ } => {
@@ -173,20 +189,24 @@ impl IsfAutoConverter {
                     IsfInputType::Color { default: _ } => {
                         wgsl_code.push_str(&format!("    {}: vec4<f32>,\n", input.name));
                     }
-                    IsfInputType::Point2D { default: _, min: _, max: _ } => {
+                    IsfInputType::Point2D {
+                        default: _,
+                        min: _,
+                        max: _,
+                    } => {
                         wgsl_code.push_str(&format!("    {}: vec2<f32>,\n", input.name));
                     }
                     _ => {}
                 }
             }
         }
-        
+
         wgsl_code.push_str("}\n\n");
-        
+
         // Add bind group declarations
         wgsl_code.push_str("@group(0) @binding(0)\n");
         wgsl_code.push_str("var<uniform> uniforms: Uniforms;\n\n");
-        
+
         // Add texture declarations for image inputs
         if let Some(inputs) = &metadata.inputs {
             let mut texture_binding = 1;
@@ -200,39 +220,42 @@ impl IsfAutoConverter {
                 }
             }
         }
-        
+
         // Convert main function
         let converted_main = self.convert_main_function(glsl_code)?;
         wgsl_code.push_str(&converted_main);
-        
+
         Ok(wgsl_code)
     }
 
     /// Convert main() function from GLSL to WGSL
     fn convert_main_function(&self, glsl_code: &str) -> Result<String> {
         let mut result = String::new();
-        
+
         // Basic GLSL to WGSL conversions
         let mut converted = glsl_code.to_string();
-        
+
         // Replace GLSL built-ins
         converted = converted.replace("gl_FragColor", "fragColor");
         converted = converted.replace("gl_FragCoord", "fragCoord");
         converted = converted.replace("isf_FragNormCoord", "uv");
         converted = converted.replace("TIME", "uniforms.time");
         converted = converted.replace("RENDERSIZE", "uniforms.resolution");
-        
+
         // Convert vec constructors
         converted = converted.replace("vec2(", "vec2<f32>(");
         converted = converted.replace("vec3(", "vec3<f32>(");
         converted = converted.replace("vec4(", "vec4<f32>(");
-        
+
         // Convert texture sampling
         converted = converted.replace("IMG_PIXEL(", "textureSample(");
-        
+
         // Replace function signature
-        converted = converted.replace("void main()", "@fragment\nfn fs_main(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32>");
-        
+        converted = converted.replace(
+            "void main()",
+            "@fragment\nfn fs_main(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32>",
+        );
+
         // Add return statement if using fragColor
         if converted.contains("fragColor") {
             converted = converted.replace("fragColor =", "let fragColor =");
@@ -243,7 +266,7 @@ impl IsfAutoConverter {
                 }
             }
         }
-        
+
         result.push_str(&converted);
         Ok(result)
     }
@@ -252,7 +275,7 @@ impl IsfAutoConverter {
     fn generate_bind_groups(&self, metadata: &IsfMetadata) -> Vec<BindGroupInfo> {
         let mut bind_groups = Vec::new();
         let mut binding = 0u32;
-        
+
         // Uniforms bind group
         bind_groups.push(BindGroupInfo {
             group: 0,
@@ -261,7 +284,7 @@ impl IsfAutoConverter {
             binding_type: "uniform".to_string(),
         });
         binding += 1;
-        
+
         // Image inputs
         if let Some(inputs) = &metadata.inputs {
             for input in inputs {
@@ -273,7 +296,7 @@ impl IsfAutoConverter {
                         binding_type: "texture".to_string(),
                     });
                     binding += 1;
-                    
+
                     bind_groups.push(BindGroupInfo {
                         group: 0,
                         binding,
@@ -284,33 +307,36 @@ impl IsfAutoConverter {
                 }
             }
         }
-        
+
         bind_groups
     }
 
     /// Generate performance hints
     fn generate_performance_hints(&self, wgsl_code: &str) -> Vec<String> {
         let mut hints = Vec::new();
-        
+
         if wgsl_code.contains("textureSample") {
             let count = wgsl_code.matches("textureSample").count();
             if count > 16 {
-                hints.push(format!("High texture sampling count ({}), consider texture atlas optimization ", count));
+                hints.push(format!(
+                    "High texture sampling count ({}), consider texture atlas optimization ",
+                    count
+                ));
             }
         }
-        
+
         if wgsl_code.contains("sin") || wgsl_code.contains("cos") || wgsl_code.contains("tan") {
             hints.push("Trigonometric functions detected, consider using precomputed lookup tables for better performance ".to_string());
         }
-        
+
         if wgsl_code.contains("pow") {
             hints.push("Power functions detected, consider using multiplication chains for integer exponents ".to_string());
         }
-        
+
         if wgsl_code.contains("for") || wgsl_code.contains("while") {
             hints.push("Loop constructs detected, ensure loop bounds are constant for optimal performance ".to_string());
         }
-        
+
         hints
     }
 
@@ -360,12 +386,12 @@ mod tests {
             gl_FragColor = vec4(color, 1.0);
         }
         "#;
-        
+
         let result = converter.parse_isf_advanced(test_isf).unwrap();
         assert_eq!(result.metadata.name, "Test Shader");
         assert_eq!(result.inputs.len(), 1);
         assert_eq!(result.inputs[0].name, "speed");
-        
+
         // Check that WGSL code contains expected elements
         assert!(result.wgsl_code.contains("@fragment"));
         assert!(result.wgsl_code.contains("fn fs_main"));
@@ -390,7 +416,7 @@ mod tests {
             gl_FragColor = color;
         }
         "#;
-        
+
         let result = converter.parse_isf_advanced(test_isf).unwrap();
         assert!(result.wgsl_code.contains("textureSample"));
         assert!(result.wgsl_code.contains("inputImage"));

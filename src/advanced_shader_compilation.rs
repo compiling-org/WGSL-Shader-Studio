@@ -1,44 +1,44 @@
 //! Advanced shader compilation system integrating use.gpu reference architecture
-//! 
+//!
 //! This module provides comprehensive shader compilation, conversion, and optimization
 //! based on the proven use.gpu framework patterns.
 
-use anyhow::{Result, Context, bail};
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use thiserror::Error;
 use crate::converter::diagnostics::Diagnostics;
 use crate::converter::WESLConverter;
+use anyhow::{bail, Context, Result};
+use std::collections::HashMap;
+use std::sync::Arc;
+use thiserror::Error;
+use tokio::sync::Mutex;
 
 // Placeholder structures for the converter implementations
 #[derive(Debug, Clone)]
-pub struct SymbolInfo { 
-    pub name: String, 
-    pub wgsl_type: String 
+pub struct SymbolInfo {
+    pub name: String,
+    pub wgsl_type: String,
 }
 
 #[derive(Debug, Clone)]
-pub struct UniformBlock { 
-    pub name: String, 
-    pub members: Vec<SymbolInfo> 
+pub struct UniformBlock {
+    pub name: String,
+    pub members: Vec<SymbolInfo>,
 }
 
 #[derive(Debug, Clone)]
-pub struct TextureDeclaration { 
-    pub name: String, 
-    pub wgsl_type: String 
+pub struct TextureDeclaration {
+    pub name: String,
+    pub wgsl_type: String,
 }
 
 #[derive(Debug, Clone)]
-pub struct ConstantBuffer { 
-    pub name: String, 
-    pub members: Vec<SymbolInfo> 
+pub struct ConstantBuffer {
+    pub name: String,
+    pub members: Vec<SymbolInfo>,
 }
 
 #[derive(Debug, Clone)]
-pub struct SamplerState { 
-    pub name: String 
+pub struct SamplerState {
+    pub name: String,
 }
 
 /// Error types for shader compilation
@@ -46,25 +46,25 @@ pub struct SamplerState {
 pub enum ShaderCompilationError {
     #[error("WGSL parsing error: {0}")]
     WgslParseError(String),
-    
+
     #[error("GLSL conversion error: {0}")]
     GlslConversionError(String),
-    
+
     #[error("HLSL conversion error: {0}")]
     HlslConversionError(String),
-    
+
     #[error("ISF conversion error: {0}")]
     IsfConversionError(String),
-    
+
     #[error("Validation error: {0}")]
     ValidationError(String),
-    
+
     #[error("Optimization error: {0}")]
     OptimizationError(String),
-    
+
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
-    
+
     #[error("Internal error: {0}")]
     InternalError(String),
 }
@@ -256,7 +256,6 @@ impl AdvancedShaderCompiler {
         source_format: ShaderFormat,
         shader_name: &str,
     ) -> Result<CompiledShader> {
-        
         // Check cache first
         let cache_key = format!("{}_{}", shader_name, source_code.len());
         if let Some(cached) = self.wgsl_cache.lock().await.get(&cache_key) {
@@ -272,8 +271,11 @@ impl AdvancedShaderCompiler {
         };
 
         // Cache the result
-        self.wgsl_cache.lock().await.insert(cache_key, compiled.clone());
-        
+        self.wgsl_cache
+            .lock()
+            .await
+            .insert(cache_key, compiled.clone());
+
         Ok(compiled)
     }
 
@@ -306,10 +308,10 @@ impl AdvancedShaderCompiler {
 
         // Extract shader information
         self.extract_shader_info(&mut compiled)?;
-        
+
         // Apply optimizations
         self.apply_optimizations(&mut compiled)?;
-        
+
         // Validate shader
         self.validate_shader(&mut compiled)?;
 
@@ -339,7 +341,7 @@ impl AdvancedShaderCompiler {
         use crate::wesl_integration::WeslCompiler;
         let mut wesl_compiler = WeslCompiler::new();
         let wgsl_code = wesl_compiler.compile_wesl_to_wgsl(source, name)?;
-        
+
         // Check for any diagnostics
         let diagnostics = wesl_compiler.get_diagnostics();
         if diagnostics.has_errors() {
@@ -348,14 +350,14 @@ impl AdvancedShaderCompiler {
             }
             bail!("WESL compilation failed with errors");
         }
-        
+
         self.compile_wgsl(&wgsl_code, name).await
     }
 
     fn extract_shader_info(&self, compiled: &mut CompiledShader) -> Result<()> {
         // Extract uniforms, textures, functions, and metadata
         // This would use advanced parsing from use.gpu reference
-        
+
         // Example extraction (simplified)
         for line in compiled.wgsl_code.lines() {
             if line.contains("@group") && line.contains("@binding") {
@@ -367,14 +369,14 @@ impl AdvancedShaderCompiler {
                 compiled.entry_points.push("main".to_string());
             }
         }
-        
+
         Ok(())
     }
 
     fn extract_uniform_info(&self, line: &str) -> Option<UniformInfo> {
         // Parse uniform declaration
         // @group(0) @binding(0) var<uniform> time: f32;
-        
+
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() < 6 {
             return None;
@@ -394,7 +396,7 @@ impl AdvancedShaderCompiler {
 
     fn apply_optimizations(&self, compiled: &mut CompiledShader) -> Result<()> {
         match self.optimization_level {
-            OptimizationLevel::None => {},
+            OptimizationLevel::None => {}
             OptimizationLevel::Basic => self.apply_basic_optimizations(compiled)?,
             OptimizationLevel::Aggressive => self.apply_aggressive_optimizations(compiled)?,
             OptimizationLevel::Maximum => self.apply_maximum_optimizations(compiled)?,
@@ -426,15 +428,19 @@ impl AdvancedShaderCompiler {
     fn validate_shader(&self, compiled: &mut CompiledShader) -> Result<()> {
         // Validate WGSL syntax and semantics
         // This would use validation from use.gpu reference
-        
+
         if compiled.wgsl_code.contains("undefined") {
-            compiled.validation_errors.push("Shader contains undefined variables".to_string());
+            compiled
+                .validation_errors
+                .push("Shader contains undefined variables".to_string());
         }
-        
+
         if compiled.uniforms.is_empty() && compiled.wgsl_code.contains("uniform") {
-            compiled.warnings.push("No uniforms detected but uniform keyword found".to_string());
+            compiled
+                .warnings
+                .push("No uniforms detected but uniform keyword found".to_string());
         }
-        
+
         Ok(())
     }
 
@@ -471,11 +477,11 @@ impl GLSLConverter {
     pub fn convert_to_wgsl(&mut self, glsl_source: &str, name: &str) -> Result<String> {
         // Advanced GLSL to WGSL conversion
         // This would implement the full conversion logic from use.gpu
-        
+
         let mut wgsl_code = String::new();
         wgsl_code.push_str(&format!("// Converted from GLSL: {}\n", name));
         wgsl_code.push_str("// Generated by AdvancedShaderCompiler\n\n");
-        
+
         // Parse GLSL and convert to WGSL
         // This is a simplified version - the real implementation would be much more complex
         for line in glsl_source.lines() {
@@ -485,25 +491,25 @@ impl GLSLConverter {
                 wgsl_code.push('\n');
             }
         }
-        
+
         Ok(wgsl_code)
     }
 
     fn convert_glsl_line(&self, line: &str) -> Result<String> {
         let line = line.trim();
-        
+
         if line.starts_with("#version") {
             return Ok(String::new()); // Skip version directive
         }
-        
+
         if line.starts_with("uniform ") {
             return self.convert_uniform(line);
         }
-        
+
         if line.starts_with("void main") {
             return Ok("@fragment\nfn main".to_string());
         }
-        
+
         // Basic line conversion
         Ok(line.to_string())
     }
@@ -516,8 +522,11 @@ impl GLSLConverter {
             let glsl_type = parts[1];
             let name = parts[2].trim_end_matches(';');
             let wgsl_type = self.convert_glsl_type(glsl_type);
-            
-            Ok(format!("@group(0) @binding(0) var<uniform> {}: {};", name, wgsl_type))
+
+            Ok(format!(
+                "@group(0) @binding(0) var<uniform> {}: {};",
+                name, wgsl_type
+            ))
         } else {
             Ok(line.to_string())
         }
@@ -551,10 +560,10 @@ impl HLSLConverter {
         let mut wgsl_code = String::new();
         wgsl_code.push_str(&format!("// Converted from HLSL: {}\n", name));
         wgsl_code.push_str("// Generated by AdvancedShaderCompiler\n\n");
-        
+
         // Parse HLSL and convert to WGSL
         // This would implement full HLSL parsing and conversion
-        
+
         Ok(wgsl_code)
     }
 }
@@ -575,16 +584,13 @@ impl ISFConverter {
         let mut wgsl_code = String::new();
         wgsl_code.push_str(&format!("// Converted from ISF: {}\n", name));
         wgsl_code.push_str("// Generated by AdvancedShaderCompiler\n\n");
-        
+
         // Parse ISF JSON and convert to WGSL
         // This would implement full ISF parsing and conversion
-        
+
         Ok(wgsl_code)
     }
 }
-
-
-
 
 #[cfg(test)]
 mod tests {
@@ -602,9 +608,11 @@ mod tests {
             }
         "#;
 
-        let result = compiler.compile_shader(wgsl_source, ShaderFormat::WGSL, "test_shader").await;
+        let result = compiler
+            .compile_shader(wgsl_source, ShaderFormat::WGSL, "test_shader")
+            .await;
         assert!(result.is_ok());
-        
+
         let compiled = result.unwrap();
         assert_eq!(compiled.uniforms.len(), 1);
         assert_eq!(compiled.uniforms[0].name, "time");
@@ -623,9 +631,11 @@ mod tests {
             }
         "#;
 
-        let result = compiler.compile_shader(glsl_source, ShaderFormat::GLSL, "test_glsl").await;
+        let result = compiler
+            .compile_shader(glsl_source, ShaderFormat::GLSL, "test_glsl")
+            .await;
         assert!(result.is_ok());
-        
+
         let compiled = result.unwrap();
         assert!(compiled.wgsl_code.contains("@fragment"));
         assert!(compiled.wgsl_code.contains("fn main"));

@@ -45,7 +45,8 @@ fn visual_node_editor_ui(
                             ui_state.code_changed = true;
                         }
                         Err(err) => {
-                            ui_state.compilation_error = format!("Node graph compile error: {}", err);
+                            ui_state.compilation_error =
+                                format!("Node graph compile error: {}", err);
                         }
                     }
                 }

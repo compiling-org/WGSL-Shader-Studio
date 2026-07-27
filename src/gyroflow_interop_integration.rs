@@ -1,18 +1,13 @@
 //! Gyroflow Interop Integration Module
 //! Advanced video processing and stabilization integration
 
-use bevy::prelude::*;
-use std::sync::{Arc, Mutex};
 use crate::gyroflow_wgpu_interop::{
-    WgpuInteropManager,
-    InteropConfig,
-    InteropResult,
-    ZeroCopyTexture,
-    NativeTextureInfo,
-    GraphicsApi,
-    InteropTextureFormat,
+    GraphicsApi, InteropConfig, InteropResult, InteropTextureFormat, NativeTextureInfo,
+    WgpuInteropManager, ZeroCopyTexture,
 };
-use serde::{Serialize, Deserialize};
+use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
 
 /// Integration configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -97,7 +92,7 @@ impl InteropIntegration {
     pub fn new(config: InteropIntegrationConfig) -> Self {
         let interop_config = InteropConfig::default();
         let interop_manager = Arc::new(Mutex::new(WgpuInteropManager::new(interop_config)));
-        
+
         Self {
             config,
             interop_manager,
@@ -112,7 +107,7 @@ impl InteropIntegration {
             },
         }
     }
-    
+
     pub async fn create_preview_texture(
         &self,
         width: u32,
@@ -134,7 +129,7 @@ impl InteropIntegration {
         };
         Ok(zero)
     }
-    
+
     pub fn process_shader_output(
         &self,
         _shader_output: &ZeroCopyTexture,
@@ -143,81 +138,104 @@ impl InteropIntegration {
     ) -> Result<InteropResult<()>, Box<dyn std::error::Error>> {
         Ok(InteropResult::Success(()))
     }
-    
+
     /// Process frame with stabilization and lens correction
-    pub fn process_frame(&mut self, frame_data: &[u8], width: u32, height: u32) -> InteropResult<Vec<u8>> {
+    pub fn process_frame(
+        &mut self,
+        frame_data: &[u8],
+        width: u32,
+        height: u32,
+    ) -> InteropResult<Vec<u8>> {
         let start_time = std::time::Instant::now();
-        
+
         // Simulate frame processing
         let processing_time = start_time.elapsed().as_millis() as f32;
-        
+
         // Create frame stats
         let frame_stat = InteropFrameStats {
             frame_number: self.performance_report.total_frames_processed,
             processing_time_ms: processing_time,
-            stabilization_time_ms: if self.config.enable_stabilization { processing_time * 0.6 } else { 0.0 },
-            lens_correction_time_ms: if self.config.enable_lens_correction { processing_time * 0.3 } else { 0.0 },
+            stabilization_time_ms: if self.config.enable_stabilization {
+                processing_time * 0.6
+            } else {
+                0.0
+            },
+            lens_correction_time_ms: if self.config.enable_lens_correction {
+                processing_time * 0.3
+            } else {
+                0.0
+            },
             texture_transfer_time_ms: processing_time * 0.1,
             total_gpu_time_ms: processing_time * 0.8,
         };
-        
+
         self.frame_stats.push(frame_stat);
         self.update_performance_report();
-        
+
         // Return processed frame data (simplified - just copy for now)
         InteropResult::Success(frame_data.to_vec())
     }
-    
+
     /// Apply gyro data for stabilization
-    pub fn apply_gyro_stabilization(&mut self, gyro_data: &[f32], timestamp: f64) -> InteropResult<()> {
+    pub fn apply_gyro_stabilization(
+        &mut self,
+        gyro_data: &[f32],
+        timestamp: f64,
+    ) -> InteropResult<()> {
         if !self.config.enable_stabilization {
             return InteropResult::NotSupported;
         }
-        
+
         // Simulate gyro stabilization
         InteropResult::Success(())
     }
-    
+
     /// Apply lens correction
     pub fn apply_lens_correction(&mut self, params: LensCorrectionParams) -> InteropResult<()> {
         self.config.lens_correction_params = params;
         InteropResult::Success(())
     }
-    
+
     /// Get current performance statistics
     pub fn get_performance_report(&self) -> &InteropPerformanceReport {
         &self.performance_report
     }
-    
+
     /// Get frame statistics
     pub fn get_frame_stats(&self) -> &[InteropFrameStats] {
         &self.frame_stats
     }
-    
+
     /// Update performance report
     fn update_performance_report(&mut self) {
         self.performance_report.total_frames_processed += 1;
-        
+
         if let Some(last_stat) = self.frame_stats.last() {
             let processing_time = last_stat.processing_time_ms;
-            
-            self.performance_report.average_processing_time_ms = 
-                (self.performance_report.average_processing_time_ms * (self.performance_report.total_frames_processed - 1) as f32 + processing_time) 
-                / self.performance_report.total_frames_processed as f32;
-            
-            self.performance_report.max_processing_time_ms = 
-                self.performance_report.max_processing_time_ms.max(processing_time);
-            
-            self.performance_report.min_processing_time_ms = 
-                self.performance_report.min_processing_time_ms.min(processing_time);
+
+            self.performance_report.average_processing_time_ms =
+                (self.performance_report.average_processing_time_ms
+                    * (self.performance_report.total_frames_processed - 1) as f32
+                    + processing_time)
+                    / self.performance_report.total_frames_processed as f32;
+
+            self.performance_report.max_processing_time_ms = self
+                .performance_report
+                .max_processing_time_ms
+                .max(processing_time);
+
+            self.performance_report.min_processing_time_ms = self
+                .performance_report
+                .min_processing_time_ms
+                .min(processing_time);
         }
-        
+
         // Keep only last 1000 frame stats
         if self.frame_stats.len() > 1000 {
             self.frame_stats.drain(0..self.frame_stats.len() - 1000);
         }
     }
-    
+
     /// Reset performance statistics
     pub fn reset_stats(&mut self) {
         self.frame_stats.clear();
@@ -230,7 +248,7 @@ impl InteropIntegration {
             memory_usage_mb: 0.0,
         };
     }
-    
+
     /// Get interop manager for direct access
     pub fn get_interop_manager(&self) -> Arc<Mutex<WgpuInteropManager>> {
         self.interop_manager.clone()
@@ -268,7 +286,7 @@ fn update_gyroflow_interop(mut interop_resource: ResMut<GyroflowInteropResource>
     if !interop_resource.enabled {
         return;
     }
-    
+
     // Update interop state if needed
     // This could include processing frames, updating settings, etc.
 }

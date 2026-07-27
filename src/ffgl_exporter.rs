@@ -1,7 +1,7 @@
+use anyhow::{Context, Result};
 use std::fs;
-use std::path::{Path, PathBuf};
 use std::io::Write;
-use anyhow::{Result, Context};
+use std::path::{Path, PathBuf};
 
 pub struct FfglExporter;
 
@@ -25,7 +25,7 @@ impl FfglExporter {
 
         let target_dir = Path::new("target/debug"); // Default to debug for now
         let bin_path = target_dir.join(bin_name);
-        
+
         if bin_path.exists() {
             fs::copy(&bin_path, export_dir.join(bin_name))
                 .context("Failed to copy FFGL plugin binary")?;
@@ -36,10 +36,10 @@ impl FfglExporter {
                 fs::copy(&release_bin, export_dir.join(bin_name))
                     .context("Failed to copy FFGL plugin binary from release")?;
             } else {
-                 // Create a dummy file if not found, for demonstration purposes in this environment
-                 // Real implementation would error here.
-                 let mut dummy = fs::File::create(export_dir.join(bin_name))?;
-                 dummy.write_all(b"FFGL PLUGIN STUB")?;
+                // Create a dummy file if not found, for demonstration purposes in this environment
+                // Real implementation would error here.
+                let mut dummy = fs::File::create(export_dir.join(bin_name))?;
+                dummy.write_all(b"FFGL PLUGIN STUB")?;
             }
         }
 

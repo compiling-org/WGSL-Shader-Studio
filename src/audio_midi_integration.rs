@@ -1,30 +1,47 @@
 //! Audio MIDI Integration System
-//! 
+//!
 //! Provides comprehensive MIDI input support for parameter control,
 //! complementing the existing audio analysis system.
 
-use bevy::prelude::*;
 use bevy::log::info;
-use std::sync::{Arc, Mutex};
+use bevy::prelude::*;
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 /// MIDI message types for parameter control
 #[derive(Debug, Clone)]
 pub enum MidiMessage {
-    NoteOn { channel: u8, note: u8, velocity: u8 },
-    NoteOff { channel: u8, note: u8 },
-    ControlChange { channel: u8, controller: u8, value: u8 },
-    PitchBend { channel: u8, value: i16 },
-    ProgramChange { channel: u8, program: u8 },
+    NoteOn {
+        channel: u8,
+        note: u8,
+        velocity: u8,
+    },
+    NoteOff {
+        channel: u8,
+        note: u8,
+    },
+    ControlChange {
+        channel: u8,
+        controller: u8,
+        value: u8,
+    },
+    PitchBend {
+        channel: u8,
+        value: i16,
+    },
+    ProgramChange {
+        channel: u8,
+        program: u8,
+    },
 }
 
 /// MIDI data structure for shader parameter mapping
 #[derive(Resource, Clone, Debug)]
 pub struct MidiData {
     pub enabled: bool,
-    pub note_values: [u8; 128], // MIDI note values (0-127)
+    pub note_values: [u8; 128],             // MIDI note values (0-127)
     pub controller_values: HashMap<u8, u8>, // Controller number -> value (0-127)
-    pub pitch_bend_values: [i16; 16], // Pitch bend per channel (-8192 to 8191)
+    pub pitch_bend_values: [i16; 16],       // Pitch bend per channel (-8192 to 8191)
     pub last_message: Option<MidiMessage>,
     pub tempo_tap: Vec<f64>, // Timestamps for tempo tapping
 }
@@ -90,17 +107,31 @@ impl MidiAnalyzer {
 
         if let Ok(mut data) = self.data.lock() {
             match &message {
-                MidiMessage::NoteOn { channel, note, velocity } => {
+                MidiMessage::NoteOn {
+                    channel,
+                    note,
+                    velocity,
+                } => {
                     data.note_values[*note as usize] = *velocity;
-                    info!("MIDI Note ON: ch={}, note={}, vel={}", channel, note, velocity);
+                    info!(
+                        "MIDI Note ON: ch={}, note={}, vel={}",
+                        channel, note, velocity
+                    );
                 }
                 MidiMessage::NoteOff { channel, note } => {
                     data.note_values[*note as usize] = 0;
                     info!("MIDI Note OFF: ch={}, note={}", channel, note);
                 }
-                MidiMessage::ControlChange { channel, controller, value } => {
+                MidiMessage::ControlChange {
+                    channel,
+                    controller,
+                    value,
+                } => {
                     data.controller_values.insert(*controller, *value);
-                    info!("MIDI CC: ch={}, ctrl={}, val={}", channel, controller, value);
+                    info!(
+                        "MIDI CC: ch={}, ctrl={}, val={}",
+                        channel, controller, value
+                    );
                 }
                 MidiMessage::PitchBend { channel, value } => {
                     data.pitch_bend_values[*channel as usize] = *value;
@@ -119,19 +150,24 @@ impl MidiAnalyzer {
     }
 
     pub fn get_controller_value(&self, controller: u8) -> Option<u8> {
-        self.data.lock().ok().and_then(|data| {
-            data.controller_values.get(&controller).copied()
-        })
+        self.data
+            .lock()
+            .ok()
+            .and_then(|data| data.controller_values.get(&controller).copied())
     }
 
     pub fn get_note_value(&self, note: u8) -> u8 {
-        self.data.lock().ok()
+        self.data
+            .lock()
+            .ok()
             .map(|data| data.note_values[note as usize])
             .unwrap_or(0)
     }
 
     pub fn get_pitch_bend(&self, channel: u8) -> i16 {
-        self.data.lock().ok()
+        self.data
+            .lock()
+            .ok()
             .map(|data| data.pitch_bend_values[channel as usize])
             .unwrap_or(0)
     }
@@ -145,19 +181,21 @@ impl MidiAnalyzer {
 
         if let Ok(mut data) = self.data.lock() {
             data.tempo_tap.push(now);
-            
+
             // Keep only recent taps (last 4 seconds)
             data.tempo_tap.retain(|&timestamp| now - timestamp < 4.0);
-            
+
             // Need at least 2 taps to calculate tempo
             if data.tempo_tap.len() >= 2 {
-                let intervals: Vec<f64> = data.tempo_tap.windows(2)
+                let intervals: Vec<f64> = data
+                    .tempo_tap
+                    .windows(2)
                     .map(|window| window[1] - window[0])
                     .collect();
-                
+
                 let avg_interval = intervals.iter().sum::<f64>() / intervals.len() as f64;
                 let tempo = 60.0 / avg_interval;
-                
+
                 // Filter reasonable tempos (60-200 BPM)
                 if tempo >= 60.0 && tempo <= 200.0 {
                     return Some(tempo as f32);
@@ -203,11 +241,11 @@ fn update_midi_integration(
     if let Ok(midi_data_lock) = midi_analyzer.data.lock() {
         let midi_data = midi_data_lock.clone();
         drop(midi_data_lock); // Release the lock early
-        
+
         // Map MIDI controllers to shader parameters
         for (controller, value) in &midi_data.controller_values {
             let _normalized_value = *value as f32 / 127.0;
-            
+
             // Map common MIDI controllers to shader parameters
             match controller {
                 1 => { /* Modulation wheel */ }
@@ -223,7 +261,6 @@ fn update_midi_integration(
 
 /// Helper functions for MIDI parameter mapping
 pub mod midi_mapping {
-
 
     /// Map MIDI value (0-127) to normalized float (0.0-1.0)
     pub fn midi_to_float(value: u8) -> f32 {

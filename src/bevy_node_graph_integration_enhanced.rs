@@ -12,14 +12,11 @@ pub struct BevyNodeGraphPlugin;
 impl Plugin for BevyNodeGraphPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<NodeGraphResource>()
-            .add_systems(Update, (
-                update_node_graph,
-                handle_node_interactions,
-            ))
-            .add_systems(bevy_egui::EguiPrimaryContextPass, (
-                draw_node_graph_ui,
-                draw_node_graph_toolbar,
-            ));
+            .add_systems(Update, (update_node_graph, handle_node_interactions))
+            .add_systems(
+                bevy_egui::EguiPrimaryContextPass,
+                (draw_node_graph_ui, draw_node_graph_toolbar),
+            );
     }
 }
 
@@ -50,7 +47,7 @@ pub struct NodeGraphResource {
 impl Default for NodeGraphResource {
     fn default() -> Self {
         let graph = ShaderNodeGraph::default();
-        
+
         Self {
             graph,
             selected_node: None,
@@ -113,7 +110,7 @@ pub enum ShaderNodeType {
     UV,
     VertexPosition,
     Normal,
-    
+
     // Math operations
     Add,
     Subtract,
@@ -133,7 +130,8 @@ pub enum ShaderNodeType {
     Clamp,
     Step,
     SmoothStep,
-    
+    Mix,
+
     // Vector operations
     Vec2,
     Vec3,
@@ -145,7 +143,7 @@ pub enum ShaderNodeType {
     Cross,
     Reflect,
     Refract,
-    
+
     // Color operations
     Color,
     ColorMix,
@@ -154,17 +152,17 @@ pub enum ShaderNodeType {
     Contrast,
     Saturation,
     Hue,
-    
+
     // Texture operations
     Texture2D,
     SampleTexture,
     TextureSize,
-    
+
     // Procedural
     Noise2D,
     Noise3D,
     Voronoi,
-    
+
     // Output
     FragmentOutput,
     VertexOutput,
@@ -239,7 +237,7 @@ impl Default for ShaderNodeGraph {
             connections: Vec::new(),
             next_node_id: 1,
         };
-        
+
         graph.create_default_shader_graph();
         graph
     }
@@ -249,32 +247,50 @@ impl ShaderNodeGraph {
     /// Create a comprehensive default shader graph
     pub fn create_default_shader_graph(&mut self) {
         self.clear();
-        
+
         // Add time node
-        let time_node = self.add_node(ShaderNodeType::Time, "Time", 
-            vec![], vec!["time".to_string()]);
-        
-        // Add resolution node  
-        let resolution_node = self.add_node(ShaderNodeType::Resolution, "Resolution",
-            vec![], vec!["resolution".to_string()]);
-        
+        let time_node = self.add_node(
+            ShaderNodeType::Time,
+            "Time",
+            vec![],
+            vec!["time".to_string()],
+        );
+
+        // Add resolution node
+        let resolution_node = self.add_node(
+            ShaderNodeType::Resolution,
+            "Resolution",
+            vec![],
+            vec!["resolution".to_string()],
+        );
+
         // Add UV node
-        let uv_node = self.add_node(ShaderNodeType::UV, "UV",
-            vec![], vec!["uv".to_string()]);
-        
+        let uv_node = self.add_node(ShaderNodeType::UV, "UV", vec![], vec!["uv".to_string()]);
+
         // Add sine wave generator
-        let sin_node = self.add_node(ShaderNodeType::Sin, "Sin",
-            vec!["input".to_string()], vec!["result".to_string()]);
-        
+        let sin_node = self.add_node(
+            ShaderNodeType::Sin,
+            "Sin",
+            vec!["input".to_string()],
+            vec!["result".to_string()],
+        );
+
         // Add color mixing
-        let color_mix_node = self.add_node(ShaderNodeType::ColorMix, "Color Mix",
-            vec!["a".to_string(), "b".to_string(), "factor".to_string()], 
-            vec!["result".to_string()]);
-        
+        let color_mix_node = self.add_node(
+            ShaderNodeType::ColorMix,
+            "Color Mix",
+            vec!["a".to_string(), "b".to_string(), "factor".to_string()],
+            vec!["result".to_string()],
+        );
+
         // Add final output
-        let output_node = self.add_node(ShaderNodeType::FragmentOutput, "Fragment Output",
-            vec!["color".to_string()], vec![]);
-        
+        let output_node = self.add_node(
+            ShaderNodeType::FragmentOutput,
+            "Fragment Output",
+            vec!["color".to_string()],
+            vec![],
+        );
+
         // Connect nodes for animated gradient
         let _ = self.connect(time_node, 0, sin_node, 0);
         let _ = self.connect(sin_node, 0, color_mix_node, 2);
@@ -282,36 +298,51 @@ impl ShaderNodeGraph {
         let _ = self.connect(time_node, 0, color_mix_node, 1);
         let _ = self.connect(color_mix_node, 0, output_node, 0);
     }
-    
+
     /// Clear all nodes and connections
     pub fn clear(&mut self) {
         self.nodes.clear();
         self.connections.clear();
     }
-    
+
     /// Add a new node to the graph
-    pub fn add_node(&mut self, node_type: ShaderNodeType, name: &str,
-                    inputs: Vec<String>, outputs: Vec<String>) -> NodeId {
+    pub fn add_node(
+        &mut self,
+        node_type: ShaderNodeType,
+        name: &str,
+        inputs: Vec<String>,
+        outputs: Vec<String>,
+    ) -> NodeId {
         let id = NodeId::new();
         let node = ShaderNode {
             id,
             node_type: node_type.clone(),
             name: name.to_string(),
-            inputs: inputs.into_iter().enumerate().map(|(i, name)| NodeInput {
-                name,
-                port_type: self.get_default_port_type(&node_type),
-                connected: false,
-                connection_id: None,
-                position: egui::Pos2::new(0.0, 0.0),
-            }).collect(),
-            outputs: outputs.into_iter().enumerate().map(|(i, name)| NodeOutput {
-                name,
-                port_type: self.get_default_port_type(&node_type),
-                connections: Vec::new(),
-                position: egui::Pos2::new(0.0, 0.0),
-            }).collect(),
-            position: egui::Pos2::new(100.0 + (self.nodes.len() % 5) as f32 * 200.0, 
-                                      100.0 + (self.nodes.len() / 5) as f32 * 150.0),
+            inputs: inputs
+                .into_iter()
+                .enumerate()
+                .map(|(i, name)| NodeInput {
+                    name,
+                    port_type: self.get_default_port_type(&node_type),
+                    connected: false,
+                    connection_id: None,
+                    position: egui::Pos2::new(0.0, 0.0),
+                })
+                .collect(),
+            outputs: outputs
+                .into_iter()
+                .enumerate()
+                .map(|(i, name)| NodeOutput {
+                    name,
+                    port_type: self.get_default_port_type(&node_type),
+                    connections: Vec::new(),
+                    position: egui::Pos2::new(0.0, 0.0),
+                })
+                .collect(),
+            position: egui::Pos2::new(
+                100.0 + (self.nodes.len() % 5) as f32 * 200.0,
+                100.0 + (self.nodes.len() / 5) as f32 * 150.0,
+            ),
             size: egui::Vec2::new(150.0, 80.0),
             parameters: HashMap::new(),
             color: self.get_node_color(&node_type),
@@ -319,78 +350,115 @@ impl ShaderNodeGraph {
             selected: false,
             comment: String::new(),
         };
-        
+
         self.nodes.insert(id, node);
         id
     }
-    
+
     fn get_default_port_type(&self, node_type: &ShaderNodeType) -> PortType {
         match node_type {
-            ShaderNodeType::Time | ShaderNodeType::Resolution | ShaderNodeType::Mouse => PortType::Vec2,
+            ShaderNodeType::Time | ShaderNodeType::Resolution | ShaderNodeType::Mouse => {
+                PortType::Vec2
+            }
             ShaderNodeType::UV => PortType::Vec2,
-            ShaderNodeType::Add | ShaderNodeType::Subtract | ShaderNodeType::Multiply | ShaderNodeType::Divide => PortType::Float,
+            ShaderNodeType::Add
+            | ShaderNodeType::Subtract
+            | ShaderNodeType::Multiply
+            | ShaderNodeType::Divide => PortType::Float,
             ShaderNodeType::Sin | ShaderNodeType::Cos | ShaderNodeType::Tan => PortType::Float,
             ShaderNodeType::Color | ShaderNodeType::ColorMix => PortType::Vec3,
             ShaderNodeType::Texture2D | ShaderNodeType::SampleTexture => PortType::Texture,
             _ => PortType::Float,
         }
     }
-    
+
     fn get_node_color(&self, node_type: &ShaderNodeType) -> egui::Color32 {
         match node_type {
-            ShaderNodeType::Time | ShaderNodeType::Resolution | ShaderNodeType::Mouse | ShaderNodeType::UV => 
-                egui::Color32::from_rgb(100, 150, 200), // Input nodes - blue
-            ShaderNodeType::Add | ShaderNodeType::Subtract | ShaderNodeType::Multiply | ShaderNodeType::Divide |
-            ShaderNodeType::Sin | ShaderNodeType::Cos | ShaderNodeType::Tan | ShaderNodeType::Pow |
-            ShaderNodeType::Sqrt | ShaderNodeType::Abs | ShaderNodeType::Floor | ShaderNodeType::Ceil |
-            ShaderNodeType::Fract | ShaderNodeType::Min | ShaderNodeType::Max | ShaderNodeType::Clamp |
-            ShaderNodeType::Step | ShaderNodeType::SmoothStep => 
-                egui::Color32::from_rgb(150, 100, 200), // Math nodes - purple
-            ShaderNodeType::Vec2 | ShaderNodeType::Vec3 | ShaderNodeType::Vec4 | ShaderNodeType::Normalize |
-            ShaderNodeType::Length | ShaderNodeType::Distance | ShaderNodeType::Dot | ShaderNodeType::Cross |
-            ShaderNodeType::Reflect | ShaderNodeType::Refract => 
-                egui::Color32::from_rgb(200, 150, 100), // Vector nodes - orange
-            ShaderNodeType::Color | ShaderNodeType::ColorMix | ShaderNodeType::ColorAdjust |
-            ShaderNodeType::Brightness | ShaderNodeType::Contrast | ShaderNodeType::Saturation |
-            ShaderNodeType::Hue => 
-                egui::Color32::from_rgb(200, 100, 150), // Color nodes - pink
-            ShaderNodeType::Texture2D | ShaderNodeType::SampleTexture | ShaderNodeType::TextureSize |
-            ShaderNodeType::Noise2D | ShaderNodeType::Noise3D | ShaderNodeType::Voronoi => 
-                egui::Color32::from_rgb(100, 200, 150), // Texture/Procedural nodes - green
-            ShaderNodeType::FragmentOutput | ShaderNodeType::VertexOutput => 
-                egui::Color32::from_rgb(200, 200, 100), // Output nodes - yellow
+            ShaderNodeType::Time
+            | ShaderNodeType::Resolution
+            | ShaderNodeType::Mouse
+            | ShaderNodeType::UV => egui::Color32::from_rgb(100, 150, 200), // Input nodes - blue
+            ShaderNodeType::Add
+            | ShaderNodeType::Subtract
+            | ShaderNodeType::Multiply
+            | ShaderNodeType::Divide
+            | ShaderNodeType::Sin
+            | ShaderNodeType::Cos
+            | ShaderNodeType::Tan
+            | ShaderNodeType::Pow
+            | ShaderNodeType::Sqrt
+            | ShaderNodeType::Abs
+            | ShaderNodeType::Floor
+            | ShaderNodeType::Ceil
+            | ShaderNodeType::Fract
+            | ShaderNodeType::Min
+            | ShaderNodeType::Max
+            | ShaderNodeType::Clamp
+            | ShaderNodeType::Step
+            | ShaderNodeType::SmoothStep => egui::Color32::from_rgb(150, 100, 200), // Math nodes - purple
+            ShaderNodeType::Vec2
+            | ShaderNodeType::Vec3
+            | ShaderNodeType::Vec4
+            | ShaderNodeType::Normalize
+            | ShaderNodeType::Length
+            | ShaderNodeType::Distance
+            | ShaderNodeType::Dot
+            | ShaderNodeType::Cross
+            | ShaderNodeType::Reflect
+            | ShaderNodeType::Refract => egui::Color32::from_rgb(200, 150, 100), // Vector nodes - orange
+            ShaderNodeType::Color
+            | ShaderNodeType::ColorMix
+            | ShaderNodeType::ColorAdjust
+            | ShaderNodeType::Brightness
+            | ShaderNodeType::Contrast
+            | ShaderNodeType::Saturation
+            | ShaderNodeType::Hue => egui::Color32::from_rgb(200, 100, 150), // Color nodes - pink
+            ShaderNodeType::Texture2D
+            | ShaderNodeType::SampleTexture
+            | ShaderNodeType::TextureSize
+            | ShaderNodeType::Noise2D
+            | ShaderNodeType::Noise3D
+            | ShaderNodeType::Voronoi => egui::Color32::from_rgb(100, 200, 150), // Texture/Procedural nodes - green
+            ShaderNodeType::FragmentOutput | ShaderNodeType::VertexOutput => {
+                egui::Color32::from_rgb(200, 200, 100)
+            } // Output nodes - yellow
             _ => egui::Color32::from_rgb(150, 150, 150), // Default - gray
         }
     }
-    
+
     /// Connect two nodes
-    pub fn connect(&mut self, from_node: NodeId, from_output: usize, 
-                   to_node: NodeId, to_input: usize) -> Result<(), String> {
+    pub fn connect(
+        &mut self,
+        from_node: NodeId,
+        from_output: usize,
+        to_node: NodeId,
+        to_input: usize,
+    ) -> Result<(), String> {
         // Validate nodes exist
         if !self.nodes.contains_key(&from_node) || !self.nodes.contains_key(&to_node) {
             return Err("Invalid node ID".to_string());
         }
-        
+
         // Validate port indices
         let from_node_ref = &self.nodes[&from_node];
         let to_node_ref = &self.nodes[&to_node];
-        
+
         if from_output >= from_node_ref.outputs.len() {
             return Err("Invalid output port index".to_string());
         }
-        
+
         if to_input >= to_node_ref.inputs.len() {
             return Err("Invalid input port index".to_string());
         }
-        
+
         // Check type compatibility
         let from_type = &from_node_ref.outputs[from_output].port_type;
         let to_type = &to_node_ref.inputs[to_input].port_type;
-        
+
         if !self.are_types_compatible(from_type, to_type) {
             return Err(format!("Type mismatch: {:?} -> {:?}", from_type, to_type));
         }
-        
+
         let connection = NodeConnection {
             from_node,
             from_output,
@@ -398,28 +466,30 @@ impl ShaderNodeGraph {
             to_input,
             color: self.get_connection_color(from_type),
         };
-        
+
         self.connections.push(connection);
-        
+
         // Update node connection states
         if let Some(node) = self.nodes.get_mut(&to_node) {
             node.inputs[to_input].connected = true;
         }
-        
+
         if let Some(node) = self.nodes.get_mut(&from_node) {
-            node.outputs[from_output].connections.push(self.connections.len() - 1);
+            node.outputs[from_output]
+                .connections
+                .push(self.connections.len() - 1);
         }
-        
+
         Ok(())
     }
-    
+
     fn are_types_compatible(&self, from: &PortType, to: &PortType) -> bool {
         match (from, to) {
             (PortType::Any, _) | (_, PortType::Any) => true,
             (a, b) => a == b,
         }
     }
-    
+
     fn get_connection_color(&self, port_type: &PortType) -> egui::Color32 {
         match port_type {
             PortType::Float => egui::Color32::from_rgb(100, 200, 100),
@@ -431,17 +501,17 @@ impl ShaderNodeGraph {
             PortType::Any => egui::Color32::from_rgb(200, 200, 200),
         }
     }
-    
+
     /// Generate comprehensive WGSL code
     pub fn generate_wgsl(&self) -> Result<String, String> {
         let mut wgsl = String::new();
-        
+
         // Add struct definitions
         wgsl.push_str("struct VertexOutput {\n");
         wgsl.push_str("    @builtin(position) position: vec4<f32>,\n");
         wgsl.push_str("    @location(0) uv: vec2<f32>,\n");
         wgsl.push_str("}\n\n");
-        
+
         // Add uniform struct (aligned with renderer expectations)
         wgsl.push_str("struct Uniforms {\n");
         wgsl.push_str("    time: f32,\n");
@@ -453,10 +523,10 @@ impl ShaderNodeGraph {
         wgsl.push_str("    audio_treble: f32,\n");
         wgsl.push_str("    _padding: i32,\n");
         wgsl.push_str("}\n\n");
-        
+
         // Add uniforms binding
         wgsl.push_str("@group(0) @binding(0) var<uniform> uniforms: Uniforms;\n\n");
-        
+
         // Fullscreen triangle vertex shader compatible with pipeline (no vertex buffers)
         wgsl.push_str("@vertex\n");
         wgsl.push_str("fn vs_main(@builtin(vertex_index) vertex_index: u32) -> VertexOutput {\n");
@@ -472,59 +542,74 @@ impl ShaderNodeGraph {
         wgsl.push_str("    out.uv = pos * 0.5 + vec2<f32>(0.5, 0.5);\n");
         wgsl.push_str("    return out;\n");
         wgsl.push_str("}\n\n");
-        
+
         // Helper function for color mixing (WGSL does not have GLSL mix)
         wgsl.push_str("fn mix3(a: vec3<f32>, b: vec3<f32>, t: f32) -> vec3<f32> {\n");
         wgsl.push_str("    return a + t * (b - a);\n");
         wgsl.push_str("}\n\n");
-        
+
         // Generate fragment shader
         wgsl.push_str("@fragment\n");
         wgsl.push_str("fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {\n");
         wgsl.push_str("    let uv = input.uv;\n");
         wgsl.push_str("    var color = vec3<f32>(0.0);\n\n");
-        
+
         // Generate node variables
         let mut node_vars = HashMap::new();
         let mut processed = HashSet::new();
-        
+
         // Process nodes in topological order
         for node_id in self.nodes.keys() {
             self.generate_node_variables(*node_id, &mut node_vars, &mut processed)?;
         }
-        
+
         // Add generated variables to WGSL
         for (var_name, var_code) in node_vars {
             wgsl.push_str(&format!("    {}\n", var_code));
         }
-        
+
         // Determine final color: prefer FragmentOutput input, else Color node, else gradient
-        if let Some((frag_id, _)) = self.nodes.iter().find(|(_, n)| matches!(n.node_type, ShaderNodeType::FragmentOutput)) {
+        if let Some((frag_id, _)) = self
+            .nodes
+            .iter()
+            .find(|(_, n)| matches!(n.node_type, ShaderNodeType::FragmentOutput))
+        {
             if let Some(conn) = self.connections.iter().find(|c| c.to_node == *frag_id) {
-                wgsl.push_str(&format!("    color = {};\n", self.get_connection_variable(conn)));
+                wgsl.push_str(&format!(
+                    "    color = {};\n",
+                    self.get_connection_variable(conn)
+                ));
             } else {
                 wgsl.push_str("    color = vec3<f32>(uv.x, uv.y, 0.5);\n");
             }
-        } else if let Some((color_id, _)) = self.nodes.iter().find(|(_, n)| matches!(n.node_type, ShaderNodeType::Color)) {
+        } else if let Some((color_id, _)) = self
+            .nodes
+            .iter()
+            .find(|(_, n)| matches!(n.node_type, ShaderNodeType::Color))
+        {
             wgsl.push_str(&format!("    color = node_{}_color;\n", color_id.0));
         } else {
             wgsl.push_str("    color = vec3<f32>(uv.x, uv.y, 0.5);\n");
         }
-        
+
         wgsl.push_str("\n    return vec4<f32>(color, 1.0);\n");
         wgsl.push_str("}\n");
-        
+
         Ok(wgsl)
     }
-    
-    fn generate_node_variables(&self, node_id: NodeId, node_vars: &mut HashMap<String, String>, 
-                              processed: &mut HashSet<NodeId>) -> Result<(), String> {
+
+    fn generate_node_variables(
+        &self,
+        node_id: NodeId,
+        node_vars: &mut HashMap<String, String>,
+        processed: &mut HashSet<NodeId>,
+    ) -> Result<(), String> {
         if processed.contains(&node_id) {
             return Ok(());
         }
-        
+
         processed.insert(node_id);
-        
+
         if let Some(node) = self.nodes.get(&node_id) {
             // Generate dependencies first
             for connection in &self.connections {
@@ -532,17 +617,17 @@ impl ShaderNodeGraph {
                     self.generate_node_variables(connection.from_node, node_vars, processed)?;
                 }
             }
-            
+
             // Generate this node's variable
             let var_code = self.generate_single_node_variable(node)?;
             if !var_code.is_empty() {
                 node_vars.insert(format!("node_{}", node_id.0), var_code);
             }
         }
-        
+
         Ok(())
     }
-    
+
     fn generate_single_node_variable(&self, node: &ShaderNode) -> Result<String, String> {
         let nid = node.id.0;
         match &node.node_type {
@@ -550,7 +635,7 @@ impl ShaderNodeGraph {
             ShaderNodeType::Resolution => Ok(format!("let node_{}_resolution = uniforms.resolution;", nid)),
             ShaderNodeType::UV => Ok(format!("let node_{}_uv = input.uv;", nid)),
             ShaderNodeType::Mouse => Ok(format!("let node_{}_mouse = uniforms.mouse;", nid)),
-            
+
             ShaderNodeType::Add => {
                 let a = self.get_input_or_val(node.id, 0, "0.0");
                 let b = self.get_input_or_val(node.id, 1, "0.0");
@@ -578,7 +663,7 @@ impl ShaderNodeGraph {
             ShaderNodeType::Floor => Ok(format!("let node_{}_result = floor({});", nid, self.get_input_or_val(node.id, 0, "0.0"))),
             ShaderNodeType::Ceil => Ok(format!("let node_{}_result = ceil({});", nid, self.get_input_or_val(node.id, 0, "0.0"))),
             ShaderNodeType::Sqrt => Ok(format!("let node_{}_result = sqrt({});", nid, self.get_input_or_val(node.id, 0, "0.0"))),
-            
+
             ShaderNodeType::Mix => {
                 let a = self.get_input_or_val(node.id, 0, "0.0");
                 let b = self.get_input_or_val(node.id, 1, "1.0");
@@ -596,7 +681,7 @@ impl ShaderNodeGraph {
                 let x = self.get_input_or_val(node.id, 2, "0.0");
                 Ok(format!("let node_{}_result = smoothstep({}, {}, {});", nid, edge0, edge1, x))
             }
-            
+
             ShaderNodeType::Normalize => Ok(format!("let node_{}_result = normalize({});", nid, self.get_input_or_val(node.id, 0, "vec3<f32>(1.0)"))),
             ShaderNodeType::Length => Ok(format!("let node_{}_result = length({});", nid, self.get_input_or_val(node.id, 0, "vec3<f32>(0.0)"))),
             ShaderNodeType::Dot => {
@@ -604,7 +689,7 @@ impl ShaderNodeGraph {
                 let b = self.get_input_or_val(node.id, 1, "vec3<f32>(0.0)");
                 Ok(format!("let node_{}_result = dot({}, {});", nid, a, b))
             }
-            
+
             ShaderNodeType::Color => {
                 Ok(format!("let node_{}_color = vec3<f32>(0.5 + 0.5 * sin(uniforms.time), 0.5 + 0.5 * cos(uniforms.time), 0.5 + 0.5 * sin(uniforms.time * 1.3));", nid))
             }
@@ -617,7 +702,7 @@ impl ShaderNodeGraph {
             _ => Ok(String::new()),
         }
     }
-    
+
     fn get_input_or_val(&self, node_id: NodeId, input_index: usize, default: &str) -> String {
         if let Some(conn) = self.get_input_connection(node_id, input_index) {
             self.get_connection_variable(&conn)
@@ -625,13 +710,14 @@ impl ShaderNodeGraph {
             default.to_string()
         }
     }
-    
+
     fn get_input_connection(&self, node_id: NodeId, input_index: usize) -> Option<NodeConnection> {
-        self.connections.iter()
+        self.connections
+            .iter()
             .find(|conn| conn.to_node == node_id && conn.to_input == input_index)
             .cloned()
     }
-    
+
     fn get_connection_variable(&self, connection: &NodeConnection) -> String {
         let from_node = &self.nodes[&connection.from_node];
         let nid = connection.from_node.0;
@@ -650,7 +736,7 @@ impl ShaderNodeGraph {
 
 fn draw_node_graph_canvas(ui: &mut egui::Ui, node_graph: &mut NodeGraphResource) {
     let available_size = ui.available_size();
-    
+
     // Create a scroll area for the node graph canvas
     egui::ScrollArea::both()
         .auto_shrink([false; 2])
@@ -659,13 +745,13 @@ fn draw_node_graph_canvas(ui: &mut egui::Ui, node_graph: &mut NodeGraphResource)
             if node_graph.show_grid {
                 draw_grid(ui, &viewport, node_graph.grid_size);
             }
-            
+
             // Draw connections
             draw_connections(ui, node_graph);
-            
+
             // Draw nodes
             draw_nodes(ui, node_graph);
-            
+
             // Handle interactions
             handle_canvas_interactions(ui, node_graph);
         });
@@ -674,13 +760,13 @@ fn draw_node_graph_canvas(ui: &mut egui::Ui, node_graph: &mut NodeGraphResource)
 fn draw_grid(ui: &mut egui::Ui, viewport: &egui::Rect, grid_size: f32) {
     let painter = ui.painter();
     let grid_color = egui::Color32::from_gray(40);
-    
+
     // Calculate grid lines
     let min_x = viewport.min.x.floor();
     let max_x = viewport.max.x.ceil();
     let min_y = viewport.min.y.floor();
     let max_y = viewport.max.y.ceil();
-    
+
     // Vertical lines
     let start_x = (min_x / grid_size).floor() * grid_size;
     let mut x = start_x;
@@ -691,7 +777,7 @@ fn draw_grid(ui: &mut egui::Ui, viewport: &egui::Rect, grid_size: f32) {
         );
         x += grid_size;
     }
-    
+
     // Horizontal lines
     let start_y = (min_y / grid_size).floor() * grid_size;
     let mut y = start_y;
@@ -706,29 +792,34 @@ fn draw_grid(ui: &mut egui::Ui, viewport: &egui::Rect, grid_size: f32) {
 
 fn draw_connections(ui: &mut egui::Ui, node_graph: &NodeGraphResource) {
     let painter = ui.painter();
-    
+
     for connection in &node_graph.graph.connections {
         if let (Some(from_node), Some(to_node)) = (
             node_graph.graph.nodes.get(&connection.from_node),
-            node_graph.graph.nodes.get(&connection.to_node)
+            node_graph.graph.nodes.get(&connection.to_node),
         ) {
-            let from_pos = from_node.position + egui::Vec2::new(from_node.size.x, 
-                (connection.from_output as f32 + 0.5) * 20.0);
-            let to_pos = to_node.position + egui::Vec2::new(0.0, 
-                (connection.to_input as f32 + 0.5) * 20.0);
-            
+            let from_pos = from_node.position
+                + egui::Vec2::new(
+                    from_node.size.x,
+                    (connection.from_output as f32 + 0.5) * 20.0,
+                );
+            let to_pos =
+                to_node.position + egui::Vec2::new(0.0, (connection.to_input as f32 + 0.5) * 20.0);
+
             // Draw bezier curve
             let control_offset = (to_pos.x - from_pos.x) * 0.5;
             let control1 = from_pos + egui::Vec2::new(control_offset, 0.0);
             let control2 = to_pos - egui::Vec2::new(control_offset, 0.0);
-            
-            painter.add(egui::Shape::CubicBezier(CubicBezierShape::from_points_stroke(
-                [from_pos, control1, control2, to_pos],
-                false,
-                egui::Color32::TRANSPARENT,
-                egui::Stroke::new(2.0, connection.color),
-            )));
-            
+
+            painter.add(egui::Shape::CubicBezier(
+                CubicBezierShape::from_points_stroke(
+                    [from_pos, control1, control2, to_pos],
+                    false,
+                    egui::Color32::TRANSPARENT,
+                    egui::Stroke::new(2.0, connection.color),
+                ),
+            ));
+
             // Draw connection points
             painter.circle_filled(from_pos, 4.0, connection.color);
             painter.circle_filled(to_pos, 4.0, connection.color);
@@ -767,56 +858,61 @@ fn draw_single_node(
 ) {
     let rect = egui::Rect::from_min_size(node.position, node.size);
     let response = ui.allocate_new_ui(egui::UiBuilder::new().max_rect(rect), |ui| {
-            let frame = egui::Frame::NONE
-                .fill(node.color)
-                .stroke(egui::Stroke::new(2.0, if node.selected { 
-                    egui::Color32::YELLOW 
-                } else { 
-                    egui::Color32::GRAY 
-                }))
-                .corner_radius(8.0);
-            
-            frame.show(ui, |ui| {
-                ui.vertical(|ui| {
-                    // Node header
-                    ui.horizontal(|ui| {
-                        ui.label(egui::RichText::new(&node.name).strong());
-                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                            if ui.button("✕").clicked() {
-                                // Mark for deletion
-                            }
-                        });
-                    });
-                    
-                    if !node.collapsed {
-                        ui.separator();
-                        
-                        // Inputs
-                        for (i, input) in node.inputs.iter_mut().enumerate() {
-                            ui.horizontal(|ui| {
-                                let color = match input.port_type {
-                                    PortType::Float => egui::Color32::GREEN,
-                                    PortType::Vec2 => egui::Color32::BLUE,
-                                    PortType::Vec3 => egui::Color32::RED,
-                                    PortType::Vec4 => egui::Color32::YELLOW,
-                                    PortType::Color => egui::Color32::from_rgb(255, 128, 0),
-                                    PortType::Texture => egui::Color32::from_rgb(128, 255, 128),
-                                    PortType::Any => egui::Color32::WHITE,
-                                };
-                                let y = rect.min.y + 30.0 + i as f32 * 22.0;
-                                let pos = egui::pos2(rect.min.x + 8.0, y);
-                                input.position = pos;
-                                ui.painter().circle_filled(pos, 6.0, color);
-                                ui.label(&input.name);
-                            });
+        let frame = egui::Frame::NONE
+            .fill(node.color)
+            .stroke(egui::Stroke::new(
+                2.0,
+                if node.selected {
+                    egui::Color32::YELLOW
+                } else {
+                    egui::Color32::GRAY
+                },
+            ))
+            .corner_radius(8.0);
+
+        frame.show(ui, |ui| {
+            ui.vertical(|ui| {
+                // Node header
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new(&node.name).strong());
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.button("✕").clicked() {
+                            // Mark for deletion
                         }
-                        
-                        ui.separator();
-                        
-                        // Outputs
-                        for (i, output) in node.outputs.iter_mut().enumerate() {
-                            ui.horizontal(|ui| {
-                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    });
+                });
+
+                if !node.collapsed {
+                    ui.separator();
+
+                    // Inputs
+                    for (i, input) in node.inputs.iter_mut().enumerate() {
+                        ui.horizontal(|ui| {
+                            let color = match input.port_type {
+                                PortType::Float => egui::Color32::GREEN,
+                                PortType::Vec2 => egui::Color32::BLUE,
+                                PortType::Vec3 => egui::Color32::RED,
+                                PortType::Vec4 => egui::Color32::YELLOW,
+                                PortType::Color => egui::Color32::from_rgb(255, 128, 0),
+                                PortType::Texture => egui::Color32::from_rgb(128, 255, 128),
+                                PortType::Any => egui::Color32::WHITE,
+                            };
+                            let y = rect.min.y + 30.0 + i as f32 * 22.0;
+                            let pos = egui::pos2(rect.min.x + 8.0, y);
+                            input.position = pos;
+                            ui.painter().circle_filled(pos, 6.0, color);
+                            ui.label(&input.name);
+                        });
+                    }
+
+                    ui.separator();
+
+                    // Outputs
+                    for (i, output) in node.outputs.iter_mut().enumerate() {
+                        ui.horizontal(|ui| {
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
                                     let color = match output.port_type {
                                         PortType::Float => egui::Color32::GREEN,
                                         PortType::Vec2 => egui::Color32::BLUE,
@@ -831,15 +927,16 @@ fn draw_single_node(
                                     output.position = pos;
                                     ui.painter().circle_filled(pos, 6.0, color);
                                     ui.label(&output.name);
-                                });
-                            });
-                        }
+                                },
+                            );
+                        });
                     }
-                });
+                }
             });
         });
+    });
     let resp = &response.response;
-    
+
     // Handle node dragging
     if resp.dragged() {
         let delta = resp.drag_delta();
@@ -856,14 +953,14 @@ fn draw_single_node(
 
 fn handle_canvas_interactions(ui: &mut egui::Ui, node_graph: &mut NodeGraphResource) {
     let response = ui.interact(ui.clip_rect(), ui.id(), egui::Sense::click_and_drag());
-    
+
     if response.dragged() {
         // Handle canvas panning
         if node_graph.drag_state.is_none() {
             // Start dragging canvas
         }
     }
-    
+
     if response.clicked() {
         // Deselect all nodes
         node_graph.selected_nodes.clear();
@@ -871,7 +968,7 @@ fn handle_canvas_interactions(ui: &mut egui::Ui, node_graph: &mut NodeGraphResou
             node.selected = false;
         }
     }
-    
+
     if ui.input(|i| i.pointer.any_released()) {
         if let Some((from_node, from_out)) = node_graph.connection_start.take() {
             if let Some(mouse_pos) = ui.input(|i| i.pointer.hover_pos()) {
@@ -912,99 +1009,138 @@ fn draw_node_graph_toolbar(
         Ok(ctx) => ctx,
         Err(_) => return,
     };
-    
-    egui::TopBottomPanel::top("node_graph_toolbar")
-        .show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.heading("Node Graph Toolbar");
-                ui.separator();
-                
-                // Node creation buttons
-                ui.menu_button("Add Node", |ui| {
-                    if ui.button("Input → Time").clicked() {
-                        node_graph.graph.add_node(ShaderNodeType::Time, "Time", vec![], vec!["time".to_string()]);
-                        ui.close();
-                    }
-                    if ui.button("Input → Resolution").clicked() {
-                        node_graph.graph.add_node(ShaderNodeType::Resolution, "Resolution", vec![], vec!["resolution".to_string()]);
-                        ui.close();
-                    }
-                    if ui.button("Input → UV").clicked() {
-                        node_graph.graph.add_node(ShaderNodeType::UV, "UV", vec![], vec!["uv".to_string()]);
-                        ui.close();
-                    }
-                    
-                    ui.separator();
-                    
-                    if ui.button("Math → Add").clicked() {
-                        node_graph.graph.add_node(ShaderNodeType::Add, "Add", vec!["a".to_string(), "b".to_string()], vec!["result".to_string()]);
-                        ui.close();
-                    }
-                    if ui.button("Math → Multiply").clicked() {
-                        node_graph.graph.add_node(ShaderNodeType::Multiply, "Multiply", vec!["a".to_string(), "b".to_string()], vec!["result".to_string()]);
-                        ui.close();
-                    }
-                    if ui.button("Math → Sin").clicked() {
-                        node_graph.graph.add_node(ShaderNodeType::Sin, "Sin", vec!["input".to_string()], vec!["result".to_string()]);
-                        ui.close();
-                    }
-                    
-                    ui.separator();
-                    
-                    if ui.button("Color → Color Mix").clicked() {
-                        node_graph.graph.add_node(ShaderNodeType::ColorMix, "Color Mix", vec!["a".to_string(), "b".to_string(), "factor".to_string()], vec!["result".to_string()]);
-                        ui.close();
-                    }
-                    
-                    ui.separator();
-                    
-                    if ui.button("Output → Fragment Output").clicked() {
-                        node_graph.graph.add_node(ShaderNodeType::FragmentOutput, "Fragment Output", vec!["color".to_string()], vec![]);
-                        ui.close();
-                    }
-                });
-                
-                ui.separator();
-                
-                // Graph operations
-                if ui.button("Generate WGSL").clicked() {
-                    match node_graph.graph.generate_wgsl() {
-                        Ok(wgsl_code) => {
-                            println!("Generated WGSL code and applied to editor.");
-                            ui_state.draft_code = wgsl_code;
-                            ui_state.apply_requested = true;
-                        }
-                        Err(e) => {
-                            eprintln!("Failed to generate WGSL: {}", e);
-                        }
-                    }
+
+    egui::TopBottomPanel::top("node_graph_toolbar").show(ctx, |ui| {
+        ui.horizontal(|ui| {
+            ui.heading("Node Graph Toolbar");
+            ui.separator();
+
+            // Node creation buttons
+            ui.menu_button("Add Node", |ui| {
+                if ui.button("Input → Time").clicked() {
+                    node_graph.graph.add_node(
+                        ShaderNodeType::Time,
+                        "Time",
+                        vec![],
+                        vec!["time".to_string()],
+                    );
+                    ui.close();
                 }
-                
-                if ui.button("Clear Graph").clicked() {
-                    node_graph.graph.clear();
+                if ui.button("Input → Resolution").clicked() {
+                    node_graph.graph.add_node(
+                        ShaderNodeType::Resolution,
+                        "Resolution",
+                        vec![],
+                        vec!["resolution".to_string()],
+                    );
+                    ui.close();
                 }
-                
-                if ui.button("Auto Layout").clicked() {
-                    node_graph.auto_layout_enabled = !node_graph.auto_layout_enabled;
+                if ui.button("Input → UV").clicked() {
+                    node_graph.graph.add_node(
+                        ShaderNodeType::UV,
+                        "UV",
+                        vec![],
+                        vec!["uv".to_string()],
+                    );
+                    ui.close();
                 }
-                
+
                 ui.separator();
-                
-                // View options
-                ui.checkbox(&mut node_graph.show_grid, "Show Grid");
-                ui.checkbox(&mut node_graph.snap_to_grid, "Snap to Grid");
-                
-                ui.separator();
-                
-                // Undo/Redo
-                if ui.button("Undo").clicked() {
-                    // Implement undo
+
+                if ui.button("Math → Add").clicked() {
+                    node_graph.graph.add_node(
+                        ShaderNodeType::Add,
+                        "Add",
+                        vec!["a".to_string(), "b".to_string()],
+                        vec!["result".to_string()],
+                    );
+                    ui.close();
                 }
-                if ui.button("Redo").clicked() {
-                    // Implement redo
+                if ui.button("Math → Multiply").clicked() {
+                    node_graph.graph.add_node(
+                        ShaderNodeType::Multiply,
+                        "Multiply",
+                        vec!["a".to_string(), "b".to_string()],
+                        vec!["result".to_string()],
+                    );
+                    ui.close();
+                }
+                if ui.button("Math → Sin").clicked() {
+                    node_graph.graph.add_node(
+                        ShaderNodeType::Sin,
+                        "Sin",
+                        vec!["input".to_string()],
+                        vec!["result".to_string()],
+                    );
+                    ui.close();
+                }
+
+                ui.separator();
+
+                if ui.button("Color → Color Mix").clicked() {
+                    node_graph.graph.add_node(
+                        ShaderNodeType::ColorMix,
+                        "Color Mix",
+                        vec!["a".to_string(), "b".to_string(), "factor".to_string()],
+                        vec!["result".to_string()],
+                    );
+                    ui.close();
+                }
+
+                ui.separator();
+
+                if ui.button("Output → Fragment Output").clicked() {
+                    node_graph.graph.add_node(
+                        ShaderNodeType::FragmentOutput,
+                        "Fragment Output",
+                        vec!["color".to_string()],
+                        vec![],
+                    );
+                    ui.close();
                 }
             });
+
+            ui.separator();
+
+            // Graph operations
+            if ui.button("Generate WGSL").clicked() {
+                match node_graph.graph.generate_wgsl() {
+                    Ok(wgsl_code) => {
+                        println!("Generated WGSL code and applied to editor.");
+                        ui_state.draft_code = wgsl_code;
+                        ui_state.apply_requested = true;
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to generate WGSL: {}", e);
+                    }
+                }
+            }
+
+            if ui.button("Clear Graph").clicked() {
+                node_graph.graph.clear();
+            }
+
+            if ui.button("Auto Layout").clicked() {
+                node_graph.auto_layout_enabled = !node_graph.auto_layout_enabled;
+            }
+
+            ui.separator();
+
+            // View options
+            ui.checkbox(&mut node_graph.show_grid, "Show Grid");
+            ui.checkbox(&mut node_graph.snap_to_grid, "Snap to Grid");
+
+            ui.separator();
+
+            // Undo/Redo
+            if ui.button("Undo").clicked() {
+                // Implement undo
+            }
+            if ui.button("Redo").clicked() {
+                // Implement redo
+            }
         });
+    });
 }
 
 fn handle_node_interactions(
@@ -1018,13 +1154,14 @@ fn handle_node_interactions(
         let selected: Vec<_> = node_graph.selected_nodes.iter().copied().collect();
         for node_id in selected {
             node_graph.graph.nodes.remove(&node_id);
-            node_graph.graph.connections.retain(|conn| {
-                conn.from_node != node_id && conn.to_node != node_id
-            });
+            node_graph
+                .graph
+                .connections
+                .retain(|conn| conn.from_node != node_id && conn.to_node != node_id);
         }
         node_graph.selected_nodes.clear();
     }
-    
+
     if keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight) {
         if keys.just_pressed(KeyCode::KeyA) {
             // Select all nodes
@@ -1033,12 +1170,12 @@ fn handle_node_interactions(
                 node.selected = true;
             }
         }
-        
+
         if keys.just_pressed(KeyCode::KeyC) {
             // Copy selected nodes
             // Implement copy functionality
         }
-        
+
         if keys.just_pressed(KeyCode::KeyV) {
             // Paste nodes
             // Implement paste functionality
@@ -1047,10 +1184,7 @@ fn handle_node_interactions(
 }
 
 /// Update function for node graph
-fn update_node_graph(
-    mut node_graph: ResMut<NodeGraphResource>,
-    time: Res<Time>,
-) {
+fn update_node_graph(mut node_graph: ResMut<NodeGraphResource>, time: Res<Time>) {
     // Update time-based parameters
     for node in node_graph.graph.nodes.values_mut() {
         if let ShaderNodeType::Time = node.node_type {
@@ -1074,7 +1208,7 @@ fn draw_node_graph_ui(
         Ok(ctx) => ctx,
         Err(_) => return,
     };
-    
+
     egui::Window::new("Shader Graph Editor")
         .default_size([900.0, 600.0])
         .resizable(true)

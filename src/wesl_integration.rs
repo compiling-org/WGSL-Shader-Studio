@@ -2,9 +2,9 @@
 //! Provides support for WESL, an enhanced version of WGSL with additional features
 //! like imports, conditional compilation, and shader libraries
 
+use crate::converter::diagnostics::{Diagnostic, DiagnosticSeverity, Diagnostics};
+use anyhow::{bail, Result};
 use std::collections::HashMap;
-use anyhow::{Result, bail};
-use crate::converter::diagnostics::{Diagnostics, Diagnostic, DiagnosticSeverity};
 
 /// WESL Compiler that handles WESL-specific features
 pub struct WeslCompiler {
@@ -28,16 +28,16 @@ impl WeslCompiler {
     pub fn compile_wesl_to_wgsl(&mut self, source: &str, file_path: &str) -> Result<String> {
         // First, process imports
         let processed_source = self.process_imports(source, file_path)?;
-        
+
         // Process conditional compilation directives
         let processed_source = self.process_conditional_compilation(&processed_source)?;
-        
+
         // Validate the resulting WGSL
         self.validate_wgsl(&processed_source)?;
-        
+
         // Add WESL-specific transformations
         let final_wgsl = self.apply_wesl_transformations(&processed_source)?;
-        
+
         Ok(final_wgsl)
     }
 
@@ -45,11 +45,11 @@ impl WeslCompiler {
     fn process_imports(&mut self, source: &str, file_path: &str) -> Result<String> {
         let mut result = String::new();
         let mut in_import_section = false;
-        
+
         for line in source.lines() {
             if line.trim_start().starts_with("import") || line.trim_start().starts_with("#import") {
                 in_import_section = true;
-                
+
                 // Extract import path
                 let import_line = line.trim();
                 if let Some(import_path) = self.extract_import_path(import_line) {
@@ -75,7 +75,11 @@ impl WeslCompiler {
                         }
                     }
                 }
-            } else if in_import_section && !line.trim().is_empty() && !line.trim_start().starts_with("import") && !line.trim_start().starts_with("#import") {
+            } else if in_import_section
+                && !line.trim().is_empty()
+                && !line.trim_start().starts_with("import")
+                && !line.trim_start().starts_with("#import")
+            {
                 in_import_section = false;
                 result.push_str(line);
                 result.push('\n');
@@ -84,7 +88,7 @@ impl WeslCompiler {
                 result.push('\n');
             }
         }
-        
+
         Ok(result)
     }
 
@@ -93,7 +97,7 @@ impl WeslCompiler {
         let mut result = String::new();
         let mut skip_block = false;
         let mut skip_depth = 0;
-        
+
         for line in source.lines() {
             if line.trim_start().starts_with("#if") {
                 if skip_block {
@@ -110,7 +114,9 @@ impl WeslCompiler {
                 } else {
                     skip_block = false;
                 }
-            } else if line.trim_start().starts_with("#ifdef") || line.trim_start().starts_with("#ifndef") {
+            } else if line.trim_start().starts_with("#ifdef")
+                || line.trim_start().starts_with("#ifndef")
+            {
                 if skip_block {
                     skip_depth += 1;
                 } else {
@@ -122,24 +128,24 @@ impl WeslCompiler {
                 result.push('\n');
             }
         }
-        
+
         Ok(result)
     }
 
     /// Apply WESL-specific transformations to make it compatible with WGSL
     fn apply_wesl_transformations(&self, source: &str) -> Result<String> {
         let mut result = source.to_string();
-        
+
         // Transform WESL-specific syntax to WGSL-compatible syntax
-        // This is a simplified version - in a real implementation, 
+        // This is a simplified version - in a real implementation,
         // this would handle more complex transformations
-        
+
         // Example: Transform WESL macro-like features
         result = self.transform_macros(result)?;
-        
+
         // Example: Transform WESL utility functions
         result = self.transform_utilities(result)?;
-        
+
         Ok(result)
     }
 
@@ -161,7 +167,7 @@ impl WeslCompiler {
             };
             self.diagnostics.add_diagnostic(diagnostic);
         }
-        
+
         Ok(())
     }
 
@@ -196,13 +202,16 @@ impl WeslCompiler {
         if let Some(cached) = self.import_cache.get(import_path) {
             return Ok(cached.clone());
         }
-        
+
         // This is where we'd implement actual file loading
         // For now, return an empty string and add a warning
         let diagnostic = Diagnostic {
             severity: DiagnosticSeverity::Warning,
             code: "WESL_IMPORT_NOT_FOUND".to_string(),
-            message: format!("Import '{}' not found, using empty placeholder", import_path),
+            message: format!(
+                "Import '{}' not found, using empty placeholder",
+                import_path
+            ),
             file_path: base_path.to_string(),
             line: 0,
             column: 0,
@@ -212,7 +221,7 @@ impl WeslCompiler {
             quick_fix_available: false,
         };
         self.diagnostics.add_diagnostic(diagnostic);
-        
+
         Ok(String::new())
     }
 
@@ -234,21 +243,21 @@ impl WeslCompiler {
         // This is a simplified macro transformation
         // In a real implementation, this would handle more complex macro systems
         let mut result = source;
-        
+
         // Example: transform simple macro patterns
         result = result.replace("M_PI", "3.141592653589793");
         result = result.replace("M_TWO_PI", "6.283185307179586");
-        
+
         Ok(result)
     }
 
     /// Transform WESL utility functions to WGSL-compatible code
     fn transform_utilities(&self, source: String) -> Result<String> {
         let mut result = source;
-        
+
         // Example: transform common utility functions
         result = result.replace("smoothstep01", "smoothstep(0.0, 1.0, ");
-        
+
         Ok(result)
     }
 

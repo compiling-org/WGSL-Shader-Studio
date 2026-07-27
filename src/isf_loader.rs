@@ -51,7 +51,9 @@ use std::fs;
 use std::path::Path;
 
 /// Load ISF shaders from a directory
-pub fn load_isf_shaders_from_directory(dir_path: &str) -> Result<Vec<IsfShader>, Box<dyn std::error::Error>> {
+pub fn load_isf_shaders_from_directory(
+    dir_path: &str,
+) -> Result<Vec<IsfShader>, Box<dyn std::error::Error>> {
     let mut shaders = Vec::new();
     let path = Path::new(dir_path);
 
@@ -88,7 +90,8 @@ pub fn load_isf_shaders_from_directory(dir_path: &str) -> Result<Vec<IsfShader>,
 /// Load a single ISF shader from file
 pub fn load_isf_shader(file_path: &Path) -> Result<IsfShader, Box<dyn std::error::Error>> {
     let content = fs::read_to_string(file_path)?;
-    let name = file_path.file_stem()
+    let name = file_path
+        .file_stem()
         .ok_or("Invalid file name")?
         .to_string_lossy()
         .to_string();
@@ -111,32 +114,43 @@ impl IsfShader {
                     if let Some(inputs_json) = metadata.get("INPUTS") {
                         if let Some(inputs_array) = inputs_json.as_array() {
                             for input_json in inputs_array {
-                                if let Some(name) = input_json.get("NAME").and_then(|n| n.as_str()) {
-                                    let input_type = match input_json.get("TYPE").and_then(|t| t.as_str()) {
-                                        Some("float") => InputType::Float,
-                                        Some("bool") => InputType::Bool,
-                                        Some("color") => InputType::Color,
-                                        Some("point2D") => InputType::Point2D,
-                                        Some("image") => InputType::Image,
-                                        _ => InputType::Float,
-                                    };
+                                if let Some(name) = input_json.get("NAME").and_then(|n| n.as_str())
+                                {
+                                    let input_type =
+                                        match input_json.get("TYPE").and_then(|t| t.as_str()) {
+                                            Some("float") => InputType::Float,
+                                            Some("bool") => InputType::Bool,
+                                            Some("color") => InputType::Color,
+                                            Some("point2D") => InputType::Point2D,
+                                            Some("image") => InputType::Image,
+                                            _ => InputType::Float,
+                                        };
 
-                                    let default = input_json.get("DEFAULT")
+                                    let default = input_json
+                                        .get("DEFAULT")
                                         .and_then(|d| d.as_f64())
                                         .map(|d| d as f32);
 
-                                    let min = input_json.get("MIN")
+                                    let min = input_json
+                                        .get("MIN")
                                         .and_then(|m| m.as_f64())
                                         .map(|m| m as f32);
 
-                                    let max = input_json.get("MAX")
+                                    let max = input_json
+                                        .get("MAX")
                                         .and_then(|m| m.as_f64())
                                         .map(|m| m as f32);
 
                                     let value = match input_type {
-                                        InputType::Float => ShaderValue::Float(default.unwrap_or(0.0)),
-                                        InputType::Bool => ShaderValue::Bool(default.map(|d| d > 0.0).unwrap_or(false)),
-                                        InputType::Color => ShaderValue::Color([1.0, 1.0, 1.0, 1.0]),
+                                        InputType::Float => {
+                                            ShaderValue::Float(default.unwrap_or(0.0))
+                                        }
+                                        InputType::Bool => ShaderValue::Bool(
+                                            default.map(|d| d > 0.0).unwrap_or(false),
+                                        ),
+                                        InputType::Color => {
+                                            ShaderValue::Color([1.0, 1.0, 1.0, 1.0])
+                                        }
                                         InputType::Point2D => ShaderValue::Point2D([0.0, 0.0]),
                                         InputType::Image => ShaderValue::Float(0.0), // Placeholder
                                     };
@@ -158,12 +172,14 @@ impl IsfShader {
                     if let Some(outputs_json) = metadata.get("OUTPUTS") {
                         if let Some(outputs_array) = outputs_json.as_array() {
                             for output_json in outputs_array {
-                                if let Some(name) = output_json.get("NAME").and_then(|n| n.as_str()) {
-                                    let output_type = match output_json.get("TYPE").and_then(|t| t.as_str()) {
-                                        Some("image") => OutputType::Image,
-                                        Some("float") => OutputType::Float,
-                                        _ => OutputType::Image,
-                                    };
+                                if let Some(name) = output_json.get("NAME").and_then(|n| n.as_str())
+                                {
+                                    let output_type =
+                                        match output_json.get("TYPE").and_then(|t| t.as_str()) {
+                                            Some("image") => OutputType::Image,
+                                            Some("float") => OutputType::Float,
+                                            _ => OutputType::Image,
+                                        };
 
                                     outputs.push(ShaderOutput {
                                         name: name.to_string(),
@@ -190,7 +206,10 @@ impl IsfShader {
             name,
             source,
             inputs: Vec::new(),
-            outputs: vec![ShaderOutput { name: "image".to_string(), output_type: OutputType::Image }],
+            outputs: vec![ShaderOutput {
+                name: "image".to_string(),
+                output_type: OutputType::Image,
+            }],
         }
     }
 }
@@ -223,7 +242,11 @@ pub fn load_resolume_isf_shaders() -> Result<Vec<IsfShader>, Box<dyn std::error:
     let local_isf_dir = project_root.join("assets").join("isf");
     if local_isf_dir.exists() {
         if let Ok(mut shaders) = load_isf_shaders_from_directory(local_isf_dir.to_str().unwrap()) {
-            println!("Loaded {} local ISF shaders from {}", shaders.len(), local_isf_dir.display());
+            println!(
+                "Loaded {} local ISF shaders from {}",
+                shaders.len(),
+                local_isf_dir.display()
+            );
             all_shaders.append(&mut shaders);
         }
     }
@@ -273,7 +296,9 @@ pub fn validate_isf_shader(shader: &IsfShader) -> Result<(), Box<dyn std::error:
         // Check value ranges
         if let (Some(min), Some(max)) = (input.min, input.max) {
             if min > max {
-                return Err(format!("Invalid range for parameter {}: min > max", input.name).into());
+                return Err(
+                    format!("Invalid range for parameter {}: min > max", input.name).into(),
+                );
             }
         }
     }
@@ -293,17 +318,25 @@ pub fn get_shader_metadata(shader: &IsfShader) -> ShaderMetadata {
         description: extract_description(&shader.source),
         category: extract_category(&shader.source),
         author: extract_author(&shader.source),
-        inputs: shader.inputs.iter().map(|input| InputMetadata {
-            name: input.name.clone(),
-            input_type: input.input_type.clone(),
-            min: input.min,
-            max: input.max,
-            default: input.default,
-        }).collect(),
-        outputs: shader.outputs.iter().map(|output| OutputMetadata {
-            name: output.name.clone(),
-            output_type: output.output_type.clone(),
-        }).collect(),
+        inputs: shader
+            .inputs
+            .iter()
+            .map(|input| InputMetadata {
+                name: input.name.clone(),
+                input_type: input.input_type.clone(),
+                min: input.min,
+                max: input.max,
+                default: input.default,
+            })
+            .collect(),
+        outputs: shader
+            .outputs
+            .iter()
+            .map(|output| OutputMetadata {
+                name: output.name.clone(),
+                output_type: output.output_type.clone(),
+            })
+            .collect(),
     }
 }
 

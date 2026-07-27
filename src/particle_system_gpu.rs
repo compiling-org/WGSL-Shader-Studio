@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use crate::audio_system::AudioFeatures;
+use bevy::prelude::*;
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 
@@ -35,14 +35,14 @@ struct ParticleUniforms {
 pub struct ParticleSystemGPU {
     pub enabled: bool,
     pub max_particles: u32,
-    
+
     // WGPU resources
     storage_buffers: [wgpu::Buffer; 2],
     uniform_buffer: wgpu::Buffer,
     compute_pipeline: wgpu::ComputePipeline,
     render_pipeline: wgpu::RenderPipeline,
     compute_bind_groups: [wgpu::BindGroup; 2],
-    
+
     current_buffer: usize,
     accumulated_time: f32,
 }
@@ -114,14 +114,17 @@ impl ParticleSystemGPU {
 
         let compute_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Particle Compute Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../assets/shaders/builtin/particle_sim.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(
+                include_str!("../assets/shaders/builtin/particle_sim.wgsl").into(),
+            ),
         });
 
-        let compute_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Particle Compute Layout"),
-            bind_group_layouts: &[&compute_bgl],
-            push_constant_ranges: &[],
-        });
+        let compute_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Particle Compute Layout"),
+                bind_group_layouts: &[&compute_bgl],
+                push_constant_ranges: &[],
+            });
 
         let compute_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Particle Compute Pipeline"),
@@ -137,18 +140,36 @@ impl ParticleSystemGPU {
                 label: Some("Particle Compute BG A"),
                 layout: &compute_bgl,
                 entries: &[
-                    wgpu::BindGroupEntry { binding: 0, resource: uniform_buffer.as_entire_binding() },
-                    wgpu::BindGroupEntry { binding: 1, resource: storage_buffers[0].as_entire_binding() },
-                    wgpu::BindGroupEntry { binding: 2, resource: storage_buffers[1].as_entire_binding() },
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: uniform_buffer.as_entire_binding(),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: storage_buffers[0].as_entire_binding(),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 2,
+                        resource: storage_buffers[1].as_entire_binding(),
+                    },
                 ],
             }),
             device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("Particle Compute BG B"),
                 layout: &compute_bgl,
                 entries: &[
-                    wgpu::BindGroupEntry { binding: 0, resource: uniform_buffer.as_entire_binding() },
-                    wgpu::BindGroupEntry { binding: 1, resource: storage_buffers[1].as_entire_binding() },
-                    wgpu::BindGroupEntry { binding: 2, resource: storage_buffers[0].as_entire_binding() },
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: uniform_buffer.as_entire_binding(),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: storage_buffers[1].as_entire_binding(),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 2,
+                        resource: storage_buffers[0].as_entire_binding(),
+                    },
                 ],
             }),
         ];
@@ -156,14 +177,17 @@ impl ParticleSystemGPU {
         // Render Pipeline
         let render_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Particle Render Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("../assets/shaders/builtin/particle_render.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(
+                include_str!("../assets/shaders/builtin/particle_render.wgsl").into(),
+            ),
         });
 
-        let render_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Particle Render Layout"),
-            bind_group_layouts: &[&compute_bgl], // Share layout for simplicity
-            push_constant_ranges: &[],
-        });
+        let render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Particle Render Layout"),
+                bind_group_layouts: &[&compute_bgl], // Share layout for simplicity
+                push_constant_ranges: &[],
+            });
 
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Particle Render Pipeline"),
@@ -231,7 +255,7 @@ impl ParticleSystemGPU {
         pass.set_bind_group(0, &self.compute_bind_groups[self.current_buffer], &[]);
         let workgroups = (self.max_particles + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE;
         pass.dispatch_workgroups(workgroups, 1, 1);
-        
+
         self.current_buffer = 1 - self.current_buffer;
     }
 

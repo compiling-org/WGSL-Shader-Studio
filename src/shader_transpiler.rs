@@ -3,8 +3,8 @@ use std::fmt;
 use std::sync::Arc;
 use thiserror::Error;
 
+use crate::shader_module_system::{ModuleId, ShaderModule};
 use crate::wgsl_ast_parser::{AstNode, AstVisitor};
-use crate::shader_module_system::{ShaderModule, ModuleId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ShaderLanguage {
@@ -130,22 +130,22 @@ pub struct TextureBindingInfo {
 pub enum TranspilerError {
     #[error("Parse error: {0}")]
     ParseError(String),
-    
+
     #[error("Semantic error: {0}")]
     SemanticError(String),
-    
+
     #[error("Unsupported feature: {0}")]
     UnsupportedFeature(String),
-    
+
     #[error("Language mismatch: {0} -> {1}")]
     LanguageMismatch(ShaderLanguage, ShaderLanguage),
-    
+
     #[error("Validation error: {0}")]
     ValidationError(String),
-    
+
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
-    
+
     #[error("Internal error: {0}")]
     InternalError(String),
 }
@@ -169,7 +169,11 @@ pub enum WarningSeverity {
 pub type TranspilerResult<T> = Result<T, TranspilerError>;
 
 pub trait ShaderTranspiler: Send + Sync {
-    fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput>;
+    fn transpile(
+        &self,
+        source: &str,
+        options: &TranspilerOptions,
+    ) -> TranspilerResult<TranspilerOutput>;
     fn get_supported_source_languages(&self) -> Vec<ShaderLanguage>;
     fn get_supported_target_languages(&self) -> Vec<ShaderLanguage>;
     fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()>;
@@ -184,25 +188,25 @@ pub struct MultiFormatTranspiler {
 impl MultiFormatTranspiler {
     pub fn new() -> Self {
         let mut transpilers = HashMap::new();
-        
+
         transpilers.insert(
             (ShaderLanguage::Wgsl, ShaderLanguage::Glsl),
-            Box::new(WgslToGlslTranspiler::new()) as Box<dyn ShaderTranspiler>
+            Box::new(WgslToGlslTranspiler::new()) as Box<dyn ShaderTranspiler>,
         );
-        
+
         transpilers.insert(
             (ShaderLanguage::Glsl, ShaderLanguage::Wgsl),
-            Box::new(GlslToWgslTranspiler::new()) as Box<dyn ShaderTranspiler>
+            Box::new(GlslToWgslTranspiler::new()) as Box<dyn ShaderTranspiler>,
         );
-        
+
         transpilers.insert(
             (ShaderLanguage::Wgsl, ShaderLanguage::Hlsl),
-            Box::new(WgslToHlslTranspiler::new()) as Box<dyn ShaderTranspiler>
+            Box::new(WgslToHlslTranspiler::new()) as Box<dyn ShaderTranspiler>,
         );
-        
+
         transpilers.insert(
             (ShaderLanguage::Hlsl, ShaderLanguage::Wgsl),
-            Box::new(HlslToWgslTranspiler::new()) as Box<dyn ShaderTranspiler>
+            Box::new(HlslToWgslTranspiler::new()) as Box<dyn ShaderTranspiler>,
         );
 
         Self {
@@ -221,19 +225,27 @@ impl MultiFormatTranspiler {
         self.transpilers.insert((source, target), transpiler);
     }
 
-    pub fn transpile(&self, source: &str, options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    pub fn transpile(
+        &self,
+        source: &str,
+        options: &TranspilerOptions,
+    ) -> TranspilerResult<TranspilerOutput> {
         let start_time = std::time::Instant::now();
 
         if options.validate_semantics {
-            self.validator.validate_source(source, options.source_language)?;
+            self.validator
+                .validate_source(source, options.source_language)?;
         }
 
-        let transpiler = self.transpilers
+        let transpiler = self
+            .transpilers
             .get(&(options.source_language, options.target_language))
-            .ok_or_else(|| TranspilerError::LanguageMismatch(
-                options.source_language.clone(),
-                options.target_language.clone()
-            ))?;
+            .ok_or_else(|| {
+                TranspilerError::LanguageMismatch(
+                    options.source_language.clone(),
+                    options.target_language.clone(),
+                )
+            })?;
 
         let mut result = transpiler.transpile(source, options)?;
 
@@ -265,11 +277,16 @@ impl WgslToGlslTranspiler {
 }
 
 impl ShaderTranspiler for WgslToGlslTranspiler {
-    fn transpile(&self, source: &str, _options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    fn transpile(
+        &self,
+        source: &str,
+        _options: &TranspilerOptions,
+    ) -> TranspilerResult<TranspilerOutput> {
         use crate::wgsl_ast_parser::WgslAstParser;
-        
+
         let mut parser = WgslAstParser::new();
-        let module = parser.parse(source)
+        let module = parser
+            .parse(source)
             .map_err(|e| TranspilerError::ParseError(e.to_string()))?;
 
         let ast = AstNode::Module(module);
@@ -298,14 +315,22 @@ impl ShaderTranspiler for WgslToGlslTranspiler {
 
     fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
         if language != ShaderLanguage::Wgsl {
-            return Err(TranspilerError::LanguageMismatch(language, ShaderLanguage::Wgsl));
+            return Err(TranspilerError::LanguageMismatch(
+                language,
+                ShaderLanguage::Wgsl,
+            ));
         }
         Ok(())
     }
 }
 
 impl WgslToGlslTranspiler {
-    fn extract_metadata(&self, ast: &AstNode, source: &str, result: &str) -> TranspilerResult<TranspilerMetadata> {
+    fn extract_metadata(
+        &self,
+        ast: &AstNode,
+        source: &str,
+        result: &str,
+    ) -> TranspilerResult<TranspilerMetadata> {
         let mut metadata = TranspilerMetadata {
             input_size: source.len(),
             output_size: result.len(),
@@ -322,12 +347,20 @@ impl WgslToGlslTranspiler {
         Ok(metadata)
     }
 
-    fn extract_uniform_blocks(&self, _ast: &AstNode, _metadata: &mut TranspilerMetadata) -> TranspilerResult<()> {
+    fn extract_uniform_blocks(
+        &self,
+        _ast: &AstNode,
+        _metadata: &mut TranspilerMetadata,
+    ) -> TranspilerResult<()> {
         // Extract uniform blocks from AST - simplified implementation
         Ok(())
     }
 
-    fn extract_texture_bindings(&self, _ast: &AstNode, _metadata: &mut TranspilerMetadata) -> TranspilerResult<()> {
+    fn extract_texture_bindings(
+        &self,
+        _ast: &AstNode,
+        _metadata: &mut TranspilerMetadata,
+    ) -> TranspilerResult<()> {
         // Extract texture bindings from AST - simplified implementation
         Ok(())
     }
@@ -375,53 +408,66 @@ impl WgslToGlslVisitor {
                 self.write_line("");
                 // Translation unit processing would go here
                 return Ok(());
-            },
-            AstNode::FunctionDecl { name, parameters, return_type, body, .. } => {
+            }
+            AstNode::FunctionDecl {
+                name,
+                parameters,
+                return_type,
+                body,
+                ..
+            } => {
                 self.write_indent();
                 self.write(&format!("{} ", self.map_shader_stage(name)));
                 self.write(&format!("{}(", name));
-                
+
                 for (i, param) in parameters.iter().enumerate() {
                     if i > 0 {
                         self.write(", ");
                     }
                     self.write(param);
                 }
-                
+
                 self.write(")");
                 if let Some(ret_type) = return_type {
                     let mapped_type = self.map_type(ret_type);
                     self.write(&format!(" -> {}", mapped_type));
                 }
                 self.write_line(" {");
-                
+
                 self.indent_level += 1;
                 self.visit_node(body)?;
                 self.indent_level -= 1;
-                
+
                 self.write_line("}");
                 return Ok(());
             }
             AstNode::StructDecl { name, members, .. } => {
                 self.write_indent();
                 self.write_line(&format!("struct {} {{", name));
-                
+
                 self.indent_level += 1;
                 for member in members {
                     self.visit_node(member)?;
                 }
                 self.indent_level -= 1;
-                
+
                 self.write_line("}");
                 return Ok(());
             }
-            AstNode::StructMember { name, type_name, .. } => {
+            AstNode::StructMember {
+                name, type_name, ..
+            } => {
                 self.write_indent();
                 let mapped_type = self.map_type(type_name);
                 self.write_line(&format!("{} {};", mapped_type, name));
                 return Ok(());
             }
-            AstNode::GlobalVarDecl { name, type_name, initializer, .. } => {
+            AstNode::GlobalVarDecl {
+                name,
+                type_name,
+                initializer,
+                ..
+            } => {
                 self.write_indent();
                 let mapped_type = self.map_type(type_name);
                 self.write(&format!("{} {}", mapped_type, name));
@@ -449,29 +495,42 @@ impl WgslToGlslVisitor {
             }
             AstNode::AssignmentStatement { target, value } => {
                 self.write_indent();
-                self.write_line(&format!("{} = {};", self.map_expression(target), self.map_expression(value)));
+                self.write_line(&format!(
+                    "{} = {};",
+                    self.map_expression(target),
+                    self.map_expression(value)
+                ));
                 return Ok(());
             }
-            AstNode::IfStatement { condition, then_branch, else_branch } => {
+            AstNode::IfStatement {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 self.write_indent();
                 self.write_line(&format!("if ({}) {{", self.map_expression(condition)));
-                
+
                 self.indent_level += 1;
                 self.visit_node(then_branch)?;
                 self.indent_level -= 1;
-                
+
                 if let Some(else_branch) = else_branch {
                     self.write_line("} else {");
                     self.indent_level += 1;
                     self.visit_node(else_branch)?;
                     self.indent_level -= 1;
                 }
-                
+
                 self.write_line("}");
                 return Ok(());
             }
             _ => {
-                self.add_warning(1, 1, format!("Unsupported AST node: {:?}", node), "transpiler");
+                self.add_warning(
+                    1,
+                    1,
+                    format!("Unsupported AST node: {:?}", node),
+                    "transpiler",
+                );
                 return Ok(());
             }
         }
@@ -500,7 +559,12 @@ impl WgslToGlslVisitor {
             "vec4<f32>" => "vec4".to_string(),
             "mat4x4<f32>" => "mat4".to_string(),
             _ => {
-                self.add_warning(1, 1, format!("Unknown type mapping for: {}", wgsl_type), "type-mapping");
+                self.add_warning(
+                    1,
+                    1,
+                    format!("Unknown type mapping for: {}", wgsl_type),
+                    "type-mapping",
+                );
                 wgsl_type.to_string()
             }
         }
@@ -550,7 +614,11 @@ impl GlslToWgslTranspiler {
 }
 
 impl ShaderTranspiler for GlslToWgslTranspiler {
-    fn transpile(&self, source: &str, _options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    fn transpile(
+        &self,
+        source: &str,
+        _options: &TranspilerOptions,
+    ) -> TranspilerResult<TranspilerOutput> {
         let mut visitor = self.visitor.clone();
         let result = visitor.visit_glsl(source)?;
         let result_len = result.len();
@@ -583,7 +651,10 @@ impl ShaderTranspiler for GlslToWgslTranspiler {
 
     fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
         if language != ShaderLanguage::Glsl {
-            return Err(TranspilerError::LanguageMismatch(language, ShaderLanguage::Glsl));
+            return Err(TranspilerError::LanguageMismatch(
+                language,
+                ShaderLanguage::Glsl,
+            ));
         }
         Ok(())
     }
@@ -610,20 +681,23 @@ impl GlslToWgslVisitor {
         self.warnings.clear();
         self.info_log.clear();
 
-        self.output.push_str(&format!("// Transpiled from GLSL\n// Original size: {} bytes\n\n", source.len()));
-        
+        self.output.push_str(&format!(
+            "// Transpiled from GLSL\n// Original size: {} bytes\n\n",
+            source.len()
+        ));
+
         for line in source.lines() {
             let trimmed = line.trim();
-            
+
             if trimmed.starts_with("#version") {
                 continue;
             }
-            
+
             if trimmed.starts_with("#extension") {
                 self.add_warning(1, 1, format!("Extension ignored: {}", trimmed), "extension");
                 continue;
             }
-            
+
             let converted = self.convert_glsl_line(trimmed);
             self.output.push_str(&converted);
             self.output.push('\n');
@@ -642,7 +716,7 @@ impl GlslToWgslVisitor {
 
     fn convert_glsl_line(&mut self, line: &str) -> String {
         let mut result = line.to_string();
-        
+
         result = result.replace("attribute ", "@location(0) ");
         result = result.replace("varying ", "@location(0) ");
         result = result.replace("uniform ", "@group(0) @binding(0) ");
@@ -654,19 +728,32 @@ impl GlslToWgslVisitor {
         result = result.replace("float", "f32");
         result = result.replace("int", "i32");
         result = result.replace("void", "");
-        
+
         if result.contains("main()") && !result.contains("fn") {
             result = result.replace("main()", "fn main()");
         }
-        
+
         if result.contains("gl_Position") {
-            result = result.replace("gl_Position", "@builtin(position) var<out> position: vec4<f32>");
-            self.add_warning(1, 1, "Manual gl_Position conversion required".to_string(), "builtin");
+            result = result.replace(
+                "gl_Position",
+                "@builtin(position) var<out> position: vec4<f32>",
+            );
+            self.add_warning(
+                1,
+                1,
+                "Manual gl_Position conversion required".to_string(),
+                "builtin",
+            );
         }
-        
+
         if result.contains("gl_FragColor") {
             result = result.replace("gl_FragColor", "@location(0) var<out> fragColor: vec4<f32>");
-            self.add_warning(1, 1, "Manual gl_FragColor conversion required".to_string(), "builtin");
+            self.add_warning(
+                1,
+                1,
+                "Manual gl_FragColor conversion required".to_string(),
+                "builtin",
+            );
         }
 
         result
@@ -692,13 +779,17 @@ impl WgslToHlslTranspiler {
 }
 
 impl ShaderTranspiler for WgslToHlslTranspiler {
-    fn transpile(&self, source: &str, _options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    fn transpile(
+        &self,
+        source: &str,
+        _options: &TranspilerOptions,
+    ) -> TranspilerResult<TranspilerOutput> {
         let mut output = String::new();
         output.push_str("// Transpiled from WGSL to HLSL\n");
         output.push_str("// Original size: ");
         output.push_str(&source.len().to_string());
         output.push_str(" bytes\n\n");
-        
+
         for line in source.lines() {
             let converted = self.convert_wgsl_to_hlsl_line(line);
             output.push_str(&converted);
@@ -740,7 +831,10 @@ impl ShaderTranspiler for WgslToHlslTranspiler {
 
     fn validate_source(&self, source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
         if language != ShaderLanguage::Wgsl {
-            return Err(TranspilerError::LanguageMismatch(language, ShaderLanguage::Wgsl));
+            return Err(TranspilerError::LanguageMismatch(
+                language,
+                ShaderLanguage::Wgsl,
+            ));
         }
         Ok(())
     }
@@ -749,7 +843,7 @@ impl ShaderTranspiler for WgslToHlslTranspiler {
 impl WgslToHlslTranspiler {
     fn convert_wgsl_to_hlsl_line(&self, line: &str) -> String {
         let mut result = line.to_string();
-        
+
         result = result.replace("vec2<f32>", "float2");
         result = result.replace("vec3<f32>", "float3");
         result = result.replace("vec4<f32>", "float4");
@@ -763,7 +857,7 @@ impl WgslToHlslTranspiler {
         result = result.replace("@location(0)", "");
         result = result.replace("@builtin(position)", "SV_Position");
         result = result.replace("@builtin(frag_coord)", "SV_Position");
-        
+
         result
     }
 }
@@ -777,13 +871,17 @@ impl HlslToWgslTranspiler {
 }
 
 impl ShaderTranspiler for HlslToWgslTranspiler {
-    fn transpile(&self, source: &str, _options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    fn transpile(
+        &self,
+        source: &str,
+        _options: &TranspilerOptions,
+    ) -> TranspilerResult<TranspilerOutput> {
         let mut output = String::new();
         output.push_str("// Transpiled from HLSL to WGSL\n");
         output.push_str("// Original size: ");
         output.push_str(&source.len().to_string());
         output.push_str(" bytes\n\n");
-        
+
         for line in source.lines() {
             let converted = self.convert_hlsl_to_wgsl_line(line);
             output.push_str(&converted);
@@ -825,7 +923,10 @@ impl ShaderTranspiler for HlslToWgslTranspiler {
 
     fn validate_source(&self, _source: &str, language: ShaderLanguage) -> TranspilerResult<()> {
         if language != ShaderLanguage::Hlsl {
-            return Err(TranspilerError::LanguageMismatch(language, ShaderLanguage::Hlsl));
+            return Err(TranspilerError::LanguageMismatch(
+                language,
+                ShaderLanguage::Hlsl,
+            ));
         }
         Ok(())
     }
@@ -834,7 +935,7 @@ impl ShaderTranspiler for HlslToWgslTranspiler {
 impl HlslToWgslTranspiler {
     fn convert_hlsl_to_wgsl_line(&self, line: &str) -> String {
         let mut result = line.to_string();
-        
+
         result = result.replace("float2", "vec2<f32>");
         result = result.replace("float3", "vec3<f32>");
         result = result.replace("float4", "vec4<f32>");
@@ -845,7 +946,7 @@ impl HlslToWgslTranspiler {
         result = result.replace("Texture2D", "texture_2d");
         result = result.replace("SamplerState", "sampler");
         result = result.replace("SV_Position", "@builtin(position)");
-        
+
         result
     }
 }
@@ -873,14 +974,18 @@ impl ShaderValidator {
 
     fn validate_syntax(source: &str, _language: ShaderLanguage) -> TranspilerResult<()> {
         if source.is_empty() {
-            return Err(TranspilerError::ValidationError("Empty source code".to_string()));
+            return Err(TranspilerError::ValidationError(
+                "Empty source code".to_string(),
+            ));
         }
         Ok(())
     }
 
     fn validate_semantics(source: &str, _language: ShaderLanguage) -> TranspilerResult<()> {
         if source.len() > 1_000_000 {
-            return Err(TranspilerError::ValidationError("Source code too large".to_string()));
+            return Err(TranspilerError::ValidationError(
+                "Source code too large".to_string(),
+            ));
         }
         Ok(())
     }
@@ -900,10 +1005,14 @@ impl ShaderOptimizer {
         }
     }
 
-    pub fn optimize(&self, result: TranspilerResult<TranspilerOutput>, _options: &TranspilerOptions) -> TranspilerResult<TranspilerOutput> {
+    pub fn optimize(
+        &self,
+        result: TranspilerResult<TranspilerOutput>,
+        _options: &TranspilerOptions,
+    ) -> TranspilerResult<TranspilerOutput> {
         let mut output = result?;
         let mut optimization_passes = Vec::new();
-        
+
         for pass in &self.optimization_passes {
             output.source_code = pass(output.source_code)?;
             optimization_passes.push("applied".to_string());
@@ -949,7 +1058,7 @@ mod tests {
 
         let result = transpiler.transpile(wgsl_source, &options);
         assert!(result.is_ok());
-        
+
         let transpiled = result.unwrap();
         assert!(transpiled.source_code.contains("#version 450 core"));
         assert!(transpiled.source_code.contains("struct VertexInput"));
@@ -979,7 +1088,7 @@ mod tests {
 
         let result = transpiler.transpile(glsl_source, &options);
         assert!(result.is_ok());
-        
+
         let transpiled = result.unwrap();
         assert!(transpiled.source_code.contains("vec3<f32>"));
     }
@@ -1002,10 +1111,10 @@ mod tests {
     #[test]
     fn test_transpiler_validation() {
         let validator = ShaderValidator::new();
-        
+
         let result = validator.validate_source("valid shader code", ShaderLanguage::Wgsl);
         assert!(result.is_ok());
-        
+
         let result = validator.validate_source("", ShaderLanguage::Wgsl);
         assert!(result.is_err());
     }

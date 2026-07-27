@@ -81,18 +81,32 @@ impl UIAnalyzer {
     }
 
     pub fn get_broken_features_count(&self) -> usize {
-        self.features.iter().filter(|f| f.status == FeatureStatus::Broken).count()
+        self.features
+            .iter()
+            .filter(|f| f.status == FeatureStatus::Broken)
+            .count()
     }
 
     pub fn get_missing_features_count(&self) -> usize {
-        self.features.iter().filter(|f| f.status == FeatureStatus::Missing).count()
+        self.features
+            .iter()
+            .filter(|f| f.status == FeatureStatus::Missing)
+            .count()
     }
 
     pub fn get_features_by_status(&self, status: FeatureStatus) -> Vec<FeatureCheck> {
-        self.features.iter().filter(|f| f.status == status).cloned().collect()
+        self.features
+            .iter()
+            .filter(|f| f.status == status)
+            .cloned()
+            .collect()
     }
 
-    pub fn get_features_by_status_and_priority(&self, status: FeatureStatus, priority: Priority) -> Vec<FeatureCheck> {
+    pub fn get_features_by_status_and_priority(
+        &self,
+        status: FeatureStatus,
+        priority: Priority,
+    ) -> Vec<FeatureCheck> {
         self.features
             .iter()
             .filter(|f| f.status == status && f.priority == priority)
@@ -127,7 +141,7 @@ impl UIAnalyzer {
             runtime_errors: Vec::new(),
             performance_metrics: HashMap::new(),
         };
-        
+
         analyzer.initialize_comprehensive_checks();
         analyzer
     }
@@ -137,18 +151,28 @@ impl UIAnalyzer {
         self.features.push(FeatureCheck {
             name: "WGPU Integration".to_string(),
             category: "Core Rendering".to_string(),
-            description: "Direct WebGPU rendering in GUI viewport with high-performance pipeline".to_string(),
+            description: "Direct WebGPU rendering in GUI viewport with high-performance pipeline"
+                .to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["Requires wgpu device initialization".to_string(), "Surface creation for viewport".to_string(), "Render pipeline setup".to_string()],
+            details: vec![
+                "Requires wgpu device initialization".to_string(),
+                "Surface creation for viewport".to_string(),
+                "Render pipeline setup".to_string(),
+            ],
             priority: Priority::Critical,
         });
 
         self.features.push(FeatureCheck {
             name: "Live Shader Preview".to_string(),
             category: "Core Rendering".to_string(),
-            description: "Real-time shader rendering with parameter updates and smooth animation".to_string(),
+            description: "Real-time shader rendering with parameter updates and smooth animation"
+                .to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["Shader compilation pipeline".to_string(), "Uniform buffer updates".to_string(), "Frame timing control".to_string()],
+            details: vec![
+                "Shader compilation pipeline".to_string(),
+                "Uniform buffer updates".to_string(),
+                "Frame timing control".to_string(),
+            ],
             priority: Priority::Critical,
         });
 
@@ -157,7 +181,11 @@ impl UIAnalyzer {
             category: "Core Rendering".to_string(),
             description: "FPS counters, render time tracking with overlay display".to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["FPS calculation system".to_string(), "Frame time measurement".to_string(), "Overlay rendering".to_string()],
+            details: vec![
+                "FPS calculation system".to_string(),
+                "Frame time measurement".to_string(),
+                "Overlay rendering".to_string(),
+            ],
             priority: Priority::High,
         });
 
@@ -165,9 +193,15 @@ impl UIAnalyzer {
         self.features.push(FeatureCheck {
             name: "Three-Panel Layout".to_string(),
             category: "UI Layout".to_string(),
-            description: "Professional three-panel workspace (Center preview, Right controls, Bottom editor)".to_string(),
+            description:
+                "Professional three-panel workspace (Center preview, Right controls, Bottom editor)"
+                    .to_string(),
             status: FeatureStatus::Broken,
-            details: vec!["Panel docking system".to_string(), "Resizable panels".to_string(), "Panel visibility toggles".to_string()],
+            details: vec![
+                "Panel docking system".to_string(),
+                "Resizable panels".to_string(),
+                "Panel visibility toggles".to_string(),
+            ],
             priority: Priority::Critical,
         });
 
@@ -176,7 +210,12 @@ impl UIAnalyzer {
             category: "UI Layout".to_string(),
             description: "ISF shader library with search, categories, and favorites".to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["File system scanning".to_string(), "Search functionality".to_string(), "Category filtering".to_string(), "Favorites system".to_string()],
+            details: vec![
+                "File system scanning".to_string(),
+                "Search functionality".to_string(),
+                "Category filtering".to_string(),
+                "Favorites system".to_string(),
+            ],
             priority: Priority::Critical,
         });
 
@@ -185,7 +224,12 @@ impl UIAnalyzer {
             category: "UI Layout".to_string(),
             description: "Interactive shader parameter controls with real-time updates".to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["Slider controls".to_string(), "Color pickers".to_string(), "Toggle buttons".to_string(), "Real-time parameter sync".to_string()],
+            details: vec![
+                "Slider controls".to_string(),
+                "Color pickers".to_string(),
+                "Toggle buttons".to_string(),
+                "Real-time parameter sync".to_string(),
+            ],
             priority: Priority::Critical,
         });
 
@@ -194,7 +238,11 @@ impl UIAnalyzer {
             category: "UI Layout".to_string(),
             description: "WGSL editor with syntax highlighting and error indicators".to_string(),
             status: FeatureStatus::Partial,
-            details: vec!["Syntax highlighting working".to_string(), "Missing error squiggles".to_string(), "Missing auto-completion".to_string()],
+            details: vec![
+                "Syntax highlighting working".to_string(),
+                "Missing error squiggles".to_string(),
+                "Missing auto-completion".to_string(),
+            ],
             priority: Priority::High,
         });
 
@@ -204,7 +252,11 @@ impl UIAnalyzer {
             category: "Shader Systems".to_string(),
             description: "Complete WGSL keyword highlighting with semantic coloring".to_string(),
             status: FeatureStatus::Partial,
-            details: vec!["Basic highlighting implemented".to_string(), "Missing semantic analysis".to_string(), "Missing error squiggles".to_string()],
+            details: vec![
+                "Basic highlighting implemented".to_string(),
+                "Missing semantic analysis".to_string(),
+                "Missing error squiggles".to_string(),
+            ],
             priority: Priority::High,
         });
 
@@ -213,16 +265,25 @@ impl UIAnalyzer {
             category: "Shader Systems".to_string(),
             description: "WGSL shader compilation with error reporting".to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["naga compiler integration".to_string(), "Error message parsing".to_string(), "Validation system".to_string()],
+            details: vec![
+                "naga compiler integration".to_string(),
+                "Error message parsing".to_string(),
+                "Validation system".to_string(),
+            ],
             priority: Priority::Critical,
         });
 
         self.features.push(FeatureCheck {
             name: "ISF Support".to_string(),
             category: "Shader Systems".to_string(),
-            description: "Interactive Shader Format import/export with metadata parsing".to_string(),
+            description: "Interactive Shader Format import/export with metadata parsing"
+                .to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["ISF file parsing".to_string(), "Parameter extraction".to_string(), "Metadata handling".to_string()],
+            details: vec![
+                "ISF file parsing".to_string(),
+                "Parameter extraction".to_string(),
+                "Metadata handling".to_string(),
+            ],
             priority: Priority::High,
         });
 
@@ -232,7 +293,12 @@ impl UIAnalyzer {
             category: "Node Editor".to_string(),
             description: "Visual programming interface with drag-and-drop nodes".to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["Node graph rendering".to_string(), "Drag-and-drop system".to_string(), "Connection system".to_string(), "Node types".to_string()],
+            details: vec![
+                "Node graph rendering".to_string(),
+                "Drag-and-drop system".to_string(),
+                "Connection system".to_string(),
+                "Node types".to_string(),
+            ],
             priority: Priority::High,
         });
 
@@ -241,7 +307,11 @@ impl UIAnalyzer {
             category: "Node Editor".to_string(),
             description: "Automatic WGSL code generation from node graphs".to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["Topological sorting".to_string(), "Code template system".to_string(), "Variable naming".to_string()],
+            details: vec![
+                "Topological sorting".to_string(),
+                "Code template system".to_string(),
+                "Variable naming".to_string(),
+            ],
             priority: Priority::Medium,
         });
 
@@ -251,7 +321,11 @@ impl UIAnalyzer {
             category: "File Operations".to_string(),
             description: "Native OS file dialogs with recent files support".to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["rfd integration".to_string(), "Recent files tracking".to_string(), "File type filters".to_string()],
+            details: vec![
+                "rfd integration".to_string(),
+                "Recent files tracking".to_string(),
+                "File type filters".to_string(),
+            ],
             priority: Priority::High,
         });
 
@@ -260,7 +334,11 @@ impl UIAnalyzer {
             category: "File Operations".to_string(),
             description: "Project save/load with organized file structure".to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["Project file format".to_string(), "Asset management".to_string(), "Project templates".to_string()],
+            details: vec![
+                "Project file format".to_string(),
+                "Asset management".to_string(),
+                "Project templates".to_string(),
+            ],
             priority: Priority::Medium,
         });
 
@@ -270,7 +348,11 @@ impl UIAnalyzer {
             category: "Export/Import".to_string(),
             description: "WGSL↔GLSL↔HLSL bidirectional conversion".to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["naga translation".to_string(), "Format-specific optimizations".to_string(), "Error handling".to_string()],
+            details: vec![
+                "naga translation".to_string(),
+                "Format-specific optimizations".to_string(),
+                "Error handling".to_string(),
+            ],
             priority: Priority::Medium,
         });
 
@@ -279,7 +361,11 @@ impl UIAnalyzer {
             category: "Export/Import".to_string(),
             description: "Generate FFGL plugins from shaders".to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["FFGL wrapper generation".to_string(), "Parameter mapping".to_string(), "Plugin packaging".to_string()],
+            details: vec![
+                "FFGL wrapper generation".to_string(),
+                "Parameter mapping".to_string(),
+                "Plugin packaging".to_string(),
+            ],
             priority: Priority::Low,
         });
 
@@ -289,7 +375,11 @@ impl UIAnalyzer {
             category: "Audio/MIDI".to_string(),
             description: "Real-time FFT analysis with beat detection".to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["FFT implementation".to_string(), "Beat detection algorithm".to_string(), "Frequency band analysis".to_string()],
+            details: vec![
+                "FFT implementation".to_string(),
+                "Beat detection algorithm".to_string(),
+                "Frequency band analysis".to_string(),
+            ],
             priority: Priority::Medium,
         });
 
@@ -298,7 +388,12 @@ impl UIAnalyzer {
             category: "Audio/MIDI".to_string(),
             description: "MIDI CC to shader parameter mapping with low latency".to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["MIDI device enumeration".to_string(), "Message parsing".to_string(), "Parameter mapping".to_string(), "Smoothing system".to_string()],
+            details: vec![
+                "MIDI device enumeration".to_string(),
+                "Message parsing".to_string(),
+                "Parameter mapping".to_string(),
+                "Smoothing system".to_string(),
+            ],
             priority: Priority::Medium,
         });
 
@@ -308,7 +403,11 @@ impl UIAnalyzer {
             category: "Advanced Features".to_string(),
             description: "AST visualization and dependency graph analysis".to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["AST parsing".to_string(), "Graph layout algorithms".to_string(), "Interactive exploration".to_string()],
+            details: vec![
+                "AST parsing".to_string(),
+                "Graph layout algorithms".to_string(),
+                "Interactive exploration".to_string(),
+            ],
             priority: Priority::Low,
         });
 
@@ -317,7 +416,11 @@ impl UIAnalyzer {
             description: "GPU timing analysis and bottleneck identification".to_string(),
             category: "Advanced Features".to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["GPU timer queries".to_string(), "Performance metrics".to_string(), "Optimization hints".to_string()],
+            details: vec![
+                "GPU timer queries".to_string(),
+                "Performance metrics".to_string(),
+                "Optimization hints".to_string(),
+            ],
             priority: Priority::Low,
         });
 
@@ -327,7 +430,12 @@ impl UIAnalyzer {
             category: "Menu System".to_string(),
             description: "Complete menu bar with File, Edit, View, Tools, Help menus".to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["Menu bar rendering".to_string(), "Menu item actions".to_string(), "Keyboard shortcuts".to_string(), "Context menus".to_string()],
+            details: vec![
+                "Menu bar rendering".to_string(),
+                "Menu item actions".to_string(),
+                "Keyboard shortcuts".to_string(),
+                "Context menus".to_string(),
+            ],
             priority: Priority::High,
         });
 
@@ -336,7 +444,11 @@ impl UIAnalyzer {
             category: "Menu System".to_string(),
             description: "Full keyboard shortcut system for power users".to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["Shortcut mapping".to_string(), "Configurable shortcuts".to_string(), "Shortcut display".to_string()],
+            details: vec![
+                "Shortcut mapping".to_string(),
+                "Configurable shortcuts".to_string(),
+                "Shortcut display".to_string(),
+            ],
             priority: Priority::Medium,
         });
 
@@ -346,7 +458,11 @@ impl UIAnalyzer {
             category: "Templates".to_string(),
             description: "15+ categorized shader templates with professional examples".to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["Template categorization".to_string(), "Template loading system".to_string(), "Example shaders".to_string()],
+            details: vec![
+                "Template categorization".to_string(),
+                "Template loading system".to_string(),
+                "Example shaders".to_string(),
+            ],
             priority: Priority::Medium,
         });
 
@@ -356,7 +472,11 @@ impl UIAnalyzer {
             category: "Error Handling".to_string(),
             description: "Graceful error handling with user feedback and recovery".to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["Error types".to_string(), "User notifications".to_string(), "Recovery mechanisms".to_string()],
+            details: vec![
+                "Error types".to_string(),
+                "User notifications".to_string(),
+                "Recovery mechanisms".to_string(),
+            ],
             priority: Priority::High,
         });
 
@@ -365,7 +485,11 @@ impl UIAnalyzer {
             category: "Error Handling".to_string(),
             description: "Structured logging with levels and file output".to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["Log levels".to_string(), "File logging".to_string(), "Structured format".to_string()],
+            details: vec![
+                "Log levels".to_string(),
+                "File logging".to_string(),
+                "Structured format".to_string(),
+            ],
             priority: Priority::Medium,
         });
 
@@ -373,9 +497,14 @@ impl UIAnalyzer {
         self.features.push(FeatureCheck {
             name: "Memory Management".to_string(),
             category: "Performance".to_string(),
-            description: "Efficient memory usage with texture pooling and buffer management".to_string(),
+            description: "Efficient memory usage with texture pooling and buffer management"
+                .to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["Texture pooling".to_string(), "Buffer reuse".to_string(), "Memory monitoring".to_string()],
+            details: vec![
+                "Texture pooling".to_string(),
+                "Buffer reuse".to_string(),
+                "Memory monitoring".to_string(),
+            ],
             priority: Priority::Medium,
         });
 
@@ -383,9 +512,14 @@ impl UIAnalyzer {
         self.features.push(FeatureCheck {
             name: "Cross-platform Support".to_string(),
             category: "Platform".to_string(),
-            description: "Windows, macOS, Linux compatibility with native OS integration".to_string(),
+            description: "Windows, macOS, Linux compatibility with native OS integration"
+                .to_string(),
             status: FeatureStatus::Missing,
-            details: vec!["Platform detection".to_string(), "OS-specific features".to_string(), "Native dialogs".to_string()],
+            details: vec![
+                "Platform detection".to_string(),
+                "OS-specific features".to_string(),
+                "Native dialogs".to_string(),
+            ],
             priority: Priority::Medium,
         });
     }
@@ -414,50 +548,102 @@ impl UIAnalyzer {
     fn perform_real_analysis(&mut self) {
         // Check WGPU Integration
         if self.check_wgpu_integration() {
-            self.update_feature_status("WGPU Integration", FeatureStatus::Functional, vec!["WGPU device initialized successfully".to_string()]);
+            self.update_feature_status(
+                "WGPU Integration",
+                FeatureStatus::Functional,
+                vec!["WGPU device initialized successfully".to_string()],
+            );
         } else {
-            self.update_feature_status("WGPU Integration", FeatureStatus::Missing, vec!["WGPU device not initialized".to_string()]);
+            self.update_feature_status(
+                "WGPU Integration",
+                FeatureStatus::Missing,
+                vec!["WGPU device not initialized".to_string()],
+            );
         }
 
         // Check Live Shader Preview
         if self.check_live_shader_preview() {
-            self.update_feature_status("Live Shader Preview", FeatureStatus::Functional, vec!["Live preview rendering working".to_string()]);
+            self.update_feature_status(
+                "Live Shader Preview",
+                FeatureStatus::Functional,
+                vec!["Live preview rendering working".to_string()],
+            );
         } else {
-            self.update_feature_status("Live Shader Preview", FeatureStatus::Missing, vec!["Live preview not functional".to_string()]);
+            self.update_feature_status(
+                "Live Shader Preview",
+                FeatureStatus::Missing,
+                vec!["Live preview not functional".to_string()],
+            );
         }
 
         // Check Three-Panel Layout
         match self.check_three_panel_layout() {
             LayoutStatus::Functional => {
-                self.update_feature_status("Three-Panel Layout", FeatureStatus::Functional, vec!["All panels rendering correctly".to_string()]);
-            },
+                self.update_feature_status(
+                    "Three-Panel Layout",
+                    FeatureStatus::Functional,
+                    vec!["All panels rendering correctly".to_string()],
+                );
+            }
             LayoutStatus::Partial => {
-                self.update_feature_status("Three-Panel Layout", FeatureStatus::Partial, vec!["Panels exist but missing functionality".to_string()]);
-            },
+                self.update_feature_status(
+                    "Three-Panel Layout",
+                    FeatureStatus::Partial,
+                    vec!["Panels exist but missing functionality".to_string()],
+                );
+            }
             LayoutStatus::Broken => {
-                self.update_feature_status("Three-Panel Layout", FeatureStatus::Broken, vec!["Panel layout has issues".to_string()]);
-            },
+                self.update_feature_status(
+                    "Three-Panel Layout",
+                    FeatureStatus::Broken,
+                    vec!["Panel layout has issues".to_string()],
+                );
+            }
         }
 
         // Check Shader Browser Panel
         if self.check_shader_browser_panel() {
-            self.update_feature_status("Shader Browser Panel", FeatureStatus::Functional, vec!["Shader browser functional".to_string()]);
+            self.update_feature_status(
+                "Shader Browser Panel",
+                FeatureStatus::Functional,
+                vec!["Shader browser functional".to_string()],
+            );
         } else {
-            self.update_feature_status("Shader Browser Panel", FeatureStatus::Missing, vec!["Shader browser not implemented".to_string()]);
+            self.update_feature_status(
+                "Shader Browser Panel",
+                FeatureStatus::Missing,
+                vec!["Shader browser not implemented".to_string()],
+            );
         }
 
         // Check Parameter Panel
         if self.check_parameter_panel() {
-            self.update_feature_status("Parameter Panel", FeatureStatus::Functional, vec!["Parameter controls working".to_string()]);
+            self.update_feature_status(
+                "Parameter Panel",
+                FeatureStatus::Functional,
+                vec!["Parameter controls working".to_string()],
+            );
         } else {
-            self.update_feature_status("Parameter Panel", FeatureStatus::Missing, vec!["Parameter panel not functional".to_string()]);
+            self.update_feature_status(
+                "Parameter Panel",
+                FeatureStatus::Missing,
+                vec!["Parameter panel not functional".to_string()],
+            );
         }
 
         // Check Shader Compilation
         if self.check_shader_compilation() {
-            self.update_feature_status("Shader Compilation", FeatureStatus::Functional, vec!["Shader compilation working".to_string()]);
+            self.update_feature_status(
+                "Shader Compilation",
+                FeatureStatus::Functional,
+                vec!["Shader compilation working".to_string()],
+            );
         } else {
-            self.update_feature_status("Shader Compilation", FeatureStatus::Missing, vec!["Shader compilation not working".to_string()]);
+            self.update_feature_status(
+                "Shader Compilation",
+                FeatureStatus::Missing,
+                vec!["Shader compilation not working".to_string()],
+            );
         }
     }
 
@@ -488,20 +674,53 @@ impl UIAnalyzer {
     fn check_three_panel_layout(&self) -> LayoutStatus {
         let app = std::fs::read_to_string("src/bevy_app.rs").ok();
         let editor = std::fs::read_to_string("src/editor_ui.rs").ok();
-        let has_left_panel = app.as_deref().map(|c| c.contains("shader_browser_panel")).unwrap_or(false)
-            || editor.as_deref().map(|c| c.contains("shader_browser_panel")).unwrap_or(false);
-        let has_right_panel = app.as_deref().map(|c| c.contains("parameter_panel")).unwrap_or(false)
-            || editor.as_deref().map(|c| c.contains("parameter_panel")).unwrap_or(false);
-        let has_bottom_panel = app.as_deref().map(|c| c.contains("code_editor_panel")).unwrap_or(false)
-            || editor.as_deref().map(|c| c.contains("code_editor_panel")).unwrap_or(false);
-        let has_central_panel = app.as_deref().map(|c| c.contains("CentralPanel")).unwrap_or(false)
-            || editor.as_deref().map(|c| c.contains("CentralPanel")).unwrap_or(false);
+        let has_left_panel = app
+            .as_deref()
+            .map(|c| c.contains("shader_browser_panel"))
+            .unwrap_or(false)
+            || editor
+                .as_deref()
+                .map(|c| c.contains("shader_browser_panel"))
+                .unwrap_or(false);
+        let has_right_panel = app
+            .as_deref()
+            .map(|c| c.contains("parameter_panel"))
+            .unwrap_or(false)
+            || editor
+                .as_deref()
+                .map(|c| c.contains("parameter_panel"))
+                .unwrap_or(false);
+        let has_bottom_panel = app
+            .as_deref()
+            .map(|c| c.contains("code_editor_panel"))
+            .unwrap_or(false)
+            || editor
+                .as_deref()
+                .map(|c| c.contains("code_editor_panel"))
+                .unwrap_or(false);
+        let has_central_panel = app
+            .as_deref()
+            .map(|c| c.contains("CentralPanel"))
+            .unwrap_or(false)
+            || editor
+                .as_deref()
+                .map(|c| c.contains("CentralPanel"))
+                .unwrap_or(false);
 
         if has_left_panel && has_right_panel && has_bottom_panel && has_central_panel {
-            let has_functionality = editor.as_deref().map(|c|
-                c.contains("Interactive shader parameters") || c.contains("Available shaders:") || c.contains("Code Editor")
-            ).unwrap_or(false);
-            if has_functionality { LayoutStatus::Functional } else { LayoutStatus::Partial }
+            let has_functionality = editor
+                .as_deref()
+                .map(|c| {
+                    c.contains("Interactive shader parameters")
+                        || c.contains("Available shaders:")
+                        || c.contains("Code Editor")
+                })
+                .unwrap_or(false);
+            if has_functionality {
+                LayoutStatus::Functional
+            } else {
+                LayoutStatus::Partial
+            }
         } else {
             LayoutStatus::Broken
         }
@@ -514,8 +733,7 @@ impl UIAnalyzer {
                 || editor_content.contains("draw_editor_shader_browser_panel")
                 || editor_content.contains("shader_browser")
         } else if let Ok(app_content) = std::fs::read_to_string("src/bevy_app.rs") {
-            app_content.contains("shader_browser_panel")
-                || app_content.contains("Shader Browser")
+            app_content.contains("shader_browser_panel") || app_content.contains("Shader Browser")
         } else {
             false
         }
@@ -523,7 +741,8 @@ impl UIAnalyzer {
 
     fn check_parameter_panel(&self) -> bool {
         if let Ok(editor_content) = std::fs::read_to_string("src/editor_ui.rs") {
-            editor_content.contains("Interactive shader parameters") && editor_content.contains("Slider")
+            editor_content.contains("Interactive shader parameters")
+                && editor_content.contains("Slider")
         } else if let Ok(app_content) = std::fs::read_to_string("src/bevy_app.rs") {
             app_content.contains("parameter_panel")
         } else {
@@ -549,7 +768,12 @@ impl UIAnalyzer {
         }
     }
 
-    pub fn update_feature_status(&mut self, feature_name: &str, status: FeatureStatus, details: Vec<String>) {
+    pub fn update_feature_status(
+        &mut self,
+        feature_name: &str,
+        status: FeatureStatus,
+        details: Vec<String>,
+    ) {
         if let Some(feature) = self.features.iter_mut().find(|f| f.name == feature_name) {
             feature.status = status;
             feature.details = details;
@@ -557,43 +781,55 @@ impl UIAnalyzer {
     }
 
     pub fn get_missing_critical_features(&self) -> Vec<&FeatureCheck> {
-        self.features.iter()
+        self.features
+            .iter()
             .filter(|f| f.status == FeatureStatus::Missing && f.priority == Priority::Critical)
             .collect()
     }
 
     pub fn get_missing_high_priority_features(&self) -> Vec<&FeatureCheck> {
-        self.features.iter()
+        self.features
+            .iter()
             .filter(|f| f.status == FeatureStatus::Missing && f.priority == Priority::High)
             .collect()
     }
 
     pub fn get_broken_critical_features(&self) -> Vec<&FeatureCheck> {
-        self.features.iter()
+        self.features
+            .iter()
             .filter(|f| f.status == FeatureStatus::Broken && f.priority == Priority::Critical)
             .collect()
     }
 
     pub fn generate_comprehensive_report(&self) -> String {
         let mut report = String::new();
-        
+
         report.push_str("# WGSL Shader Studio - COMPREHENSIVE UI ANALYSIS REPORT\n\n");
         report.push_str("## Executive Summary\n\n");
-        
+
         let total_features = self.features.len();
         let critical_missing = self.get_missing_critical_features().len();
         let high_missing = self.get_missing_high_priority_features().len();
         let critical_broken = self.get_broken_critical_features().len();
-        
-        report.push_str(&format!("- **Total Features Required**: {}\n", total_features));
+
+        report.push_str(&format!(
+            "- **Total Features Required**: {}\n",
+            total_features
+        ));
         report.push_str(&format!("- **Critical Missing**: {}\n", critical_missing));
         report.push_str(&format!("- **High Priority Missing**: {}\n", high_missing));
         report.push_str(&format!("- **Critical Broken**: {}\n", critical_broken));
-        report.push_str(&format!("- **Functional Features**: {}\n", self.functional_features.len()));
-        report.push_str(&format!("- **Partial Features**: {}\n", self.partial_features.len()));
-        
+        report.push_str(&format!(
+            "- **Functional Features**: {}\n",
+            self.functional_features.len()
+        ));
+        report.push_str(&format!(
+            "- **Partial Features**: {}\n",
+            self.partial_features.len()
+        ));
+
         report.push_str("\n## CRITICAL ISSUES - IMMEDIATE ACTION REQUIRED\n\n");
-        
+
         if critical_missing > 0 {
             report.push_str("### 🚨 CRITICAL MISSING FEATURES\n\n");
             for feature in self.get_missing_critical_features() {
@@ -635,20 +871,37 @@ impl UIAnalyzer {
         }
 
         report.push_str("## FEATURE STATUS BY CATEGORY\n\n");
-        
+
         let categories = self.get_all_categories();
         for category in categories {
-            let category_features: Vec<&FeatureCheck> = self.features.iter()
+            let category_features: Vec<&FeatureCheck> = self
+                .features
+                .iter()
                 .filter(|f| f.category == category)
                 .collect();
-            
-            let missing_count = category_features.iter().filter(|f| f.status == FeatureStatus::Missing).count();
-            let broken_count = category_features.iter().filter(|f| f.status == FeatureStatus::Broken).count();
-            let partial_count = category_features.iter().filter(|f| f.status == FeatureStatus::Partial).count();
-            let functional_count = category_features.iter().filter(|f| f.status == FeatureStatus::Functional).count();
-            
+
+            let missing_count = category_features
+                .iter()
+                .filter(|f| f.status == FeatureStatus::Missing)
+                .count();
+            let broken_count = category_features
+                .iter()
+                .filter(|f| f.status == FeatureStatus::Broken)
+                .count();
+            let partial_count = category_features
+                .iter()
+                .filter(|f| f.status == FeatureStatus::Partial)
+                .count();
+            let functional_count = category_features
+                .iter()
+                .filter(|f| f.status == FeatureStatus::Functional)
+                .count();
+
             report.push_str(&format!("### {}\n", category));
-            report.push_str(&format!("- **Total**: {} features\n", category_features.len()));
+            report.push_str(&format!(
+                "- **Total**: {} features\n",
+                category_features.len()
+            ));
             report.push_str(&format!("- **Missing**: {}\n", missing_count));
             report.push_str(&format!("- **Broken**: {}\n", broken_count));
             report.push_str(&format!("- **Partial**: {}\n", partial_count));
@@ -738,10 +991,12 @@ impl UIAnalyzer {
         report.push_str("This comprehensive analysis reveals that the WGSL Shader Studio requires **complete reconstruction**\n");
         report.push_str("of all core systems. The current implementation lacks fundamental functionality required for\n");
         report.push_str("basic shader development workflows.\n\n");
-        
+
         report.push_str("**Immediate priorities**: Fix UI layout rendering, implement WGPU integration, restore shader\n");
         report.push_str("browser functionality, and add basic file operations. Without these critical features, the\n");
-        report.push_str("application cannot perform its core function as a shader development environment.\n\n");
+        report.push_str(
+            "application cannot perform its core function as a shader development environment.\n\n",
+        );
 
         report.push_str("**Estimated Recovery Time**: 3-4 weeks for basic functionality, 6-8 weeks for full feature parity.\n");
 
@@ -789,7 +1044,7 @@ impl UIAnalyzer {
 
     pub fn check_dependencies(&mut self) {
         let cargo_toml = std::fs::read_to_string("Cargo.toml").unwrap_or_default();
-        
+
         let required_deps = vec![
             ("bevy", "Game engine framework"),
             ("bevy_egui", "Egui integration for Bevy"),
@@ -820,16 +1075,16 @@ impl UIAnalyzer {
     pub fn run_surgical_diagnostics(&mut self) {
         // Run WGPU diagnostics
         self.diagnose_wgpu_state();
-        
+
         // Run UI state analysis
         self.diagnose_ui_state();
-        
+
         // Check for runtime errors
         self.check_runtime_errors();
-        
+
         // Analyze performance bottlenecks
         self.analyze_performance_bottlenecks();
-        
+
         // Validate critical systems
         self.validate_critical_systems();
 
@@ -841,23 +1096,25 @@ impl UIAnalyzer {
         // Check if WGPU can be initialized
         match std::process::Command::new("cargo")
             .args(&["check", "--features", "wgpu"])
-            .output() {
+            .output()
+        {
             Ok(output) => {
                 if !output.status.success() {
-                    self.wgpu_diagnostics.initialization_error = Some(
-                        String::from_utf8_lossy(&output.stderr).to_string()
-                    );
+                    self.wgpu_diagnostics.initialization_error =
+                        Some(String::from_utf8_lossy(&output.stderr).to_string());
                 }
             }
             Err(e) => {
-                self.wgpu_diagnostics.initialization_error = Some(format!("Failed to run cargo check: {}", e));
+                self.wgpu_diagnostics.initialization_error =
+                    Some(format!("Failed to run cargo check: {}", e));
             }
         }
 
         // Check for WGPU-related compilation errors
         if let Ok(cargo_output) = std::fs::read_to_string("cargo_output.log") {
             if cargo_output.contains("wgpu") && cargo_output.contains("error") {
-                self.runtime_errors.push("WGPU compilation errors detected".to_string());
+                self.runtime_errors
+                    .push("WGPU compilation errors detected".to_string());
             }
         }
 
@@ -895,9 +1152,18 @@ impl UIAnalyzer {
     fn check_runtime_errors(&mut self) {
         // Check for common runtime error patterns
         let error_patterns = vec![
-            ("WGPU initialization failed", "WGPU renderer not properly initialized"),
-            ("Using software shader renderer fallback", "Critical: Using CPU fallback instead of GPU"),
-            ("Bytes per row does not respect COPY_BYTES_PER_ROW_ALIGNMENT", "WGPU texture alignment error"),
+            (
+                "WGPU initialization failed",
+                "WGPU renderer not properly initialized",
+            ),
+            (
+                "Using software shader renderer fallback",
+                "Critical: Using CPU fallback instead of GPU",
+            ),
+            (
+                "Bytes per row does not respect COPY_BYTES_PER_ROW_ALIGNMENT",
+                "WGPU texture alignment error",
+            ),
             ("panicked at", "Application panic detected"),
             ("unwrap() on None value", "Null pointer/unwrapping error"),
             ("index out of bounds", "Array access error"),
@@ -908,7 +1174,8 @@ impl UIAnalyzer {
         if let Ok(log_content) = std::fs::read_to_string("run_output.txt") {
             for (pattern, description) in &error_patterns {
                 if log_content.contains(pattern) {
-                    self.runtime_errors.push(format!("{}: {}", description, pattern));
+                    self.runtime_errors
+                        .push(format!("{}: {}", description, pattern));
                 }
             }
         }
@@ -919,7 +1186,9 @@ impl UIAnalyzer {
         if let Ok(log_content) = std::fs::read_to_string("run_output.txt") {
             if log_content.contains("0.2 FPS") || log_content.contains("4-6 seconds") {
                 self.performance_metrics.insert("fps".to_string(), 0.2);
-                self.runtime_errors.push("CRITICAL PERFORMANCE: 0.2 FPS detected - CPU rendering fallback".to_string());
+                self.runtime_errors.push(
+                    "CRITICAL PERFORMANCE: 0.2 FPS detected - CPU rendering fallback".to_string(),
+                );
             }
         }
 
@@ -927,7 +1196,8 @@ impl UIAnalyzer {
         if let Ok(log_content) = std::fs::read_to_string("run_output.txt") {
             let log_lines = log_content.lines().count();
             if log_lines > 1000 {
-                self.runtime_errors.push(format!("Excessive logging detected: {} lines", log_lines));
+                self.runtime_errors
+                    .push(format!("Excessive logging detected: {} lines", log_lines));
             }
         }
     }
@@ -935,34 +1205,48 @@ impl UIAnalyzer {
     fn validate_critical_systems(&mut self) {
         // Validate WGPU integration
         if let Ok(bevy_content) = std::fs::read_to_string("src/bevy_app.rs") {
-            if bevy_content.contains("initialize_wgpu_renderer") && bevy_content.contains("panic!") {
+            if bevy_content.contains("initialize_wgpu_renderer") && bevy_content.contains("panic!")
+            {
                 // This is good - forces WGPU initialization
             } else if bevy_content.contains("WGPU renderer placeholder") {
-                self.runtime_errors.push("CRITICAL: WGPU placeholder still present - initialization not forced".to_string());
+                self.runtime_errors.push(
+                    "CRITICAL: WGPU placeholder still present - initialization not forced"
+                        .to_string(),
+                );
             }
         }
 
         // Validate UI rendering
         if let Ok(editor_content) = std::fs::read_to_string("src/editor_ui.rs") {
-            if editor_content.contains("compile_and_render_shader") && editor_content.contains("NO SOFTWARE FALLBACK") {
+            if editor_content.contains("compile_and_render_shader")
+                && editor_content.contains("NO SOFTWARE FALLBACK")
+            {
                 // This is good - no CPU fallback
             } else if editor_content.contains("SoftwareShaderRenderer") {
-                self.runtime_errors.push("CRITICAL: Software shader renderer still present".to_string());
+                self.runtime_errors
+                    .push("CRITICAL: Software shader renderer still present".to_string());
             }
         }
     }
 
     fn check_documentation_compliance(&mut self) {
         let required_docs = vec![
-            ("DRASTIC_MEASURES_TO_PREVENT_PSYCHOTIC_LOOPS.md", "Drastic measures doc"),
+            (
+                "DRASTIC_MEASURES_TO_PREVENT_PSYCHOTIC_LOOPS.md",
+                "Drastic measures doc",
+            ),
             ("PSYCHOTIC_LOOP_ANALYSIS.md", "Psychotic loop analysis"),
             ("UI_AUDIT_REPORT.md", "UI audit report"),
-            ("COMPREHENSIVE_FEATURE_VERIFICATION.md", "Feature verification"),
+            (
+                "COMPREHENSIVE_FEATURE_VERIFICATION.md",
+                "Feature verification",
+            ),
             ("COMPLETE_FEATURE_AUDIT.md", "Complete feature audit"),
         ];
         for (path, _desc) in required_docs {
             if !Path::new(path).exists() {
-                self.runtime_errors.push(format!("MISSING DOCUMENTATION: {}", path));
+                self.runtime_errors
+                    .push(format!("MISSING DOCUMENTATION: {}", path));
             }
         }
     }
@@ -982,27 +1266,31 @@ impl UIAnalyzer {
                 }
             }
             if !missing.is_empty() {
-                self.runtime_errors.push(format!("UI PANEL HEADINGS MISSING: {}", missing.join(", ")));
+                self.runtime_errors
+                    .push(format!("UI PANEL HEADINGS MISSING: {}", missing.join(", ")));
             }
         }
         if let Ok(readme_content) = std::fs::read_to_string("README.md") {
             if !readme_content.contains("```mermaid") {
-                self.runtime_errors.push("README DIAGRAMS MISSING".to_string());
+                self.runtime_errors
+                    .push("README DIAGRAMS MISSING".to_string());
             }
         }
     }
 
     pub fn generate_surgical_fix_plan(&self) -> String {
         let mut plan = String::new();
-        
+
         plan.push_str("# SURGICAL FIX PLAN - CRITICAL UI ISSUES\n\n");
         plan.push_str("## IMMEDIATE LIFE-THREATENING ISSUES\n\n");
-        
+
         // Critical runtime errors
-        let critical_errors: Vec<&String> = self.runtime_errors.iter()
+        let critical_errors: Vec<&String> = self
+            .runtime_errors
+            .iter()
             .filter(|err| err.contains("CRITICAL"))
             .collect();
-            
+
         if !critical_errors.is_empty() {
             plan.push_str("### 🚨 CRITICAL RUNTIME ERRORS\n\n");
             for error in critical_errors {
@@ -1025,7 +1313,9 @@ impl UIAnalyzer {
                 plan.push_str("### ⚡ PERFORMANCE CRISIS\n\n");
                 plan.push_str(&format!("Current FPS: {} (UNUSABLE)\n", fps));
                 plan.push_str("**ROOT CAUSE**: CPU software rendering fallback\n");
-                plan.push_str("**SURGICAL FIX**: Remove all CPU fallback code, force GPU-only rendering\n");
+                plan.push_str(
+                    "**SURGICAL FIX**: Remove all CPU fallback code, force GPU-only rendering\n",
+                );
                 plan.push_str("**LOCATION**: src/editor_ui.rs - compile_and_render_shader()\n\n");
             }
         }
@@ -1047,11 +1337,17 @@ impl UIAnalyzer {
 
         plan.push_str("## SURGICAL INTERVENTION STEPS\n\n");
         plan.push_str("1. **STOP ALL APP LAUNCHES** - Do not run broken code\n");
-        plan.push_str("2. **FIX WGPU INITIALIZATION** - Force GPU initialization with panic on failure\n");
+        plan.push_str(
+            "2. **FIX WGPU INITIALIZATION** - Force GPU initialization with panic on failure\n",
+        );
         plan.push_str("3. **REMOVE CPU FALLBACK** - Delete all software rendering code\n");
         plan.push_str("4. **FIX UI LAYOUT** - Implement proper three-panel layout\n");
-        plan.push_str("5. **VALIDATE RENDERING** - Ensure texture alignment and buffer management\n");
-        plan.push_str("6. **TEST COMPREHENSIVELY** - Verify all UI elements render and function\n\n");
+        plan.push_str(
+            "5. **VALIDATE RENDERING** - Ensure texture alignment and buffer management\n",
+        );
+        plan.push_str(
+            "6. **TEST COMPREHENSIVELY** - Verify all UI elements render and function\n\n",
+        );
 
         plan.push_str("## SUCCESS CRITERIA\n\n");
         plan.push_str("- ✅ WGPU initializes successfully with no fallback\n");
@@ -1066,23 +1362,23 @@ impl UIAnalyzer {
     pub fn run_comprehensive_analysis(&mut self) -> String {
         // Run surgical diagnostics first
         self.run_surgical_diagnostics();
-        
+
         // Check file structure
         self.check_file_structure();
-        
+
         // Check dependencies
         self.check_dependencies();
-        
+
         // Analyze current state
         self.analyze_current_state();
-        
+
         // Generate comprehensive report
         let mut report = self.generate_comprehensive_report();
-        
+
         // Append surgical fix plan
         report.push_str("\n");
         report.push_str(&self.generate_surgical_fix_plan());
-        
+
         report
     }
 }
@@ -1102,7 +1398,7 @@ mod tests {
     fn test_critical_feature_detection() {
         let mut analyzer = UIAnalyzer::new();
         analyzer.analyze_current_state();
-        
+
         let critical_missing = analyzer.get_missing_critical_features();
         assert!(!critical_missing.is_empty()); // Should detect critical missing features
     }
@@ -1111,7 +1407,7 @@ mod tests {
     fn test_report_generation() {
         let mut analyzer = UIAnalyzer::new();
         analyzer.analyze_current_state();
-        
+
         let report = analyzer.generate_comprehensive_report();
         assert!(!report.is_empty());
         assert!(report.contains("CRITICAL ISSUES"));

@@ -1,9 +1,9 @@
 //! WESL (WebGPU Enhanced Shading Language) converter module
 //! Provides conversion between WESL and other shader formats
 
+use crate::converter::diagnostics::{Diagnostic, DiagnosticSeverity, Diagnostics};
+use anyhow::{bail, Result};
 use std::collections::HashMap;
-use anyhow::{Result, bail};
-use crate::converter::diagnostics::{Diagnostics, Diagnostic, DiagnosticSeverity};
 
 /// WESL to other formats converter
 pub struct WESLConverter {
@@ -24,17 +24,17 @@ impl WESLConverter {
     pub fn convert_to_wgsl(&mut self, wesl_source: &str, file_path: &str) -> Result<String> {
         // Process WESL-specific features and convert to WGSL
         let mut wgsl_code = String::new();
-        
+
         // Add file header
         wgsl_code.push_str(&format!("// Converted from WESL: {}\n", file_path));
         wgsl_code.push_str("// WESL features processed by WESLConverter\n\n");
-        
+
         // Process the WESL source
         let processed_source = self.process_wesl_features(wesl_source, file_path)?;
-        
+
         // Append the processed source
         wgsl_code.push_str(&processed_source);
-        
+
         Ok(wgsl_code)
     }
 
@@ -42,19 +42,20 @@ impl WESLConverter {
     fn process_wesl_features(&mut self, source: &str, file_path: &str) -> Result<String> {
         let mut result = String::new();
         let mut lines = source.lines().peekable();
-        
+
         while let Some(line) = lines.next() {
             let trimmed = line.trim();
-            
+
             // Handle WESL import statements
             if trimmed.starts_with("import") || trimmed.starts_with("#import") {
                 self.handle_import(line, file_path)?;
                 continue; // Skip import line in output, as content is included separately
             }
             // Handle WESL conditional compilation
-            else if trimmed.starts_with("#if") || 
-                   trimmed.starts_with("#ifdef") || 
-                   trimmed.starts_with("#ifndef") {
+            else if trimmed.starts_with("#if")
+                || trimmed.starts_with("#ifdef")
+                || trimmed.starts_with("#ifndef")
+            {
                 self.handle_conditional_compilation(&mut lines, &mut result, file_path)?;
                 continue;
             }
@@ -64,12 +65,12 @@ impl WESLConverter {
                 self.handle_preprocessor_directive(line)?;
                 continue; // Skip preprocessor directives in output
             }
-            
+
             // Add regular line to result
             result.push_str(line);
             result.push('\n');
         }
-        
+
         Ok(result)
     }
 
@@ -103,21 +104,24 @@ impl WESLConverter {
 
     /// Handle WESL conditional compilation directives
     fn handle_conditional_compilation(
-        &mut self, 
-        lines: &mut std::iter::Peekable<std::str::Lines>, 
+        &mut self,
+        lines: &mut std::iter::Peekable<std::str::Lines>,
         result: &mut String,
-        file_path: &str
+        file_path: &str,
     ) -> Result<()> {
         let mut condition_stack = Vec::new();
         let mut skip_block = false;
         let mut skip_depth = 0;
-        
+
         // For now, we'll just skip conditional compilation blocks
         // In a real implementation, this would evaluate conditions
         while let Some(line) = lines.next() {
             let trimmed = line.trim();
-            
-            if trimmed.starts_with("#if") || trimmed.starts_with("#ifdef") || trimmed.starts_with("#ifndef") {
+
+            if trimmed.starts_with("#if")
+                || trimmed.starts_with("#ifdef")
+                || trimmed.starts_with("#ifndef")
+            {
                 condition_stack.push(skip_block);
                 if skip_block {
                     skip_depth += 1;
@@ -140,13 +144,13 @@ impl WESLConverter {
                     }
                 }
             }
-            
+
             if !skip_block && skip_depth == 0 {
                 result.push_str(line);
                 result.push('\n');
             }
         }
-        
+
         Ok(())
     }
 
@@ -169,7 +173,7 @@ impl WESLConverter {
             };
             self.diagnostics.add_diagnostic(diagnostic);
         }
-        
+
         Ok(())
     }
 
@@ -204,7 +208,10 @@ impl WESLConverter {
         let diagnostic = Diagnostic {
             severity: DiagnosticSeverity::Warning,
             code: "WESL_IMPORT_NOT_FOUND".to_string(),
-            message: format!("Import '{}' not found, using empty placeholder", import_path),
+            message: format!(
+                "Import '{}' not found, using empty placeholder",
+                import_path
+            ),
             file_path: base_path.to_string(),
             line: 0,
             column: 0,
@@ -214,7 +221,7 @@ impl WESLConverter {
             quick_fix_available: false,
         };
         self.diagnostics.add_diagnostic(diagnostic);
-        
+
         Ok(String::new())
     }
 
@@ -256,7 +263,8 @@ mod tests {
     #[test]
     fn test_basic_wgsl_conversion() {
         let mut converter = WESLConverter::new();
-        let wesl_source = "@fragment fn main() -> @location(0) vec4<f32> { return vec4<f32>(1.0); }";
+        let wesl_source =
+            "@fragment fn main() -> @location(0) vec4<f32> { return vec4<f32>(1.0); }";
         let result = converter.convert_to_wgsl(wesl_source, "test.wesl").unwrap();
         assert!(result.contains("Converted from WESL"));
         assert!(result.contains("main"));

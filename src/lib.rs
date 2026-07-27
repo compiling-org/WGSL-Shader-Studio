@@ -3,39 +3,39 @@
 //! FFGL plugin for Resolume with ISF (Interactive Shader Format) support.
 //! Professional VJ shader effects for live video performance.
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 // Expose integration modules used by the UI and app
-pub mod compute_pass_integration;
-pub mod bevy_app;
+pub mod audio_midi_integration;
 pub mod audio_system;
-pub mod midi_system;
-pub mod performance_overlay;
+pub mod bevy_app;
+pub mod bevy_node_graph_integration_enhanced;
+pub mod compute_pass_integration;
+pub mod converter;
+pub mod documentation_server;
+pub mod editor_ui;
+pub mod enforcement_system;
+pub mod ffgl_exporter;
 pub mod ffgl_plugin;
+pub mod gesture_control;
 pub mod gyroflow_interop_integration;
-pub mod screenshot_video_export;
+pub mod isf_converter;
+pub mod isf_loader;
+pub mod midi_system;
 pub mod ndi_output;
 pub mod osc_control;
-pub mod audio_midi_integration;
-pub mod wgsl_analyzer;
-pub mod spout_syphon_output;
-pub mod bevy_node_graph_integration_enhanced;
-pub mod editor_ui;
+pub mod particle_system_gpu;
+pub mod performance_overlay;
 pub mod scene_editor_3d;
-pub mod gesture_control;
+pub mod screenshot_video_export;
 pub mod shader_converter;
 pub mod shader_renderer;
-pub mod wgsl_ast_parser;
 pub mod shader_transpiler;
-pub mod isf_loader;
-pub mod isf_converter;
-pub mod enforcement_system;
-pub mod documentation_server;
-pub mod converter;
-pub mod ffgl_exporter;
+pub mod spout_syphon_output;
 pub mod utils;
-pub mod particle_system_gpu;
+pub mod wgsl_analyzer;
+pub mod wgsl_ast_parser;
 
 // UI panel modules - temporarily commented out due to compilation issues
 // pub mod parameter_panel;
@@ -145,7 +145,11 @@ impl ResolumeIsfShadersRustFfgl {
         Self::default()
     }
 
-    pub fn load_isf_shader(&mut self, name: &str, source: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn load_isf_shader(
+        &mut self,
+        name: &str,
+        source: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let shader = IsfShader::parse(name, source)?;
         self.shaders.insert(name.to_string(), shader);
         Ok(())
@@ -160,7 +164,11 @@ impl ResolumeIsfShadersRustFfgl {
         }
     }
 
-    pub fn render_frame(&mut self, input: &[u8], output: &mut [u8]) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn render_frame(
+        &mut self,
+        input: &[u8],
+        output: &mut [u8],
+    ) -> Result<(), Box<dyn std::error::Error>> {
         // Placeholder for FFGL rendering logic
         self.render_params.time += 1.0 / self.render_params.frame_rate;
 
@@ -169,7 +177,12 @@ impl ResolumeIsfShadersRustFfgl {
         Ok(())
     }
 
-    pub fn set_parameter(&mut self, shader_name: &str, param_name: &str, value: ShaderValue) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn set_parameter(
+        &mut self,
+        shader_name: &str,
+        param_name: &str,
+        value: ShaderValue,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(shader) = self.shaders.get_mut(shader_name) {
             shader.set_parameter(param_name, value)?;
         }
@@ -196,32 +209,43 @@ impl IsfShader {
                     if let Some(inputs_json) = metadata.get("INPUTS") {
                         if let Some(inputs_array) = inputs_json.as_array() {
                             for input_json in inputs_array {
-                                if let Some(name) = input_json.get("NAME").and_then(|n| n.as_str()) {
-                                    let input_type = match input_json.get("TYPE").and_then(|t| t.as_str()) {
-                                        Some("float") => InputType::Float,
-                                        Some("bool") => InputType::Bool,
-                                        Some("color") => InputType::Color,
-                                        Some("point2D") => InputType::Point2D,
-                                        Some("image") => InputType::Image,
-                                        _ => InputType::Float,
-                                    };
+                                if let Some(name) = input_json.get("NAME").and_then(|n| n.as_str())
+                                {
+                                    let input_type =
+                                        match input_json.get("TYPE").and_then(|t| t.as_str()) {
+                                            Some("float") => InputType::Float,
+                                            Some("bool") => InputType::Bool,
+                                            Some("color") => InputType::Color,
+                                            Some("point2D") => InputType::Point2D,
+                                            Some("image") => InputType::Image,
+                                            _ => InputType::Float,
+                                        };
 
-                                    let default = input_json.get("DEFAULT")
+                                    let default = input_json
+                                        .get("DEFAULT")
                                         .and_then(|d| d.as_f64())
                                         .map(|d| d as f32);
 
-                                    let min = input_json.get("MIN")
+                                    let min = input_json
+                                        .get("MIN")
                                         .and_then(|m| m.as_f64())
                                         .map(|m| m as f32);
 
-                                    let max = input_json.get("MAX")
+                                    let max = input_json
+                                        .get("MAX")
                                         .and_then(|m| m.as_f64())
                                         .map(|m| m as f32);
 
                                     let value = match input_type {
-                                        InputType::Float => ShaderValue::Float(default.unwrap_or(0.0)),
-                                        InputType::Bool => ShaderValue::Bool(default.map(|d| d > 0.0).unwrap_or(false)),
-                                        InputType::Color => ShaderValue::Color([1.0, 1.0, 1.0, 1.0]),
+                                        InputType::Float => {
+                                            ShaderValue::Float(default.unwrap_or(0.0))
+                                        }
+                                        InputType::Bool => ShaderValue::Bool(
+                                            default.map(|d| d > 0.0).unwrap_or(false),
+                                        ),
+                                        InputType::Color => {
+                                            ShaderValue::Color([1.0, 1.0, 1.0, 1.0])
+                                        }
                                         InputType::Point2D => ShaderValue::Point2D([0.0, 0.0]),
                                         InputType::Image => ShaderValue::Float(0.0), // Placeholder
                                     };
@@ -243,12 +267,14 @@ impl IsfShader {
                     if let Some(outputs_json) = metadata.get("OUTPUTS") {
                         if let Some(outputs_array) = outputs_json.as_array() {
                             for output_json in outputs_array {
-                                if let Some(name) = output_json.get("NAME").and_then(|n| n.as_str()) {
-                                    let output_type = match output_json.get("TYPE").and_then(|t| t.as_str()) {
-                                        Some("image") => OutputType::Image,
-                                        Some("float") => OutputType::Float,
-                                        _ => OutputType::Image,
-                                    };
+                                if let Some(name) = output_json.get("NAME").and_then(|n| n.as_str())
+                                {
+                                    let output_type =
+                                        match output_json.get("TYPE").and_then(|t| t.as_str()) {
+                                            Some("image") => OutputType::Image,
+                                            Some("float") => OutputType::Float,
+                                            _ => OutputType::Image,
+                                        };
 
                                     outputs.push(ShaderOutput {
                                         name: name.to_string(),
@@ -270,7 +296,11 @@ impl IsfShader {
         })
     }
 
-    pub fn set_parameter(&mut self, name: &str, value: ShaderValue) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn set_parameter(
+        &mut self,
+        name: &str,
+        value: ShaderValue,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         for input in &mut self.inputs {
             if input.name == name {
                 input.value = value;
@@ -301,7 +331,10 @@ mod tests {
 
     #[test]
     fn test_hello() {
-        assert_eq!(hello_resolume_isf_shaders_rust_ffgl(), "Hello from Resolume ISF Shaders Rust FFGL! Professional VJ shader effects.");
+        assert_eq!(
+            hello_resolume_isf_shaders_rust_ffgl(),
+            "Hello from Resolume ISF Shaders Rust FFGL! Professional VJ shader effects."
+        );
     }
 
     #[test]
@@ -374,50 +407,51 @@ mod tests {
     }
 }
 
-
 // Module declarations
+pub mod isf_auto_converter;
 pub mod ui;
 pub mod wgsl_bindgen_integration;
 pub mod wgsl_diagnostics;
-pub mod isf_auto_converter;
 // pub mod isf_conversion_tester;
 pub mod wgsl_reflect_integration;
 // pub mod wgslsmith_integration;
-pub mod simple_ui_auditor;
 pub mod node_graph;
+pub mod simple_ui_auditor;
 pub mod timeline;
 pub mod ui_analyzer;
 pub mod ui_analyzer_enhanced;
-pub mod wgpu_integration;
 pub mod wesl_integration;
+pub mod wgpu_integration;
 
 // Re-export UI analyzer types for external use
-pub use ui_analyzer::{UIAnalyzer, FeatureCheck, FeatureStatus, Priority, WgpuDiagnostics, UiStateDiagnostics};
-pub use ui_analyzer_enhanced::{UIAnalyzerEnhanced, AnalysisSummary};
+pub use ui_analyzer::{
+    FeatureCheck, FeatureStatus, Priority, UIAnalyzer, UiStateDiagnostics, WgpuDiagnostics,
+};
+pub use ui_analyzer_enhanced::{AnalysisSummary, UIAnalyzerEnhanced};
 
-pub mod backend_systems;
-pub mod visual_node_editor;
-pub mod visual_node_editor_plugin;
-pub mod visual_node_editor_adapter;
-pub mod enhanced_visual_node_editor;
-pub mod new_visual_node_editor;
-pub mod enhanced_visual_node_editor_plugin;
-pub mod visual_language_compiler;
-pub mod visual_language_integration;
-pub mod visual_language_parser;
-pub mod visual_language_bridge;
-pub mod visual_language_manager;
-pub mod gyroflow_wgpu_interop;
-pub mod particle_physics;
 #[cfg(feature = "naga_integration")]
 pub mod advanced_shader_compilation;
+pub mod backend_systems;
+pub mod enhanced_visual_node_editor;
+pub mod enhanced_visual_node_editor_plugin;
+pub mod gyroflow_wgpu_interop;
+pub mod new_visual_node_editor;
+pub mod particle_physics;
 #[cfg(feature = "naga_integration")]
 pub mod shader_module_system;
+pub mod visual_language_bridge;
+pub mod visual_language_compiler;
+pub mod visual_language_integration;
+pub mod visual_language_manager;
+pub mod visual_language_parser;
+pub mod visual_node_editor;
+pub mod visual_node_editor_adapter;
+pub mod visual_node_editor_plugin;
 
 // Re-export main types for easier use
+pub use ffgl_plugin::*;
+pub use isf_loader::*;
 pub use shader_converter::*;
 pub use shader_renderer::*;
-pub use isf_loader::*;
-pub use ffgl_plugin::*;
 
 // Types are already defined in this module, no need to re-export

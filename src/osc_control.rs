@@ -3,9 +3,9 @@
 
 use bevy::prelude::*;
 use bevy_egui::egui;
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::collections::HashMap;
 // use std::net::{SocketAddr, UdpSocket};
 use std::net::UdpSocket;
 
@@ -88,19 +88,22 @@ impl OscControl {
             connection_status: "Not initialized".to_string(),
         }
     }
-    
+
     pub fn add_mapping(&mut self, mapping: OscMapping) {
-        self.mappings.retain(|m| m.parameter_name != mapping.parameter_name);
+        self.mappings
+            .retain(|m| m.parameter_name != mapping.parameter_name);
         self.mappings.push(mapping);
     }
-    
+
     pub fn remove_mapping_for_parameter(&mut self, parameter_name: &str) {
         self.mappings.retain(|m| m.parameter_name != parameter_name);
         self.parameter_values.remove(parameter_name);
     }
-    
+
     pub fn get_mapping_for_parameter(&self, parameter_name: &str) -> Option<&OscMapping> {
-        self.mappings.iter().find(|m| m.parameter_name == parameter_name)
+        self.mappings
+            .iter()
+            .find(|m| m.parameter_name == parameter_name)
     }
 
     /// Initialize OSC control
@@ -109,15 +112,18 @@ impl OscControl {
             return Ok(());
         }
 
-        println!("Initializing OSC control on {}:{}", self.config.listen_address, self.config.listen_port);
-        
+        println!(
+            "Initializing OSC control on {}:{}",
+            self.config.listen_address, self.config.listen_port
+        );
+
         // In a real implementation, this would create and bind the UDP socket
         // For now, we'll simulate the initialization
         self.connection_status = "OSC initialized (simulated)".to_string();
-        
+
         // Add default mappings for common VJ parameters
         self.add_default_mappings();
-        
+
         Ok(())
     }
 
@@ -132,12 +138,15 @@ impl OscControl {
         }
 
         self.initialize()?;
-        
+
         self.is_running = true;
         self.connection_status = "OSC control running (simulated)".to_string();
-        
-        println!("OSC control started on {}:{}", self.config.listen_address, self.config.listen_port);
-        
+
+        println!(
+            "OSC control started on {}:{}",
+            self.config.listen_address, self.config.listen_port
+        );
+
         Ok(())
     }
 
@@ -149,9 +158,9 @@ impl OscControl {
 
         self.is_running = false;
         self.connection_status = "Stopped".to_string();
-        
+
         println!("OSC control stopped");
-        
+
         Ok(())
     }
 
@@ -221,16 +230,23 @@ impl OscControl {
             let float_value = match &value {
                 OscMessageType::Float(f) => *f,
                 OscMessageType::Int(i) => *i as f32,
-                OscMessageType::Bool(b) => if *b { 1.0 } else { 0.0 },
+                OscMessageType::Bool(b) => {
+                    if *b {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
                 OscMessageType::String(s) => s.parse::<f32>().unwrap_or(mapping.default_value),
             };
 
             // Clamp to mapping range
             let clamped_value = float_value.clamp(mapping.min_value, mapping.max_value);
-            
+
             // Store parameter value
-            self.parameter_values.insert(mapping.parameter_name.clone(), clamped_value);
-            
+            self.parameter_values
+                .insert(mapping.parameter_name.clone(), clamped_value);
+
             // Store last message
             let message = OscMessage {
                 address: address.to_string(),
@@ -238,9 +254,12 @@ impl OscControl {
                 timestamp: std::time::Instant::now(),
             };
             self.last_messages.insert(address.to_string(), message);
-            
-            println!("OSC: {} = {:?} (mapped to {})", address, value, mapping.parameter_name);
-            
+
+            println!(
+                "OSC: {} = {:?} (mapped to {})",
+                address, value, mapping.parameter_name
+            );
+
             Ok(())
         } else {
             Err(format!("No mapping found for OSC address: {}", address))
@@ -271,7 +290,7 @@ impl OscControl {
     /// Update configuration
     pub fn update_config(&mut self, new_config: OscConfig) -> Result<(), String> {
         let was_running = self.is_running;
-        
+
         if was_running {
             self.stop()?;
         }
@@ -308,50 +327,42 @@ impl Plugin for OscControlPlugin {
 }
 
 /// System to update OSC control
-fn update_osc_control(
-    config: Res<OscConfig>,
-    mut osc_control: ResMut<OscControl>,
-) {
+fn update_osc_control(config: Res<OscConfig>, mut osc_control: ResMut<OscControl>) {
     // Update OSC control if configuration changed
     if config.is_changed() {
         let _ = osc_control.update_config(config.clone());
     }
 }
 
-
 /// UI component for OSC controls
 pub struct OscUI;
 
 impl OscUI {
-    pub fn render_osc_controls(
-        ui: &mut egui::Ui,
-        config: &mut OscConfig,
-        control: &OscControl,
-    ) {
+    pub fn render_osc_controls(ui: &mut egui::Ui, config: &mut OscConfig, control: &OscControl) {
         ui.heading("🎛 OSC Control");
-        
+
         ui.separator();
-        
+
         // Enable/disable OSC control
         ui.checkbox(&mut config.enabled, "Enable OSC Control");
-        
+
         if config.enabled {
             ui.separator();
-            
+
             // Network configuration
             ui.collapsing("Network Settings", |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Listen Address:");
                     ui.text_edit_singleline(&mut config.listen_address);
                 });
-                
+
                 ui.horizontal(|ui| {
                     ui.label("Listen Port:");
                     ui.add(egui::DragValue::new(&mut config.listen_port).speed(1.0));
                 });
-                
+
                 ui.separator();
-                
+
                 ui.horizontal(|ui| {
                     ui.label("Send Address:");
                     if let Some(ref mut addr) = config.send_address {
@@ -362,7 +373,7 @@ impl OscUI {
                         }
                     }
                 });
-                
+
                 if let Some(ref mut port) = config.send_port {
                     ui.horizontal(|ui| {
                         ui.label("Send Port:");
@@ -371,15 +382,15 @@ impl OscUI {
                 } else if ui.button("Set Send Port").clicked() {
                     config.send_port = Some(9001);
                 }
-                
+
                 ui.separator();
-                
+
                 ui.checkbox(&mut config.auto_discovery, "Auto Discovery");
                 ui.checkbox(&mut config.feedback_enabled, "Enable Feedback");
             });
-            
+
             ui.separator();
-            
+
             // Status display
             let status = control.get_status();
             ui.horizontal(|ui| {
@@ -390,14 +401,14 @@ impl OscUI {
                     ui.label(egui::RichText::new("Stopped").color(egui::Color32::RED));
                 }
             });
-            
+
             ui.label(format!("Connection: {}", status.connection_status));
             ui.label(format!("Mappings: {}", status.num_mappings));
             ui.label(format!("Parameters: {}", status.num_parameters));
             ui.label(format!("Last Messages: {}", status.last_message_count));
-            
+
             ui.separator();
-            
+
             // Parameter display
             ui.collapsing("Parameter Values", |ui| {
                 for (name, value) in control.get_all_parameters() {
@@ -407,9 +418,9 @@ impl OscUI {
                     });
                 }
             });
-            
+
             ui.separator();
-            
+
             // Control buttons
             ui.horizontal(|ui| {
                 if status.is_running {
@@ -424,7 +435,7 @@ impl OscUI {
                     }
                 }
             });
-            
+
             // Test message simulation
             ui.separator();
             ui.label("Test Messages:");
@@ -443,20 +454,20 @@ impl OscUI {
 /// Test OSC control functionality
 pub fn test_osc_control() {
     println!("Testing OSC control functionality...");
-    
+
     let config = OscConfig {
         enabled: true,
         listen_address: "127.0.0.1".to_string(),
         listen_port: 9000,
         ..Default::default()
     };
-    
+
     let mut control = OscControl::new(config);
-    
+
     match control.start() {
         Ok(_) => {
             println!("✓ OSC control test started successfully");
-            
+
             // Simulate receiving some messages
             let test_messages = vec![
                 ("/shader/time", OscMessageType::Float(2.5)),
@@ -465,17 +476,23 @@ pub fn test_osc_control() {
                 ("/shader/speed", OscMessageType::Float(1.2)),
                 ("/shader/enable", OscMessageType::Bool(true)),
             ];
-            
+
             for (address, value) in test_messages {
                 match control.process_message(address, value) {
-                    Ok(_) => println!("✓ Processed OSC message: {} = {:?}", address, control.get_parameter(&address.replace("/shader/", "")).unwrap_or(0.0)),
+                    Ok(_) => println!(
+                        "✓ Processed OSC message: {} = {:?}",
+                        address,
+                        control
+                            .get_parameter(&address.replace("/shader/", ""))
+                            .unwrap_or(0.0)
+                    ),
                     Err(e) => println!("✗ Failed to process message {}: {}", address, e),
                 }
             }
-            
+
             let status = control.get_status();
             println!("✓ Test completed. Status: {:?}", status);
-            
+
             control.stop().unwrap();
         }
         Err(e) => {

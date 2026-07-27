@@ -75,7 +75,8 @@ impl SpoutSyphonOutput {
             return Ok(());
         }
 
-        println!("Initializing {} output: {}", 
+        println!(
+            "Initializing {} output: {}",
             match self.config.platform {
                 Platform::Windows => "Spout",
                 Platform::MacOS => "Syphon",
@@ -83,8 +84,11 @@ impl SpoutSyphonOutput {
             },
             self.config.sender_name
         );
-        println!("Resolution: {}x{} @ {} FPS", self.config.width, self.config.height, self.config.fps);
-        
+        println!(
+            "Resolution: {}x{} @ {} FPS",
+            self.config.width, self.config.height, self.config.fps
+        );
+
         // In a real implementation, this would initialize the appropriate SDK
         // For now, we'll simulate the initialization
         self.connection_status = match self.config.platform {
@@ -92,7 +96,7 @@ impl SpoutSyphonOutput {
             Platform::MacOS => "Syphon initialized (simulated)".to_string(),
             Platform::Linux => "Linux platform not supported for Spout/Syphon".to_string(),
         };
-        
+
         Ok(())
     }
 
@@ -107,19 +111,20 @@ impl SpoutSyphonOutput {
         }
 
         self.initialize()?;
-        
+
         self.is_running = true;
         self.start_time = Some(std::time::Instant::now());
         self.last_frame_time = Some(std::time::Instant::now());
         self.frame_count = 0;
-        
+
         self.connection_status = match self.config.platform {
             Platform::Windows => "Spout sender running".to_string(),
             Platform::MacOS => "Syphon server running".to_string(),
             Platform::Linux => "Not supported on Linux".to_string(),
         };
-        
-        println!("{} output started: {}", 
+
+        println!(
+            "{} output started: {}",
             match self.config.platform {
                 Platform::Windows => "Spout",
                 Platform::MacOS => "Syphon",
@@ -127,7 +132,7 @@ impl SpoutSyphonOutput {
             },
             self.config.sender_name
         );
-        
+
         Ok(())
     }
 
@@ -139,20 +144,21 @@ impl SpoutSyphonOutput {
 
         self.is_running = false;
         self.connection_status = "Stopped".to_string();
-        
+
         if let Some(start_time) = self.start_time {
             let duration = start_time.elapsed();
-            println!("{} output stopped after {} frames in {:?}", 
+            println!(
+                "{} output stopped after {} frames in {:?}",
                 match self.config.platform {
                     Platform::Windows => "Spout",
                     Platform::MacOS => "Syphon",
                     Platform::Linux => "Linux",
                 },
-                self.frame_count, 
+                self.frame_count,
                 duration
             );
         }
-        
+
         Ok(())
     }
 
@@ -164,15 +170,20 @@ impl SpoutSyphonOutput {
 
         // Validate frame dimensions
         if width != self.config.width || height != self.config.height {
-            return Err(format!("Frame dimensions mismatch: expected {}x{}, got {}x{}", 
-                             self.config.width, self.config.height, width, height));
+            return Err(format!(
+                "Frame dimensions mismatch: expected {}x{}, got {}x{}",
+                self.config.width, self.config.height, width, height
+            ));
         }
 
         // Validate pixel data size (RGBA = 4 bytes per pixel)
         let expected_size = (width * height * 4) as usize;
         if pixel_data.len() != expected_size {
-            return Err(format!("Pixel data size mismatch: expected {} bytes, got {}", 
-                             expected_size, pixel_data.len()));
+            return Err(format!(
+                "Pixel data size mismatch: expected {} bytes, got {}",
+                expected_size,
+                pixel_data.len()
+            ));
         }
 
         self.frame_count += 1;
@@ -181,13 +192,14 @@ impl SpoutSyphonOutput {
         // In a real implementation, this would send the frame to the appropriate SDK
         // For now, we'll simulate frame transmission
         if self.frame_count % 60 == 0 {
-            println!("{}: Sent {} frames to {}", 
+            println!(
+                "{}: Sent {} frames to {}",
                 match self.config.platform {
                     Platform::Windows => "Spout",
                     Platform::MacOS => "Syphon",
                     Platform::Linux => "Linux",
                 },
-                self.frame_count, 
+                self.frame_count,
                 self.config.sender_name
             );
         }
@@ -218,7 +230,7 @@ impl SpoutSyphonOutput {
     /// Update configuration
     pub fn update_config(&mut self, new_config: SpoutSyphonConfig) -> Result<(), String> {
         let was_running = self.is_running;
-        
+
         if was_running {
             self.stop()?;
         }
@@ -279,10 +291,9 @@ fn spout_syphon_ui_system(
         Ok(ctx) => ctx,
         Err(_) => return,
     };
-    egui::Window::new("Spout/Syphon")
-        .show(ctx, |ui| {
-            SpoutSyphonUI::render_spout_syphon_controls(ui, &mut *config, &mut *output);
-        });
+    egui::Window::new("Spout/Syphon").show(ctx, |ui| {
+        SpoutSyphonUI::render_spout_syphon_controls(ui, &mut *config, &mut *output);
+    });
 }
 
 /// UI component for Spout/Syphon controls
@@ -301,36 +312,39 @@ impl SpoutSyphonUI {
         };
 
         ui.heading(format!("🎥 {} Output", platform_name));
-        
+
         ui.separator();
-        
+
         // Platform info
         ui.horizontal(|ui| {
             ui.label("Platform:");
             ui.label(egui::RichText::new(platform_name).color(egui::Color32::LIGHT_BLUE));
         });
-        
+
         ui.separator();
-        
+
         // Enable/disable output
         if config.platform != Platform::Linux {
-            ui.checkbox(&mut config.enabled, format!("Enable {} Output", platform_name));
+            ui.checkbox(
+                &mut config.enabled,
+                format!("Enable {} Output", platform_name),
+            );
         } else {
             ui.label(egui::RichText::new("Linux platform not supported").color(egui::Color32::RED));
             config.enabled = false;
         }
-        
+
         if config.enabled && config.platform != Platform::Linux {
             ui.separator();
-            
+
             // Sender configuration
             ui.horizontal(|ui| {
                 ui.label("Sender Name:");
                 ui.text_edit_singleline(&mut config.sender_name);
             });
-            
+
             ui.separator();
-            
+
             // Video settings
             ui.horizontal(|ui| {
                 ui.label("Resolution:");
@@ -338,14 +352,14 @@ impl SpoutSyphonUI {
                 ui.label("x");
                 ui.add(egui::DragValue::new(&mut config.height).speed(1.0));
             });
-            
+
             ui.horizontal(|ui| {
                 ui.label("FPS:");
                 ui.add(egui::DragValue::new(&mut config.fps).speed(1.0));
             });
-            
+
             ui.separator();
-            
+
             // Status display
             let status = output.get_status();
             ui.horizontal(|ui| {
@@ -356,17 +370,17 @@ impl SpoutSyphonUI {
                     ui.label(egui::RichText::new("Stopped").color(egui::Color32::RED));
                 }
             });
-            
+
             ui.label(format!("Connection: {}", status.connection_status));
             ui.label(format!("Frames Sent: {}", status.frame_count));
             ui.label(format!("FPS: {:.1}", status.fps));
-            
+
             if let Some(uptime) = status.uptime {
                 ui.label(format!("Uptime: {:?}", uptime));
             }
-            
+
             ui.separator();
-            
+
             // Control buttons
             ui.horizontal(|ui| {
                 if status.is_running {
@@ -386,7 +400,7 @@ impl SpoutSyphonUI {
 /// Test Spout/Syphon output functionality
 pub fn test_spout_syphon_output() {
     println!("Testing Spout/Syphon output functionality...");
-    
+
     let config = SpoutSyphonConfig {
         enabled: true,
         sender_name: "Test Sender".to_string(),
@@ -395,13 +409,13 @@ pub fn test_spout_syphon_output() {
         height: 1080,
         ..Default::default()
     };
-    
+
     let mut output = SpoutSyphonOutput::new(config);
-    
+
     match output.start() {
         Ok(_) => {
             println!("✓ Spout/Syphon output test started successfully");
-            
+
             // Simulate sending a few frames
             let test_frame = vec![128u8; 1920 * 1080 * 4]; // Gray frame
             for i in 0..5 {
@@ -410,10 +424,10 @@ pub fn test_spout_syphon_output() {
                     Err(e) => println!("✗ Failed to send frame {}: {}", i + 1, e),
                 }
             }
-            
+
             let status = output.get_status();
             println!("✓ Test completed. Status: {:?}", status);
-            
+
             output.stop().unwrap();
         }
         Err(e) => {

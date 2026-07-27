@@ -1,14 +1,14 @@
+use lru::LruCache;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
-use lru::LruCache;
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use std::fmt;
 
-use crate::wgsl_ast_parser::{AstNode, WgslAstParser, ParseError, ModuleNode};
 use crate::advanced_shader_compilation::{CompiledShader, ShaderCompilationError};
+use crate::wgsl_ast_parser::{AstNode, ModuleNode, ParseError, WgslAstParser};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ModuleId(pub String);
@@ -75,22 +75,22 @@ pub struct ImportResolution {
 pub enum ModuleSystemError {
     #[error("Module not found: {0:?}")]
     ModuleNotFound(ModuleId),
-    
+
     #[error("Circular dependency detected: {0:?}")]
     CircularDependency(Vec<ModuleId>),
-    
+
     #[error("Import resolution failed: {0}")]
     ImportResolutionFailed(String),
-    
+
     #[error("Parse error: {0}")]
     ParseError(#[from] ParseError),
-    
+
     #[error("Compilation error: {0}")]
     CompilationError(#[from] ShaderCompilationError),
-    
+
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
-    
+
     #[error("Cache error: {0}")]
     CacheError(String),
 }
@@ -111,7 +111,9 @@ impl ShaderModuleSystem {
     pub fn new(max_cache_size: usize, cache_ttl: Duration) -> Self {
         Self {
             modules: Arc::new(RwLock::new(HashMap::new())),
-            cache: Arc::new(RwLock::new(LruCache::new(std::num::NonZeroUsize::new(max_cache_size).unwrap()))),
+            cache: Arc::new(RwLock::new(LruCache::new(
+                std::num::NonZeroUsize::new(max_cache_size).unwrap(),
+            ))),
             import_resolver: Arc::new(ImportResolver::new()),
             bundle_loader: Arc::new(BundleLoader::new()),
             parser: Arc::new(RwLock::new(WgslAstParser::new())),
@@ -168,7 +170,7 @@ impl ShaderModuleSystem {
 
     pub fn compile_module(&self, id: &ModuleId) -> ModuleResult<CompiledShader> {
         let module = self.get_module(id)?;
-        
+
         if let Some(compiled) = &module.compiled {
             return Ok(compiled.clone());
         }
@@ -179,7 +181,7 @@ impl ShaderModuleSystem {
         let mut module_mut = (*module).clone();
         module_mut.compiled = Some(compiled.clone());
         let updated_module = Arc::new(module_mut);
-        
+
         self.insert_module(id.clone(), updated_module)?;
         Ok(compiled)
     }
@@ -190,7 +192,8 @@ impl ShaderModuleSystem {
         }
 
         let modules = self.modules.read().unwrap();
-        modules.get(id)
+        modules
+            .get(id)
             .cloned()
             .ok_or_else(|| ModuleSystemError::ModuleNotFound(id.clone()))
     }
@@ -220,7 +223,7 @@ impl ShaderModuleSystem {
 
     fn get_cached(&self, id: &ModuleId) -> ModuleResult<Option<Arc<ShaderModule>>> {
         let mut cache = self.cache.write().unwrap();
-        
+
         if let Some(entry) = cache.get_mut(id) {
             if entry.last_accessed.elapsed() < self.cache_ttl {
                 entry.last_accessed = Instant::now();
@@ -230,7 +233,7 @@ impl ShaderModuleSystem {
                 cache.pop(id);
             }
         }
-        
+
         Ok(None)
     }
 
@@ -251,14 +254,22 @@ impl ShaderModuleSystem {
         Ok(())
     }
 
-    fn extract_module_info(&self, module: &mut ShaderModule, module_node: &ModuleNode) -> ModuleResult<()> {
+    fn extract_module_info(
+        &self,
+        module: &mut ShaderModule,
+        module_node: &ModuleNode,
+    ) -> ModuleResult<()> {
         for declaration in &module_node.declarations {
             self.extract_declaration_info(module, declaration)?;
         }
         Ok(())
     }
 
-    fn extract_declaration_info(&self, module: &mut ShaderModule, declaration: &crate::wgsl_ast_parser::DeclarationNode) -> ModuleResult<()> {
+    fn extract_declaration_info(
+        &self,
+        module: &mut ShaderModule,
+        declaration: &crate::wgsl_ast_parser::DeclarationNode,
+    ) -> ModuleResult<()> {
         use crate::wgsl_ast_parser::DeclarationNode::*;
         match declaration {
             Function(func) => {
@@ -351,7 +362,7 @@ impl ShaderModuleSystem {
         dependencies: &[Arc<ShaderModule>],
     ) -> ModuleResult<CompiledShader> {
         let mut combined_source = String::new();
-        
+
         for dep in dependencies {
             combined_source.push_str(&dep.source);
             combined_source.push('\n');
@@ -361,9 +372,13 @@ impl ShaderModuleSystem {
 
         let compiled = crate::advanced_shader_compilation::AdvancedShaderCompiler::new()
             .compile(&combined_source)
-            .map_err(|e| ModuleSystemError::CompilationError(
-                crate::advanced_shader_compilation::ShaderCompilationError::ValidationError(e.to_string())
-            ))?;
+            .map_err(|e| {
+                ModuleSystemError::CompilationError(
+                    crate::advanced_shader_compilation::ShaderCompilationError::ValidationError(
+                        e.to_string(),
+                    ),
+                )
+            })?;
 
         Ok(compiled)
     }
@@ -382,7 +397,7 @@ impl ImportResolver {
 
     pub fn resolve_imports(&self, module: &ShaderModule) -> ModuleResult<Vec<ImportResolution>> {
         let mut resolutions = Vec::new();
-        
+
         for import in &module.imports {
             let resolved = self.resolve_single_import(import)?;
             resolutions.push(resolved);
@@ -399,7 +414,7 @@ impl ImportResolver {
 
     fn resolve_single_import(&self, import_path: &str) -> ModuleResult<ImportResolution> {
         let alias_map = self.alias_map.read().unwrap();
-        
+
         let resolved_id = if let Some(id) = alias_map.get(import_path) {
             id.clone()
         } else {
@@ -431,43 +446,45 @@ impl BundleLoader {
     }
 
     pub fn load_bundle(&self, path: &Path) -> ModuleResult<ModuleBundle> {
-        let extension = path.extension()
+        let extension = path
+            .extension()
             .and_then(|ext| ext.to_str())
-            .ok_or_else(|| ModuleSystemError::IoError(
-                std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid file extension")
-            ))?;
+            .ok_or_else(|| {
+                ModuleSystemError::IoError(std::io::Error::new(
+                    std::io::ErrorKind::InvalidInput,
+                    "Invalid file extension",
+                ))
+            })?;
 
         let content = std::fs::read_to_string(path)?;
-        
+
         match extension {
             "json" => self.parse_json_bundle(&content),
             "toml" => self.parse_toml_bundle(&content),
             "yaml" | "yml" => self.parse_yaml_bundle(&content),
-            _ => Err(ModuleSystemError::IoError(
-                std::io::Error::new(std::io::ErrorKind::Unsupported, "Unsupported bundle format")
-            )),
+            _ => Err(ModuleSystemError::IoError(std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                "Unsupported bundle format",
+            ))),
         }
     }
 
     fn parse_json_bundle(&self, content: &str) -> ModuleResult<ModuleBundle> {
-        serde_json::from_str(content)
-            .map_err(|e| ModuleSystemError::IoError(
-                std::io::Error::new(std::io::ErrorKind::InvalidData, e)
-            ))
+        serde_json::from_str(content).map_err(|e| {
+            ModuleSystemError::IoError(std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+        })
     }
 
     fn parse_toml_bundle(&self, content: &str) -> ModuleResult<ModuleBundle> {
-        toml::from_str(content)
-            .map_err(|e| ModuleSystemError::IoError(
-                std::io::Error::new(std::io::ErrorKind::InvalidData, e)
-            ))
+        toml::from_str(content).map_err(|e| {
+            ModuleSystemError::IoError(std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+        })
     }
 
     fn parse_yaml_bundle(&self, content: &str) -> ModuleResult<ModuleBundle> {
-        serde_yaml::from_str(content)
-            .map_err(|e| ModuleSystemError::IoError(
-                std::io::Error::new(std::io::ErrorKind::InvalidData, e)
-            ))
+        serde_yaml::from_str(content).map_err(|e| {
+            ModuleSystemError::IoError(std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+        })
     }
 }
 
@@ -501,7 +518,7 @@ mod tests {
 
         let result = system.load_module(ModuleId("test".to_string()), wgsl_source.to_string());
         assert!(result.is_ok());
-        
+
         let module = result.unwrap();
         assert_eq!(module.name, "test");
         assert!(module.exports.contains("vs_main"));
@@ -511,7 +528,7 @@ mod tests {
     #[test]
     fn test_dependency_resolution() {
         let system = ShaderModuleSystem::new(100, Duration::from_secs(300));
-        
+
         let math_module = r#"
             fn add(a: f32, b: f32) -> f32 {
                 return a + b;
@@ -527,12 +544,16 @@ mod tests {
             }
         "#;
 
-        system.load_module(ModuleId("math".to_string()), math_module.to_string()).unwrap();
-        system.load_module(ModuleId("main".to_string()), main_module.to_string()).unwrap();
+        system
+            .load_module(ModuleId("math".to_string()), math_module.to_string())
+            .unwrap();
+        system
+            .load_module(ModuleId("main".to_string()), main_module.to_string())
+            .unwrap();
 
         let result = system.resolve_dependencies(&ModuleId("main".to_string()));
         assert!(result.is_ok());
-        
+
         let deps = result.unwrap();
         assert_eq!(deps.len(), 2); // math + main
     }
@@ -540,7 +561,7 @@ mod tests {
     #[test]
     fn test_circular_dependency_detection() {
         let system = ShaderModuleSystem::new(100, Duration::from_secs(300));
-        
+
         let module_a = r#"
             import "module_b";
             fn func_a() -> f32 { return 1.0; }
@@ -551,11 +572,18 @@ mod tests {
             fn func_b() -> f32 { return 2.0; }
         "#;
 
-        system.load_module(ModuleId("module_a".to_string()), module_a.to_string()).unwrap();
-        system.load_module(ModuleId("module_b".to_string()), module_b.to_string()).unwrap();
+        system
+            .load_module(ModuleId("module_a".to_string()), module_a.to_string())
+            .unwrap();
+        system
+            .load_module(ModuleId("module_b".to_string()), module_b.to_string())
+            .unwrap();
 
         let result = system.resolve_dependencies(&ModuleId("module_a".to_string()));
-        assert!(matches!(result, Err(ModuleSystemError::CircularDependency(_))));
+        assert!(matches!(
+            result,
+            Err(ModuleSystemError::CircularDependency(_))
+        ));
     }
 
     #[test]
@@ -564,13 +592,15 @@ mod tests {
         let wgsl_source = "fn test() -> f32 { return 1.0; }";
 
         let module_id = ModuleId("cache_test".to_string());
-        system.load_module(module_id.clone(), wgsl_source.to_string()).unwrap();
-        
+        system
+            .load_module(module_id.clone(), wgsl_source.to_string())
+            .unwrap();
+
         let cached = system.get_cached(&module_id).unwrap();
         assert!(cached.is_some());
 
         std::thread::sleep(Duration::from_millis(150));
-        
+
         let expired = system.get_cached(&module_id).unwrap();
         assert!(expired.is_none());
     }

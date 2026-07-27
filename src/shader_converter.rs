@@ -77,9 +77,24 @@ pub fn isf_to_wgsl(shader: &IsfShader) -> Result<String, Box<dyn std::error::Err
                 wgsl.push_str(&format!("// param {}: vec2<f32>\n", input.name));
             }
             InputType::Image => {
-                wgsl.push_str(&format!("@group(1) @binding({})\n", shader.inputs.iter().position(|i| i.name == input.name).unwrap()));
+                wgsl.push_str(&format!(
+                    "@group(1) @binding({})\n",
+                    shader
+                        .inputs
+                        .iter()
+                        .position(|i| i.name == input.name)
+                        .unwrap()
+                ));
                 wgsl.push_str(&format!("var {}: texture_2d<f32>;\n", input.name));
-                wgsl.push_str(&format!("@group(1) @binding({})\n", shader.inputs.iter().position(|i| i.name == input.name).unwrap() + 1));
+                wgsl.push_str(&format!(
+                    "@group(1) @binding({})\n",
+                    shader
+                        .inputs
+                        .iter()
+                        .position(|i| i.name == input.name)
+                        .unwrap()
+                        + 1
+                ));
                 wgsl.push_str(&format!("var {}_sampler: sampler;\n", input.name));
             }
         }
@@ -156,7 +171,8 @@ pub fn glsl_to_wgsl(glsl: &str) -> Result<String, Box<dyn std::error::Error>> {
     body = body.replace("\r\n", "\n");
 
     // Detect texture usage and prepare WGSL declarations
-    let uses_texture = body.contains("texture2D") || body.contains("texture") || body.contains("sampler2D");
+    let uses_texture =
+        body.contains("texture2D") || body.contains("texture") || body.contains("sampler2D");
 
     // Basic syntax conversions
     body = body
@@ -188,14 +204,12 @@ pub fn glsl_to_wgsl(glsl: &str) -> Result<String, Box<dyn std::error::Error>> {
 
     // Replace gl_FragColor assignment with WGSL return
     if body.contains("gl_FragColor") {
-        body = body
-            .replace("gl_FragColor = ", "return ")
-            .replace(";", ";");
+        body = body.replace("gl_FragColor = ", "return ").replace(";", ";");
     }
 
     // Ensure function braces
     let mut lines = body.lines().collect::<Vec<_>>();
-    if !lines.iter().any(|l| l.trim() == "}" ) {
+    if !lines.iter().any(|l| l.trim() == "}") {
         lines.push("}");
     }
     let body = lines.join("\n");
@@ -239,15 +253,35 @@ pub fn wgsl_to_glsl(wgsl: &str) -> Result<String, Box<dyn std::error::Error>> {
     for line in wgsl.lines() {
         if line.contains("var<uniform>") {
             if line.contains("f32") {
-                glsl.push_str(&line.replace("var<uniform>", "uniform").replace(": f32;", ";"));
+                glsl.push_str(
+                    &line
+                        .replace("var<uniform>", "uniform")
+                        .replace(": f32;", ";"),
+                );
             } else if line.contains("vec2<f32>") {
-                glsl.push_str(&line.replace("var<uniform>", "uniform").replace(": vec2<f32>;", ";"));
+                glsl.push_str(
+                    &line
+                        .replace("var<uniform>", "uniform")
+                        .replace(": vec2<f32>;", ";"),
+                );
             } else if line.contains("vec3<f32>") {
-                glsl.push_str(&line.replace("var<uniform>", "uniform").replace(": vec3<f32>;", ";"));
+                glsl.push_str(
+                    &line
+                        .replace("var<uniform>", "uniform")
+                        .replace(": vec3<f32>;", ";"),
+                );
             } else if line.contains("vec4<f32>") {
-                glsl.push_str(&line.replace("var<uniform>", "uniform").replace(": vec4<f32>;", ";"));
+                glsl.push_str(
+                    &line
+                        .replace("var<uniform>", "uniform")
+                        .replace(": vec4<f32>;", ";"),
+                );
             } else if line.contains("u32") {
-                glsl.push_str(&line.replace("var<uniform>", "uniform").replace(": u32;", ";"));
+                glsl.push_str(
+                    &line
+                        .replace("var<uniform>", "uniform")
+                        .replace(": u32;", ";"),
+                );
             }
         }
     }
@@ -268,7 +302,10 @@ pub fn wgsl_to_glsl(wgsl: &str) -> Result<String, Box<dyn std::error::Error>> {
         .replace("textureSample", "texture")
         .replace("let ", "")
         .replace(";", " = ")
-        .replace("textureStore(output_texture, coords, color)", "fragColor = color")
+        .replace(
+            "textureStore(output_texture, coords, color)",
+            "fragColor = color",
+        )
         .replace("gl_FragCoord", "vec4(gl_FragCoord.xy, 0.0, 1.0)")
         .replace("position.xy", "gl_FragCoord.xy");
 
@@ -326,7 +363,10 @@ pub fn wgsl_to_hlsl(wgsl: &str) -> Result<String, Box<dyn std::error::Error>> {
         .replace("textureSample", "tex2D")
         .replace("let ", "")
         .replace(";", " = ")
-        .replace("textureStore(output_texture, coords, color)", "return color")
+        .replace(
+            "textureStore(output_texture, coords, color)",
+            "return color",
+        )
         .replace("gl_FragCoord", "input.position")
         .replace("position.xy", "input.uv");
 

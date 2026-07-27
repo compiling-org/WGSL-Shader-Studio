@@ -1,22 +1,22 @@
-use bevy::prelude::*;
-use std::path::Path;
-use bevy_egui::egui;
+use super::state::{EditorUiState, OutputsMode, RightSidebarMode};
 use crate::audio_system::AudioAnalyzer;
 use crate::compute_pass_integration::ComputePassManager;
 use crate::midi_system::MidiSystem;
 use crate::ndi_output::{NdiConfig, NdiOutput, NdiUI};
 use crate::osc_control::{OscConfig, OscControl, OscUI};
-use crate::spout_syphon_output::{SpoutSyphonConfig, SpoutSyphonOutput, SpoutSyphonUI};
 use crate::screenshot_video_export::ScreenshotVideoExporter;
-use super::state::{EditorUiState, RightSidebarMode, OutputsMode};
+use crate::spout_syphon_output::{SpoutSyphonConfig, SpoutSyphonOutput, SpoutSyphonUI};
+use bevy::prelude::*;
+use bevy_egui::egui;
+use std::path::Path;
 
 pub fn draw_editor_side_panels(
-    ctx: &egui::Context, 
-    ui_state: &mut EditorUiState, 
-    audio_analyzer: &AudioAnalyzer, 
+    ctx: &egui::Context,
+    ui_state: &mut EditorUiState,
+    audio_analyzer: &AudioAnalyzer,
     gesture_control: &mut crate::gesture_control::GestureControlSystem,
     compute_pass_manager: &mut ComputePassManager,
-    video_exporter: Option<&ScreenshotVideoExporter>, 
+    video_exporter: Option<&ScreenshotVideoExporter>,
     midi_system: &mut MidiSystem,
     osc_config: &mut OscConfig,
     osc_control: &mut OscControl,
@@ -25,7 +25,9 @@ pub fn draw_editor_side_panels(
     ndi_config: &mut NdiConfig,
     ndi_output: &mut NdiOutput,
     scene_editor_state: Option<&mut crate::scene_editor_3d::SceneEditor3DState>,
-    manipulable_query: Option<&Query<(Entity, &Name), With<crate::scene_editor_3d::EditorManipulable>>>,
+    manipulable_query: Option<
+        &Query<(Entity, &Name), With<crate::scene_editor_3d::EditorManipulable>>,
+    >,
 ) {
     // Left panel: Shader Browser (via editor_ui logic for now)
     if ui_state.show_shader_browser {
@@ -253,6 +255,7 @@ pub fn draw_editor_side_panels(
                                     let mut v = ui_state.get_parameter_value(&param.name).unwrap_or(0.5);
                                     if ui.add(egui::Slider::new(&mut v, 0.0..=1.0)).changed() {
                                         ui_state.set_parameter_value(&param.name, v);
+                                        ui_state.apply_requested = true;
                                     }
                                 });
                                 ui.separator();
@@ -339,7 +342,7 @@ pub fn draw_editor_side_panels(
                     OutputsMode::Ffgl => {
                         ui.heading("FFGL Plugin Output");
                         ui.separator();
-                        
+
                         ui.label("Plugin Info:");
                         ui.indent("ffgl_info", |ui| {
                             ui.label("Name: ISF Shaders");
@@ -347,11 +350,11 @@ pub fn draw_editor_side_panels(
                             ui.label("Type: Effect");
                             ui.label("API Version: 1.5");
                         });
-                        
+
                         ui.separator();
                         ui.label("Status: Initialized (Host Mode)");
                         ui.label("The current shader is exposed as an FFGL source.");
-                        
+
                         ui.separator();
                         if ui.button("Export FFGL Plugin Bundle").clicked() {
                             match crate::ffgl_exporter::FfglExporter::export_bundle(&ui_state.draft_code, Path::new(".")) {

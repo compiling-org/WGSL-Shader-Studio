@@ -1,11 +1,11 @@
+use crate::node_graph::NodeGraph;
+use crate::screenshot_video_export::{ExportSettings, VideoExportSettings};
+use crate::shader_renderer::ShaderRenderer;
+use crate::timeline::TimelineAnimation;
 use bevy::prelude::*;
 use bevy_egui::egui;
-use crate::node_graph::NodeGraph;
-use crate::timeline::TimelineAnimation;
-use crate::shader_renderer::ShaderRenderer;
-use crate::screenshot_video_export::{ExportSettings, VideoExportSettings};
-use std::sync::Mutex;
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 #[derive(Debug, Clone)]
 pub struct ShaderParameter {
@@ -34,7 +34,9 @@ pub enum PipelineMode {
 }
 
 impl Default for PipelineMode {
-    fn default() -> Self { PipelineMode::Fragment }
+    fn default() -> Self {
+        PipelineMode::Fragment
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -45,7 +47,9 @@ pub enum ThemePreference {
 }
 
 impl Default for ThemePreference {
-    fn default() -> Self { ThemePreference::Dark }
+    fn default() -> Self {
+        ThemePreference::Dark
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -126,6 +130,9 @@ pub struct EditorUiState {
     pub show_parameter_panel: bool,
     pub show_preview: bool,
     pub show_code_editor: bool,
+    pub show_diagnostics_panel: bool,
+    pub current_gesture_curve: crate::gesture_control::CurveType,
+    pub gesture_control_active: bool,
     // Top-level feature panels (some still used for specific overlays or logic)
     pub show_gesture_calibration: bool,
     pub show_wgslsmith_panel: bool,
@@ -228,6 +235,7 @@ pub struct EditorUiState {
     // Performance optimization: cache the egui texture handle to avoid per-frame uploads
     pub preview_texture_handle: Option<egui::TextureHandle>,
     pub last_render_id: u64,
+    pub cache_key: (u64, u32, u32, u64),
     // Background task tracking
     pub is_scanning_shaders: bool,
     pub shader_scan_status: String,
@@ -238,7 +246,7 @@ pub struct EditorUiState {
     pub current_gesture_min: f32,
     pub current_gesture_max: f32,
     pub current_gesture_invert: bool,
-    pub current_gesture_curve: crate::gesture_control::CurveType,
+    // ... other state fields
     // Status Bar
     pub status_message: String,
     pub status_message_timer: f32,
@@ -252,6 +260,10 @@ impl Default for EditorUiState {
             show_parameter_panel: true,
             show_preview: true,
             show_code_editor: true,
+            show_diagnostics_panel: false,
+            current_gesture_curve: crate::gesture_control::CurveType::Linear,
+            gesture_control_active: true,
+            // Top-level feature panels (some still used for specific overlays or logic)
             show_gesture_calibration: true,
             show_wgslsmith_panel: true,
             show_performance_overlay: false,
@@ -341,6 +353,7 @@ impl Default for EditorUiState {
             preview_resolution: (1280, 720),
             preview_texture_handle: None,
             last_render_id: 0,
+            cache_key: (0, 0, 0, 0),
             is_scanning_shaders: false,
             shader_scan_status: String::new(),
             current_midi_channel: 1,
@@ -360,19 +373,20 @@ impl EditorUiState {
     /// Set a parameter value for shader rendering
     pub fn set_parameter_value(&mut self, name: &str, value: f32) {
         self.parameter_values.insert(name.to_string(), value);
-        
+        self.apply_requested = true;
+
         // Also update the global renderer with the new parameter value
         if let Some(_renderer) = self.global_renderer.renderer.lock().unwrap().as_mut() {
             // Update the renderer's parameters
             // This will be implemented when we integrate with the actual shader rendering
         }
     }
-    
+
     /// Get a parameter value
     pub fn get_parameter_value(&self, name: &str) -> Option<f32> {
         self.parameter_values.get(name).copied()
     }
-    
+
     /// Get all parameter values as a reference
     pub fn get_parameter_values(&self) -> &HashMap<String, f32> {
         &self.parameter_values

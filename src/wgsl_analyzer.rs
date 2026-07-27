@@ -80,10 +80,14 @@ impl WgslAnalyzer {
         }
 
         // Missing main function check
-        if !source.contains("fn main(") && !source.contains("@vertex") && !source.contains("@fragment") {
+        if !source.contains("fn main(")
+            && !source.contains("@vertex")
+            && !source.contains("@fragment")
+        {
             diagnostics.push(Diagnostic {
                 code: "MISSING_ENTRY_POINT".to_string(),
-                message: "Missing entry point function (@vertex, @fragment, or @compute)".to_string(),
+                message: "Missing entry point function (@vertex, @fragment, or @compute)"
+                    .to_string(),
                 severity: DiagnosticSeverity::Error,
                 line: 1,
                 column: 1,
@@ -97,14 +101,14 @@ impl WgslAnalyzer {
         let lines: Vec<&str> = source.lines().collect();
         for (i, line) in lines.iter().enumerate() {
             let trimmed = line.trim();
-            
+
             // Skip empty lines and comments
             if trimmed.is_empty() || trimmed.starts_with("//") {
                 continue;
             }
 
             // Missing semicolon detection
-            if !trimmed.ends_with(';') 
+            if !trimmed.ends_with(';')
                 && !trimmed.ends_with('{')
                 && !trimmed.ends_with('}')
                 && !trimmed.starts_with("fn")
@@ -115,8 +119,8 @@ impl WgslAnalyzer {
                 && !trimmed.contains("return")
                 && !trimmed.contains("@")
                 && !trimmed.starts_with("var")
-                && !trimmed.starts_with("const") {
-                
+                && !trimmed.starts_with("const")
+            {
                 diagnostics.push(Diagnostic {
                     code: "MISSING_SEMICOLON".to_string(),
                     message: "Statement might be missing semicolon".to_string(),
@@ -139,13 +143,11 @@ impl WgslAnalyzer {
                     column: 1,
                     length: 3,
                     source: DiagnosticSource::Custom,
-                    related_info: vec![
-                        RelatedInfo {
-                            message: "Add type annotation like: var x: f32 = 0.0;".to_string(),
-                            line: (i + 1) as u32,
-                            column: line.len() as u32,
-                        }
-                    ],
+                    related_info: vec![RelatedInfo {
+                        message: "Add type annotation like: var x: f32 = 0.0;".to_string(),
+                        line: (i + 1) as u32,
+                        column: line.len() as u32,
+                    }],
                 });
             }
 
@@ -169,7 +171,8 @@ impl WgslAnalyzer {
                 if !trimmed.contains(",") {
                     diagnostics.push(Diagnostic {
                         code: "INVALID_TEXTURE_SAMPLE".to_string(),
-                        message: "textureSample requires texture and sampler parameters".to_string(),
+                        message: "textureSample requires texture and sampler parameters"
+                            .to_string(),
                         severity: DiagnosticSeverity::Error,
                         line: (i + 1) as u32,
                         column: line.find("textureSample").unwrap_or(0) as u32 + 1,
@@ -205,7 +208,7 @@ impl WgslAnalyzer {
                     naga::valid::ValidationFlags::all(),
                     naga::valid::Capabilities::all(),
                 );
-                
+
                 match validator.validate(&module) {
                     Ok(_) => {
                         // Validation passed, no additional errors
@@ -231,7 +234,10 @@ impl WgslAnalyzer {
     }
 
     pub fn get_diagnostics(&self, file_path: &str) -> &[Diagnostic] {
-        self.diagnostics.get(file_path).map(|v| v.as_slice()).unwrap_or(&[])
+        self.diagnostics
+            .get(file_path)
+            .map(|v| v.as_slice())
+            .unwrap_or(&[])
     }
 
     pub fn clear_diagnostics(&mut self, file_path: &str) {
@@ -275,20 +281,20 @@ impl StandaloneWgslAnalyzer {
     pub fn analyze_files(&self, files: Vec<(&str, &str)>) -> HashMap<String, Vec<Diagnostic>> {
         let mut results = HashMap::new();
         let mut analyzer = self.analyzer.lock().unwrap();
-        
+
         for (file_path, source) in files {
             analyzer.analyze_shader(file_path, source);
             if let Some(diagnostics) = analyzer.diagnostics.get(file_path) {
                 results.insert(file_path.to_string(), diagnostics.clone());
             }
         }
-        
+
         results
     }
 
     pub fn format_diagnostics(&self, diagnostics: &[Diagnostic]) -> String {
         let mut output = String::new();
-        
+
         for diagnostic in diagnostics {
             let severity_str = match diagnostic.severity {
                 DiagnosticSeverity::Error => "ERROR",
@@ -316,13 +322,11 @@ impl StandaloneWgslAnalyzer {
             for related in &diagnostic.related_info {
                 output.push_str(&format!(
                     "  → {} ({}:{})\n",
-                    related.message,
-                    related.line,
-                    related.column
+                    related.message, related.line, related.column
                 ));
             }
         }
-        
+
         output
     }
 }
@@ -352,17 +356,13 @@ impl DiagnosticRenderer {
                                 ui.colored_label(egui::Color32::GRAY, "💡");
                             }
                         }
-                        
+
                         // Diagnostic message
                         ui.label(&diagnostic.message);
-                        
+
                         // Position info
-                        ui.weak(format!(
-                            " ({}:{})",
-                            diagnostic.line,
-                            diagnostic.column
-                        ));
-                        
+                        ui.weak(format!(" ({}:{})", diagnostic.line, diagnostic.column));
+
                         // Source
                         match diagnostic.source {
                             DiagnosticSource::WgslAnalyzer => ui.weak("[WGSL-Analyzer]"),
@@ -370,26 +370,22 @@ impl DiagnosticRenderer {
                             DiagnosticSource::Custom => ui.weak("[Custom]"),
                         }
                     });
-                    
+
                     // Show related information
                     for related in &diagnostic.related_info {
                         ui.horizontal(|ui| {
                             ui.add_space(20.0);
                             ui.weak("→");
                             ui.label(&related.message);
-                            ui.weak(format!(
-                                " ({}:{})",
-                                related.line,
-                                related.column
-                            ));
+                            ui.weak(format!(" ({}:{})", related.line, related.column));
                         });
                     }
-                    
+
                     ui.separator();
                 }
             });
     }
-    
+
     pub fn render_inline_diagnostics(
         ui: &mut egui::Ui,
         diagnostics: &[Diagnostic],
@@ -399,7 +395,7 @@ impl DiagnosticRenderer {
             .iter()
             .filter(|d| d.line as usize == line_number)
             .collect();
-            
+
         if !line_diagnostics.is_empty() {
             ui.horizontal(|ui| {
                 for diagnostic in line_diagnostics {
@@ -417,7 +413,7 @@ impl DiagnosticRenderer {
                             ui.colored_label(egui::Color32::GRAY, "💡");
                         }
                     }
-                    
+
                     // Tooltip functionality temporarily disabled due to API changes
                     // if ui.add(egui::Button::new("").sense(egui::Sense::hover())).hovered() {
                     //     ui.show_tooltip_text(&diagnostic.message);
@@ -426,19 +422,34 @@ impl DiagnosticRenderer {
             });
         }
     }
-    
+
     pub fn render_diagnostic_summary(ui: &mut egui::Ui, diagnostics: &[Diagnostic]) {
-        let error_count = diagnostics.iter().filter(|d| matches!(d.severity, DiagnosticSeverity::Error)).count();
-        let warning_count = diagnostics.iter().filter(|d| matches!(d.severity, DiagnosticSeverity::Warning)).count();
-        let info_count = diagnostics.iter().filter(|d| matches!(d.severity, DiagnosticSeverity::Info)).count();
-        let hint_count = diagnostics.iter().filter(|d| matches!(d.severity, DiagnosticSeverity::Hint)).count();
-        
+        let error_count = diagnostics
+            .iter()
+            .filter(|d| matches!(d.severity, DiagnosticSeverity::Error))
+            .count();
+        let warning_count = diagnostics
+            .iter()
+            .filter(|d| matches!(d.severity, DiagnosticSeverity::Warning))
+            .count();
+        let info_count = diagnostics
+            .iter()
+            .filter(|d| matches!(d.severity, DiagnosticSeverity::Info))
+            .count();
+        let hint_count = diagnostics
+            .iter()
+            .filter(|d| matches!(d.severity, DiagnosticSeverity::Hint))
+            .count();
+
         ui.horizontal(|ui| {
             if error_count > 0 {
                 ui.colored_label(egui::Color32::RED, format!("● {} errors", error_count));
             }
             if warning_count > 0 {
-                ui.colored_label(egui::Color32::YELLOW, format!("▲ {} warnings", warning_count));
+                ui.colored_label(
+                    egui::Color32::YELLOW,
+                    format!("▲ {} warnings", warning_count),
+                );
             }
             if info_count > 0 {
                 ui.colored_label(egui::Color32::BLUE, format!("ℹ {} info", info_count));
@@ -446,7 +457,7 @@ impl DiagnosticRenderer {
             if hint_count > 0 {
                 ui.colored_label(egui::Color32::GRAY, format!("💡 {} hints", hint_count));
             }
-            
+
             if diagnostics.is_empty() {
                 ui.colored_label(egui::Color32::GREEN, "✓ No issues");
             }
@@ -479,16 +490,16 @@ impl Plugin for WgslAnalyzerPlugin {
 /// CLI interface for standalone analyzer
 pub fn run_standalone_analyzer(files: Vec<String>) {
     let analyzer = StandaloneWgslAnalyzer::new();
-    
+
     println!("WGSL Analyzer - Standalone Tool");
     println!("================================");
-    
+
     for file_path in files {
         match std::fs::read_to_string(&file_path) {
             Ok(source) => {
                 println!("\nAnalyzing: {}", file_path);
                 let diagnostics = analyzer.analyze_file(&file_path, &source);
-                
+
                 if diagnostics.is_empty() {
                     println!("✓ No issues found");
                 } else {
@@ -500,6 +511,6 @@ pub fn run_standalone_analyzer(files: Vec<String>) {
             }
         }
     }
-    
+
     println!("\nAnalysis complete.");
 }

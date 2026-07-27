@@ -24,14 +24,14 @@ pub enum NodeKind {
     ConstantVec2([f32; 2]),
     ConstantVec3([f32; 3]),
     ConstantVec4([f32; 4]),
-    
+
     // Input/Time
     Time,
     UV,
     Param(usize),
     Resolution,
     Mouse,
-    
+
     // Math Operations
     Add,
     Subtract,
@@ -43,13 +43,13 @@ pub enum NodeKind {
     Length,
     Normalize,
     Distance,
-    
+
     // Vector Operations
     Dot,
     Cross,
     Reflect,
     Refract,
-    
+
     // Interpolation & Utility
     Mix,
     Clamp,
@@ -64,23 +64,23 @@ pub enum NodeKind {
     Pow,
     Sqrt,
     Sign,
-    
+
     // Color Operations
     RGB,
     HSV,
     ColorMix,
     ColorAdjust,
-    
+
     // Noise & Procedural
     Noise2D,
     Noise3D,
     Voronoi,
-    
+
     // Texture Operations
     TextureSample,
     TextureSampleLod,
     TextureSize,
-    
+
     // Output
     OutputColor,
 }
@@ -119,7 +119,9 @@ pub struct NodeGraph {
 }
 
 impl NodeGraph {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn add_node(&mut self, kind: NodeKind, title: &str, pos: (f32, f32)) -> NodeId {
         let id = NodeId(self.next_node_id);
@@ -137,14 +139,29 @@ impl NodeGraph {
         id
     }
 
-    pub fn connect(&mut self, from_node: NodeId, from_port: PortId, to_node: NodeId, to_port: PortId) {
-        self.connections.push(Connection { from_node, from_port, to_node, to_port });
+    pub fn connect(
+        &mut self,
+        from_node: NodeId,
+        from_port: PortId,
+        to_node: NodeId,
+        to_port: PortId,
+    ) {
+        self.connections.push(Connection {
+            from_node,
+            from_port,
+            to_node,
+            to_port,
+        });
     }
 
     fn new_port(&mut self, name: &str, kind: PortKind) -> Port {
         let id = PortId(self.next_port_id);
         self.next_port_id += 1;
-        Port { id, name: name.to_string(), kind }
+        Port {
+            id,
+            name: name.to_string(),
+            kind,
+        }
     }
 
     fn populate_ports(&mut self, node: &mut Node) {
@@ -162,7 +179,7 @@ impl NodeGraph {
             NodeKind::ConstantVec4(_) => {
                 node.outputs.push(self.new_port("value", PortKind::Vec4));
             }
-            
+
             // Input/Time
             NodeKind::Time => {
                 node.outputs.push(self.new_port("time", PortKind::Float));
@@ -174,25 +191,42 @@ impl NodeGraph {
                 node.outputs.push(self.new_port("value", PortKind::Float));
             }
             NodeKind::Resolution => {
-                node.outputs.push(self.new_port("resolution", PortKind::Vec2));
+                node.outputs
+                    .push(self.new_port("resolution", PortKind::Vec2));
             }
             NodeKind::Mouse => {
                 node.outputs.push(self.new_port("mouse", PortKind::Vec2));
             }
-            
+
             // Math Operations
-            NodeKind::Add | NodeKind::Subtract | NodeKind::Multiply | NodeKind::Divide | NodeKind::Min | NodeKind::Max | NodeKind::Pow | NodeKind::Distance => {
+            NodeKind::Add
+            | NodeKind::Subtract
+            | NodeKind::Multiply
+            | NodeKind::Divide
+            | NodeKind::Min
+            | NodeKind::Max
+            | NodeKind::Pow
+            | NodeKind::Distance => {
                 node.inputs.push(self.new_port("a", PortKind::Float));
                 node.inputs.push(self.new_port("b", PortKind::Float));
                 node.outputs.push(self.new_port("out", PortKind::Float));
             }
-            
+
             // Unary math operations
-            NodeKind::Sine | NodeKind::Cosine | NodeKind::Tangent | NodeKind::Length | NodeKind::Fract | NodeKind::Floor | NodeKind::Ceil | NodeKind::Abs | NodeKind::Sqrt | NodeKind::Sign => {
+            NodeKind::Sine
+            | NodeKind::Cosine
+            | NodeKind::Tangent
+            | NodeKind::Length
+            | NodeKind::Fract
+            | NodeKind::Floor
+            | NodeKind::Ceil
+            | NodeKind::Abs
+            | NodeKind::Sqrt
+            | NodeKind::Sign => {
                 node.inputs.push(self.new_port("x", PortKind::Float));
                 node.outputs.push(self.new_port("out", PortKind::Float));
             }
-            
+
             // Vector operations
             NodeKind::Normalize => {
                 node.inputs.push(self.new_port("vector", PortKind::Vec3));
@@ -219,7 +253,7 @@ impl NodeGraph {
                 node.inputs.push(self.new_port("eta", PortKind::Float));
                 node.outputs.push(self.new_port("out", PortKind::Vec3));
             }
-            
+
             // Interpolation
             NodeKind::Mix => {
                 node.inputs.push(self.new_port("a", PortKind::Float));
@@ -244,7 +278,7 @@ impl NodeGraph {
                 node.inputs.push(self.new_port("max", PortKind::Float));
                 node.outputs.push(self.new_port("out", PortKind::Float));
             }
-            
+
             // Color Operations
             NodeKind::RGB => {
                 node.inputs.push(self.new_port("r", PortKind::Float));
@@ -266,12 +300,14 @@ impl NodeGraph {
             }
             NodeKind::ColorAdjust => {
                 node.inputs.push(self.new_port("color", PortKind::Color));
-                node.inputs.push(self.new_port("brightness", PortKind::Float));
+                node.inputs
+                    .push(self.new_port("brightness", PortKind::Float));
                 node.inputs.push(self.new_port("contrast", PortKind::Float));
-                node.inputs.push(self.new_port("saturation", PortKind::Float));
+                node.inputs
+                    .push(self.new_port("saturation", PortKind::Float));
                 node.outputs.push(self.new_port("out", PortKind::Color));
             }
-            
+
             // Noise & Procedural
             NodeKind::Noise2D => {
                 node.inputs.push(self.new_port("position", PortKind::Vec2));
@@ -286,7 +322,7 @@ impl NodeGraph {
                 node.outputs.push(self.new_port("value", PortKind::Float));
                 node.outputs.push(self.new_port("cell_id", PortKind::Float));
             }
-            
+
             // Texture operations
             NodeKind::TextureSample => {
                 node.inputs.push(self.new_port("tex", PortKind::Texture));
@@ -303,7 +339,7 @@ impl NodeGraph {
                 node.inputs.push(self.new_port("tex", PortKind::Texture));
                 node.outputs.push(self.new_port("size", PortKind::Vec2));
             }
-            
+
             // Output
             NodeKind::OutputColor => {
                 node.inputs.push(self.new_port("color", PortKind::Color));
@@ -313,7 +349,7 @@ impl NodeGraph {
 
     /// Generate WGSL code from the current node graph. Produces a minimal shader
     /// with `@vertex` and `@fragment` entry points and a uniform block including time/resolution.
-pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
+    pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
         let mut code = String::new();
         code.push_str("struct Uniforms {\n  time: f32,\n  resolution: vec2<f32>,\n};\n\n");
         code.push_str("@group(0) @binding(0) var<uniform> uniforms: Uniforms;\n\n");
@@ -340,11 +376,16 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
         let mut satisfied: HashSet<NodeId> = HashSet::new();
         // Source nodes have no inputs
         for (id, node) in &self.nodes {
-            if node.inputs.is_empty() { satisfied.insert(*id); order.push(*id); }
+            if node.inputs.is_empty() {
+                satisfied.insert(*id);
+                order.push(*id);
+            }
         }
         // Iterate to include remaining nodes
         let mut remaining: HashSet<NodeId> = self.nodes.keys().copied().collect();
-        for id in order.iter() { remaining.remove(id); }
+        for id in order.iter() {
+            remaining.remove(id);
+        }
         let mut guard = 0;
         while !remaining.is_empty() && guard < 1024 {
             guard += 1;
@@ -353,8 +394,13 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                 let node = &self.nodes[&id];
                 let mut all_inputs_satisfied = true;
                 for inp in &node.inputs {
-                    let has_input = self.connections.iter().any(|c| c.to_node == id && c.to_port == inp.id && satisfied.contains(&c.from_node));
-                    if !has_input { all_inputs_satisfied = false; break; }
+                    let has_input = self.connections.iter().any(|c| {
+                        c.to_node == id && c.to_port == inp.id && satisfied.contains(&c.from_node)
+                    });
+                    if !has_input {
+                        all_inputs_satisfied = false;
+                        break;
+                    }
                 }
                 if all_inputs_satisfied {
                     satisfied.insert(id);
@@ -363,7 +409,9 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                     progressed = true;
                 }
             }
-            if !progressed { break; }
+            if !progressed {
+                break;
+            }
         }
 
         // Temporary mapping: for each port, a WGSL variable name
@@ -384,17 +432,26 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                 NodeKind::ConstantVec2(v) => {
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: vec2<f32> = vec2<f32>({},{});\n", v[0], v[1]));
+                    code.push_str(&format!(
+                        "  let {var}: vec2<f32> = vec2<f32>({},{});\n",
+                        v[0], v[1]
+                    ));
                 }
                 NodeKind::ConstantVec3(v) => {
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: vec3<f32> = vec3<f32>({},{},{});\n", v[0], v[1], v[2]));
+                    code.push_str(&format!(
+                        "  let {var}: vec3<f32> = vec3<f32>({},{},{});\n",
+                        v[0], v[1], v[2]
+                    ));
                 }
                 NodeKind::ConstantVec4(v) => {
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: vec4<f32> = vec4<f32>({},{},{},{});\n", v[0], v[1], v[2], v[3]));
+                    code.push_str(&format!(
+                        "  let {var}: vec4<f32> = vec4<f32>({},{},{},{});\n",
+                        v[0], v[1], v[2], v[3]
+                    ));
                 }
                 NodeKind::Time => {
                     let out = node.outputs[0].id;
@@ -410,11 +467,23 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
                     let vec_index = idx / 4;
-                    let comp = match idx % 4 { 0 => "x", 1 => "y", 2 => "z", _ => "w" };
+                    let comp = match idx % 4 {
+                        0 => "x",
+                        1 => "y",
+                        2 => "z",
+                        _ => "w",
+                    };
                     code.push_str(&format!("  let {var}: f32 = params[{vec_index}].{comp};\n"));
                 }
                 // Binary math operations
-                NodeKind::Add | NodeKind::Subtract | NodeKind::Multiply | NodeKind::Divide | NodeKind::Min | NodeKind::Max | NodeKind::Pow | NodeKind::Distance => {
+                NodeKind::Add
+                | NodeKind::Subtract
+                | NodeKind::Multiply
+                | NodeKind::Divide
+                | NodeKind::Min
+                | NodeKind::Max
+                | NodeKind::Pow
+                | NodeKind::Distance => {
                     let a = &node.inputs[0];
                     let b = &node.inputs[1];
                     let a_src = self.find_source_var(*id, a.id, &port_vars);
@@ -432,14 +501,25 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                         NodeKind::Distance => "distance",
                         _ => "+",
                     };
-                    if matches!(node.kind, NodeKind::Min | NodeKind::Max | NodeKind::Pow | NodeKind::Distance) {
+                    if matches!(
+                        node.kind,
+                        NodeKind::Min | NodeKind::Max | NodeKind::Pow | NodeKind::Distance
+                    ) {
                         code.push_str(&format!("  let {var}: f32 = {op}({a_src}, {b_src});\n"));
                     } else {
                         code.push_str(&format!("  let {var}: f32 = {a_src} {op} {b_src};\n"));
                     }
                 }
                 // Unary math operations
-                NodeKind::Sine | NodeKind::Cosine | NodeKind::Tangent | NodeKind::Length | NodeKind::Fract | NodeKind::Floor | NodeKind::Ceil | NodeKind::Abs | NodeKind::Sqrt => {
+                NodeKind::Sine
+                | NodeKind::Cosine
+                | NodeKind::Tangent
+                | NodeKind::Length
+                | NodeKind::Fract
+                | NodeKind::Floor
+                | NodeKind::Ceil
+                | NodeKind::Abs
+                | NodeKind::Sqrt => {
                     let x = &node.inputs[0];
                     let x_src = self.find_source_var(*id, x.id, &port_vars);
                     let out = node.outputs[0].id;
@@ -482,7 +562,9 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                     let b_src = self.find_source_var(*id, b.id, &port_vars);
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: vec3<f32> = cross({a_src}, {b_src});\n"));
+                    code.push_str(&format!(
+                        "  let {var}: vec3<f32> = cross({a_src}, {b_src});\n"
+                    ));
                 }
                 // Interpolation
                 NodeKind::Mix => {
@@ -494,7 +576,9 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                     let t_src = self.find_source_var(*id, t.id, &port_vars);
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: f32 = mix({a_src}, {b_src}, {t_src});\n"));
+                    code.push_str(&format!(
+                        "  let {var}: f32 = mix({a_src}, {b_src}, {t_src});\n"
+                    ));
                 }
                 NodeKind::Step => {
                     let edge = &node.inputs[0];
@@ -514,7 +598,9 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                     let x_src = self.find_source_var(*id, x.id, &port_vars);
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: f32 = smoothstep({edge0_src}, {edge1_src}, {x_src});\n"));
+                    code.push_str(&format!(
+                        "  let {var}: f32 = smoothstep({edge0_src}, {edge1_src}, {x_src});\n"
+                    ));
                 }
                 NodeKind::Clamp => {
                     let x = &node.inputs[0];
@@ -525,7 +611,9 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                     let max_src = self.find_source_var(*id, max.id, &port_vars);
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: f32 = clamp({x_src}, {min_src}, {max_src});\n"));
+                    code.push_str(&format!(
+                        "  let {var}: f32 = clamp({x_src}, {min_src}, {max_src});\n"
+                    ));
                 }
                 NodeKind::TextureSample => {
                     let _tex = &node.inputs[0];
@@ -533,7 +621,9 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                     let uv_src = self.find_source_var(*id, uv_in.id, &port_vars);
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: vec4<f32> = textureSample(tex0, samp, {uv_src});\n"));
+                    code.push_str(&format!(
+                        "  let {var}: vec4<f32> = textureSample(tex0, samp, {uv_src});\n"
+                    ));
                 }
                 // Missing node types - add basic implementations
                 NodeKind::Resolution => {
@@ -545,7 +635,9 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
                     // Use center of screen as mouse position for now
-                    code.push_str(&format!("  let {var}: vec2<f32> = uniforms.resolution * 0.5;\n"));
+                    code.push_str(&format!(
+                        "  let {var}: vec2<f32> = uniforms.resolution * 0.5;\n"
+                    ));
                 }
                 NodeKind::Reflect => {
                     let i = &node.inputs[0];
@@ -554,7 +646,9 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                     let n_src = self.find_source_var(*id, n.id, &port_vars);
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: vec3<f32> = reflect({i_src}, {n_src});\n"));
+                    code.push_str(&format!(
+                        "  let {var}: vec3<f32> = reflect({i_src}, {n_src});\n"
+                    ));
                 }
                 NodeKind::Refract => {
                     let i = &node.inputs[0];
@@ -565,7 +659,9 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                     let eta_src = self.find_source_var(*id, eta.id, &port_vars);
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: vec3<f32> = refract({i_src}, {n_src}, {eta_src});\n"));
+                    code.push_str(&format!(
+                        "  let {var}: vec3<f32> = refract({i_src}, {n_src}, {eta_src});\n"
+                    ));
                 }
                 NodeKind::Sign => {
                     let x = &node.inputs[0];
@@ -583,7 +679,9 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                     let b_src = self.find_source_var(*id, b.id, &port_vars);
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: vec3<f32> = vec3<f32>({r_src}, {g_src}, {b_src});\n"));
+                    code.push_str(&format!(
+                        "  let {var}: vec3<f32> = vec3<f32>({r_src}, {g_src}, {b_src});\n"
+                    ));
                 }
                 NodeKind::HSV => {
                     let h = &node.inputs[0];
@@ -596,9 +694,13 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
                     // Simple HSV to RGB conversion
                     code.push_str(&format!("  let c = {v_src} * {s_src};\n"));
-                    code.push_str(&format!("  let x = c * (1.0 - abs(mod({h_src} * 6.0, 2.0) - 1.0));\n"));
+                    code.push_str(&format!(
+                        "  let x = c * (1.0 - abs(mod({h_src} * 6.0, 2.0) - 1.0));\n"
+                    ));
                     code.push_str(&format!("  let m = {v_src} - c;\n"));
-                    code.push_str(&format!("  let {var}: vec3<f32> = vec3<f32>(c, x, 0.0) + m;\n"));
+                    code.push_str(&format!(
+                        "  let {var}: vec3<f32> = vec3<f32>(c, x, 0.0) + m;\n"
+                    ));
                 }
                 NodeKind::ColorMix => {
                     let color1 = &node.inputs[0];
@@ -609,7 +711,9 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                     let t_src = self.find_source_var(*id, t.id, &port_vars);
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: vec3<f32> = mix({color1_src}, {color2_src}, {t_src});\n"));
+                    code.push_str(&format!(
+                        "  let {var}: vec3<f32> = mix({color1_src}, {color2_src}, {t_src});\n"
+                    ));
                 }
                 NodeKind::ColorAdjust => {
                     let color = &node.inputs[0];
@@ -646,9 +750,12 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                     let out = node.outputs[0].id;
                     let cell_out = node.outputs[1].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    let cell_var = self.add_port_var(&mut port_vars, &mut var_counter, *id, cell_out);
+                    let cell_var =
+                        self.add_port_var(&mut port_vars, &mut var_counter, *id, cell_out);
                     // Simple voronoi approximation
-                    code.push_str(&format!("  let {var}: f32 = length(fract({position_src}) - 0.5);\n"));
+                    code.push_str(&format!(
+                        "  let {var}: f32 = length(fract({position_src}) - 0.5);\n"
+                    ));
                     code.push_str(&format!("  let {cell_var}: f32 = floor({position_src}.x) + floor({position_src}.y) * 100.0;\n"));
                 }
                 NodeKind::TextureSampleLod => {
@@ -665,7 +772,9 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
                     let _tex = &node.inputs[0];
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: vec2<f32> = vec2<f32>(textureDimensions(tex0));\n"));
+                    code.push_str(&format!(
+                        "  let {var}: vec2<f32> = vec2<f32>(textureDimensions(tex0));\n"
+                    ));
                 }
                 NodeKind::OutputColor => {
                     let color_in = &node.inputs[0];
@@ -694,7 +803,12 @@ pub fn generate_wgsl(&self, _width: u32, _height: u32) -> String {
         name
     }
 
-    fn find_source_var(&self, to_node: NodeId, to_port: PortId, port_vars: &HashMap<(NodeId, PortId), String>) -> String {
+    fn find_source_var(
+        &self,
+        to_node: NodeId,
+        to_port: PortId,
+        port_vars: &HashMap<(NodeId, PortId), String>,
+    ) -> String {
         for c in &self.connections {
             if c.to_node == to_node && c.to_port == to_port {
                 if let Some(name) = port_vars.get(&(c.from_node, c.from_port)) {

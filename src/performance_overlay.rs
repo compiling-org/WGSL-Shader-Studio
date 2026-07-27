@@ -1,5 +1,5 @@
-use bevy::prelude::*;
 use bevy::diagnostic::DiagnosticsStore;
+use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
 use std::time::{Duration, Instant};
 
@@ -52,28 +52,30 @@ impl PerformanceMetrics {
             ..Default::default()
         }
     }
-    
+
     pub fn add_fps_sample(&mut self, fps: f32) {
         self.fps_history.push(fps);
         if self.fps_history.len() > self.max_history_size {
             self.fps_history.remove(0);
         }
     }
-    
+
     pub fn get_average_fps(&self) -> f32 {
         if self.fps_history.is_empty() {
             return 0.0;
         }
         self.fps_history.iter().sum::<f32>() / self.fps_history.len() as f32
     }
-    
+
     pub fn get_min_fps(&self) -> f32 {
         if self.fps_history.is_empty() {
             return 0.0;
         }
-        self.fps_history.iter().fold(f32::INFINITY, |a, &b| a.min(b))
+        self.fps_history
+            .iter()
+            .fold(f32::INFINITY, |a, &b| a.min(b))
     }
-    
+
     pub fn get_max_fps(&self) -> f32 {
         if self.fps_history.is_empty() {
             return 0.0;
@@ -95,30 +97,31 @@ fn update_performance_metrics(
             metrics.add_fps_sample(avg_fps);
         }
     }
-    
+
     // Update frame time
-    if let Some(frame_time) = diagnostics.get(&bevy::diagnostic::FrameTimeDiagnosticsPlugin::FRAME_TIME) {
+    if let Some(frame_time) =
+        diagnostics.get(&bevy::diagnostic::FrameTimeDiagnosticsPlugin::FRAME_TIME)
+    {
         if let Some(average) = frame_time.average() {
             metrics.frame_time_ms = (average * 1000.0) as f32;
         }
     }
-    
+
     // Simulate GPU utilization (would need platform-specific APIs in real implementation)
     metrics.gpu_utilization = (metrics.frame_time_ms / 16.67).min(1.0) * 100.0; // 16.67ms = 60 FPS target
-    
+
     // Estimate memory usage (simplified)
     metrics.memory_usage_mb = 150.0 + metrics.frame_time_ms * 5.0; // Rough estimate
-    
+
     // Simulate shader compilation time (would track actual compilation)
     metrics.shader_compilation_time_ms = 15.0; // + (rand::random::<f32>() - 0.5) * 10.0; // rand not available
-    
+
     // Simulate audio latency (would measure actual audio pipeline)
     metrics.audio_latency_ms = 5.0; // + (rand::random::<f32>() - 0.5) * 3.0; // rand not available
-    
+
     metrics.frame_count += 1;
     metrics.last_update = Instant::now();
 }
-
 
 fn draw_performance_overlay(
     mut contexts: EguiContexts,
@@ -130,7 +133,7 @@ fn draw_performance_overlay(
     }
     let ctx = contexts.ctx_mut();
     let ctx_ref = ctx.unwrap();
-    
+
     // Create a semi-transparent overlay window
     egui::Window::new("Performance Metrics")
         .collapsible(true)
@@ -140,7 +143,7 @@ fn draw_performance_overlay(
         .show(ctx_ref, |ui| {
             ui.heading("Live Performance Metrics");
             ui.separator();
-            
+
             // FPS Display
             let fps_color = if metrics.fps >= 55.0 {
                 egui::Color32::GREEN
@@ -149,18 +152,18 @@ fn draw_performance_overlay(
             } else {
                 egui::Color32::RED
             };
-            
+
             ui.horizontal(|ui| {
                 ui.label("FPS:");
                 ui.colored_label(fps_color, format!("{:.1}", metrics.fps));
                 ui.label(format!("({:.1} avg)", metrics.get_average_fps()));
             });
-            
+
             ui.horizontal(|ui| {
                 ui.label("Frame Time:");
                 ui.label(format!("{:.2}ms", metrics.frame_time_ms));
             });
-            
+
             // GPU Utilization
             let gpu_color = if metrics.gpu_utilization < 80.0 {
                 egui::Color32::GREEN
@@ -169,66 +172,75 @@ fn draw_performance_overlay(
             } else {
                 egui::Color32::RED
             };
-            
+
             ui.horizontal(|ui| {
                 ui.label("GPU Utilization:");
                 ui.colored_label(gpu_color, format!("{:.1}%", metrics.gpu_utilization));
             });
-            
+
             ui.horizontal(|ui| {
                 ui.label("Memory Usage:");
                 ui.label(format!("{:.0}MB", metrics.memory_usage_mb));
             });
-            
+
             ui.separator();
-            
+
             // Shader compilation metrics
             ui.horizontal(|ui| {
                 ui.label("Shader Compile:");
                 ui.label(format!("{:.1}ms", metrics.shader_compilation_time_ms));
             });
-            
+
             ui.horizontal(|ui| {
                 ui.label("Audio Latency:");
                 ui.label(format!("{:.1}ms", metrics.audio_latency_ms));
             });
-            
+
             ui.separator();
-            
+
             // FPS History Graph
             ui.label("FPS History (2s):");
-            
+
             // Draw a simple FPS history graph
             let graph_height = 40.0;
             let graph_width = ui.available_width();
-            
-            let (response, painter) = ui.allocate_painter(egui::Vec2::new(graph_width, graph_height), egui::Sense::hover());
+
+            let (response, painter) = ui.allocate_painter(
+                egui::Vec2::new(graph_width, graph_height),
+                egui::Sense::hover(),
+            );
             let rect = response.rect;
-            
+
             // Draw background
-            painter.rect_filled(rect, egui::CornerRadius::same(0u8), egui::Color32::from_gray(30));
-            
+            painter.rect_filled(
+                rect,
+                egui::CornerRadius::same(0u8),
+                egui::Color32::from_gray(30),
+            );
+
             // Draw grid lines
             for i in 0..=4 {
                 let y = rect.top() + rect.height() * (i as f32 / 4.0);
                 painter.line_segment(
                     [egui::pos2(rect.left(), y), egui::pos2(rect.right(), y)],
-                    egui::Stroke::new(1.0, egui::Color32::from_gray(60))
+                    egui::Stroke::new(1.0, egui::Color32::from_gray(60)),
                 );
             }
-            
+
             // Draw FPS curve
             if metrics.fps_history.len() > 1 {
-                let points: Vec<egui::Pos2> = metrics.fps_history
+                let points: Vec<egui::Pos2> = metrics
+                    .fps_history
                     .iter()
                     .enumerate()
                     .map(|(i, &fps)| {
-                        let x = rect.left() + (i as f32 / (metrics.fps_history.len() - 1) as f32) * rect.width();
+                        let x = rect.left()
+                            + (i as f32 / (metrics.fps_history.len() - 1) as f32) * rect.width();
                         let y = rect.bottom() - (fps / 120.0) * rect.height(); // Scale to 120 FPS max
                         egui::pos2(x, y)
                     })
                     .collect();
-                
+
                 for i in 1..points.len() {
                     let color = if metrics.fps_history[i] >= 55.0 {
                         egui::Color32::GREEN
@@ -237,32 +249,36 @@ fn draw_performance_overlay(
                     } else {
                         egui::Color32::RED
                     };
-                    
-                    painter.line_segment(
-                        [points[i-1], points[i]],
-                        egui::Stroke::new(2.0, color)
-                    );
+
+                    painter.line_segment([points[i - 1], points[i]], egui::Stroke::new(2.0, color));
                 }
             }
-            
+
             // Draw 60 FPS reference line
             let target_y = rect.bottom() - (60.0 / 120.0) * rect.height();
             painter.line_segment(
-                [egui::pos2(rect.left(), target_y), egui::pos2(rect.right(), target_y)],
-                egui::Stroke::new(1.0, egui::Color32::from_rgb(100, 200, 255))
+                [
+                    egui::pos2(rect.left(), target_y),
+                    egui::pos2(rect.right(), target_y),
+                ],
+                egui::Stroke::new(1.0, egui::Color32::from_rgb(100, 200, 255)),
             );
-            
+
             ui.separator();
-            
+
             // Frame statistics
             ui.horizontal(|ui| {
                 ui.label("Frames:");
                 ui.label(format!("{}", metrics.frame_count));
             });
-            
+
             ui.horizontal(|ui| {
                 ui.label("Min/Max FPS:");
-                ui.label(format!("{:.1}/{:.1}", metrics.get_min_fps(), metrics.get_max_fps()));
+                ui.label(format!(
+                    "{:.1}/{:.1}",
+                    metrics.get_min_fps(),
+                    metrics.get_max_fps()
+                ));
             });
         });
 }
@@ -273,35 +289,44 @@ pub fn performance_monitoring_system(
     mut last_warning: Local<Option<Instant>>,
 ) {
     let now = Instant::now();
-    
+
     // Initialize if first run
     if last_warning.is_none() {
         *last_warning = Some(now);
         return;
     }
-    
+
     // Only check every 5 seconds to avoid spam
     if let Some(last) = *last_warning {
         if now.duration_since(last) < Duration::from_secs(5) {
             return;
         }
     }
-    
+
     // Check for performance issues
     if metrics.fps < 20.0 {
-        eprintln!("⚠️  PERFORMANCE WARNING: Very low FPS ({:.1}) detected!", metrics.fps);
+        eprintln!(
+            "⚠️  PERFORMANCE WARNING: Very low FPS ({:.1}) detected!",
+            metrics.fps
+        );
         *last_warning = Some(now);
         return;
     }
-    
+
     if metrics.frame_time_ms > 100.0 {
-        eprintln!("⚠️  PERFORMANCE WARNING: High frame time ({:.1}ms) detected!", metrics.frame_time_ms);
+        eprintln!(
+            "⚠️  PERFORMANCE WARNING: High frame time ({:.1}ms) detected!",
+            metrics.frame_time_ms
+        );
         *last_warning = Some(now);
         return;
     }
-    
+
     if metrics.gpu_utilization > 95.0 {
-        eprintln!("⚠️  PERFORMANCE WARNING: Very high GPU utilization ({:.1}%) detected!", metrics.gpu_utilization);
+        eprintln!(
+            "⚠️  PERFORMANCE WARNING: Very high GPU utilization ({:.1}%) detected!",
+            metrics.gpu_utilization
+        );
         *last_warning = Some(now);
         return;
     }

@@ -7,8 +7,8 @@ use bevy_egui::egui;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crate::shader_renderer::{ShaderRenderer, RenderParameters};
 use crate::audio_system::AudioAnalyzer;
+use crate::shader_renderer::{RenderParameters, ShaderRenderer};
 // Removed unused imports
 // use crate::timeline::Timeline;
 // use crate::editor_ui::EditorUiState;
@@ -45,11 +45,11 @@ impl WgpuRenderPipeline {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     /// Initialize the WGPU renderer asynchronously
     pub async fn initialize_renderer(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         println!("🚀 Initializing WGPU renderer...");
-        
+
         match ShaderRenderer::new().await {
             Ok(renderer) => {
                 println!("✅ WGPU renderer initialized successfully!");
@@ -62,7 +62,7 @@ impl WgpuRenderPipeline {
             }
         }
     }
-    
+
     /// Render a shader frame with the given code and parameters
     pub fn render_shader_frame(
         &mut self,
@@ -77,9 +77,9 @@ impl WgpuRenderPipeline {
         if *self.is_rendering.lock().unwrap() {
             return Err("Rendering already in progress".to_string());
         }
-        
+
         *self.is_rendering.lock().unwrap() = true;
-        
+
         let result = {
             let mut renderer_guard = self.renderer.lock().unwrap();
             if let Some(ref mut renderer) = *renderer_guard {
@@ -90,10 +90,18 @@ impl WgpuRenderPipeline {
                     frame_rate: 60.0,
                     audio_data: audio_data.cloned(),
                 };
-                
-                match renderer.render_frame(shader_code, &render_params, parameter_values, audio_data.cloned()) {
+
+                match renderer.render_frame(
+                    shader_code,
+                    &render_params,
+                    parameter_values,
+                    audio_data.cloned(),
+                ) {
                     Ok(pixels) => {
-                        println!("✅ Shader rendered successfully: {}x{} pixels", width, height);
+                        println!(
+                            "✅ Shader rendered successfully: {}x{} pixels",
+                            width, height
+                        );
                         Ok(pixels)
                     }
                     Err(e) => {
@@ -107,26 +115,26 @@ impl WgpuRenderPipeline {
                 Err("WGPU renderer not initialized".to_string())
             }
         };
-        
+
         *self.is_rendering.lock().unwrap() = false;
         result
     }
-    
+
     /// Get the last rendered frame as RGBA pixels
     pub fn get_last_frame(&self) -> Option<Vec<u8>> {
         self.last_render_result.lock().unwrap().clone()
     }
-    
+
     /// Get render errors
     pub fn get_errors(&self) -> Vec<String> {
         self.render_errors.lock().unwrap().clone()
     }
-    
+
     /// Clear render errors
     pub fn clear_errors(&self) {
         self.render_errors.lock().unwrap().clear();
     }
-    
+
     /// Check if renderer is available
     pub fn is_renderer_available(&self) -> bool {
         self.renderer.lock().unwrap().is_some()
@@ -134,23 +142,20 @@ impl WgpuRenderPipeline {
 }
 
 /// System to initialize the WGPU renderer
-pub fn initialize_wgpu_system(
-    mut wgpu_pipeline: ResMut<WgpuRenderPipeline>,
-    time: Res<Time>,
-) {
+pub fn initialize_wgpu_system(mut wgpu_pipeline: ResMut<WgpuRenderPipeline>, time: Res<Time>) {
     // Only attempt initialization after a short delay to let the app stabilize
     if time.elapsed().as_millis() < 100 {
         return;
     }
-    
+
     // Check if already initialized
     if wgpu_pipeline.is_renderer_available() {
         return;
     }
-    
+
     // Attempt async initialization
     let mut pipeline = std::mem::take(&mut *wgpu_pipeline);
-    
+
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
         match rt.block_on(pipeline.initialize_renderer()) {
@@ -175,22 +180,22 @@ pub fn live_preview_system(
     if !wgpu_pipeline.is_renderer_available() || shader_code.code.trim().is_empty() {
         return;
     }
-    
+
     // Limit rendering to reasonable frame rate (30 FPS)
     let frame_interval = Duration::from_millis(33); // ~30 FPS
     if wgpu_pipeline.last_frame_time.elapsed() < frame_interval {
         return;
     }
-    
+
     // Update frame timing
     wgpu_pipeline.frame_count += 1;
     wgpu_pipeline.last_frame_time = Instant::now();
-    
+
     // Prepare render parameters
     let width = 512u32;
     let height = 512u32;
     let current_time = time.elapsed_secs();
-    
+
     // Get audio data if available
     let audio_data = if audio_analyzer.enabled {
         let audio_info = audio_analyzer.get_audio_data();
@@ -208,11 +213,11 @@ pub fn live_preview_system(
     } else {
         None
     };
-    
+
     // Extract parameter values from timeline
     let mut param_values = vec![0.0f32; 64];
     // TODO: Integrate with timeline system for animated parameters
-    
+
     // Render the shader
     match wgpu_pipeline.render_shader_frame(
         &shader_code.code,
@@ -245,40 +250,46 @@ pub fn shader_compilation_system(
     if !editor_state.auto_apply || editor_state.code.trim().is_empty() {
         return;
     }
-    
+
     // Check if renderer is available
     if !wgpu_pipeline.is_renderer_available() {
         editor_state.compilation_error = "WGPU renderer not available".to_string();
         return;
     }
-    
+
     // Clear previous errors
     wgpu_pipeline.clear_errors();
     editor_state.compilation_error.clear();
     editor_state.diagnostics_messages.clear();
-    
+
     // Run WGSL diagnostics
     // TODO: Implement proper diagnostics checking
     let diagnostics = vec![];
     // For now, we'll just clear any existing messages
     editor_state.diagnostics_messages.clear();
-    
+
     // If there are critical errors, don't attempt compilation
-    if !diagnostics.is_empty() && diagnostics.iter().any(|d: &crate::wgsl_diagnostics::Diagnostic| d.severity == crate::wgsl_diagnostics::DiagnosticSeverity::Error) {
+    if !diagnostics.is_empty()
+        && diagnostics
+            .iter()
+            .any(|d: &crate::wgsl_diagnostics::Diagnostic| {
+                d.severity == crate::wgsl_diagnostics::DiagnosticSeverity::Error
+            })
+    {
         return;
     }
-    
+
     // Extract parameters from code
     // TODO: Implement proper parameter extraction
     let shader_params = extract_shader_parameters(&editor_state.code);
-    
+
     // Apply timeline animation to parameters
     // TODO: Implement proper timeline animation
-    
+
     // Prepare parameter values array
     let mut param_values = vec![0.0f32; 64];
     // TODO: Implement proper parameter value extraction
-    
+
     // Get audio data if available
     let audio_data = if audio_analyzer.enabled {
         let audio_info = audio_analyzer.get_audio_data();
@@ -296,7 +307,7 @@ pub fn shader_compilation_system(
     } else {
         None
     };
-    
+
     // Compile and render
     let start_time = std::time::Instant::now();
     match wgpu_pipeline.render_shader_frame(
@@ -320,40 +331,50 @@ pub fn shader_compilation_system(
 /// Helper function to extract shader parameters from WGSL code
 fn extract_shader_parameters(code: &str) -> Vec<crate::timeline::ShaderParameter> {
     let mut params = vec![];
-    
+
     // Simple regex-like parsing for @group(X) @binding(Y) uniforms
     let lines: Vec<&str> = code.lines().collect();
     for (i, line) in lines.iter().enumerate() {
         let trimmed = line.trim();
-        
+
         // Look for uniform declarations with group/binding
-        if trimmed.contains("@group(") && trimmed.contains("@binding(") && trimmed.contains("var<") {
+        if trimmed.contains("@group(") && trimmed.contains("@binding(") && trimmed.contains("var<")
+        {
             if let Some(group_start) = trimmed.find("@group(") {
                 if let Some(group_end) = trimmed[group_start..].find(")") {
                     let group_str = &trimmed[group_start + 7..group_start + group_end];
                     if let Ok(group) = group_str.parse::<u32>() {
                         if let Some(binding_start) = trimmed.find("@binding(") {
                             if let Some(binding_end) = trimmed[binding_start..].find(")") {
-                                let binding_str = &trimmed[binding_start + 9..binding_start + binding_end];
+                                let binding_str =
+                                    &trimmed[binding_start + 9..binding_start + binding_end];
                                 if let Ok(binding) = binding_str.parse::<u32>() {
                                     // Extract parameter name and type
                                     if let Some(var_start) = trimmed.find("var<") {
                                         if let Some(var_end) = trimmed[var_start..].find(">") {
-                                            let var_content = &trimmed[var_start + 4..var_start + var_end];
-                                            if let Some(name_start) = trimmed[var_start + var_end + 1..].find(|c: char| c.is_alphabetic()) {
-                                                let name_part = &trimmed[var_start + var_end + 1 + name_start..];
-                                                if let Some(name_end) = name_part.find(|c: char| !c.is_alphanumeric() && c != '_') {
+                                            let var_content =
+                                                &trimmed[var_start + 4..var_start + var_end];
+                                            if let Some(name_start) = trimmed
+                                                [var_start + var_end + 1..]
+                                                .find(|c: char| c.is_alphabetic())
+                                            {
+                                                let name_part = &trimmed
+                                                    [var_start + var_end + 1 + name_start..];
+                                                if let Some(name_end) = name_part.find(|c: char| {
+                                                    !c.is_alphanumeric() && c != '_'
+                                                }) {
                                                     let name = &name_part[..name_end];
-                                                    
+
                                                     // Extract type and default values
-                                                    let param_type = if var_content.contains("f32") {
+                                                    let param_type = if var_content.contains("f32")
+                                                    {
                                                         "f32"
                                                     } else if var_content.contains("i32") {
                                                         "i32"
                                                     } else {
                                                         "unknown"
                                                     };
-                                                    
+
                                                     params.push(crate::timeline::ShaderParameter {
                                                         name: name.to_string(),
                                                         value: 0.5, // Default value
@@ -375,7 +396,7 @@ fn extract_shader_parameters(code: &str) -> Vec<crate::timeline::ShaderParameter
             }
         }
     }
-    
+
     params
 }
 
@@ -384,14 +405,17 @@ pub struct WgpuRenderPlugin;
 
 impl Plugin for WgpuRenderPlugin {
     fn build(&self, app: &mut App) {
-        app
-            .init_resource::<WgpuRenderPipeline>()
+        app.init_resource::<WgpuRenderPipeline>()
             // For startup timing - using a custom resource instead
             // .insert_resource(Instant::now())
-            .add_systems(Update, (
-                initialize_wgpu_system,
-                shader_compilation_system,
-                live_preview_system,
-            ).chain());
+            .add_systems(
+                Update,
+                (
+                    initialize_wgpu_system,
+                    shader_compilation_system,
+                    live_preview_system,
+                )
+                    .chain(),
+            );
     }
 }

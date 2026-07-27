@@ -2,9 +2,9 @@
 //! Combines concepts from Rust Visual Editor with existing node graph implementation
 //! Supports advanced features like undo/redo, copy/paste, and comprehensive node types
 
-use bevy_egui::egui::*;
-use bevy_egui::egui::epaint::CubicBezierShape;
 use crate::node_graph::{NodeGraph, NodeId, NodeKind, PortId, PortKind};
+use bevy_egui::egui::epaint::CubicBezierShape;
+use bevy_egui::egui::*;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone)]
@@ -76,27 +76,29 @@ impl EnhancedVisualNodeEditor {
     pub fn ui(&mut self, ui: &mut Ui, node_graph: &mut NodeGraph) {
         let available_rect = ui.available_rect_before_wrap();
         let response = ui.allocate_rect(available_rect, Sense::click_and_drag());
-        
+
         // Store current mouse position
         self.last_mouse_pos = response.interact_pointer_pos();
-        
+
         // Handle keyboard shortcuts
         self.handle_keyboard_shortcuts(ui, node_graph);
-        
+
         // Handle canvas panning
-        if response.dragged_by(PointerButton::Middle) || 
-           (response.dragged_by(PointerButton::Primary) && ui.input(|i| i.modifiers.ctrl)) {
+        if response.dragged_by(PointerButton::Middle)
+            || (response.dragged_by(PointerButton::Primary) && ui.input(|i| i.modifiers.ctrl))
+        {
             self.pan += response.drag_delta();
             self.is_dragging_canvas = true;
         } else if self.is_dragging_canvas && !response.dragged() {
             self.is_dragging_canvas = false;
         }
-        
+
         // Handle selection box
-        if response.dragged_by(PointerButton::Primary) && 
-           !ui.input(|i| i.modifiers.ctrl) && 
-           self.dragging_node.is_none() && 
-           !self.is_dragging_canvas {
+        if response.dragged_by(PointerButton::Primary)
+            && !ui.input(|i| i.modifiers.ctrl)
+            && self.dragging_node.is_none()
+            && !self.is_dragging_canvas
+        {
             if self.drag_box_start.is_none() {
                 self.drag_box_start = Some(response.interact_pointer_pos().unwrap_or(Pos2::ZERO));
             }
@@ -108,7 +110,7 @@ impl EnhancedVisualNodeEditor {
                 self.drag_box_start = None;
             }
         }
-        
+
         if response.hovered() {
             ui.input(|i| {
                 let zoom_delta = i.zoom_delta();
@@ -144,10 +146,10 @@ impl EnhancedVisualNodeEditor {
         if let Some((start_node, start_port, is_output)) = self.connection_start {
             self.draw_active_connection(ui, node_graph, start_node, start_port, is_output);
         }
-        
+
         // Handle node dragging
         self.handle_node_dragging(ui, node_graph);
-        
+
         // Handle connection creation
         self.handle_connection_creation(ui, node_graph);
     }
@@ -155,32 +157,32 @@ impl EnhancedVisualNodeEditor {
     fn draw_grid(&self, ui: &mut Ui, rect: Rect) {
         let painter = ui.painter();
         let grid_size = self.grid_size * self.zoom;
-        
+
         if grid_size < 2.0 {
             return; // Grid too dense
         }
-        
+
         let grid_alpha = (self.zoom * 0.5).clamp(0.1, 0.3) as f32;
         let grid_color = Color32::from_gray((30.0 * grid_alpha) as u8);
-        
+
         // Vertical lines
         let start_x = ((rect.min.x - self.pan.x) / grid_size).floor() * grid_size + self.pan.x;
         let mut x = start_x;
         while x < rect.max.x {
             painter.line_segment(
                 [pos2(x, rect.min.y), pos2(x, rect.max.y)],
-                Stroke::new(1.0, grid_color)
+                Stroke::new(1.0, grid_color),
             );
             x += grid_size;
         }
-        
+
         // Horizontal lines
         let start_y = ((rect.min.y - self.pan.y) / grid_size).floor() * grid_size + self.pan.y;
         let mut y = start_y;
         while y < rect.max.y {
             painter.line_segment(
                 [pos2(rect.min.x, y), pos2(rect.max.x, y)],
-                Stroke::new(1.0, grid_color)
+                Stroke::new(1.0, grid_color),
             );
             y += grid_size;
         }
@@ -188,38 +190,45 @@ impl EnhancedVisualNodeEditor {
 
     fn draw_connections(&self, ui: &mut Ui, node_graph: &NodeGraph) {
         let painter = ui.painter();
-        
+
         for connection in &node_graph.connections {
-            if let (Some(from_node), Some(to_node)) = (node_graph.nodes.get(&connection.from_node), node_graph.nodes.get(&connection.to_node)) {
+            if let (Some(from_node), Some(to_node)) = (
+                node_graph.nodes.get(&connection.from_node),
+                node_graph.nodes.get(&connection.to_node),
+            ) {
                 let from_pos = pos2(from_node.pos.0, from_node.pos.1) + self.pan;
                 let to_pos = pos2(to_node.pos.0, to_node.pos.1) + self.pan;
-                
+
                 // Find port positions
                 let mut from_port_pos = None;
                 let mut to_port_pos = None;
-                
+
                 // Find output port position
                 for (i, output) in from_node.outputs.iter().enumerate() {
                     if output.id == connection.from_port {
-                        from_port_pos = Some(pos2(from_pos.x + 180.0 + 8.0, from_pos.y + 40.0 + (i as f32 * 25.0)));
+                        from_port_pos = Some(pos2(
+                            from_pos.x + 180.0 + 8.0,
+                            from_pos.y + 40.0 + (i as f32 * 25.0),
+                        ));
                         break;
                     }
                 }
-                
+
                 // Find input port position
                 for (i, input) in to_node.inputs.iter().enumerate() {
                     if input.id == connection.to_port {
-                        to_port_pos = Some(pos2(to_pos.x - 8.0, to_pos.y + 40.0 + (i as f32 * 25.0)));
+                        to_port_pos =
+                            Some(pos2(to_pos.x - 8.0, to_pos.y + 40.0 + (i as f32 * 25.0)));
                         break;
                     }
                 }
-                
+
                 if let (Some(start), Some(end)) = (from_port_pos, to_port_pos) {
                     // Draw curved connection
                     let control_offset = ((end.x - start.x) * 0.5).max(50.0);
                     let control1 = pos2(start.x + control_offset, start.y);
                     let control2 = pos2(end.x - control_offset, end.y);
-                    
+
                     painter.add(Shape::CubicBezier(CubicBezierShape::from_points_stroke(
                         [start, control1, control2, end],
                         false,
@@ -231,20 +240,30 @@ impl EnhancedVisualNodeEditor {
         }
     }
 
-    fn draw_active_connection(&self, ui: &mut Ui, node_graph: &NodeGraph, start_node: NodeId, start_port: PortId, is_output: bool) {
+    fn draw_active_connection(
+        &self,
+        ui: &mut Ui,
+        node_graph: &NodeGraph,
+        start_node: NodeId,
+        start_port: PortId,
+        is_output: bool,
+    ) {
         let painter = ui.painter();
         let mouse_pos = ui.input(|i| i.pointer.latest_pos().unwrap_or(Pos2::ZERO));
-        
+
         if let Some(node) = node_graph.nodes.get(&start_node) {
             let node_pos = pos2(node.pos.0, node.pos.1) + self.pan;
-            
+
             let mut start_pos = None;
-            
+
             if is_output {
                 // Find output port position
                 for (i, output) in node.outputs.iter().enumerate() {
                     if output.id == start_port {
-                        start_pos = Some(pos2(node_pos.x + 180.0 + 8.0, node_pos.y + 40.0 + (i as f32 * 25.0)));
+                        start_pos = Some(pos2(
+                            node_pos.x + 180.0 + 8.0,
+                            node_pos.y + 40.0 + (i as f32 * 25.0),
+                        ));
                         break;
                     }
                 }
@@ -252,18 +271,27 @@ impl EnhancedVisualNodeEditor {
                 // Find input port position
                 for (i, input) in node.inputs.iter().enumerate() {
                     if input.id == start_port {
-                        start_pos = Some(pos2(node_pos.x - 8.0, node_pos.y + 40.0 + (i as f32 * 25.0)));
+                        start_pos = Some(pos2(
+                            node_pos.x - 8.0,
+                            node_pos.y + 40.0 + (i as f32 * 25.0),
+                        ));
                         break;
                     }
                 }
             }
-            
+
             if let Some(start) = start_pos {
                 // Draw curved connection to mouse
                 let control_offset = ((mouse_pos.x - start.x) * 0.5).max(50.0);
-                let control1 = pos2(start.x + control_offset * if is_output { 1.0 } else { -1.0 }, start.y);
-                let control2 = pos2(mouse_pos.x - control_offset * if is_output { 1.0 } else { -1.0 }, mouse_pos.y);
-                
+                let control1 = pos2(
+                    start.x + control_offset * if is_output { 1.0 } else { -1.0 },
+                    start.y,
+                );
+                let control2 = pos2(
+                    mouse_pos.x - control_offset * if is_output { 1.0 } else { -1.0 },
+                    mouse_pos.y,
+                );
+
                 painter.add(Shape::CubicBezier(CubicBezierShape::from_points_stroke(
                     [start, control1, control2, mouse_pos],
                     false,
@@ -280,16 +308,16 @@ impl EnhancedVisualNodeEditor {
             let node_pos = pos2(node.pos.0, node.pos.1) + self.pan;
             let node_size = vec2(180.0, 120.0);
             let node_rect = Rect::from_min_size(node_pos, node_size);
-            
+
             let response = ui.allocate_rect(node_rect, Sense::click_and_drag());
-            
+
             // Update hover state
             if response.hovered() {
                 self.hovered_node = Some(node_id);
             } else if self.hovered_node == Some(node_id) {
                 self.hovered_node = None;
             }
-            
+
             // Handle node selection and dragging
             if response.clicked() {
                 if ui.input(|i| i.modifiers.shift) {
@@ -306,12 +334,12 @@ impl EnhancedVisualNodeEditor {
                     self.selected_node = Some(node_id);
                 }
             }
-            
+
             if response.drag_started() && !ui.input(|i| i.pointer.secondary_down()) {
                 self.dragging_node = Some(node_id);
                 let mouse_pos = ui.input(|i| i.pointer.latest_pos().unwrap_or(Pos2::ZERO));
                 self.drag_offset = mouse_pos - node_pos;
-                
+
                 // If dragging a node that's not selected, select it
                 if !self.selected_nodes.contains(&node_id) {
                     self.selected_nodes.clear();
@@ -319,11 +347,11 @@ impl EnhancedVisualNodeEditor {
                     self.selected_node = Some(node_id);
                 }
             }
-            
+
             if response.drag_stopped() {
                 self.dragging_node = None;
             }
-            
+
             // Node background with selection and hover highlight
             let mut bg_color = self.get_node_color(&node.kind);
             if self.selected_nodes.contains(&node_id) {
@@ -331,19 +359,20 @@ impl EnhancedVisualNodeEditor {
                 bg_color = Color32::from_rgb(
                     (bg_color.r() + 40).min(255),
                     (bg_color.g() + 40).min(255),
-                    (bg_color.b() + 40).min(255)
+                    (bg_color.b() + 40).min(255),
                 );
             } else if self.hovered_node == Some(node_id) {
                 // Slight highlight for hover
                 bg_color = Color32::from_rgb(
                     (bg_color.r() + 20).min(255),
                     (bg_color.g() + 20).min(255),
-                    (bg_color.b() + 20).min(255)
+                    (bg_color.b() + 20).min(255),
                 );
             }
-            
-            ui.painter().rect_filled(node_rect, CornerRadius::same(4u8), bg_color);
-            
+
+            ui.painter()
+                .rect_filled(node_rect, CornerRadius::same(4u8), bg_color);
+
             // Node border with enhanced selection
             let border_color = if self.selected_nodes.contains(&node_id) {
                 Color32::from_rgb(255, 255, 100)
@@ -353,8 +382,9 @@ impl EnhancedVisualNodeEditor {
                 Color32::from_gray(60)
             };
             let stroke = Stroke::new(2.0, border_color);
-            ui.painter().rect_stroke(node_rect, Rounding::ZERO, stroke, StrokeKind::Outside);
-            
+            ui.painter()
+                .rect_stroke(node_rect, Rounding::ZERO, stroke, StrokeKind::Outside);
+
             // Node title with enhanced styling
             let title_pos = node_pos + vec2(10.0, 20.0);
             let title_color = if self.selected_nodes.contains(&node_id) {
@@ -367,41 +397,44 @@ impl EnhancedVisualNodeEditor {
                 Align2::LEFT_CENTER,
                 &node.title,
                 FontId::proportional(14.0),
-                title_color
+                title_color,
             );
-            
+
             // Collect port click events first to avoid borrow checker issues
             let mut input_clicks = Vec::new();
             let mut output_clicks = Vec::new();
-            
+
             // Draw input ports and collect clicks
             for (i, input) in node.inputs.iter().enumerate() {
                 let port_pos = pos2(node_pos.x - 8.0, node_pos.y + 40.0 + (i as f32 * 25.0));
                 let port_rect = Rect::from_center_size(port_pos, vec2(16.0, 16.0));
                 let port_response = ui.allocate_rect(port_rect, Sense::click());
-                
+
                 if port_response.clicked() {
                     input_clicks.push(input.id);
                 }
-                
+
                 // Draw the port visually
                 self.draw_port_visual(ui.painter(), port_pos, input, false, node_id, node_graph);
             }
-            
+
             // Draw output ports and collect clicks
             for (i, output) in node.outputs.iter().enumerate() {
-                let port_pos = pos2(node_pos.x + node_size.x + 8.0, node_pos.y + 40.0 + (i as f32 * 25.0));
+                let port_pos = pos2(
+                    node_pos.x + node_size.x + 8.0,
+                    node_pos.y + 40.0 + (i as f32 * 25.0),
+                );
                 let port_rect = Rect::from_center_size(port_pos, vec2(16.0, 16.0));
                 let port_response = ui.allocate_rect(port_rect, Sense::click());
-                
+
                 if port_response.clicked() {
                     output_clicks.push(output.id);
                 }
-                
+
                 // Draw the port visually
                 self.draw_port_visual(ui.painter(), port_pos, output, true, node_id, node_graph);
             }
-            
+
             // Handle port connections after drawing
             for input_id in input_clicks {
                 if let Some((start_node, start_port, is_output)) = self.connection_start {
@@ -415,7 +448,7 @@ impl EnhancedVisualNodeEditor {
                     self.connection_start = Some((node_id, input_id, false));
                 }
             }
-            
+
             for output_id in output_clicks {
                 if let Some((start_node, start_port, is_output)) = self.connection_start {
                     if is_output {
@@ -431,111 +464,161 @@ impl EnhancedVisualNodeEditor {
         }
     }
 
-    fn draw_port_visual(&mut self, painter: &Painter, pos: Pos2, port: &crate::node_graph::Port, is_output: bool, node_id: NodeId, node_graph: &NodeGraph) {
+    fn draw_port_visual(
+        &mut self,
+        painter: &Painter,
+        pos: Pos2,
+        port: &crate::node_graph::Port,
+        is_output: bool,
+        node_id: NodeId,
+        node_graph: &NodeGraph,
+    ) {
         let port_color = self.get_port_color(&port.kind);
         let port_size = 8.0;
-        
+
         // Enhanced port visual feedback
         let is_connected = self.is_port_connected(node_graph, node_id, port.id);
         let is_hovered = self.hovered_port == Some((node_id, port.id));
-        let is_active_connection = self.connection_start.map_or(false, |(start_node, start_port, _)| {
-            start_node == node_id && start_port == port.id
-        });
-        
+        let is_active_connection = self
+            .connection_start
+            .map_or(false, |(start_node, start_port, _)| {
+                start_node == node_id && start_port == port.id
+            });
+
         // Determine final port appearance
         let mut final_color = port_color;
         let mut border_color = Color32::WHITE;
         let mut port_size_final = port_size;
-        
+
         if is_hovered || is_active_connection {
             // Brighten on hover or when active
             final_color = Color32::from_rgb(
                 (port_color.r() + 60).min(255),
                 (port_color.g() + 60).min(255),
-                (port_color.b() + 60).min(255)
+                (port_color.b() + 60).min(255),
             );
             port_size_final = port_size * 1.2; // Slightly larger
         }
-        
+
         if is_connected {
             // Connected ports get a stronger border
             border_color = Color32::from_rgb(255, 255, 200);
         }
-        
+
         // Draw port with enhanced visuals
         painter.circle_filled(pos, port_size_final, final_color);
         painter.circle_stroke(pos, port_size_final, Stroke::new(2.0, border_color));
-        
+
         // Add glow effect for hovered/connected ports
         if is_hovered || is_connected {
-            painter.circle_stroke(pos, port_size_final + 3.0, Stroke::new(1.0, Color32::from_rgba_unmultiplied(255, 255, 255, 50)));
+            painter.circle_stroke(
+                pos,
+                port_size_final + 3.0,
+                Stroke::new(1.0, Color32::from_rgba_unmultiplied(255, 255, 255, 50)),
+            );
         }
-        
+
         // Port label
         let label_pos = if is_output {
             pos - vec2(20.0, 0.0)
         } else {
             pos + vec2(20.0, 0.0)
         };
-        
+
         let label_color = if is_hovered {
             Color32::from_rgb(255, 255, 150)
         } else {
             Color32::WHITE
         };
-        
+
         painter.text(
             label_pos,
-            if is_output { Align2::RIGHT_CENTER } else { Align2::LEFT_CENTER },
+            if is_output {
+                Align2::RIGHT_CENTER
+            } else {
+                Align2::LEFT_CENTER
+            },
             &port.name,
             FontId::proportional(11.0),
-            label_color
+            label_color,
         );
     }
 
     fn is_port_connected(&self, node_graph: &NodeGraph, node_id: NodeId, port_id: PortId) -> bool {
-        self.connection_start.map_or(false, |(start_node, start_port, _)| {
-            start_node == node_id && start_port == port_id
-        }) || self.connection_start.is_none() && node_graph.connections.iter().any(|conn| {
-            (conn.from_node == node_id && conn.from_port == port_id) ||
-            (conn.to_node == node_id && conn.to_port == port_id)
-        })
+        self.connection_start
+            .map_or(false, |(start_node, start_port, _)| {
+                start_node == node_id && start_port == port_id
+            })
+            || self.connection_start.is_none()
+                && node_graph.connections.iter().any(|conn| {
+                    (conn.from_node == node_id && conn.from_port == port_id)
+                        || (conn.to_node == node_id && conn.to_port == port_id)
+                })
     }
 
     fn get_node_color(&self, kind: &NodeKind) -> Color32 {
         match kind {
             // Constants
-            NodeKind::ConstantFloat(_) | NodeKind::ConstantVec2(_) | NodeKind::ConstantVec3(_) | NodeKind::ConstantVec4(_) => Color32::from_rgb(60, 60, 120),
-            
+            NodeKind::ConstantFloat(_)
+            | NodeKind::ConstantVec2(_)
+            | NodeKind::ConstantVec3(_)
+            | NodeKind::ConstantVec4(_) => Color32::from_rgb(60, 60, 120),
+
             // Input/Time
             NodeKind::Time => Color32::from_rgb(120, 60, 60),
             NodeKind::UV => Color32::from_rgb(60, 120, 60),
             NodeKind::Param(_) => Color32::from_rgb(120, 120, 60),
             NodeKind::Resolution => Color32::from_rgb(100, 100, 60),
             NodeKind::Mouse => Color32::from_rgb(120, 80, 60),
-            
+
             // Math Operations
-            NodeKind::Add | NodeKind::Subtract | NodeKind::Multiply | NodeKind::Divide => Color32::from_rgb(120, 60, 120),
-            
+            NodeKind::Add | NodeKind::Subtract | NodeKind::Multiply | NodeKind::Divide => {
+                Color32::from_rgb(120, 60, 120)
+            }
+
             // Trigonometry
-            NodeKind::Sine | NodeKind::Cosine | NodeKind::Tangent => Color32::from_rgb(60, 120, 120),
-            
+            NodeKind::Sine | NodeKind::Cosine | NodeKind::Tangent => {
+                Color32::from_rgb(60, 120, 120)
+            }
+
             // Vector Operations
-            NodeKind::Length | NodeKind::Normalize | NodeKind::Distance | NodeKind::Dot | NodeKind::Cross | NodeKind::Reflect | NodeKind::Refract => Color32::from_rgb(80, 100, 140),
-            
+            NodeKind::Length
+            | NodeKind::Normalize
+            | NodeKind::Distance
+            | NodeKind::Dot
+            | NodeKind::Cross
+            | NodeKind::Reflect
+            | NodeKind::Refract => Color32::from_rgb(80, 100, 140),
+
             // Interpolation & Utility
-            NodeKind::Mix | NodeKind::Step | NodeKind::Smoothstep | NodeKind::Clamp => Color32::from_rgb(140, 100, 80),
-            NodeKind::Fract | NodeKind::Floor | NodeKind::Ceil | NodeKind::Abs | NodeKind::Min | NodeKind::Max | NodeKind::Pow | NodeKind::Sqrt | NodeKind::Sign => Color32::from_rgb(100, 80, 120),
-            
+            NodeKind::Mix | NodeKind::Step | NodeKind::Smoothstep | NodeKind::Clamp => {
+                Color32::from_rgb(140, 100, 80)
+            }
+            NodeKind::Fract
+            | NodeKind::Floor
+            | NodeKind::Ceil
+            | NodeKind::Abs
+            | NodeKind::Min
+            | NodeKind::Max
+            | NodeKind::Pow
+            | NodeKind::Sqrt
+            | NodeKind::Sign => Color32::from_rgb(100, 80, 120),
+
             // Color Operations
-            NodeKind::RGB | NodeKind::HSV | NodeKind::ColorMix | NodeKind::ColorAdjust => Color32::from_rgb(180, 120, 60),
-            
+            NodeKind::RGB | NodeKind::HSV | NodeKind::ColorMix | NodeKind::ColorAdjust => {
+                Color32::from_rgb(180, 120, 60)
+            }
+
             // Noise & Procedural
-            NodeKind::Noise2D | NodeKind::Noise3D | NodeKind::Voronoi => Color32::from_rgb(120, 140, 80),
-            
+            NodeKind::Noise2D | NodeKind::Noise3D | NodeKind::Voronoi => {
+                Color32::from_rgb(120, 140, 80)
+            }
+
             // Texture
-            NodeKind::TextureSample | NodeKind::TextureSampleLod | NodeKind::TextureSize => Color32::from_rgb(120, 80, 40),
-            
+            NodeKind::TextureSample | NodeKind::TextureSampleLod | NodeKind::TextureSize => {
+                Color32::from_rgb(120, 80, 40)
+            }
+
             // Output
             NodeKind::OutputColor => Color32::from_rgb(180, 60, 60),
         }
@@ -648,16 +731,23 @@ impl EnhancedVisualNodeEditor {
         self.save_state_for_undo(node_graph);
         for &node_id in &self.selected_nodes.clone() {
             node_graph.nodes.remove(&node_id);
-            node_graph.connections.retain(|conn| conn.from_node != node_id && conn.to_node != node_id);
+            node_graph
+                .connections
+                .retain(|conn| conn.from_node != node_id && conn.to_node != node_id);
         }
         self.selected_nodes.clear();
         self.selected_node = None;
     }
 
-    fn update_selection_from_box(&mut self, start_pos: Pos2, end_pos: Pos2, node_graph: &NodeGraph) {
+    fn update_selection_from_box(
+        &mut self,
+        start_pos: Pos2,
+        end_pos: Pos2,
+        node_graph: &NodeGraph,
+    ) {
         let rect = Rect::from_two_pos(start_pos, end_pos);
         self.selected_nodes.clear();
-        
+
         for (&node_id, node) in &node_graph.nodes {
             let node_screen_pos = pos2(node.pos.0, node.pos.1) + self.pan;
             let node_rect = Rect::from_min_size(node_screen_pos, vec2(180.0, 120.0));
@@ -669,8 +759,17 @@ impl EnhancedVisualNodeEditor {
 
     fn draw_selection_box(&self, ui: &mut Ui, start_pos: Pos2, current_pos: Pos2) {
         let rect = Rect::from_two_pos(start_pos, current_pos);
-        ui.painter().rect_stroke(rect, Rounding::ZERO, Stroke::new(1.0, Color32::from_rgb(100, 150, 255)), StrokeKind::Outside);
-        ui.painter().rect_filled(rect, CornerRadius::same(0u8), Color32::from_rgba_unmultiplied(100, 150, 255, 30));
+        ui.painter().rect_stroke(
+            rect,
+            Rounding::ZERO,
+            Stroke::new(1.0, Color32::from_rgb(100, 150, 255)),
+            StrokeKind::Outside,
+        );
+        ui.painter().rect_filled(
+            rect,
+            CornerRadius::same(0u8),
+            Color32::from_rgba_unmultiplied(100, 150, 255, 30),
+        );
     }
 
     fn handle_node_dragging(&mut self, ui: &mut Ui, node_graph: &mut NodeGraph) {
@@ -679,7 +778,7 @@ impl EnhancedVisualNodeEditor {
                 if let Some(node) = node_graph.nodes.get_mut(&dragging_id) {
                     let new_x = mouse_pos.x - self.drag_offset.x - self.pan.x;
                     let new_y = mouse_pos.y - self.drag_offset.y - self.pan.y;
-                    
+
                     if self.snap_to_grid {
                         let snapped_x = (new_x / self.grid_size).round() * self.grid_size;
                         let snapped_y = (new_y / self.grid_size).round() * self.grid_size;
@@ -698,7 +797,10 @@ impl EnhancedVisualNodeEditor {
                 if let Some(mouse_pos) = ui.input(|i| i.pointer.hover_pos()) {
                     for (to_id, to_node) in node_graph.nodes.iter() {
                         for (idx, input) in to_node.inputs.iter().enumerate() {
-                            let port_pos = pos2(to_node.pos.0 - 8.0, to_node.pos.1 + 40.0 + (idx as f32 * 25.0));
+                            let port_pos = pos2(
+                                to_node.pos.0 - 8.0,
+                                to_node.pos.1 + 40.0 + (idx as f32 * 25.0),
+                            );
                             if mouse_pos.distance(port_pos) < 10.0 {
                                 let _ = node_graph.connect(from_node, from_port, *to_id, input.id);
                                 return;
@@ -708,12 +810,15 @@ impl EnhancedVisualNodeEditor {
                 }
             }
         }
-        
+
         if ui.input(|i| i.pointer.primary_pressed()) {
             if let Some(mouse_pos) = ui.input(|i| i.pointer.hover_pos()) {
                 for (nid, node) in node_graph.nodes.iter() {
                     for (idx, output) in node.outputs.iter().enumerate() {
-                        let port_pos = pos2(node.pos.0 + 180.0 + 8.0, node.pos.1 + 40.0 + (idx as f32 * 25.0));
+                        let port_pos = pos2(
+                            node.pos.0 + 180.0 + 8.0,
+                            node.pos.1 + 40.0 + (idx as f32 * 25.0),
+                        );
                         if mouse_pos.distance(port_pos) < 10.0 {
                             self.connection_start = Some((*nid, output.id, true));
                             return;

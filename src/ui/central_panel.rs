@@ -1,10 +1,10 @@
-use bevy::prelude::*;
-use bevy_egui::egui;
+use super::state::{CentralView, EditorUiState, OutputsMode, PreviewScaleMode};
 use crate::audio_system::AudioAnalyzer;
 use crate::ndi_output::NdiOutput;
 use crate::spout_syphon_output::SpoutSyphonOutput;
 use crate::timeline::TimelineAnimation;
-use super::state::{EditorUiState, CentralView, PreviewScaleMode, OutputsMode};
+use bevy::prelude::*;
+use bevy_egui::egui;
 
 pub fn draw_editor_central_panel(
     ctx: &egui::Context,
@@ -42,15 +42,35 @@ pub fn draw_editor_central_panel(
                     ui.checkbox(&mut ui_state.quick_params_enabled, "Quick Params");
                     if ui_state.quick_params_enabled {
                         ui.label("A:");
-                        ui.add(egui::Slider::new(&mut ui_state.quick_param_a, 0.0..=1.0));
+                        if ui
+                            .add(egui::Slider::new(&mut ui_state.quick_param_a, 0.0..=1.0))
+                            .changed()
+                        {
+                            ui_state.apply_requested = true;
+                        }
                         ui.label("B:");
-                        ui.add(egui::Slider::new(&mut ui_state.quick_param_b, 0.0..=1.0));
+                        if ui
+                            .add(egui::Slider::new(&mut ui_state.quick_param_b, 0.0..=1.0))
+                            .changed()
+                        {
+                            ui_state.apply_requested = true;
+                        }
                     }
                 });
-                
+                ui.separator();
+
+                // Preview rendering logic
                 // Preview rendering logic (simplified for extraction, calls back to global_renderer)
                 // This logic is complex and might need more refactoring later
-                crate::editor_ui::draw_preview_area(ui, ctx, ui_state, audio_analyzer, spout_output, ndi_output, performance_metrics);
+                crate::editor_ui::draw_preview_area(
+                    ui,
+                    ctx,
+                    ui_state,
+                    audio_analyzer,
+                    spout_output,
+                    ndi_output,
+                    performance_metrics,
+                );
             }
             CentralView::NodeGraph => {
                 ui.heading("Node Graph");
@@ -64,7 +84,12 @@ pub fn draw_editor_central_panel(
                 ui.heading("3D Editor");
                 if let Some(tex_id) = ui_state.scene3d_texture_id {
                     let uv = egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0));
-                    ui.painter().image(tex_id, ui.available_rect_before_wrap(), uv, egui::Color32::WHITE);
+                    ui.painter().image(
+                        tex_id,
+                        ui.available_rect_before_wrap(),
+                        uv,
+                        egui::Color32::WHITE,
+                    );
                 } else {
                     ui.label("3D viewport not ready");
                 }

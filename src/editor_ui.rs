@@ -1,48 +1,61 @@
-use bevy::prelude::*;
-use bevy_egui::{egui, EguiContexts};
-use std::fs;
-use std::path::Path;
-use egui::text::LayoutJob;
-use std::sync::Arc;
 use crate::audio_system::AudioAnalyzer;
 use crate::compute_pass_integration::ComputePassManager;
 use crate::midi_system::MidiSystem;
-use crate::screenshot_video_export::ScreenshotVideoExporter;
 use crate::ndi_output::{NdiConfig, NdiOutput};
 use crate::osc_control::{OscConfig, OscControl};
+use crate::screenshot_video_export::ScreenshotVideoExporter;
 use crate::spout_syphon_output::{SpoutSyphonConfig, SpoutSyphonOutput};
+use bevy::prelude::*;
+use bevy_egui::{egui, EguiContexts};
+use egui::text::LayoutJob;
+use std::fs;
+use std::path::Path;
+use std::sync::Arc;
 
-pub use crate::ui::state::{
-    EditorUiState, CentralView, PipelineMode, ThemePreference, 
-    RightSidebarMode, SourceSet, OutputsMode, CodeEditorTab, 
-    PreviewScaleMode, DiagnosticSeverity, DiagnosticMessage, GlobalShaderRenderer,
-    UiStartupGate, ShaderParameter
-};
 use crate::performance_overlay::PerformanceMetrics;
+pub use crate::ui::state::{
+    CentralView, CodeEditorTab, DiagnosticMessage, DiagnosticSeverity, EditorUiState,
+    GlobalShaderRenderer, OutputsMode, PipelineMode, PreviewScaleMode, RightSidebarMode,
+    ShaderParameter, SourceSet, ThemePreference, UiStartupGate,
+};
 
 pub fn draw_performance_viewport_overlay(ui: &mut egui::Ui, metrics: &PerformanceMetrics) {
     let rect = ui.max_rect();
     let overlay_pos = egui::pos2(rect.right() - 10.0, rect.top() + 10.0);
-    
+
     ui.painter().text(
         overlay_pos,
         egui::Align2::RIGHT_TOP,
-        format!("{:.1} FPS\n{}x{}", metrics.fps, rect.width() as u32, rect.height() as u32),
+        format!(
+            "{:.1} FPS\n{}x{}",
+            metrics.fps,
+            rect.width() as u32,
+            rect.height() as u32
+        ),
         egui::FontId::proportional(14.0),
         egui::Color32::from_white_alpha(180),
     );
 }
 
 pub fn draw_status_bar(ctx: &egui::Context, ui_state: &mut EditorUiState) {
-    if !ui_state.show_status_bar { return; }
-    
+    if !ui_state.show_status_bar {
+        return;
+    }
+
     egui::TopBottomPanel::bottom("status_bar")
         .default_height(24.0)
         .show(ctx, |ui| {
             ui.horizontal(|ui| {
                 ui.small(format!("Status: {}", ui_state.status_message));
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.small(format!("WGPU: {}", if ui_state.wgpu_initialized { "OK" } else { "Init..." }));
+                    ui.small(format!(
+                        "WGPU: {}",
+                        if ui_state.wgpu_initialized {
+                            "OK"
+                        } else {
+                            "Init..."
+                        }
+                    ));
                     if !ui_state.compilation_error.is_empty() {
                         ui.colored_label(egui::Color32::RED, "🔥 Shader Error");
                     }
@@ -61,7 +74,7 @@ pub fn draw_preview_area(
     performance_metrics: &PerformanceMetrics,
 ) {
     let size = ui.available_size();
-    
+
     // Call our compilation and rendering helper
     let code = ui_state.draft_code.clone();
     match compile_and_render_shader(
@@ -70,16 +83,16 @@ pub fn draw_preview_area(
         ctx,
         ui_state, // Pass full ui_state for caching
         Some(audio_analyzer),
-        None // video_exporter
+        None, // video_exporter
     ) {
         Ok(texture) => {
             ui.image(&texture);
-            
+
             // Draw performance overlay on top of preview
             if ui_state.show_performance_overlay {
                 draw_performance_viewport_overlay(ui, performance_metrics);
             }
-            
+
             // Handle output streaming
             if ui_state.is_recording_video {
                 // Placeholder for streaming
@@ -96,17 +109,18 @@ pub fn generate_shader_with_wgsl_smith(prompt: &str) -> String {
     format!("// Generated from prompt: {}\n@fragment\nfn fs_main() -> @location(0) vec4<f32> {{\n    return vec4<f32>(1.0, 0.0, 1.0, 1.0);\n}}", prompt)
 }
 
-
-
 /// Connect audio analysis to shader parameters
-pub fn connect_audio_to_parameters(ui_state: &mut EditorUiState, audio_data: &crate::audio_system::AudioData) {
+pub fn connect_audio_to_parameters(
+    ui_state: &mut EditorUiState,
+    audio_data: &crate::audio_system::AudioData,
+) {
     // Map audio analysis to shader parameters
     let volume_param = audio_data.volume * 2.0; // Amplify for better effect
     let bass_param = audio_data.bass_level * 3.0;
     let mid_param = audio_data.mid_level * 2.0;
     let treble_param = audio_data.treble_level * 2.0;
     let beat_intensity = if audio_data.beat_detected { 1.0 } else { 0.0 };
-    
+
     // Update parameter values with audio-reactive data
     ui_state.set_parameter_value("audio_volume", volume_param.min(1.0));
     ui_state.set_parameter_value("audio_bass", bass_param.min(1.0));
@@ -116,9 +130,6 @@ pub fn connect_audio_to_parameters(ui_state: &mut EditorUiState, audio_data: &cr
     ui_state.set_parameter_value("audio_reactive", volume_param.min(1.0));
 }
 
-
-
-/// CRITICAL: Actually compile and render WGSL shader using existing WGPU infrastructure
 /// CRITICAL: Actually compile and render WGSL shader using existing WGPU infrastructure
 fn compile_and_render_shader(
     wgsl_code: &str,
@@ -126,14 +137,26 @@ fn compile_and_render_shader(
     egui_ctx: &egui::Context,
     ui_state: &mut EditorUiState,
     audio_analyzer: Option<&crate::audio_system::AudioAnalyzer>,
-    _video_exporter: Option<&ScreenshotVideoExporter>
+    _video_exporter: Option<&ScreenshotVideoExporter>,
 ) -> Result<egui::TextureHandle, String> {
-    if wgsl_code.trim().is_empty() {
-        return Err("Empty shader code".to_string());
+    // CRITICAL: Don't early return - keep egui responsive by reusing cached texture
+    if wgsl_code.trim().is_empty() || size.x <= 0.0 || size.y <= 0.0 {
+        if let Some(ref texture) = ui_state.preview_texture_handle {
+            return Ok(texture.clone());
+        }
+        return Err("Empty shader code or zero preview size".to_string());
     }
-    
-    if size.x <= 0.0 || size.y <= 0.0 {
-        return Err("Preview size is zero".to_string());
+
+    // CRITICAL: Cache reuse based on shader code + size + parameter changes
+    let shader_hash = hash_shader_code(wgsl_code);
+    let param_hash = hash_parameters(&ui_state.parameter_values);
+    let cache_key = (shader_hash, size.x as u32, size.y as u32, param_hash);
+
+    let needs_refresh = ui_state.apply_requested || ui_state.cache_key != cache_key;
+    if !needs_refresh {
+        if let Some(ref texture) = ui_state.preview_texture_handle {
+            return Ok(texture.clone());
+        }
     }
 
     // Attempt to lock renderer without unwrapping for safety
@@ -144,7 +167,7 @@ fn compile_and_render_shader(
 
     if let Some(ref mut renderer) = *renderer_guard {
         let audio_data = audio_analyzer.map(|analyzer| analyzer.get_audio_data());
-        
+
         let params = crate::shader_renderer::RenderParameters {
             width: size.x as u32,
             height: size.y as u32,
@@ -152,10 +175,11 @@ fn compile_and_render_shader(
             frame_rate: 60.0,
             audio_data,
         };
-        
+
         // Robust parameter mapping using naga reflection
         let mut param_array = vec![0.0f32; 64];
-        if let Ok(analyzer) = crate::wgsl_reflect_integration::analyze_shader_reflection(wgsl_code) {
+        if let Ok(analyzer) = crate::wgsl_reflect_integration::analyze_shader_reflection(wgsl_code)
+        {
             for uniform in analyzer.uniforms {
                 if uniform.group == 0 && uniform.binding == 1 {
                     if let Some(&value) = ui_state.parameter_values.get(&uniform.name) {
@@ -174,7 +198,7 @@ fn compile_and_render_shader(
                 param_array[index] = value;
             }
         }
-        
+
         match renderer.render_frame(
             wgsl_code,
             &params,
@@ -182,32 +206,27 @@ fn compile_and_render_shader(
             None::<crate::audio_system::AudioData>,
         ) {
             Ok(pixel_data) => {
-                // PERFORMANCE OPTIMIZATION: Only upload if pixels changed or no handle exists
-                let pixel_hash = pixel_data.len() as u64; // Simple heuristic
-                let needs_upload = ui_state.preview_texture_handle.is_none() || ui_state.last_render_id != pixel_hash;
+                // CRITICAL: Deterministic upload after apply_requested
+                let width = params.width as usize;
+                let height = params.height as usize;
 
-                if needs_upload {
-                    let width = params.width as usize;
-                    let height = params.height as usize;
-                    
-                    let texture = egui_ctx.load_texture(
-                        "shader_preview",
-                        egui::ColorImage::from_rgba_unmultiplied(
-                            [width, height],
-                            &pixel_data,
-                        ),
-                        egui::TextureOptions::default()
-                    );
-                    ui_state.preview_texture_handle = Some(texture);
-                    ui_state.last_render_id = pixel_hash;
-                }
-                
+                let texture = egui_ctx.load_texture(
+                    "shader_preview",
+                    egui::ColorImage::from_rgba_unmultiplied([width, height], &pixel_data),
+                    egui::TextureOptions::default(),
+                );
+                ui_state.preview_texture_handle = Some(texture);
+                ui_state.cache_key = cache_key;
+                ui_state.apply_requested = false;
+
                 return Ok(ui_state.preview_texture_handle.as_ref().unwrap().clone());
             }
             Err(e) => {
-                ui_state.compilation_error = e.clone();
-                sync_error_to_diagnostics(ui_state, &e);
-                return Err(format!("Render error: {}", e));
+                let error_msg = e.to_string();
+                ui_state.compilation_error = error_msg.clone();
+                drop(renderer_guard);
+                sync_error_to_diagnostics(ui_state, &error_msg);
+                return Err(format!("Render error: {}", error_msg));
             }
         }
     } else {
@@ -215,10 +234,29 @@ fn compile_and_render_shader(
     }
 }
 
+fn hash_shader_code(code: &str) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    code.hash(&mut hasher);
+    hasher.finish()
+}
+
+fn hash_parameters(params: &std::collections::HashMap<String, f32>) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    for (k, v) in params.iter() {
+        k.hash(&mut hasher);
+        v.to_bits().hash(&mut hasher);
+    }
+    hasher.finish()
+}
+
 /// Parse WGPU error string and add to diagnostics
 fn sync_error_to_diagnostics(ui_state: &mut EditorUiState, error: &str) {
     ui_state.diagnostics_messages.clear();
-    
+
     // Look for line numbers in the error string (e.g., "line 42")
     let re = regex::Regex::new(r"line (\d+)").unwrap();
     if let Some(caps) = re.captures(error) {
@@ -232,7 +270,7 @@ fn sync_error_to_diagnostics(ui_state: &mut EditorUiState, error: &str) {
             return;
         }
     }
-    
+
     // Fallback if no line number found
     ui_state.diagnostics_messages.push(DiagnosticMessage {
         message: error.to_string(),
@@ -244,13 +282,13 @@ fn sync_error_to_diagnostics(ui_state: &mut EditorUiState, error: &str) {
 
 /// Render shader to texture for preview
 fn render_shader_to_texture(
-    wgsl_code: &str, 
+    wgsl_code: &str,
     size: egui::Vec2,
     renderer: &mut crate::shader_renderer::ShaderRenderer,
-    egui_ctx: &egui::Context
+    egui_ctx: &egui::Context,
 ) -> Result<egui::TextureHandle, String> {
     use crate::shader_renderer::RenderParameters;
-    
+
     let params = RenderParameters {
         width: size.x as u32,
         height: size.y as u32,
@@ -258,30 +296,30 @@ fn render_shader_to_texture(
         frame_rate: 60.0,
         audio_data: None,
     };
-    
+
     match renderer.render_frame(wgsl_code, &params, None, None) {
         Ok(pixel_data) => {
             let width = (params.width as usize).max(1);
             let height = (params.height as usize).max(1);
-            
+
             let texture = egui_ctx.load_texture(
                 "shader_preview",
-                egui::ColorImage::from_rgba_unmultiplied(
-                    [width, height],
-                    &pixel_data,
-                ),
-                egui::TextureOptions::default()
+                egui::ColorImage::from_rgba_unmultiplied([width, height], &pixel_data),
+                egui::TextureOptions::default(),
             );
             Ok(texture)
         }
-        Err(e) => Err(format!("Shader rendering failed: {}", e))
+        Err(e) => Err(format!("Shader rendering failed: {}", e)),
     }
 }
 
-pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState, auditor: &mut crate::simple_ui_auditor::SimpleUiAuditor) {
+pub fn draw_editor_menu(
+    ctx: &egui::Context,
+    ui_state: &mut EditorUiState,
+    auditor: &mut crate::simple_ui_auditor::SimpleUiAuditor,
+) {
     egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-        ui.horizontal(|ui| {
-            egui::menu::bar(ui, |ui| {
+        egui::MenuBar::new().ui(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("New Shader").clicked() {
                         ui_state.draft_code = String::from("@vertex\nfn vs_main(@builtin(vertex_index) i: u32) -> @builtin(position) vec4<f32> {\n  var positions = array<vec2<f32>, 3>(\n    vec2<f32>(-1.0, -1.0),\n    vec2<f32>( 3.0, -1.0),\n    vec2<f32>(-1.0,  3.0),\n  );\n  return vec4<f32>(positions[i], 0.0, 1.0);\n}\n\n@fragment\nfn fs_main() -> @location(0) vec4<f32> {\n    return vec4<f32>(0.2, 0.2, 0.2, 1.0);\n}");
@@ -299,7 +337,7 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState, audit
                         ui.close_menu();
                     }
                 });
-                
+
                 ui.menu_button("View", |ui| {
                     if ui.button("Shader Browser").clicked() { ui_state.show_shader_browser = !ui_state.show_shader_browser; ui.close_menu(); }
                     if ui.button("Parameters").clicked() { ui_state.show_parameter_panel = !ui_state.show_parameter_panel; ui.close_menu(); }
@@ -308,7 +346,7 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState, audit
                     if ui.button("Diagnostics").clicked() { ui_state.show_diagnostics_panel = !ui_state.show_diagnostics_panel; ui.close_menu(); }
                     if ui.button("Node Graph").clicked() { ui_state.central_view = CentralView::NodeGraph; ui.close_menu(); }
                 });
-                
+
                 ui.menu_button("Conversion", |ui| {
                     if ui.button("Import ISF File...").clicked() {
                         import_isf_into_editor(ui_state);
@@ -343,19 +381,10 @@ pub fn draw_editor_menu(ctx: &egui::Context, ui_state: &mut EditorUiState, audit
                         export_current_wgsl_to_ffgl(ui_state);
                         ui.close_menu();
                     }
-                });
-
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.toggle_value(&mut ui_state.dark_mode, "🌙");
-                    if ui.button("Rescan Shaders").clicked() {
-                        populate_shader_list_simple(ui_state);
-                    }
-                });
+});
             });
         });
-    });
 }
-
 fn populate_shader_list_simple(ui_state: &mut EditorUiState) {
     // A simplified rescan helper for the UI button
     rescan_shaders_all(ui_state);
@@ -374,7 +403,9 @@ pub fn draw_editor_side_panels(
     osc_config: &mut OscConfig,
     osc_control: &mut OscControl,
     scene_editor_state: Option<&mut crate::scene_editor_3d::SceneEditor3DState>,
-    manipulable_query: Option<&Query<(Entity, &Name), With<crate::scene_editor_3d::EditorManipulable>>>,
+    manipulable_query: Option<
+        &Query<(Entity, &Name), With<crate::scene_editor_3d::EditorManipulable>>,
+    >,
     gesture_control: &mut crate::gesture_control::GestureControlSystem,
     video_exporter: Option<&ScreenshotVideoExporter>,
 ) {
@@ -397,19 +428,18 @@ pub fn draw_editor_side_panels(
     );
 }
 
-
 pub fn populate_shader_list(mut ui_state: ResMut<EditorUiState>) {
     if ui_state.is_scanning_shaders {
         return;
     }
-    
+
     ui_state.is_scanning_shaders = true;
     ui_state.shader_scan_status = "Scanning for shaders...".to_string();
-    
+
     // Create a simple channel for communicating the results back
-    // In a real Bevy app, we might use a Task directly, but for now, 
+    // In a real Bevy app, we might use a Task directly, but for now,
     // we'll just use a thread and a mechanism to poll for completion.
-    // However, since we can't easily capture 'ui_state' across threads, 
+    // However, since we can't easily capture 'ui_state' across threads,
     // we'll just mark it as "to be scanned" and let a system handle it.
     println!("Shader scan initiated in background...");
 }
@@ -419,15 +449,16 @@ pub fn background_shader_scan_system(mut ui_state: ResMut<EditorUiState>) {
         return;
     }
 
-    use std::sync::mpsc;
     use once_cell::sync::Lazy;
+    use std::sync::mpsc;
     use std::sync::Mutex;
 
     type ScanResult = (Vec<String>, Vec<String>);
-    static SCAN_CHANNEL: Lazy<(mpsc::Sender<ScanResult>, Mutex<mpsc::Receiver<ScanResult>>)> = Lazy::new(|| {
-        let (tx, rx) = mpsc::channel();
-        (tx, Mutex::new(rx))
-    });
+    static SCAN_CHANNEL: Lazy<(mpsc::Sender<ScanResult>, Mutex<mpsc::Receiver<ScanResult>>)> =
+        Lazy::new(|| {
+            let (tx, rx) = mpsc::channel();
+            (tx, Mutex::new(rx))
+        });
 
     // Check if we have results
     if let Ok(receiver) = SCAN_CHANNEL.1.lock() {
@@ -435,8 +466,12 @@ pub fn background_shader_scan_system(mut ui_state: ResMut<EditorUiState>) {
             ui_state.available_shaders_all = results.0;
             ui_state.available_shaders_compatible = results.1;
             ui_state.is_scanning_shaders = false;
-            ui_state.shader_scan_status = format!("Found {} shaders", ui_state.available_shaders_all.len());
-            println!("Background shader scan complete: {} total", ui_state.available_shaders_all.len());
+            ui_state.shader_scan_status =
+                format!("Found {} shaders", ui_state.available_shaders_all.len());
+            println!(
+                "Background shader scan complete: {} total",
+                ui_state.available_shaders_all.len()
+            );
             return;
         }
     }
@@ -448,7 +483,7 @@ pub fn background_shader_scan_system(mut ui_state: ResMut<EditorUiState>) {
         let tx = SCAN_CHANNEL.0.clone();
         std::thread::spawn(move || {
             let mut found_all = Vec::new();
-            
+
             // Search in assets and shaders (assuming standard project structure)
             let paths = [Path::new("./assets"), Path::new("./shaders")];
             for path in paths.iter() {
@@ -457,33 +492,29 @@ pub fn background_shader_scan_system(mut ui_state: ResMut<EditorUiState>) {
                     collect_isf_files(path, &mut found_all);
                 }
             }
-            
+
             // Also search common ISF locations
-            let isf_dirs = [
-                "./assets/isf",
-                "./assets/ISF",
-                "./isf-shaders",
-            ];
-            
+            let isf_dirs = ["./assets/isf", "./assets/ISF", "./isf-shaders"];
+
             for dir_str in isf_dirs.iter() {
                 let p = Path::new(dir_str);
                 if p.exists() {
                     collect_isf_files(p, &mut found_all);
                 }
             }
-            
+
             found_all.sort();
             found_all.dedup();
-            
+
             let mut compatible = Vec::new();
             for p_str in found_all.iter() {
                 if let Ok(src) = std::fs::read_to_string(p_str) {
-                    if is_wgsl_shader_compatible(&src) { 
-                        compatible.push(p_str.clone()); 
+                    if is_wgsl_shader_compatible(&src) {
+                        compatible.push(p_str.clone());
                     }
                 }
             }
-            
+
             let _ = tx.send((found_all, compatible));
         });
     }
@@ -515,7 +546,10 @@ pub fn collect_isf_files(dir: &Path, out: &mut Vec<String>) {
                 collect_isf_files(&p, out);
             } else if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
                 // Collect both .fs (ISF fragment shaders) and .vs (ISF vertex shaders)
-                if ext.eq_ignore_ascii_case("fs") || ext.eq_ignore_ascii_case("vs") || ext.eq_ignore_ascii_case("isf") {
+                if ext.eq_ignore_ascii_case("fs")
+                    || ext.eq_ignore_ascii_case("vs")
+                    || ext.eq_ignore_ascii_case("isf")
+                {
                     if let Some(s) = p.to_str() {
                         out.push(s.to_string());
                         println!("Found ISF shader: {}", s);
@@ -538,152 +572,210 @@ pub fn editor_code_panel(mut egui_ctx: EguiContexts, mut ui_state: ResMut<Editor
 }
 
 pub fn draw_editor_shader_browser_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
-    egui::SidePanel::left("shader_browser").resizable(true).show(ctx, |ui| {
-        ui.heading("Shader Browser");
-        
-        if ui_state.is_scanning_shaders {
+    egui::SidePanel::left("shader_browser")
+        .resizable(true)
+        .show(ctx, |ui| {
+            ui.heading("Shader Browser");
+
+            if ui_state.is_scanning_shaders {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label(&ui_state.shader_scan_status);
+                });
+                ui.separator();
+            }
+
             ui.horizontal(|ui| {
-                ui.spinner();
-                ui.label(&ui_state.shader_scan_status);
+                ui.checkbox(&mut ui_state.show_all_shaders, "Show all shaders");
+                if !ui_state.show_all_shaders {
+                    ui.label("Showing compatible only (has @fragment or @compute)");
+                }
+            });
+            ui.horizontal(|ui| {
+                for (src, label) in [
+                    (SourceSet::All, "All Sources"),
+                    (SourceSet::Assets, "Assets"),
+                    (SourceSet::ISF, "ISF"),
+                ] {
+                    let sel = ui_state.selected_source == src;
+                    if ui.selectable_label(sel, label).clicked() {
+                        ui_state.selected_source = src;
+                        match src {
+                            SourceSet::All => rescan_shaders_all(ui_state),
+                            SourceSet::Assets => rescan_shaders_assets_only(ui_state),
+                            SourceSet::ISF => rescan_shaders_isf_only(ui_state),
+                        }
+                    }
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label("Search:");
+                ui.text_edit_singleline(&mut ui_state.search_query);
+            });
+            ui.horizontal(|ui| {
+                if ui.button("Rescan (All)").clicked() {
+                    rescan_shaders_all(ui_state);
+                }
+                if ui.button("Rescan (ISF only)").clicked() {
+                    rescan_shaders_isf_only(ui_state);
+                }
+            });
+            ui.horizontal(|ui| {
+                let mut current_cat = ui_state
+                    .selected_category
+                    .clone()
+                    .unwrap_or_else(|| "All".to_string());
+                for cat in ["All", "ISF", "WGSL", "GLSL", "HLSL"] {
+                    let selected = current_cat == cat;
+                    if ui.selectable_label(selected, cat).clicked() {
+                        current_cat = cat.to_string();
+                    }
+                }
+                ui_state.selected_category = Some(current_cat);
             });
             ui.separator();
-        }
-        
-        ui.horizontal(|ui| {
-            ui.checkbox(&mut ui_state.show_all_shaders, "Show all shaders");
-            if !ui_state.show_all_shaders {
-                ui.label("Showing compatible only (has @fragment or @compute)");
-            }
-        });
-        ui.horizontal(|ui| {
-            for (src, label) in [
-                (SourceSet::All, "All Sources"),
-                (SourceSet::Assets, "Assets"),
-                (SourceSet::ISF, "ISF"),
-            ] {
-                let sel = ui_state.selected_source == src;
-                if ui.selectable_label(sel, label).clicked() {
-                    ui_state.selected_source = src;
-                    match src {
-                        SourceSet::All => rescan_shaders_all(ui_state),
-                        SourceSet::Assets => rescan_shaders_assets_only(ui_state),
-                        SourceSet::ISF => rescan_shaders_isf_only(ui_state),
+            egui::ScrollArea::vertical()
+                .auto_shrink([false; 2])
+                .show(ui, |ui| {
+                    let mut names = if ui_state.show_all_shaders {
+                        ui_state.available_shaders_all.clone()
+                    } else {
+                        ui_state.available_shaders_compatible.clone()
+                    };
+                    if let Some(cat) = &ui_state.selected_category {
+                        names = match cat.as_str() {
+                            "ISF" => names
+                                .into_iter()
+                                .filter(|n: &String| n.to_lowercase().ends_with(".fs"))
+                                .collect(),
+                            "WGSL" => names
+                                .into_iter()
+                                .filter(|n: &String| n.to_lowercase().ends_with(".wgsl"))
+                                .collect(),
+                            "GLSL" => names
+                                .into_iter()
+                                .filter(|n: &String| n.to_lowercase().ends_with(".glsl"))
+                                .collect(),
+                            "HLSL" => names
+                                .into_iter()
+                                .filter(|n: &String| n.to_lowercase().ends_with(".hlsl"))
+                                .collect(),
+                            _ => names,
+                        };
                     }
-                }
-            }
-        });
-        ui.horizontal(|ui| {
-            ui.label("Search:");
-            ui.text_edit_singleline(&mut ui_state.search_query);
-        });
-        ui.horizontal(|ui| {
-            if ui.button("Rescan (All)").clicked() {
-                rescan_shaders_all(ui_state);
-            }
-            if ui.button("Rescan (ISF only)").clicked() {
-                rescan_shaders_isf_only(ui_state);
-            }
-        });
-        ui.horizontal(|ui| {
-            let mut current_cat = ui_state.selected_category.clone().unwrap_or_else(|| "All".to_string());
-            for cat in ["All", "ISF", "WGSL", "GLSL", "HLSL"] {
-                let selected = current_cat == cat;
-                if ui.selectable_label(selected, cat).clicked() {
-                    current_cat = cat.to_string();
-                }
-            }
-            ui_state.selected_category = Some(current_cat);
-        });
-        ui.separator();
-        egui::ScrollArea::vertical().auto_shrink([false; 2]).show(ui, |ui| {
-            let mut names = if ui_state.show_all_shaders {
-                ui_state.available_shaders_all.clone()
-            } else {
-                ui_state.available_shaders_compatible.clone()
-            };
-            if let Some(cat) = &ui_state.selected_category {
-                names = match cat.as_str() {
-                    "ISF" => names.into_iter().filter(|n: &String| n.to_lowercase().ends_with(".fs")).collect(),
-                    "WGSL" => names.into_iter().filter(|n: &String| n.to_lowercase().ends_with(".wgsl")).collect(),
-                    "GLSL" => names.into_iter().filter(|n: &String| n.to_lowercase().ends_with(".glsl")).collect(),
-                    "HLSL" => names.into_iter().filter(|n: &String| n.to_lowercase().ends_with(".hlsl")).collect(),
-                    _ => names,
-                };
-            }
-            for name in names.iter() {
-                if !ui_state.search_query.is_empty() && !name.to_lowercase().contains(&ui_state.search_query.to_lowercase()) {
-                    continue;
-                }
-                let selected = ui.selectable_label(ui_state.selected_shader.as_ref().map(|s| s == name).unwrap_or(false), name);
-                if selected.clicked() {
-                    ui_state.selected_shader = Some(name.clone());
-                    if let Ok(content) = std::fs::read_to_string(name) {
-                        let name_lower = name.to_lowercase();
-                        if name_lower.ends_with(".fs") {
-                            ui_state.show_status("Transpiling ISF...", 1.0);
-                            match crate::isf_loader::IsfShader::parse(name, &content) {
-                                Ok(isf_shader) => {
-                                    let mut converter = super::isf_converter::IsfConverter::new();
-                                    match converter.convert_to_wgsl(&isf_shader) {
-                                        Ok(wgsl_code) => {
-                                            ui_state.draft_code = wgsl_code;
-                                            ui_state.show_status("ISF loaded and transpiled", 2.0);
-                                        }
-                                        Err(e) => {
-                                            ui_state.draft_code = content;
-                                            ui_state.show_status(format!("ISF conversion failed: {}", e), 5.0);
-                                        }
-                                    }
-                                }
-                                Err(e) => {
-                                    ui_state.draft_code = content;
-                                    ui_state.show_status(format!("ISF parse failed: {}", e), 5.0);
-                                }
-                            }
-                        } else if name_lower.ends_with(".glsl") {
-                            ui_state.show_status("Transpiling GLSL...", 1.0);
-                            match super::converter::GLSLConverter::new() {
-                                Ok(mut converter) => {
-                                    match converter.convert(&content, name) {
-                                        Ok(wgsl) => {
-                                            ui_state.draft_code = wgsl;
-                                            ui_state.show_status("GLSL loaded and transpiled", 2.0);
-                                        }
-                                        Err(e) => {
-                                            ui_state.draft_code = content;
-                                            ui_state.show_status(format!("GLSL conversion failed: {}", e), 5.0);
-                                        }
-                                    }
-                                }
-                                Err(e) => ui_state.show_status(format!("GLSL converter error: {}", e), 5.0),
-                            }
-                        } else if name_lower.ends_with(".hlsl") {
-                            ui_state.show_status("Transpiling HLSL...", 1.0);
-                            match super::converter::HLSLConverter::new() {
-                                Ok(mut converter) => {
-                                    match converter.convert(&content, name) {
-                                        Ok(wgsl) => {
-                                            ui_state.draft_code = wgsl;
-                                            ui_state.show_status("HLSL loaded and transpiled", 2.0);
-                                        }
-                                        Err(e) => {
-                                            ui_state.draft_code = content;
-                                            ui_state.show_status(format!("HLSL conversion failed: {}", e), 5.0);
-                                        }
-                                    }
-                                }
-                                Err(e) => ui_state.show_status(format!("HLSL converter error: {}", e), 5.0),
-                            }
-                        } else {
-                            ui_state.draft_code = content;
-                            ui_state.show_status("Shader loaded", 1.0);
+                    for name in names.iter() {
+                        if !ui_state.search_query.is_empty()
+                            && !name
+                                .to_lowercase()
+                                .contains(&ui_state.search_query.to_lowercase())
+                        {
+                            continue;
                         }
-                        ui_state.apply_requested = true;
+                        let selected = ui.selectable_label(
+                            ui_state
+                                .selected_shader
+                                .as_ref()
+                                .map(|s| s == name)
+                                .unwrap_or(false),
+                            name,
+                        );
+                        if selected.clicked() {
+                            ui_state.selected_shader = Some(name.clone());
+                            if let Ok(content) = std::fs::read_to_string(name) {
+                                let name_lower = name.to_lowercase();
+                                if name_lower.ends_with(".fs") {
+                                    ui_state.show_status("Transpiling ISF...", 1.0);
+                                    match crate::isf_loader::IsfShader::parse(name, &content) {
+                                        Ok(isf_shader) => {
+                                            let mut converter =
+                                                super::isf_converter::IsfConverter::new();
+                                            match converter.convert_to_wgsl(&isf_shader) {
+                                                Ok(wgsl_code) => {
+                                                    ui_state.draft_code = wgsl_code;
+                                                    ui_state.show_status(
+                                                        "ISF loaded and transpiled",
+                                                        2.0,
+                                                    );
+                                                }
+                                                Err(e) => {
+                                                    ui_state.draft_code = content;
+                                                    ui_state.show_status(
+                                                        format!("ISF conversion failed: {}", e),
+                                                        5.0,
+                                                    );
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            ui_state.draft_code = content;
+                                            ui_state.show_status(
+                                                format!("ISF parse failed: {}", e),
+                                                5.0,
+                                            );
+                                        }
+                                    }
+                                } else if name_lower.ends_with(".glsl") {
+                                    ui_state.show_status("Transpiling GLSL...", 1.0);
+                                    match super::converter::GLSLConverter::new() {
+                                        Ok(mut converter) => {
+                                            match converter.convert(&content, name) {
+                                                Ok(wgsl) => {
+                                                    ui_state.draft_code = wgsl;
+                                                    ui_state.show_status(
+                                                        "GLSL loaded and transpiled",
+                                                        2.0,
+                                                    );
+                                                }
+                                                Err(e) => {
+                                                    ui_state.draft_code = content;
+                                                    ui_state.show_status(
+                                                        format!("GLSL conversion failed: {}", e),
+                                                        5.0,
+                                                    );
+                                                }
+                                            }
+                                        }
+                                        Err(e) => ui_state.show_status(
+                                            format!("GLSL converter error: {}", e),
+                                            5.0,
+                                        ),
+                                    }
+                                } else if name_lower.ends_with(".hlsl") {
+                                    ui_state.show_status("Transpiling HLSL...", 1.0);
+                                    match super::converter::HLSLConverter::new() {
+                                        Ok(mut converter) => {
+                                            match converter.convert(&content, name) {
+                                                Ok(wgsl) => {
+                                                    ui_state.draft_code = wgsl;
+                                                    ui_state.show_status(
+                                                        "HLSL loaded and transpiled",
+                                                        2.0,
+                                                    );
+                                                }
+                                                Err(e) => {
+                                                    ui_state.draft_code = content;
+                                                    ui_state.show_status(
+                                                        format!("HLSL conversion failed: {}", e),
+                                                        5.0,
+                                                    );
+                                                }
+                                            }
+                                        }
+                                        Err(e) => ui_state.show_status(
+                                            format!("HLSL converter error: {}", e),
+                                            5.0,
+                                        ),
+                                    }
+                                } else {
+                                    ui_state.draft_code = content;
+                                    ui_state.show_status("Shader loaded", 1.0);
+                                }
+                                ui_state.apply_requested = true;
+                            }
+                        }
                     }
-                }
-            }
+                });
         });
-    });
 }
 
 fn rescan_shaders_all(ui_state: &mut EditorUiState) {
@@ -797,41 +889,49 @@ fn rescan_shaders_assets_only(ui_state: &mut EditorUiState) {
 }
 
 pub fn draw_editor_parameter_panel(ctx: &egui::Context, ui_state: &mut EditorUiState) {
-    egui::SidePanel::right("parameters").resizable(true).show(ctx, |ui| {
-        ui.heading("Parameters");
-        ui.label("Interactive shader parameters");
-        ui.separator();
-        if !ui_state.draft_code.is_empty() {
-            let params = parse_shader_parameters(&ui_state.draft_code);
-            if params.is_empty() {
-                ui.label("No parameters found in shader");
-            } else {
-                ui.label(format!("Found {} parameters:", params.len()));
-                ui.separator();
-                for param in params.iter() {
-                    ui.horizontal(|ui| {
-                        ui.label(&param.name);
-                        if let (Some(min), Some(max)) = (param.min_value, param.max_value) {
-                            let mut current_val = param.default_value.unwrap_or((min + max) / 2.0);
-                            if ui.add(egui::Slider::new(&mut current_val, min..=max)).changed() {
-                                ui_state.set_parameter_value(&param.name, current_val);
-                            }
-                        } else {
-                            let mut current_val = param.default_value.unwrap_or(0.5);
-                            if ui.add(egui::Slider::new(&mut current_val, 0.0..=1.0)).changed() {
-                                ui_state.set_parameter_value(&param.name, current_val);
-                            }
-                        }
-                    });
+    egui::SidePanel::right("parameters")
+        .resizable(true)
+        .show(ctx, |ui| {
+            ui.heading("Parameters");
+            ui.label("Interactive shader parameters");
+            ui.separator();
+            if !ui_state.draft_code.is_empty() {
+                let params = parse_shader_parameters(&ui_state.draft_code);
+                if params.is_empty() {
+                    ui.label("No parameters found in shader");
+                } else {
+                    ui.label(format!("Found {} parameters:", params.len()));
                     ui.separator();
+                    for param in params.iter() {
+                        ui.horizontal(|ui| {
+                            ui.label(&param.name);
+                            if let (Some(min), Some(max)) = (param.min_value, param.max_value) {
+                                let mut current_val =
+                                    param.default_value.unwrap_or((min + max) / 2.0);
+                                if ui
+                                    .add(egui::Slider::new(&mut current_val, min..=max))
+                                    .changed()
+                                {
+                                    ui_state.set_parameter_value(&param.name, current_val);
+                                }
+                            } else {
+                                let mut current_val = param.default_value.unwrap_or(0.5);
+                                if ui
+                                    .add(egui::Slider::new(&mut current_val, 0.0..=1.0))
+                                    .changed()
+                                {
+                                    ui_state.set_parameter_value(&param.name, current_val);
+                                }
+                            }
+                        });
+                        ui.separator();
+                    }
                 }
+            } else {
+                ui.label("Load a shader to see parameters");
             }
-        } else {
-            ui.label("Load a shader to see parameters");
-        }
-    });
+        });
 }
-
 
 // 3D Scene Editor panel integrated into right sidebar
 pub fn draw_3d_scene_panel(
@@ -841,7 +941,7 @@ pub fn draw_3d_scene_panel(
 ) {
     ui.heading("3D Scene Controls");
     ui.separator();
-    
+
     // Manipulation mode buttons
     ui.horizontal(|ui| {
         ui.label("Mode:");
@@ -850,14 +950,20 @@ pub fn draw_3d_scene_panel(
             crate::scene_editor_3d::ManipulationMode::Rotate,
             crate::scene_editor_3d::ManipulationMode::Scale,
         ] {
-            if ui.selectable_label(editor_state.manipulation_mode == mode, format!("{:?}", mode)).clicked() {
+            if ui
+                .selectable_label(
+                    editor_state.manipulation_mode == mode,
+                    format!("{:?}", mode),
+                )
+                .clicked()
+            {
                 editor_state.manipulation_mode = mode;
             }
         }
     });
-    
+
     ui.separator();
-    
+
     // Primitive creation
     ui.horizontal(|ui| {
         ui.label("Create:");
@@ -870,16 +976,22 @@ pub fn draw_3d_scene_panel(
                     crate::scene_editor_3d::PrimitiveType::Cylinder,
                     crate::scene_editor_3d::PrimitiveType::Plane,
                 ] {
-                    if ui.selectable_label(editor_state.create_primitive_type == p_type, format!("{:?}", p_type)).clicked() {
+                    if ui
+                        .selectable_label(
+                            editor_state.create_primitive_type == p_type,
+                            format!("{:?}", p_type),
+                        )
+                        .clicked()
+                    {
                         editor_state.create_primitive_type = p_type;
                     }
                 }
             });
         ui.label("(Ctrl+N)");
     });
-    
+
     ui.separator();
-    
+
     // Scene hierarchy
     ui.heading("Scene Hierarchy");
     egui::ScrollArea::vertical()
@@ -889,22 +1001,22 @@ pub fn draw_3d_scene_panel(
                 let is_selected = editor_state.selected_entity == Some(entity);
                 let response = ui.selectable_label(
                     is_selected,
-                    format!("{} (Entity {:?})", name.as_str(), entity)
+                    format!("{} (Entity {:?})", name.as_str(), entity),
                 );
-                
+
                 if response.clicked() {
                     editor_state.selected_entity = Some(entity);
                 }
             }
         });
-    
+
     ui.separator();
-    
+
     // Editor options
     ui.checkbox(&mut editor_state.show_gizmos, "Show Gizmos");
     ui.checkbox(&mut editor_state.enabled, "Editor Enabled");
     ui.checkbox(&mut editor_state.snap_to_grid, "Snap to Grid");
-    
+
     if editor_state.snap_to_grid {
         ui.horizontal(|ui| {
             ui.label("Grid Size:");
@@ -912,9 +1024,9 @@ pub fn draw_3d_scene_panel(
         });
         ui.label("Press G to snap selected entities");
     }
-    
+
     ui.separator();
-    
+
     // Instructions
     ui.label("Controls:");
     ui.label("• Left Click: Select entity");
@@ -964,12 +1076,12 @@ pub fn validate_wgsl_entry_points(src: &str) -> Result<(), String> {
 /// Mode-aware validator supporting fragment or compute pipelines.
 pub fn validate_wgsl_for_mode(src: &str, mode: PipelineMode) -> Result<(), String> {
     match mode {
-        PipelineMode::Fragment => {
-            validate_wgsl_entry_points(src)
-        }
+        PipelineMode::Fragment => validate_wgsl_entry_points(src),
         PipelineMode::Compute => {
             let has_compute = src.contains("@compute");
-            if !has_compute { return Err("Missing @compute entry point".to_string()); }
+            if !has_compute {
+                return Err("Missing @compute entry point".to_string());
+            }
             Ok(())
         }
     }
@@ -988,10 +1100,10 @@ pub fn highlight_wgsl(ui: &egui::Ui, text: &str, wrap_width: f32) -> Arc<egui::G
             if !_in_comment {
                 if let Some(pos) = line[_idx..].find("//") {
                     // append up to comment normally
-                    let before = &line[_idx.._idx+pos];
+                    let before = &line[_idx.._idx + pos];
                     append_tokens(&mut job, before);
                     // append comment
-                    let comment = &line[_idx+pos..];
+                    let comment = &line[_idx + pos..];
                     job.append(
                         comment,
                         0.0,
@@ -1027,25 +1139,37 @@ fn append_tokens(job: &mut LayoutJob, s: &str) {
         if ch.is_alphanumeric() || ch == '_' {
             token.push(ch);
         } else {
-            if !token.is_empty() { append_token(job, &token); token.clear(); }
+            if !token.is_empty() {
+                append_token(job, &token);
+                token.clear();
+            }
             job.append(
                 &ch.to_string(),
                 0.0,
-                egui::TextFormat { ..Default::default() },
+                egui::TextFormat {
+                    ..Default::default()
+                },
             );
         }
     }
-    if !token.is_empty() { append_token(job, &token); }
+    if !token.is_empty() {
+        append_token(job, &token);
+    }
 }
 
 fn append_token(job: &mut LayoutJob, tok: &str) {
     let (color, _italic) = match tok {
         // WGSL attributes and builtins
-        "@fragment" | "@vertex" | "@compute" | "@group" | "@binding" | "@location" | "@builtin" => (egui::Color32::from_rgb(180, 120, 255), false),
+        "@fragment" | "@vertex" | "@compute" | "@group" | "@binding" | "@location" | "@builtin" => {
+            (egui::Color32::from_rgb(180, 120, 255), false)
+        }
         // Types
-        "f32" | "u32" | "i32" | "vec2" | "vec3" | "vec4" | "mat2x2" | "mat3x3" | "mat4x4" => (egui::Color32::from_rgb(110, 180, 255), false),
+        "f32" | "u32" | "i32" | "vec2" | "vec3" | "vec4" | "mat2x2" | "mat3x3" | "mat4x4" => {
+            (egui::Color32::from_rgb(110, 180, 255), false)
+        }
         // Keywords
-        "struct" | "var" | "let" | "fn" | "return" | "if" | "else" | "for" | "while" | "break" | "continue" | "true" | "false" => (egui::Color32::from_rgb(255, 200, 100), false),
+        "struct" | "var" | "let" | "fn" | "return" | "if" | "else" | "for" | "while" | "break"
+        | "continue" | "true" | "false" => (egui::Color32::from_rgb(255, 200, 100), false),
         // Common identifiers
         "uniforms" | "time" | "resolution" | "mouse" => (egui::Color32::LIGHT_GRAY, false),
         _ => (egui::Color32::WHITE, false),
@@ -1053,7 +1177,10 @@ fn append_token(job: &mut LayoutJob, tok: &str) {
     job.append(
         tok,
         0.0,
-        egui::TextFormat { color, ..Default::default() },
+        egui::TextFormat {
+            color,
+            ..Default::default()
+        },
     );
 }
 
@@ -1068,15 +1195,13 @@ fn import_isf_into_editor(ui_state: &mut EditorUiState) {
             // Use the advanced ISF converter
             let mut converter = super::converter::ISFParser::new();
             match converter.parse_isf(&content, p.to_str().unwrap_or("unknown")) {
-                Ok(isf_shader) => {
-                    match converter.convert_to_wgsl(&isf_shader) {
-                        Ok(wgsl) => {
-                            ui_state.draft_code = wgsl;
-                            println!("Successfully converted ISF to WGSL");
-                        }
-                        Err(e) => println!("ISF→WGSL conversion failed: {}", e),
+                Ok(isf_shader) => match converter.convert_to_wgsl(&isf_shader) {
+                    Ok(wgsl) => {
+                        ui_state.draft_code = wgsl;
+                        println!("Successfully converted ISF to WGSL");
                     }
-                }
+                    Err(e) => println!("ISF→WGSL conversion failed: {}", e),
+                },
                 Err(e) => println!("ISF parse failed: {}", e),
             }
         }
@@ -1084,16 +1209,27 @@ fn import_isf_into_editor(ui_state: &mut EditorUiState) {
 }
 
 fn batch_convert_isf_directory() {
-    let src = rfd::FileDialog::new().set_title("Select Source ISF Directory").pick_folder();
-    if src.is_none() { return; }
-    let out = rfd::FileDialog::new().set_title("Select Output WGSL Directory").pick_folder();
-    if out.is_none() { return; }
-    
+    let src = rfd::FileDialog::new()
+        .set_title("Select Source ISF Directory")
+        .pick_folder();
+    if src.is_none() {
+        return;
+    }
+    let out = rfd::FileDialog::new()
+        .set_title("Select Output WGSL Directory")
+        .pick_folder();
+    if out.is_none() {
+        return;
+    }
+
     let src_path = src.unwrap();
     let out_path = out.unwrap();
-    
-    println!("Starting batch ISF conversion from {:?} to {:?}", src_path, out_path);
-    
+
+    println!(
+        "Starting batch ISF conversion from {:?} to {:?}",
+        src_path, out_path
+    );
+
     let batch_converter = crate::utils::batch_converter::BatchConverter::new();
     match batch_converter.convert_all(&src_path, &out_path) {
         Ok(results) => {
@@ -1109,24 +1245,20 @@ fn batch_convert_isf_directory() {
 
 fn convert_current_glsl_to_wgsl(ui_state: &mut EditorUiState) {
     match super::converter::GLSLConverter::new() {
-        Ok(mut converter) => {
-            match converter.convert(&ui_state.draft_code, "input.glsl") {
-                Ok(wgsl) => ui_state.draft_code = wgsl,
-                Err(e) => println!("GLSL→WGSL conversion failed: {}", e),
-            }
-        }
+        Ok(mut converter) => match converter.convert(&ui_state.draft_code, "input.glsl") {
+            Ok(wgsl) => ui_state.draft_code = wgsl,
+            Err(e) => println!("GLSL→WGSL conversion failed: {}", e),
+        },
         Err(e) => println!("Failed to create GLSL converter: {}", e),
     }
 }
 
 fn convert_current_hlsl_to_wgsl(ui_state: &mut EditorUiState) {
     match super::converter::HLSLConverter::new() {
-        Ok(mut converter) => {
-            match converter.convert(&ui_state.draft_code, "input.hlsl") {
-                Ok(wgsl) => ui_state.draft_code = wgsl,
-                Err(e) => println!("HLSL→WGSL conversion failed: {}", e),
-            }
-        }
+        Ok(mut converter) => match converter.convert(&ui_state.draft_code, "input.hlsl") {
+            Ok(wgsl) => ui_state.draft_code = wgsl,
+            Err(e) => println!("HLSL→WGSL conversion failed: {}", e),
+        },
         Err(e) => println!("Failed to create HLSL converter: {}", e),
     }
 }
@@ -1154,7 +1286,10 @@ fn export_current_wgsl_to_hlsl(ui_state: &EditorUiState) {
 }
 
 fn export_current_wgsl_to_ffgl(ui_state: &EditorUiState) {
-    if let Some(save_dir) = rfd::FileDialog::new().set_title("Select FFGL Export Directory").pick_folder() {
+    if let Some(save_dir) = rfd::FileDialog::new()
+        .set_title("Select FFGL Export Directory")
+        .pick_folder()
+    {
         match crate::ffgl_exporter::FfglExporter::export_bundle(&ui_state.draft_code, &save_dir) {
             Ok(path) => println!("FFGL bundle exported successfully to {:?}", path),
             Err(e) => println!("FFGL export failed: {}", e),
@@ -1165,18 +1300,18 @@ fn export_current_wgsl_to_ffgl(ui_state: &EditorUiState) {
 fn show_transpiler_panel(ui_state: &mut EditorUiState) {
     // Create a comprehensive transpiler panel with multiple language support
     println!("Opening multi-language transpiler panel...");
-    
+
     // This function will be called to show a dedicated transpiler window
     // For now, we'll create a simple implementation that can be expanded
     ui_state.show_wgslsmith_panel = true; // Use the existing WGSLSmith panel for transpiler features
-    
+
     // Add transpiler-specific test cases
     let test_cases = vec![
         ("GLSL Basic", "// Basic GLSL shader\nvoid main() {\n    gl_FragColor = vec4(1.0);\n}"),
         ("HLSL Basic", "// Basic HLSL shader\nfloat4 main() : SV_TARGET {\n    return float4(1.0, 1.0, 1.0, 1.0);\n}"),
         ("WGSL Basic", "// Basic WGSL shader\n@fragment\nfn fs_main() -> @location(0) vec4<f32> {\n    return vec4<f32>(1.0, 1.0, 1.0, 1.0);\n}"),
     ];
-    
+
     for (name, code) in test_cases {
         println!("Transpiler test case available: {}", name);
         // In a full implementation, these would be loaded into the transpiler panel
@@ -1198,13 +1333,13 @@ pub fn export_project_json(ui_state: &mut EditorUiState) {
         node_graph: ui_state.node_graph.clone(),
         timeline: ui_state.timeline.clone(),
     };
-    
+
     match serde_json::to_string_pretty(&proj) {
         Ok(json) => {
             if let Some(path) = rfd::FileDialog::new()
                 .add_filter("Project", &["json"])
                 .set_title("Save Project")
-                .save_file() 
+                .save_file()
             {
                 if let Err(e) = std::fs::write(&path, json) {
                     ui_state.show_status(format!("Error saving: {}", e), 5.0);
@@ -1224,23 +1359,31 @@ pub fn import_project_json(ui_state: &mut EditorUiState) {
         .pick_file()
     {
         match std::fs::read_to_string(&path) {
-            Ok(json) => {
-                match serde_json::from_str::<ProjectData>(&json) {
-                    Ok(proj) => {
-                        ui_state.draft_code = proj.draft_code;
-                        ui_state.parameter_values = proj.parameter_values;
-                        ui_state.node_graph = proj.node_graph;
-                        ui_state.timeline = proj.timeline;
-                        ui_state.apply_requested = true;
-                        ui_state.show_status("Project loaded successfully", 3.0);
-                    }
-                    Err(e) => ui_state.show_status(format!("Load error: {}", e), 5.0),
+            Ok(json) => match serde_json::from_str::<ProjectData>(&json) {
+                Ok(proj) => {
+                    ui_state.draft_code = proj.draft_code;
+                    ui_state.parameter_values = proj.parameter_values;
+                    ui_state.node_graph = proj.node_graph;
+                    ui_state.timeline = proj.timeline;
+                    ui_state.apply_requested = true;
+                    ui_state.show_status("Project loaded successfully", 3.0);
+                }
+                Err(e) => {
+                    ui_state.show_status(format!("Load error: {}", e), 5.0);
+                }
+            },
+            Err(e) => {
+                ui_state.show_status(format!("Error reading file: {}", e), 5.0);
+            }
         }
     }
 }
 
 /// Helper function to extract pixel data from an egui texture handle
-fn get_texture_pixels(texture_handle: &egui::TextureHandle, ctx: &egui::Context) -> Result<Vec<u8>, String> {
+fn get_texture_pixels(
+    texture_handle: &egui::TextureHandle,
+    ctx: &egui::Context,
+) -> Result<Vec<u8>, String> {
     // This is a simplified implementation - in a real implementation you'd need to
     // access the underlying GPU texture data, which requires more complex WGPU integration
     // For now, we'll return a placeholder
@@ -1281,7 +1424,8 @@ fn fs_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
   let base = 0.5 + 0.5 * sin(t);
   return vec4<f32>(uv.x * (1.0 + 0.2 * p0), uv.y, base, 1.0);
 }
-"#.to_string()
+"#
+    .to_string()
 }
 
 fn load_particle_physics_example(ui_state: &mut EditorUiState) {
@@ -1328,11 +1472,17 @@ fn export_recorded_frames_to_mp4() {
         println!("Running ffmpeg to export MP4: {}", out_str);
         let status = Command::new("ffmpeg")
             .args([
-                "-hide_banner", "-loglevel", "error",
-                "-framerate", "60",
-                "-i", &input_str,
-                "-pix_fmt", "yuv420p",
-                "-y", &out_str,
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-framerate",
+                "60",
+                "-i",
+                &input_str,
+                "-pix_fmt",
+                "yuv420p",
+                "-y",
+                &out_str,
             ])
             .status();
         match status {
@@ -1349,18 +1499,21 @@ fn export_recorded_frames_to_mp4() {
 /// Parse shader code for parameters (uniforms, textures, etc.)
 pub fn parse_shader_parameters(shader_code: &str) -> Vec<ShaderParameter> {
     let mut parameters = Vec::new();
-    
+
     // First, try to parse ISF metadata if this is an ISF shader
     if let Some(isf_params) = parse_isf_parameters(shader_code) {
         return isf_params;
     }
-    
+
     // Fall back to robust WGSL reflection using naga
     if let Ok(analyzer) = crate::wgsl_reflect_integration::analyze_shader_reflection(shader_code) {
         for uniform in analyzer.uniforms {
             parameters.push(ShaderParameter {
                 name: uniform.name,
-                wgsl_type: format!("{}<{}>", uniform.type_info.base_type, uniform.type_info.components),
+                wgsl_type: format!(
+                    "{}<{}>",
+                    uniform.type_info.base_type, uniform.type_info.components
+                ),
                 group: uniform.group,
                 binding: uniform.binding,
                 value: 0.5, // Default value
@@ -1369,7 +1522,7 @@ pub fn parse_shader_parameters(shader_code: &str) -> Vec<ShaderParameter> {
                 max_value: None,
             });
         }
-        
+
         // Also capture textures as parameters if needed for UI mapping
         for texture in analyzer.textures {
             parameters.push(ShaderParameter {
@@ -1383,12 +1536,12 @@ pub fn parse_shader_parameters(shader_code: &str) -> Vec<ShaderParameter> {
                 max_value: None,
             });
         }
-        
+
         if !parameters.is_empty() {
             return parameters;
         }
     }
-    
+
     // Final fallback if reflection fails for any reason
     parameters
 }
@@ -1401,23 +1554,29 @@ fn parse_isf_parameters(shader_code: &str) -> Option<Vec<ShaderParameter>> {
             let json_str = &shader_code[json_start + 2..json_start + json_end + 1];
             if let Ok(metadata) = serde_json::from_str::<serde_json::Value>(json_str) {
                 let mut parameters = Vec::new();
-                
+
                 // Parse ISF inputs
                 if let Some(inputs_json) = metadata.get("INPUTS") {
                     if let Some(inputs_array) = inputs_json.as_array() {
                         for (index, input_json) in inputs_array.iter().enumerate() {
                             if let Some(name) = input_json.get("NAME").and_then(|n| n.as_str()) {
-                                let input_type = input_json.get("TYPE").and_then(|t| t.as_str()).unwrap_or("float");
-                                
-                                let default = input_json.get("DEFAULT")
+                                let input_type = input_json
+                                    .get("TYPE")
+                                    .and_then(|t| t.as_str())
+                                    .unwrap_or("float");
+
+                                let default = input_json
+                                    .get("DEFAULT")
                                     .and_then(|d| d.as_f64())
                                     .map(|d| d as f32);
 
-                                let min = input_json.get("MIN")
+                                let min = input_json
+                                    .get("MIN")
                                     .and_then(|m| m.as_f64())
                                     .map(|m| m as f32);
 
-                                let max = input_json.get("MAX")
+                                let max = input_json
+                                    .get("MAX")
                                     .and_then(|m| m.as_f64())
                                     .map(|m| m as f32);
 
@@ -1435,12 +1594,12 @@ fn parse_isf_parameters(shader_code: &str) -> Option<Vec<ShaderParameter>> {
                         }
                     }
                 }
-                
+
                 return Some(parameters);
             }
         }
     }
-    
+
     None
 }
 
@@ -1456,12 +1615,10 @@ fn map_isf_type_to_wgsl(isf_type: &str) -> String {
     }
 }
 
-
-
 /// Check WGSL code for common issues and return diagnostic messages
 pub fn check_wgsl_diagnostics(wgsl_code: &str) -> Vec<DiagnosticMessage> {
     let mut diagnostics = Vec::new();
-    
+
     // Check for basic syntax issues
     if wgsl_code.trim().is_empty() {
         diagnostics.push(DiagnosticMessage {
@@ -1472,12 +1629,12 @@ pub fn check_wgsl_diagnostics(wgsl_code: &str) -> Vec<DiagnosticMessage> {
         });
         return diagnostics;
     }
-    
+
     // Check for required entry points
     let has_vertex = wgsl_code.contains("@vertex");
     let has_fragment = wgsl_code.contains("@fragment");
     let has_compute = wgsl_code.contains("@compute");
-    
+
     if !has_vertex && !has_fragment && !has_compute {
         diagnostics.push(DiagnosticMessage {
             severity: DiagnosticSeverity::Error,
@@ -1486,7 +1643,7 @@ pub fn check_wgsl_diagnostics(wgsl_code: &str) -> Vec<DiagnosticMessage> {
             column: None,
         });
     }
-    
+
     // Check for uniform bindings
     if !wgsl_code.contains("@group") || !wgsl_code.contains("@binding") {
         diagnostics.push(DiagnosticMessage {
@@ -1496,12 +1653,12 @@ pub fn check_wgsl_diagnostics(wgsl_code: &str) -> Vec<DiagnosticMessage> {
             column: None,
         });
     }
-    
+
     // Check for common WGSL syntax issues
     let lines: Vec<&str> = wgsl_code.lines().collect();
     for (line_num, line) in lines.iter().enumerate() {
         let line_number = line_num as usize + 1;
-        
+
         // Check for missing semicolons (basic check)
         if line.trim().starts_with("var") || line.trim().starts_with("let") {
             if !line.trim().ends_with(';') && !line.trim().is_empty() {
@@ -1513,7 +1670,7 @@ pub fn check_wgsl_diagnostics(wgsl_code: &str) -> Vec<DiagnosticMessage> {
                 });
             }
         }
-        
+
         // Check for invalid type declarations
         if line.contains("float") && !line.contains("f32") {
             diagnostics.push(DiagnosticMessage {
@@ -1523,7 +1680,7 @@ pub fn check_wgsl_diagnostics(wgsl_code: &str) -> Vec<DiagnosticMessage> {
                 column: None,
             });
         }
-        
+
         // Check for vec3/float mixing issues
         if line.contains("vec3") && line.contains("float") {
             diagnostics.push(DiagnosticMessage {
@@ -1534,7 +1691,7 @@ pub fn check_wgsl_diagnostics(wgsl_code: &str) -> Vec<DiagnosticMessage> {
             });
         }
     }
-    
+
     // Check for texture sampling issues
     if wgsl_code.contains("textureSample") && !wgsl_code.contains("texture_2d") {
         diagnostics.push(DiagnosticMessage {
@@ -1544,7 +1701,7 @@ pub fn check_wgsl_diagnostics(wgsl_code: &str) -> Vec<DiagnosticMessage> {
             column: None,
         });
     }
-    
+
     // Check for uniform struct issues
     if wgsl_code.contains("struct") && wgsl_code.contains("uniform") {
         if !wgsl_code.contains("var<uniform>") {
@@ -1556,7 +1713,7 @@ pub fn check_wgsl_diagnostics(wgsl_code: &str) -> Vec<DiagnosticMessage> {
             });
         }
     }
-    
+
     diagnostics
 }
 
@@ -1564,4 +1721,3 @@ pub fn check_wgsl_diagnostics(wgsl_code: &str) -> Vec<DiagnosticMessage> {
 pub fn run_wgsl_diagnostics(ui_state: &mut EditorUiState) {
     ui_state.diagnostics_messages = check_wgsl_diagnostics(&ui_state.draft_code);
 }
-

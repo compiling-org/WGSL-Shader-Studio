@@ -3,13 +3,13 @@
 //! Provides MIDI device detection, connection management, parameter mapping,
 //! and real-time control with learn functionality.
 
+use crate::audio_midi_integration::{MidiAnalyzer, MidiMessage};
 use bevy::prelude::*;
 use midir::{MidiInput, MidiInputConnection};
-use std::sync::{Arc, Mutex};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
-use serde::{Serialize, Deserialize};
-use crate::audio_midi_integration::{MidiMessage, MidiAnalyzer};
+use std::sync::{Arc, Mutex};
 
 /// MIDI device information
 #[derive(Debug, Clone)]
@@ -48,7 +48,7 @@ pub enum MidiCurve {
     Linear,
     Exponential(f32), // curvature factor
     Logarithmic(f32), // curvature factor
-    SCurve(f32), // S-curve factor
+    SCurve(f32),      // S-curve factor
 }
 
 /// MIDI learn state for automatic mapping
@@ -118,7 +118,7 @@ impl MidiSystem {
         }
 
         let device_name = self.devices[device_index].name.clone();
-        
+
         // Disconnect if already connected
         if self.active_connections.contains_key(&device_name) {
             self.disconnect_device(device_index)?;
@@ -126,14 +126,14 @@ impl MidiSystem {
 
         let midi_input = MidiInput::new("WGSL Shader Studio MIDI Input")?;
         let ports = midi_input.ports();
-        
+
         if device_index >= ports.len() {
             return Err("Device port not available".into());
         }
 
         let port = &ports[device_index];
         let port_name = midi_input.port_name(port)?;
-        
+
         info!("Connecting to MIDI device: {}", port_name);
 
         // Set up MIDI message handler
@@ -151,10 +151,8 @@ impl MidiSystem {
         )?;
 
         // Store the connection
-        self.active_connections.insert(
-            device_name.clone(),
-            Arc::new(Mutex::new(connection)),
-        );
+        self.active_connections
+            .insert(device_name.clone(), Arc::new(Mutex::new(connection)));
 
         self.devices[device_index].connected = true;
         info!("Successfully connected to MIDI device: {}", port_name);
@@ -169,7 +167,7 @@ impl MidiSystem {
         }
 
         let device_name = self.devices[device_index].name.clone();
-        
+
         if let Some(_connection) = self.active_connections.remove(&device_name) {
             self.devices[device_index].connected = false;
             info!("Disconnected from MIDI device: {}", device_name);
@@ -194,83 +192,116 @@ impl MidiSystem {
         let message_type = status >> 4;
 
         match message_type {
-            0x8 => { // Note Off
+            0x8 => {
+                // Note Off
                 if message.len() >= 3 {
                     let note = message[1];
                     let velocity = message[2];
-                    
+
                     let _midi_message = MidiMessage::NoteOff { channel, note };
-                    
+
                     // Check for learn mode
                     if let Ok(mut learn) = learn_state.lock() {
                         if learn.active && learn.target_parameter.is_some() {
                             learn.last_message = Some((MidiMessageType::Note, channel, note));
                             learn.active = false;
-                            info!("MIDI Learn: Note {} on channel {} mapped to {} (velocity: {})", 
-                                  note, channel, learn.target_parameter.as_ref().unwrap(), velocity);
+                            info!(
+                                "MIDI Learn: Note {} on channel {} mapped to {} (velocity: {})",
+                                note,
+                                channel,
+                                learn.target_parameter.as_ref().unwrap(),
+                                velocity
+                            );
                         }
                     }
                 }
             }
-            0x9 => { // Note On
+            0x9 => {
+                // Note On
                 if message.len() >= 3 {
                     let note = message[1];
                     let velocity = message[2];
-                    
+
                     if velocity > 0 {
-                        let _midi_message = MidiMessage::NoteOn { channel, note, velocity };
-                        
+                        let _midi_message = MidiMessage::NoteOn {
+                            channel,
+                            note,
+                            velocity,
+                        };
+
                         // Check for learn mode
                         if let Ok(mut learn) = learn_state.lock() {
                             if learn.active && learn.target_parameter.is_some() {
                                 learn.last_message = Some((MidiMessageType::Note, channel, note));
                                 learn.active = false;
-                                info!("MIDI Learn: Note {} on channel {} mapped to {} (velocity: {})", 
-                                      note, channel, learn.target_parameter.as_ref().unwrap(), velocity);
+                                info!(
+                                    "MIDI Learn: Note {} on channel {} mapped to {} (velocity: {})",
+                                    note,
+                                    channel,
+                                    learn.target_parameter.as_ref().unwrap(),
+                                    velocity
+                                );
                             }
                         }
                     }
                 }
             }
-            0xB => { // Control Change
+            0xB => {
+                // Control Change
                 if message.len() >= 3 {
                     let controller = message[1];
                     let value = message[2];
-                    
-                    let _midi_message = MidiMessage::ControlChange { channel, controller, value };
-                    
+
+                    let _midi_message = MidiMessage::ControlChange {
+                        channel,
+                        controller,
+                        value,
+                    };
+
                     // Check for learn mode
                     if let Ok(mut learn) = learn_state.lock() {
                         if learn.active && learn.target_parameter.is_some() {
-                            learn.last_message = Some((MidiMessageType::ControlChange, channel, controller));
+                            learn.last_message =
+                                Some((MidiMessageType::ControlChange, channel, controller));
                             learn.active = false;
-                            info!("MIDI Learn: CC {} on channel {} mapped to {} (value: {})", 
-                                  controller, channel, learn.target_parameter.as_ref().unwrap(), value);
+                            info!(
+                                "MIDI Learn: CC {} on channel {} mapped to {} (value: {})",
+                                controller,
+                                channel,
+                                learn.target_parameter.as_ref().unwrap(),
+                                value
+                            );
                         }
                     }
                 }
             }
-            0xC => { // Program Change
+            0xC => {
+                // Program Change
                 if message.len() >= 2 {
                     let program = message[1];
                     let _midi_message = MidiMessage::ProgramChange { channel, program };
                 }
             }
-            0xE => { // Pitch Bend
+            0xE => {
+                // Pitch Bend
                 if message.len() >= 3 {
                     let lsb = message[1] as i16;
                     let msb = message[2] as i16;
                     let value = ((msb << 7) | lsb) as i16 - 8192; // Center at 0
-                    
+
                     let _midi_message = MidiMessage::PitchBend { channel, value };
-                    
+
                     // Check for learn mode
                     if let Ok(mut learn) = learn_state.lock() {
                         if learn.active && learn.target_parameter.is_some() {
                             learn.last_message = Some((MidiMessageType::PitchBend, channel, 0));
                             learn.active = false;
-                            info!("MIDI Learn: Pitch Bend on channel {} mapped to {} (value: {})", 
-                                  channel, learn.target_parameter.as_ref().unwrap(), value);
+                            info!(
+                                "MIDI Learn: Pitch Bend on channel {} mapped to {} (value: {})",
+                                channel,
+                                learn.target_parameter.as_ref().unwrap(),
+                                value
+                            );
                         }
                     }
                 }
@@ -348,8 +379,11 @@ impl MidiSystem {
             MidiMessageType::PitchBend => {
                 let value = midi_analyzer.get_pitch_bend(mapping.channel);
                 let normalized = (value as f32 + 8192.0) / 16383.0; // Normalize to 0-1
-                Some(self.apply_curve(normalized, &mapping.curve) * 
-                     (mapping.max_value - mapping.min_value) + mapping.min_value)
+                Some(
+                    self.apply_curve(normalized, &mapping.curve)
+                        * (mapping.max_value - mapping.min_value)
+                        + mapping.min_value,
+                )
             }
             MidiMessageType::Aftertouch => {
                 // For now, use note values as aftertouch
@@ -363,13 +397,13 @@ impl MidiSystem {
     fn map_midi_value(&self, midi_value: f32, mapping: &MidiMapping) -> f32 {
         let normalized = midi_value / 127.0;
         let curved = self.apply_curve(normalized, &mapping.curve);
-        
+
         let mut result = curved * (mapping.max_value - mapping.min_value) + mapping.min_value;
-        
+
         if mapping.invert {
             result = mapping.max_value - (result - mapping.min_value);
         }
-        
+
         result
     }
 
@@ -426,20 +460,17 @@ fn update_midi_system(
 
     // Apply MIDI mappings to shader parameters
     let parameter_values = midi_system.apply_mappings(&midi_analyzer);
-    
+
     for (parameter_name, value) in parameter_values {
         ui_state.set_parameter_value(&parameter_name, value);
     }
 }
 
 /// System to handle MIDI learn timeout
-fn update_midi_learn(
-    mut midi_system: ResMut<MidiSystem>,
-    time: Res<Time>,
-) {
+fn update_midi_learn(mut midi_system: ResMut<MidiSystem>, time: Res<Time>) {
     if midi_system.learn_state.active && midi_system.learn_state.learn_timeout > 0.0 {
         midi_system.learn_state.learn_timeout -= time.delta_secs();
-        
+
         if midi_system.learn_state.learn_timeout <= 0.0 {
             midi_system.stop_midi_learn();
             warn!("MIDI Learn timed out");

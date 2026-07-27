@@ -2,8 +2,8 @@
 //! Provides zero-copy texture sharing and advanced video processing integration
 
 // use std::sync::{Arc, Mutex};
+use serde::{Deserialize, Serialize};
 use wgpu::{Device, Queue, Texture, TextureFormat, TextureView};
-use serde::{Serialize, Deserialize};
 
 /// Configuration for Gyroflow interop
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -81,45 +81,59 @@ impl WgpuInteropManager {
             textures: HashMap::new(),
         }
     }
-    
+
     /// Import texture from Gyroflow
-    pub fn import_texture(&mut self, native_info: NativeTextureInfo, device: &Device, _queue: &Queue) -> InteropResult<u64> {
+    pub fn import_texture(
+        &mut self,
+        native_info: NativeTextureInfo,
+        device: &Device,
+        _queue: &Queue,
+    ) -> InteropResult<u64> {
         if !self.config.enable_zero_copy {
             return InteropResult::NotSupported;
         }
-        
+
         let texture_id = native_info.handle;
-        
+
         // Create WGPU texture from native handle
         let wgpu_texture = self.create_wgpu_texture_from_native(&native_info, device);
-        
+
         let zero_copy_texture = ZeroCopyTexture {
             native_info,
             wgpu_texture: Some(wgpu_texture),
             wgpu_view: None, // Will be created on demand
         };
-        
+
         self.textures.insert(texture_id, zero_copy_texture);
         InteropResult::Success(texture_id)
     }
-    
+
     /// Export texture to Gyroflow
-    pub fn export_texture(&mut self, texture_id: u64, _device: &Device, _queue: &Queue) -> InteropResult<NativeTextureInfo> {
+    pub fn export_texture(
+        &mut self,
+        texture_id: u64,
+        _device: &Device,
+        _queue: &Queue,
+    ) -> InteropResult<NativeTextureInfo> {
         match self.textures.get(&texture_id) {
             Some(zero_copy) => InteropResult::Success(zero_copy.native_info.clone()),
             None => InteropResult::Error("Texture not found".to_string()),
         }
     }
-    
+
     /// Create WGPUT texture from native handle
-    fn create_wgpu_texture_from_native(&self, native_info: &NativeTextureInfo, device: &Device) -> Texture {
+    fn create_wgpu_texture_from_native(
+        &self,
+        native_info: &NativeTextureInfo,
+        device: &Device,
+    ) -> Texture {
         let format = match native_info.format {
             InteropTextureFormat::Rgba8UnormSrgb => TextureFormat::Rgba8UnormSrgb,
             InteropTextureFormat::Bgra8Unorm => TextureFormat::Bgra8Unorm,
             InteropTextureFormat::Rgba16Float => TextureFormat::Rgba16Float,
             InteropTextureFormat::Bgra8UnormSrgb => TextureFormat::Bgra8UnormSrgb,
         };
-        
+
         device.create_texture(&wgpu::TextureDescriptor {
             label: Some("gyroflow_interop_texture"),
             size: wgpu::Extent3d {
@@ -131,17 +145,21 @@ impl WgpuInteropManager {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::COPY_DST,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::COPY_SRC
+                | wgpu::TextureUsages::COPY_DST,
             view_formats: &[],
         })
     }
-    
+
     /// Get texture view for rendering
     pub fn get_texture_view(&mut self, texture_id: u64) -> Option<&TextureView> {
         if let Some(zero_copy) = self.textures.get_mut(&texture_id) {
             if zero_copy.wgpu_view.is_none() {
                 if let Some(texture) = &zero_copy.wgpu_texture {
-                    zero_copy.wgpu_view = Some(texture.create_view(&wgpu::TextureViewDescriptor::default()));
+                    zero_copy.wgpu_view =
+                        Some(texture.create_view(&wgpu::TextureViewDescriptor::default()));
                 }
             }
             zero_copy.wgpu_view.as_ref()
@@ -149,12 +167,12 @@ impl WgpuInteropManager {
             None
         }
     }
-    
+
     /// Remove texture from interop
     pub fn remove_texture(&mut self, texture_id: u64) -> bool {
         self.textures.remove(&texture_id).is_some()
     }
-    
+
     /// Get interop statistics
     pub fn get_stats(&self) -> InteropStats {
         InteropStats {

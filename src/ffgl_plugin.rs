@@ -1,13 +1,13 @@
 //! FFGL plugin interface implementation
 
 // FIXED: Removed invalid imports - these don't exist in root crate
-use crate::ShaderValue;
 use crate::audio_system::AudioMidiSystem;
-use bevy::prelude::Resource;
 use crate::ResolumeIsfShadersRustFfgl;
-use std::os::raw::{c_char, c_void, c_int, c_uint, c_float};
-use std::ptr;
+use crate::ShaderValue;
+use bevy::prelude::Resource;
 use std::collections::HashMap;
+use std::os::raw::{c_char, c_float, c_int, c_uint, c_void};
+use std::ptr;
 use std::sync::Arc;
 
 /// FFGL plugin instance
@@ -87,7 +87,14 @@ impl FfglPlugin {
     }
 
     /// Process a video frame
-    pub fn process_frame(&mut self, input: &[u8], output: &mut [u8], width: u32, height: u32, time: f32) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn process_frame(
+        &mut self,
+        input: &[u8],
+        output: &mut [u8],
+        width: u32,
+        height: u32,
+        time: f32,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         // Update render parameters
         self.plugin.render_params.width = width;
         self.plugin.render_params.height = height;
@@ -99,7 +106,11 @@ impl FfglPlugin {
     }
 
     /// Set parameter value
-    pub fn set_parameter(&mut self, param_index: usize, value: f32) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn set_parameter(
+        &mut self,
+        param_index: usize,
+        value: f32,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(shader_name) = &self.current_shader {
             // Map parameter index to shader parameter name
             if let Some(shader) = self.plugin.shaders.get_mut(shader_name) {
@@ -124,12 +135,19 @@ impl FfglPlugin {
                 if let Some(input) = shader.inputs.get(param_index) {
                     let base_value = match self.plugin.get_parameter(shader_name, &input.name) {
                         Some(ShaderValue::Float(val)) => *val,
-                        Some(ShaderValue::Bool(val)) => if *val { 1.0 } else { 0.0 },
+                        Some(ShaderValue::Bool(val)) => {
+                            if *val {
+                                1.0
+                            } else {
+                                0.0
+                            }
+                        }
                         _ => input.default.unwrap_or(0.0),
                     };
 
                     // Apply audio/MIDI modulation
-                    self.audio_midi_system.get_parameter(&input.name, base_value)
+                    self.audio_midi_system
+                        .get_parameter(&input.name, base_value)
                 } else {
                     0.0
                 }
@@ -200,7 +218,10 @@ impl FfglPlugin {
     }
 
     /// Set current shader
-    pub fn set_current_shader(&mut self, shader_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn set_current_shader(
+        &mut self,
+        shader_name: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         self.plugin.set_current_shader(shader_name)?;
         self.current_shader = Some(shader_name.to_string());
         Ok(())
@@ -256,9 +277,16 @@ pub extern "C" fn processFrame(
     unsafe {
         if let Some(ref mut plugin) = PLUGIN_INSTANCE {
             let input_slice = std::slice::from_raw_parts(input, (width * height * 4) as usize);
-            let output_slice = std::slice::from_raw_parts_mut(output, (width * height * 4) as usize);
+            let output_slice =
+                std::slice::from_raw_parts_mut(output, (width * height * 4) as usize);
 
-            if let Err(e) = plugin.process_frame(input_slice, output_slice, width as u32, height as u32, time as f32) {
+            if let Err(e) = plugin.process_frame(
+                input_slice,
+                output_slice,
+                width as u32,
+                height as u32,
+                time as f32,
+            ) {
                 eprintln!("Frame processing error: {}", e);
             }
         }

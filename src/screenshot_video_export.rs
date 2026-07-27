@@ -1,10 +1,10 @@
 use bevy::prelude::*;
 use bevy_egui::egui;
+use image::{DynamicImage, ImageBuffer, Rgba};
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::path::Path;
 use std::time::{Duration, Instant};
-use image::{DynamicImage, ImageBuffer, Rgba};
 
 /// Screenshot and video export capabilities
 /// Based on proven patterns from space_editor, shadplay, and wgpu-compute-toy
@@ -29,7 +29,7 @@ pub enum VideoFormat {
 #[derive(Debug, Clone)]
 pub struct ExportSettings {
     pub format: ExportFormat,
-    pub quality: u8, // 1-100 for JPEG/WebP
+    pub quality: u8,     // 1-100 for JPEG/WebP
     pub compression: u8, // 1-9 for PNG
     pub width: u32,
     pub height: u32,
@@ -145,7 +145,7 @@ impl ScreenshotVideoExporter {
         // Fix texture alignment for WGPU COPY_BYTES_PER_ROW_ALIGNMENT (256)
         let bytes_per_row = width * 4;
         let aligned_bytes_per_row = ((bytes_per_row + 255) / 256) * 256;
-        
+
         encoder.copy_texture_to_buffer(
             wgpu::TexelCopyTextureInfo {
                 texture,
@@ -173,13 +173,16 @@ impl ScreenshotVideoExporter {
         // Map buffer and read data
         let buffer_slice = buffer.slice(..);
         let (tx, rx) = std::sync::mpsc::channel();
-        
+
         buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
             tx.send(result).unwrap();
         });
 
-        let _ = device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None });
-        
+        let _ = device.poll(wgpu::PollType::Wait {
+            submission_index: None,
+            timeout: None,
+        });
+
         if rx.recv().unwrap().is_err() {
             return Err("Failed to map buffer".to_string());
         }
@@ -191,14 +194,14 @@ impl ScreenshotVideoExporter {
 
         // Save image
         self.save_image(&pixel_data, file_path, settings)?;
-        
+
         Ok(())
     }
 
     /// Start video recording
     pub fn start_recording(&self, settings: VideoExportSettings) -> Result<(), String> {
         let mut state = self.export_state.lock().unwrap();
-        
+
         if state.is_recording {
             return Err("Already recording".to_string());
         }
@@ -207,21 +210,21 @@ impl ScreenshotVideoExporter {
         state.recording_start_time = Some(Instant::now());
         state.recorded_frames.clear();
         state.current_video_settings = settings;
-        
+
         Ok(())
     }
 
     /// Stop video recording and save
     pub fn stop_recording(&self, file_path: &str) -> Result<(), String> {
         let mut state = self.export_state.lock().unwrap();
-        
+
         if !state.is_recording {
             return Err("Not recording".to_string());
         }
 
         let frames = state.recorded_frames.clone();
         let settings = state.current_video_settings.clone();
-        
+
         state.is_recording = false;
         state.recording_start_time = None;
         state.recorded_frames.clear();
@@ -244,7 +247,7 @@ impl ScreenshotVideoExporter {
         texture: &wgpu::Texture,
     ) -> Result<(), String> {
         let mut state = self.export_state.lock().unwrap();
-        
+
         if !state.is_recording {
             return Ok(());
         }
@@ -252,8 +255,9 @@ impl ScreenshotVideoExporter {
         // Check if we should capture this frame based on FPS
         if let Some(start_time) = state.recording_start_time {
             let elapsed = start_time.elapsed();
-            let expected_frames = (elapsed.as_secs_f64() * state.current_video_settings.fps as f64) as usize;
-            
+            let expected_frames =
+                (elapsed.as_secs_f64() * state.current_video_settings.fps as f64) as usize;
+
             if state.recorded_frames.len() >= expected_frames {
                 return Ok(());
             }
@@ -307,13 +311,16 @@ impl ScreenshotVideoExporter {
         // Map buffer and read data
         let buffer_slice = buffer.slice(..);
         let (tx, rx) = std::sync::mpsc::channel();
-        
+
         buffer_slice.map_async(wgpu::MapMode::Read, move |result| {
             tx.send(result).unwrap();
         });
 
-        let _ = device.poll(wgpu::PollType::Wait { submission_index: None, timeout: None });
-        
+        let _ = device.poll(wgpu::PollType::Wait {
+            submission_index: None,
+            timeout: None,
+        });
+
         if rx.recv().unwrap().is_err() {
             return Err("Failed to map buffer".to_string());
         }
@@ -324,7 +331,7 @@ impl ScreenshotVideoExporter {
         buffer.unmap();
 
         state.recorded_frames.push(frame_data);
-        
+
         Ok(())
     }
 
@@ -339,31 +346,37 @@ impl ScreenshotVideoExporter {
             settings.width,
             settings.height,
             pixel_data.to_vec(),
-        ).ok_or("Failed to create image buffer")?;
+        )
+        .ok_or("Failed to create image buffer")?;
 
         let dynamic_img = DynamicImage::ImageRgba8(img_buffer);
-        
+
         // Apply settings
         let final_img = match settings.format {
             ExportFormat::Png => {
-                dynamic_img.save_with_format(file_path, image::ImageFormat::Png)
+                dynamic_img
+                    .save_with_format(file_path, image::ImageFormat::Png)
                     .map_err(|e| format!("Failed to save PNG: {}", e))?;
             }
             ExportFormat::Jpeg => {
                 let rgb_img = dynamic_img.to_rgb8();
-                rgb_img.save_with_format(file_path, image::ImageFormat::Jpeg)
+                rgb_img
+                    .save_with_format(file_path, image::ImageFormat::Jpeg)
                     .map_err(|e| format!("Failed to save JPEG: {}", e))?;
             }
             ExportFormat::Bmp => {
-                dynamic_img.save_with_format(file_path, image::ImageFormat::Bmp)
+                dynamic_img
+                    .save_with_format(file_path, image::ImageFormat::Bmp)
                     .map_err(|e| format!("Failed to save BMP: {}", e))?;
             }
             ExportFormat::Tiff => {
-                dynamic_img.save_with_format(file_path, image::ImageFormat::Tiff)
+                dynamic_img
+                    .save_with_format(file_path, image::ImageFormat::Tiff)
                     .map_err(|e| format!("Failed to save TIFF: {}", e))?;
             }
             ExportFormat::WebP => {
-                dynamic_img.save_with_format(file_path, image::ImageFormat::WebP)
+                dynamic_img
+                    .save_with_format(file_path, image::ImageFormat::WebP)
                     .map_err(|e| format!("Failed to save WebP: {}", e))?;
             }
         };
@@ -374,7 +387,7 @@ impl ScreenshotVideoExporter {
     /// Process export queue
     pub fn process_export_queue(&self) -> Result<(), String> {
         let mut state = self.export_state.lock().unwrap();
-        
+
         if state.processing || state.export_queue.is_empty() {
             return Ok(());
         }
@@ -385,10 +398,18 @@ impl ScreenshotVideoExporter {
 
         for request in requests {
             match request {
-                ExportRequest::Screenshot { file_path, settings, pixel_data } => {
+                ExportRequest::Screenshot {
+                    file_path,
+                    settings,
+                    pixel_data,
+                } => {
                     self.save_image(&pixel_data, &file_path, settings)?;
                 }
-                ExportRequest::Video { file_path, settings, frames } => {
+                ExportRequest::Video {
+                    file_path,
+                    settings,
+                    frames,
+                } => {
                     self.encode_video(&frames, &file_path, settings)?;
                 }
             }
@@ -396,7 +417,7 @@ impl ScreenshotVideoExporter {
 
         let mut state = self.export_state.lock().unwrap();
         state.processing = false;
-        
+
         Ok(())
     }
 
@@ -410,11 +431,13 @@ impl ScreenshotVideoExporter {
         // This is a placeholder implementation
         // In a real implementation, you would use ffmpeg or a similar library
         // to encode the frames into a video file
-        
+
         println!("Encoding {} frames to video: {}", frames.len(), file_path);
-        println!("Format: {:?}, FPS: {}, Quality: {}", 
-                 settings.format, settings.fps, settings.quality);
-        
+        println!(
+            "Format: {:?}, FPS: {}, Quality: {}",
+            settings.format, settings.fps, settings.quality
+        );
+
         // For now, save frames as individual images
         for (i, frame) in frames.iter().enumerate() {
             let frame_path = format!("{}_frame_{:04}.png", file_path, i);
@@ -424,10 +447,10 @@ impl ScreenshotVideoExporter {
                 height: settings.height,
                 ..Default::default()
             };
-            
+
             self.save_image(frame, &frame_path, export_settings)?;
         }
-        
+
         println!("Saved {} frames as individual images", frames.len());
         Ok(())
     }
@@ -440,14 +463,14 @@ impl ScreenshotVideoExporter {
     /// Get recording progress
     pub fn get_recording_progress(&self) -> f32 {
         let state = self.export_state.lock().unwrap();
-        
+
         if !state.is_recording || state.recording_start_time.is_none() {
             return 0.0;
         }
 
         let elapsed = state.recording_start_time.unwrap().elapsed();
         let total_duration = state.current_video_settings.duration;
-        
+
         (elapsed.as_secs_f32() / total_duration.as_secs_f32()).min(1.0)
     }
 
@@ -468,9 +491,9 @@ impl ExportUI {
         video_settings: &mut VideoExportSettings,
     ) {
         ui.heading("Export Controls");
-        
+
         ui.separator();
-        
+
         // Screenshot section
         ui.collapsing("📸 Screenshot", |ui| {
             ui.horizontal(|ui| {
@@ -485,40 +508,40 @@ impl ExportUI {
                         ui.selectable_value(&mut settings.format, ExportFormat::WebP, "WebP");
                     });
             });
-            
+
             ui.horizontal(|ui| {
                 ui.label("Width:");
                 ui.add(egui::DragValue::new(&mut settings.width).speed(1.0));
                 ui.label("Height:");
                 ui.add(egui::DragValue::new(&mut settings.height).speed(1.0));
             });
-            
+
             if matches!(settings.format, ExportFormat::Jpeg) {
                 ui.horizontal(|ui| {
                     ui.label("Quality:");
                     ui.add(egui::Slider::new(&mut settings.quality, 1..=100).text("%"));
                 });
             }
-            
+
             if matches!(settings.format, ExportFormat::Png) {
                 ui.horizontal(|ui| {
                     ui.label("Compression:");
                     ui.add(egui::Slider::new(&mut settings.compression, 1..=9));
                 });
             }
-            
+
             if ui.button("📸 Capture Screenshot").clicked() {
                 // This would trigger screenshot capture
                 println!("Screenshot capture requested");
             }
         });
-        
+
         ui.separator();
-        
+
         // Video section
         ui.collapsing("🎥 Video Recording", |ui| {
             let is_recording = exporter.is_recording();
-            
+
             ui.horizontal(|ui| {
                 if is_recording {
                     if ui.button("⏹ Stop Recording").clicked() {
@@ -532,66 +555,86 @@ impl ExportUI {
                     }
                 }
             });
-            
+
             if is_recording {
                 let progress = exporter.get_recording_progress();
                 let frame_count = exporter.get_recorded_frame_count();
-                
+
                 ui.horizontal(|ui| {
                     ui.label("Progress:");
-                    ui.add(egui::ProgressBar::new(progress)
-                        .text(format!("{:.1}%", progress * 100.0)));
+                    ui.add(
+                        egui::ProgressBar::new(progress).text(format!("{:.1}%", progress * 100.0)),
+                    );
                 });
-                
+
                 ui.label(format!("Frames captured: {}", frame_count));
             }
-            
+
             ui.separator();
-            
+
             ui.collapsing("Video Settings", |ui| {
                 ui.horizontal(|ui| {
                     ui.label("Format:");
                     egui::ComboBox::from_id_salt("video_format")
                         .selected_text(format!("{:?}", video_settings.format))
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut video_settings.format, VideoFormat::Mp4, "MP4");
-                            ui.selectable_value(&mut video_settings.format, VideoFormat::WebM, "WebM");
-                            ui.selectable_value(&mut video_settings.format, VideoFormat::Gif, "GIF");
-                            ui.selectable_value(&mut video_settings.format, VideoFormat::Apng, "APNG");
+                            ui.selectable_value(
+                                &mut video_settings.format,
+                                VideoFormat::Mp4,
+                                "MP4",
+                            );
+                            ui.selectable_value(
+                                &mut video_settings.format,
+                                VideoFormat::WebM,
+                                "WebM",
+                            );
+                            ui.selectable_value(
+                                &mut video_settings.format,
+                                VideoFormat::Gif,
+                                "GIF",
+                            );
+                            ui.selectable_value(
+                                &mut video_settings.format,
+                                VideoFormat::Apng,
+                                "APNG",
+                            );
                         });
                 });
-                
+
                 ui.horizontal(|ui| {
                     ui.label("FPS:");
                     ui.add(egui::DragValue::new(&mut video_settings.fps).speed(1.0));
                     ui.label("Bitrate (kbps):");
                     ui.add(egui::DragValue::new(&mut video_settings.bitrate).speed(100.0));
                 });
-                
+
                 ui.horizontal(|ui| {
                     ui.label("Quality:");
                     ui.add(egui::Slider::new(&mut video_settings.quality, 1..=100).text("%"));
                 });
-                
+
                 ui.horizontal(|ui| {
                     ui.label("Width:");
                     ui.add(egui::DragValue::new(&mut video_settings.width).speed(1.0));
                     ui.label("Height:");
                     ui.add(egui::DragValue::new(&mut video_settings.height).speed(1.0));
                 });
-                
+
                 ui.horizontal(|ui| {
                     ui.label("Duration (seconds):");
                     let mut seconds = video_settings.duration.as_secs();
-                    if ui.add(egui::DragValue::new(&mut seconds).speed(1.0)).changed() {
+                    if ui
+                        .add(egui::DragValue::new(&mut seconds).speed(1.0))
+                        .changed()
+                    {
                         video_settings.duration = Duration::from_secs(seconds);
                     }
                 });
             });
         });
-        
+
         ui.separator();
-        
+
         // Export queue
         ui.collapsing("📤 Export Queue", |ui| {
             ui.label("Export queue functionality would appear here");
@@ -617,23 +660,37 @@ pub fn run_standalone_exporter(
 ) {
     println!("Screenshot/Video Exporter - Standalone Tool");
     println!("==========================================");
-    
+
     let exporter = ScreenshotVideoExporter::new();
-    
+
     for input_file in input_files {
         println!("\nProcessing: {}", input_file);
-        
+
         // This would load the input file and process it
         // For now, just show what would happen
         match format.as_str() {
             "png" | "jpg" | "jpeg" | "bmp" | "tiff" | "webp" => {
-                let output_file = format!("{}/{}.png", output_dir, 
-                    Path::new(&input_file).file_stem().unwrap().to_str().unwrap());
+                let output_file = format!(
+                    "{}/{}.png",
+                    output_dir,
+                    Path::new(&input_file)
+                        .file_stem()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                );
                 println!("Would export screenshot to: {}", output_file);
             }
             "mp4" | "webm" | "gif" | "apng" => {
-                let output_file = format!("{}/{}.mp4", output_dir,
-                    Path::new(&input_file).file_stem().unwrap().to_str().unwrap());
+                let output_file = format!(
+                    "{}/{}.mp4",
+                    output_dir,
+                    Path::new(&input_file)
+                        .file_stem()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                );
                 println!("Would export video to: {}", output_file);
                 if let Some(fps) = fps {
                     println!("FPS: {}", fps);
@@ -644,6 +701,6 @@ pub fn run_standalone_exporter(
             }
         }
     }
-    
+
     println!("\nExport complete.");
 }

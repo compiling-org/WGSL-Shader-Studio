@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_egui::egui;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::Arc;
 use std::sync::Mutex;
 
 /// Responsive backend system that manages complex shader operations
@@ -76,10 +76,12 @@ impl ResponsiveBackend {
     pub fn update_performance(&self, delta_time: f32) {
         let fps = (1.0 / delta_time.max(0.001)) as u32;
         let frame_time_ms = (delta_time * 1000.0) as u32;
-        
+
         self.performance_monitor.fps.store(fps, Ordering::Relaxed);
-        self.performance_monitor.frame_time_ms.store(frame_time_ms, Ordering::Relaxed);
-        
+        self.performance_monitor
+            .frame_time_ms
+            .store(frame_time_ms, Ordering::Relaxed);
+
         // Update render state
         if let Ok(mut state) = self.render_state.lock() {
             state.frame_count += 1;
@@ -91,9 +93,18 @@ impl ResponsiveBackend {
     pub fn get_performance_data(&self) -> PerformanceData {
         PerformanceData {
             fps: self.performance_monitor.fps.load(Ordering::Relaxed),
-            frame_time_ms: self.performance_monitor.frame_time_ms.load(Ordering::Relaxed),
-            memory_usage_mb: self.performance_monitor.memory_usage_mb.load(Ordering::Relaxed),
-            gpu_utilization: self.performance_monitor.gpu_utilization.load(Ordering::Relaxed),
+            frame_time_ms: self
+                .performance_monitor
+                .frame_time_ms
+                .load(Ordering::Relaxed),
+            memory_usage_mb: self
+                .performance_monitor
+                .memory_usage_mb
+                .load(Ordering::Relaxed),
+            gpu_utilization: self
+                .performance_monitor
+                .gpu_utilization
+                .load(Ordering::Relaxed),
         }
     }
 
@@ -108,7 +119,7 @@ impl ResponsiveBackend {
         let scale_x = window_size.x / base_size.x;
         let scale_y = window_size.y / base_size.y;
         let scale = (scale_x.min(scale_y) * 100.0) as u32;
-        
+
         // Clamp between 50% and 200% scaling
         let clamped_scale = scale.clamp(50, 200);
         self.ui_scaling.store(clamped_scale, Ordering::Relaxed);
@@ -162,12 +173,9 @@ impl Plugin for ResponsiveBackendPlugin {
         // Initialize responsive backend
         let backend = ResponsiveBackend::new();
         app.insert_resource(backend.clone());
-        
+
         // Add systems
-        app.add_systems(Update, (
-            update_responsive_backend,
-            monitor_backend_health,
-        ));
+        app.add_systems(Update, (update_responsive_backend, monitor_backend_health));
     }
 }
 
@@ -179,7 +187,7 @@ fn update_responsive_backend(
 ) {
     let delta_time = time.delta_secs();
     backend.update_performance(delta_time);
-    
+
     // Update UI scaling based on window size
     if let Ok(window) = windows.single() {
         let window_size = egui::Vec2::new(window.width(), window.height());
@@ -192,7 +200,7 @@ fn monitor_backend_health(backend: Res<ResponsiveBackend>) {
     // Simple health check - in a real implementation, this would check
     // for GPU timeouts, memory leaks, etc.
     let is_healthy = backend.is_responsive();
-    
+
     if !is_healthy {
         eprintln!("Backend health check failed - system may be unresponsive");
     }
@@ -227,7 +235,7 @@ mod tests {
     fn test_performance_monitoring() {
         let backend = ResponsiveBackend::new();
         backend.update_performance(0.016); // 60 FPS
-        
+
         let data = backend.get_performance_data();
         assert_eq!(data.fps, 62); // ~62 FPS
         assert_eq!(data.frame_time_ms, 16); // ~16ms
@@ -236,14 +244,14 @@ mod tests {
     #[test]
     fn test_shader_compilation_lifecycle() {
         let backend = ResponsiveBackend::new();
-        
+
         // Start compilation
         let result = backend.start_shader_compilation("test shader".to_string());
         assert!(result.is_ok());
-        
+
         // Complete compilation
         backend.complete_shader_compilation(true, vec![]);
-        
+
         let state = backend.get_render_state();
         assert!(state.is_rendering);
         assert_eq!(state.shader_compilation_errors.len(), 0);

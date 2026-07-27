@@ -53,7 +53,10 @@ impl VisualLanguageCompiler {
     }
 
     /// Compile a node graph to WGSL with validation
-    pub fn compile_to_wgsl(&mut self, node_graph: &NodeGraph) -> Result<String, Vec<CompilationError>> {
+    pub fn compile_to_wgsl(
+        &mut self,
+        node_graph: &NodeGraph,
+    ) -> Result<String, Vec<CompilationError>> {
         // Reset errors
         self.errors.clear();
         self.warnings.clear();
@@ -78,9 +81,10 @@ impl VisualLanguageCompiler {
         // Check for unconnected required inputs
         for (node_id, node) in &node_graph.nodes {
             for input in &node.inputs {
-                let is_connected = node_graph.connections.iter().any(|conn| {
-                    conn.to_node == *node_id && conn.to_port == input.id
-                });
+                let is_connected = node_graph
+                    .connections
+                    .iter()
+                    .any(|conn| conn.to_node == *node_id && conn.to_port == input.id);
 
                 if !is_connected && self.is_required_input(node, &input.id) {
                     self.errors.push(CompilationError {
@@ -102,9 +106,10 @@ impl VisualLanguageCompiler {
         }
 
         // Check for output nodes
-        let has_output = node_graph.nodes.values().any(|node| {
-            matches!(node.kind, NodeKind::OutputColor)
-        });
+        let has_output = node_graph
+            .nodes
+            .values()
+            .any(|node| matches!(node.kind, NodeKind::OutputColor));
 
         if !has_output {
             self.errors.push(CompilationError {
@@ -133,7 +138,9 @@ impl VisualLanguageCompiler {
         let mut rec_stack = std::collections::HashSet::new();
 
         for node_id in node_graph.nodes.keys() {
-            if !visited.contains(node_id) && self.has_cycle_util(node_graph, *node_id, &mut visited, &mut rec_stack) {
+            if !visited.contains(node_id)
+                && self.has_cycle_util(node_graph, *node_id, &mut visited, &mut rec_stack)
+            {
                 return true;
             }
         }
@@ -157,7 +164,9 @@ impl VisualLanguageCompiler {
             for conn in &node_graph.connections {
                 if conn.from_node == node_id {
                     let to_node = conn.to_node;
-                    if !visited.contains(&to_node) && self.has_cycle_util(node_graph, to_node, visited, rec_stack) {
+                    if !visited.contains(&to_node)
+                        && self.has_cycle_util(node_graph, to_node, visited, rec_stack)
+                    {
                         return true;
                     } else if rec_stack.contains(&to_node) {
                         return true;
@@ -173,7 +182,7 @@ impl VisualLanguageCompiler {
     /// Generate WGSL code from the node graph
     fn generate_wgsl_from_graph(&self, node_graph: &NodeGraph) -> String {
         let mut code = String::new();
-        
+
         // Add standard uniforms
         code.push_str("struct Uniforms {\n  time: f32,\n  resolution: vec2<f32>,\n};\n\n");
         code.push_str("@group(0) @binding(0) var<uniform> uniforms: Uniforms;\n\n");
@@ -185,7 +194,10 @@ impl VisualLanguageCompiler {
         // Fragment prelude: declare any textures if present
         let mut uses_texture = false;
         for n in node_graph.nodes.values() {
-            if matches!(n.kind, NodeKind::TextureSample | NodeKind::TextureSampleLod | NodeKind::TextureSize) {
+            if matches!(
+                n.kind,
+                NodeKind::TextureSample | NodeKind::TextureSampleLod | NodeKind::TextureSize
+            ) {
                 uses_texture = true;
                 break;
             }
@@ -198,12 +210,15 @@ impl VisualLanguageCompiler {
         // Build evaluation order (topological sort by repeatedly selecting nodes whose inputs are satisfied)
         let mut order: Vec<NodeId> = Vec::new();
         let mut satisfied: std::collections::HashSet<NodeId> = std::collections::HashSet::new();
-        
+
         // Source nodes have no inputs that need to be satisfied by other nodes
         for (id, node) in &node_graph.nodes {
             let mut has_unsatisfied_inputs = false;
             for input in &node.inputs {
-                let has_input = node_graph.connections.iter().any(|c| c.to_node == *id && c.to_port == input.id);
+                let has_input = node_graph
+                    .connections
+                    .iter()
+                    .any(|c| c.to_node == *id && c.to_port == input.id);
                 if has_input {
                     has_unsatisfied_inputs = true;
                     break;
@@ -216,9 +231,10 @@ impl VisualLanguageCompiler {
         }
 
         // Iterate to include remaining nodes
-        let mut remaining: std::collections::HashSet<NodeId> = node_graph.nodes.keys().copied().collect();
-        for id in order.iter() { 
-            remaining.remove(id); 
+        let mut remaining: std::collections::HashSet<NodeId> =
+            node_graph.nodes.keys().copied().collect();
+        for id in order.iter() {
+            remaining.remove(id);
         }
         let mut guard = 0;
         while !remaining.is_empty() && guard < 1024 {
@@ -228,10 +244,12 @@ impl VisualLanguageCompiler {
                 let node = &node_graph.nodes[&id];
                 let mut all_inputs_satisfied = true;
                 for inp in &node.inputs {
-                    let has_input = node_graph.connections.iter().any(|c| c.to_node == id && c.to_port == inp.id && satisfied.contains(&c.from_node));
-                    if !has_input { 
-                        all_inputs_satisfied = false; 
-                        break; 
+                    let has_input = node_graph.connections.iter().any(|c| {
+                        c.to_node == id && c.to_port == inp.id && satisfied.contains(&c.from_node)
+                    });
+                    if !has_input {
+                        all_inputs_satisfied = false;
+                        break;
                     }
                 }
                 if all_inputs_satisfied {
@@ -241,9 +259,9 @@ impl VisualLanguageCompiler {
                     progressed = true;
                 }
             }
-            if !progressed { 
+            if !progressed {
                 // If we can't progress, there might be a cycle or unconnected nodes
-                break; 
+                break;
             }
         }
 
@@ -265,17 +283,26 @@ impl VisualLanguageCompiler {
                 NodeKind::ConstantVec2(v) => {
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: vec2<f32> = vec2<f32>({},{});\n", v[0], v[1]));
+                    code.push_str(&format!(
+                        "  let {var}: vec2<f32> = vec2<f32>({},{});\n",
+                        v[0], v[1]
+                    ));
                 }
                 NodeKind::ConstantVec3(v) => {
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: vec3<f32> = vec3<f32>({},{},{});\n", v[0], v[1], v[2]));
+                    code.push_str(&format!(
+                        "  let {var}: vec3<f32> = vec3<f32>({},{},{});\n",
+                        v[0], v[1], v[2]
+                    ));
                 }
                 NodeKind::ConstantVec4(v) => {
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: vec4<f32> = vec4<f32>({},{},{},{});\n", v[0], v[1], v[2], v[3]));
+                    code.push_str(&format!(
+                        "  let {var}: vec4<f32> = vec4<f32>({},{},{},{});\n",
+                        v[0], v[1], v[2], v[3]
+                    ));
                 }
                 NodeKind::Time => {
                     let out = node.outputs[0].id;
@@ -291,11 +318,23 @@ impl VisualLanguageCompiler {
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
                     let vec_index = idx / 4;
-                    let comp = match idx % 4 { 0 => "x", 1 => "y", 2 => "z", _ => "w" };
+                    let comp = match idx % 4 {
+                        0 => "x",
+                        1 => "y",
+                        2 => "z",
+                        _ => "w",
+                    };
                     code.push_str(&format!("  let {var}: f32 = params[{vec_index}].{comp};\n"));
                 }
                 // Binary math operations
-                NodeKind::Add | NodeKind::Subtract | NodeKind::Multiply | NodeKind::Divide | NodeKind::Min | NodeKind::Max | NodeKind::Pow | NodeKind::Distance => {
+                NodeKind::Add
+                | NodeKind::Subtract
+                | NodeKind::Multiply
+                | NodeKind::Divide
+                | NodeKind::Min
+                | NodeKind::Max
+                | NodeKind::Pow
+                | NodeKind::Distance => {
                     let a = &node.inputs[0];
                     let b = &node.inputs[1];
                     let a_src = self.find_source_var(*id, a.id, &port_vars);
@@ -313,14 +352,25 @@ impl VisualLanguageCompiler {
                         NodeKind::Distance => "distance",
                         _ => "+",
                     };
-                    if matches!(node.kind, NodeKind::Min | NodeKind::Max | NodeKind::Pow | NodeKind::Distance) {
+                    if matches!(
+                        node.kind,
+                        NodeKind::Min | NodeKind::Max | NodeKind::Pow | NodeKind::Distance
+                    ) {
                         code.push_str(&format!("  let {var}: f32 = {op}({a_src}, {b_src});\n"));
                     } else {
                         code.push_str(&format!("  let {var}: f32 = {a_src} {op} {b_src};\n"));
                     }
                 }
                 // Unary math operations
-                NodeKind::Sine | NodeKind::Cosine | NodeKind::Tangent | NodeKind::Length | NodeKind::Fract | NodeKind::Floor | NodeKind::Ceil | NodeKind::Abs | NodeKind::Sqrt => {
+                NodeKind::Sine
+                | NodeKind::Cosine
+                | NodeKind::Tangent
+                | NodeKind::Length
+                | NodeKind::Fract
+                | NodeKind::Floor
+                | NodeKind::Ceil
+                | NodeKind::Abs
+                | NodeKind::Sqrt => {
                     let x = &node.inputs[0];
                     let x_src = self.find_source_var(*id, x.id, &port_vars);
                     let out = node.outputs[0].id;
@@ -363,7 +413,9 @@ impl VisualLanguageCompiler {
                     let b_src = self.find_source_var(*id, b.id, &port_vars);
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: vec3<f32> = cross({a_src}, {b_src});\n"));
+                    code.push_str(&format!(
+                        "  let {var}: vec3<f32> = cross({a_src}, {b_src});\n"
+                    ));
                 }
                 // Interpolation
                 NodeKind::Mix => {
@@ -375,7 +427,9 @@ impl VisualLanguageCompiler {
                     let t_src = self.find_source_var(*id, t.id, &port_vars);
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: f32 = mix({a_src}, {b_src}, {t_src});\n"));
+                    code.push_str(&format!(
+                        "  let {var}: f32 = mix({a_src}, {b_src}, {t_src});\n"
+                    ));
                 }
                 NodeKind::Step => {
                     let edge = &node.inputs[0];
@@ -395,7 +449,9 @@ impl VisualLanguageCompiler {
                     let x_src = self.find_source_var(*id, x.id, &port_vars);
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: f32 = smoothstep({edge0_src}, {edge1_src}, {x_src});\n"));
+                    code.push_str(&format!(
+                        "  let {var}: f32 = smoothstep({edge0_src}, {edge1_src}, {x_src});\n"
+                    ));
                 }
                 NodeKind::Clamp => {
                     let x = &node.inputs[0];
@@ -406,7 +462,9 @@ impl VisualLanguageCompiler {
                     let max_src = self.find_source_var(*id, max.id, &port_vars);
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: f32 = clamp({x_src}, {min_src}, {max_src});\n"));
+                    code.push_str(&format!(
+                        "  let {var}: f32 = clamp({x_src}, {min_src}, {max_src});\n"
+                    ));
                 }
                 NodeKind::TextureSample => {
                     let _tex = &node.inputs[0];
@@ -414,7 +472,9 @@ impl VisualLanguageCompiler {
                     let uv_src = self.find_source_var(*id, uv_in.id, &port_vars);
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: vec4<f32> = textureSample(tex0, samp, {uv_src});\n"));
+                    code.push_str(&format!(
+                        "  let {var}: vec4<f32> = textureSample(tex0, samp, {uv_src});\n"
+                    ));
                 }
                 // Missing node types - add basic implementations
                 NodeKind::Resolution => {
@@ -426,7 +486,9 @@ impl VisualLanguageCompiler {
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
                     // Use center of screen as mouse position for now
-                    code.push_str(&format!("  let {var}: vec2<f32> = uniforms.resolution * 0.5;\n"));
+                    code.push_str(&format!(
+                        "  let {var}: vec2<f32> = uniforms.resolution * 0.5;\n"
+                    ));
                 }
                 NodeKind::Reflect => {
                     let i = &node.inputs[0];
@@ -435,7 +497,9 @@ impl VisualLanguageCompiler {
                     let n_src = self.find_source_var(*id, n.id, &port_vars);
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: vec3<f32> = reflect({i_src}, {n_src});\n"));
+                    code.push_str(&format!(
+                        "  let {var}: vec3<f32> = reflect({i_src}, {n_src});\n"
+                    ));
                 }
                 NodeKind::Refract => {
                     let i = &node.inputs[0];
@@ -446,7 +510,9 @@ impl VisualLanguageCompiler {
                     let eta_src = self.find_source_var(*id, eta.id, &port_vars);
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: vec3<f32> = refract({i_src}, {n_src}, {eta_src});\n"));
+                    code.push_str(&format!(
+                        "  let {var}: vec3<f32> = refract({i_src}, {n_src}, {eta_src});\n"
+                    ));
                 }
                 NodeKind::Sign => {
                     let x = &node.inputs[0];
@@ -464,7 +530,9 @@ impl VisualLanguageCompiler {
                     let b_src = self.find_source_var(*id, b.id, &port_vars);
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: vec3<f32> = vec3<f32>({r_src}, {g_src}, {b_src});\n"));
+                    code.push_str(&format!(
+                        "  let {var}: vec3<f32> = vec3<f32>({r_src}, {g_src}, {b_src});\n"
+                    ));
                 }
                 NodeKind::HSV => {
                     let h = &node.inputs[0];
@@ -477,9 +545,13 @@ impl VisualLanguageCompiler {
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
                     // Simple HSV to RGB conversion
                     code.push_str(&format!("  let c = {v_src} * {s_src};\n"));
-                    code.push_str(&format!("  let x = c * (1.0 - abs(mod({h_src} * 6.0, 2.0) - 1.0));\n"));
+                    code.push_str(&format!(
+                        "  let x = c * (1.0 - abs(mod({h_src} * 6.0, 2.0) - 1.0));\n"
+                    ));
                     code.push_str(&format!("  let m = {v_src} - c;\n"));
-                    code.push_str(&format!("  let {var}: vec3<f32> = vec3<f32>(c, x, 0.0) + m;\n"));
+                    code.push_str(&format!(
+                        "  let {var}: vec3<f32> = vec3<f32>(c, x, 0.0) + m;\n"
+                    ));
                 }
                 NodeKind::ColorMix => {
                     let color1 = &node.inputs[0];
@@ -490,7 +562,9 @@ impl VisualLanguageCompiler {
                     let t_src = self.find_source_var(*id, t.id, &port_vars);
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: vec3<f32> = mix({color1_src}, {color2_src}, {t_src});\n"));
+                    code.push_str(&format!(
+                        "  let {var}: vec3<f32> = mix({color1_src}, {color2_src}, {t_src});\n"
+                    ));
                 }
                 NodeKind::ColorAdjust => {
                     let color = &node.inputs[0];
@@ -527,9 +601,12 @@ impl VisualLanguageCompiler {
                     let out = node.outputs[0].id;
                     let cell_out = node.outputs[1].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    let cell_var = self.add_port_var(&mut port_vars, &mut var_counter, *id, cell_out);
+                    let cell_var =
+                        self.add_port_var(&mut port_vars, &mut var_counter, *id, cell_out);
                     // Simple voronoi approximation
-                    code.push_str(&format!("  let {var}: f32 = length(fract({position_src}) - 0.5);\n"));
+                    code.push_str(&format!(
+                        "  let {var}: f32 = length(fract({position_src}) - 0.5);\n"
+                    ));
                     code.push_str(&format!("  let {cell_var}: f32 = floor({position_src}.x) + floor({position_src}.y) * 100.0;\n"));
                 }
                 NodeKind::TextureSampleLod => {
@@ -546,7 +623,9 @@ impl VisualLanguageCompiler {
                     let _tex = &node.inputs[0];
                     let out = node.outputs[0].id;
                     let var = self.add_port_var(&mut port_vars, &mut var_counter, *id, out);
-                    code.push_str(&format!("  let {var}: vec2<f32> = vec2<f32>(textureDimensions(tex0));\n"));
+                    code.push_str(&format!(
+                        "  let {var}: vec2<f32> = vec2<f32>(textureDimensions(tex0));\n"
+                    ));
                 }
                 NodeKind::OutputColor => {
                     let color_in = &node.inputs[0];
@@ -575,7 +654,12 @@ impl VisualLanguageCompiler {
         name
     }
 
-    fn find_source_var(&self, to_node: NodeId, to_port: PortId, port_vars: &HashMap<(NodeId, PortId), String>) -> String {
+    fn find_source_var(
+        &self,
+        to_node: NodeId,
+        to_port: PortId,
+        port_vars: &HashMap<(NodeId, PortId), String>,
+    ) -> String {
         for c in &crate::node_graph::NodeGraph::default().connections {
             if c.to_node == to_node && c.to_port == to_port {
                 if let Some(name) = port_vars.get(&(c.from_node, c.from_port)) {
