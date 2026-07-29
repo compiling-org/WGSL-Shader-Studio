@@ -1,0 +1,114 @@
+[package]
+name = "wgsl-shader-studio"
+version = "0.1.0"
+edition = "2021"
+description = "Professional WGPU shader studio with ISF support and real-time audio/MIDI integration"
+authors = ["Kapil"]
+license = "MIT"
+repository = "https://github.com/compiling-org/WGSL-Shader-Studio"
+homepage = "https://github.com/compiling-org/WGSL-Shader-Studio"
+keywords = ["wgpu", "webgpu", "shader", "wgsl", "isf", "vj", "audio", "midi"]
+categories = ["multimedia", "graphics", "gui"]
+default-run = "isf-shaders"
+
+[[bin]]
+name = "isf-shaders"
+path = "src/main.rs"
+
+[[bin]]
+name = "ui-analyzer"
+path = "src/bin/ui_analyzer.rs"
+
+[[bin]]
+name = "ui-analyzer-enhanced"
+path = "src/bin/ui_analyzer_enhanced.rs"
+
+[[bin]]
+name = "isf-conversion-test-runner"
+path = "src/bin/isf_conversion_test_runner.rs"
+
+[[bin]]
+name = "integration_test"
+path = "src/bin/integration_test.rs"
+
+[lib]
+name = "resolume_isf_shaders_rust_ffgl"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Basic dependencies for a simple graphics library
+anyhow = "1.0"
+ash = "0.38.0"
+console_log = "1.0.0"
+directories = "5.0"
+bevy = "0.18"
+petgraph = "0.6"
+# bevy_shader_graph = { git = "https://github.com/Neopallium/bevy_shader_graph.git" }
+# space_editor = { git = "https://github.com/rewin123/space_editor.git" }  # Bevy version mismatch (0.14 vs 0.17)
+bevy_egui = { version = "0.39", optional = true }
+image = "0.25"
+# Note: Leap Motion and MediaPipe would require platform-specific SDKs
+# midir = "0.10.3"  # MIDI support
+# Note: Simple substitute for gesture recognition until SDKs are added
+log = "0.4"
+parking_lot = "0.12"
+mimalloc = "0.1"
+tokio = { version = "1.0", features = ["full"] }
+midir = "0.10.3"
+pollster = "0.4.0"
+rfd = "0.15.4"
+rustfft = "6.4.1"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+thiserror = "2.0"
+wgpu = "27.0.1"
+winit = "0.30.12"
+bytemuck = { version = "1.15", features = ["derive"] }
+regex = "1.10"
+naga = { version = "27.0.0", features = ["wgsl-in"] }
+convert_case = "0.6.0"
+chrono = { version = "0.4", features = ["serde"] }
+walkdir = "2.4"
+lru = "0.12"
+toml = "0.8"
+serde_yaml = "0.9"
+# Replaced lezer with proper Rust parsing libraries
+# lezer = "0.1"  # This is a JavaScript parser generator, not available in Rust
+uuid = { version = "1.0", features = ["v4", "serde"] }
+once_cell = "1.20"
+hyper = { version = "0.14", features = ["server", "http1", "tcp"] }
+hyper-staticfile = "0.9"
+
+# Cross-platform networking (replacing tokio-tun)
+tun-rs = { version = "2.0", optional = true }
+
+# Async runtime support
+futures = "0.3"
+async-trait = "0.1"
+
+# Audio analysis dependencies
+# cpal = "0.15"  # Removed due to Send/Sync issues with Bevy Resources
+dasp = "0.11"
+ringbuf = "0.4"
+rand = "0.8"
+
+# Control Engine dependencies (prime scheduling + complex math)
+num-complex = "0.4"
+primal = "0.3"
+
+# Optional: ONNX neural network inference bridge
+# ort = { version = "2.0", optional = true }
+
+[features]
+default = ["gui", "networking", "naga_integration"]
+gui = ["bevy_egui"]
+networking = ["tun-rs"]
+naga_integration = []
+3d_preview = []
+
+# Linker optimization for faster builds
+[profile.dev]
+opt-level = 1
+# This significantly slow down the initial build, removing for speed.
+# [profile.dev.package."*"]
+# opt-level = 3

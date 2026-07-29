@@ -1,0 +1,10 @@
+--- a/src/visual_node_editor.rs
++++ b/src/visual_node_editor.rs
+@@ -712,7 +712,7 @@
+     fn draw_selection_box(&self, ui: &mut Ui, start_pos: Pos2, current_pos: Pos2) {
+         let painter = ui.painter();
+         let rect = Rect::from_two_pos(start_pos, current_pos);
+-        painter.rect_stroke(rect, 0.0, Stroke::new(1.0, Color32::from_rgb(100, 150, 255)), StrokeKind::Inside);
++        painter.rect_stroke(rect, 0.0, Stroke::new(1.0, Color32::from_rgb(100, 150, 255)), egui::StrokeKind::Inside);
+         painter.rect_filled(rect, 0.0, Color32::from_rgba_unmultiplied(100, 150, 255, 30));
+     }
