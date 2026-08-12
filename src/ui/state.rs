@@ -25,6 +25,8 @@ pub enum CentralView {
     NodeGraph,
     Scene3D,
     Timeline,
+    Penumbra3D,
+    FosforaEffect,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -63,6 +65,8 @@ pub enum RightSidebarMode {
     Gestures,
     Performance,
     Scene3D,
+    PenumbraMaterials,
+    FosforaEffects,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

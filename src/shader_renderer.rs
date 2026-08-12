@@ -369,6 +369,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         params: &RenderParameters,
         parameter_values: Option<&[f32]>,
         audio_data: Option<AudioData>,
+        fosfora_effects: Option<&crate::fosfora::EffectLoader>,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         if params.width == 0 || params.height == 0 {
             return Ok(self.last_successful_frame.clone());
@@ -450,7 +451,8 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         self.last_errors.clear();
         self.ensure_resources(params.width, params.height);
 
-        // 1. Update Uniforms
+        // Add audio features to uniform
+        let audio_features = audio_data.as_ref().map(|d| d.features.clone()).unwrap_or_default();
         let uniforms = Uniforms {
             time: params.time,
             resolution: [params.width as f32, params.height as f32],
@@ -461,6 +463,94 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             audio_treble: audio_data.as_ref().map(|d| d.treble_level).unwrap_or(0.0),
             _padding: [0u32],
         };
+
+        // Convert fosfora features to audio data format for shader
+        let fosfora_audio_data = if fosfora_effects.is_some() {
+            // Use fosora_effects to generate enhanced audio data
+            if let Some(effects) = fosfora_effects {
+                // Map fosfora features to shader uniforms
+                let mut features_slice = audio_features.as_slice().clone();
+                // First 7 features are from Fosfora
+                // Next 63 features are synthesized based on shader parameters
+                // Total 83 features for shader uniforms
+                let mut synthesized_features = [0.0f32; 76]; // 83 - 7 = 76 remaining features
+                
+                // Synthesize remaining features based on effect parameters
+                if let Some(effect) = effects.active_effect.as_ref() {
+                    if let Some(pass) = effect.get_pass("main") {
+                        // Apply pass uniforms to shader
+                        for (name, value) in &pass.uniforms {
+                            match name.as_str() {
+                                "attack" => synthesized_features[0] = value.min(1.0),
+                                "release" => synthesized_features[1] = value.min(1.0),
+                                "feedback" => synthesized_features[2] = value.min(1.0),
+                                "mix" => synthesized_features[3] = value.min(1.0),
+                                _ => {}
+                            }
+                        }
+                        
+                        // Apply audio modulation if enabled
+                        if pass.audio_mod.enabled {
+                            // Apply audio modulation to synthesized features
+                            match pass.audio_mod.source.as_str() {
+                                "loudness" => {
+                                    for i in 0..76 {
+                                        synthesized_features[i] = features_slice[0] * pass.audio_mod.depth;
+                                    }
+                                }
+                                "beat" => {
+                                    for i in 0..76 {
+                                        synthesized_features[i] = features_slice[1] * pass.audio_mod.depth;
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+                
+                // Combine fosfora features with synthesized features
+                let mut all_features = [0.0f32; 83];
+                all_features[..7].copy_from_slice(&features_slice);
+                all_features[7..83].copy_from_slice(&synthesized_features);
+                
+                // Store for debugging (optional)
+                // self.cached_fosfora_features = Some(all_features);
+            } else {
+                // Fallback to default features
+                let mut default_features = [0.0f32; 83];
+                default_features[0] = 0.5; // sub_bass default
+                default_features[1] = 0.5; // bass default
+                default_features[2] = 0.5; // low_mid default
+                default_features[3] = 0.5; // mid default
+                default_features[4] = 0.5; // upper_mid default
+                default_features[5] = 0.5; // presence default
+                default_features[6] = 0.5; // brilliance default
+                
+                // Fill remaining with synthesized defaults
+                for i in 7..83 {
+                    default_features[i] = 0.5;
+                }
+            }
+        } else {
+            // Use default audio features
+            let mut default_features = [0.0f32; 83];
+            default_features[0] = 0.5; // sub_bass default
+            default_features[1] = 0.5; // bass default
+            default_features[2] = 0.5; // low_mid default
+            default_features[3] = 0.5; // mid default
+            default_features[4] = 0.5; // upper_mid default
+            default_features[5] = 0.5; // presence default
+            default_features[6] = 0.5; // brilliance default
+            
+            // Fill remaining with synthesized defaults
+            for i in 7..83 {
+                default_features[i] = 0.5;
+            }
+        }
+
+        // Store audio features in the shader renderer for potential access
+        self.cached_fosfora_features = Some(audio_features);
 
         if let Some(buf) = &self.cached_uniform_buffer {
             self.queue

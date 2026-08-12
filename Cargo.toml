@@ -92,6 +92,10 @@ dasp = "0.11"
 ringbuf = "0.4"
 rand = "0.8"
 
+# External rendering reference crates
+penumbra = { path = "reference_repos/Penumbra" }
+fosfora-app = { path = "reference_repos/fosfora/crates/fosfora-app" }
+
 # Control Engine dependencies (prime scheduling + complex math)
 num-complex = "0.4"
 primal = "0.3"
@@ -105,6 +109,7 @@ gui = ["bevy_egui"]
 networking = ["tun-rs"]
 naga_integration = []
 3d_preview = []
+penumbra-integration = ["penumbra/integrated", "fosfora-app/integrated"]
 
 # Linker optimization for faster builds
 [profile.dev]

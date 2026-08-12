@@ -361,15 +361,8 @@ impl EnhancedAudioSystem {
 
 #[derive(Debug, Clone)]
 pub struct AudioShaderUniforms {
-    pub u_audio_bass: f32,
-    pub u_audio_mid: f32,
-    pub u_audio_treble: f32,
-    pub u_audio_volume: f32,
-    pub u_audio_tempo: f32,
-    pub u_audio_beat_intensity: f32,
+    pub audio_features: [f32; 83],
     pub u_audio_time: f32,
-    pub u_audio_waveform: Vec<f32>,
-    pub u_audio_spectrum: Vec<f32>,
 }
 
 impl AudioShaderUniforms {

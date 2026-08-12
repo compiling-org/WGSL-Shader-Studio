@@ -24,6 +24,8 @@ pub fn draw_editor_central_panel(
                 (CentralView::NodeGraph, "Node Graph"),
                 (CentralView::Scene3D, "3D Editor"),
                 (CentralView::Timeline, "Timeline"),
+                (CentralView::Penumbra3D, "3D (Penumbra)"),
+                (CentralView::FosforaEffect, "Fosfora Effect"),
             ];
             for (view, label) in tabs {
                 let selected = ui_state.central_view == view;
@@ -106,6 +108,19 @@ pub fn draw_editor_central_panel(
             CentralView::Timeline => {
                 ui.heading("Timeline");
                 crate::timeline::draw_timeline_ui(ui, timeline_animation);
+            }
+            CentralView::Penumbra3D => {
+                ui.heading("3D Preview (Penumbra)");
+                if let Some(ref mut ngr) = node_graph_res {
+                    crate::bevy_node_graph_integration_enhanced::draw_node_graph_embedded(ui, ngr);
+                } else {
+                    ui.label("3D viewport not ready");
+                }
+            }
+            CentralView::FosforaEffect => {
+                ui.heading("Fosfora Effects");
+                ui.label("Select .pfx Effect");
+                crate::editor_ui::draw_fosfora_effect_panel(ui, ui_state);
             }
         }
     });
