@@ -48,13 +48,12 @@ petgraph = "0.6"
 bevy_egui = { version = "0.39", optional = true }
 image = "0.25"
 # Note: Leap Motion and MediaPipe would require platform-specific SDKs
-# midir = "0.10.3"  # MIDI support
+# midir = "0.10.3"  # MIDI support - temporarily disabled due to alsa conflict with cpal/fosfora-app
 # Note: Simple substitute for gesture recognition until SDKs are added
 log = "0.4"
 parking_lot = "0.12"
 mimalloc = "0.1"
 tokio = { version = "1.0", features = ["full"] }
-midir = "0.10.3"
 pollster = "0.4.0"
 rfd = "0.15.4"
 rustfft = "6.4.1"
@@ -87,14 +86,14 @@ futures = "0.3"
 async-trait = "0.1"
 
 # Audio analysis dependencies
-# cpal = "0.15"  # Removed due to Send/Sync issues with Bevy Resources
+# Removed cpal due to ALSA conflict - using dasp instead
 dasp = "0.11"
 ringbuf = "0.4"
 rand = "0.8"
 
 # External rendering reference crates
-penumbra = { path = "reference_repos/Penumbra" }
-fosfora-app = { path = "reference_repos/fosfora/crates/fosfora-app" }
+# penumbra = { path = "reference_repos/Penumbra" }
+# fosfora-app = { path = "reference_repos/fosfora/crates/fosfora-app" }
 
 # Control Engine dependencies (prime scheduling + complex math)
 num-complex = "0.4"
@@ -109,7 +108,7 @@ gui = ["bevy_egui"]
 networking = ["tun-rs"]
 naga_integration = []
 3d_preview = []
-penumbra-integration = ["penumbra/integrated", "fosfora-app/integrated"]
+# penumbra-integration = ["penumbra/integrated", "fosfora-app/integrated"]
 
 # Linker optimization for faster builds
 [profile.dev]
@@ -117,3 +116,6 @@ opt-level = 1
 # This significantly slow down the initial build, removing for speed.
 # [profile.dev.package."*"]
 # opt-level = 3
+
+[patch.crates-io]
+alsa-sys = { version = "0.4.0" }

@@ -199,12 +199,13 @@ fn compile_and_render_shader(
             }
         }
 
-        match renderer.render_frame(
-            wgsl_code,
-            &params,
-            Some(&param_array),
-            None::<crate::audio_system::AudioData>,
-        ) {
+match renderer.render_frame(
+                wgsl_code,
+                &params,
+                Some(&param_array),
+                None::<crate::audio_system::AudioData>,
+                None,
+            ) {
             Ok(pixel_data) => {
                 // CRITICAL: Deterministic upload after apply_requested
                 let width = params.width as usize;

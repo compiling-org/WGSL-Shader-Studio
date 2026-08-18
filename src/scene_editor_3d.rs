@@ -444,6 +444,7 @@ fn update_shader_preview_texture(
                 &params,
                 None,
                 params.audio_data.clone(),
+                None,
             ) {
                 if let Some(img) = images.get_mut(&preview_tex.handle) {
                     let expected_len =

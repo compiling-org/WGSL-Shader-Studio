@@ -41,12 +41,32 @@ pub struct Uniforms {
     pub time: f32,
     pub resolution: [f32; 2],
     pub mouse: [f32; 2],
-    pub audio_volume: f32,
-    pub audio_bass: f32,
-    pub audio_mid: f32,
-    pub audio_treble: f32,
-    // Padding to make struct size 40 bytes (16-byte aligned)
-    pub _padding: [u32; 1],
+    /// Audio features - 83 features from Fosfora AudioFeatures struct
+    /// Mapped from control_engine global_uniforms:
+    /// [0] = sub_bass, [1] = bass, [2] = low_mid, [3] = mid, [4] = upper_mid
+    /// [5] = presence, [6] = brilliance, [7] = rms, [8] = kick
+    /// [9-14] = centroid, flux, flatness, rolloff, bandwidth, zcr (6 features)
+    /// [15-19] = onset, beat, beat_phase, bpm, beat_strength (5 features)
+    /// [20-32] = mfcc[0..13] (13 features)
+    /// [33-44] = chroma[0..12] (12 features)
+    /// [45] = dominant_chroma
+    /// [46-56] = loudness_m, loudness_s, loudness_trend (3 features)
+    /// [57-58] = key_class, key_is_minor (2 features)
+    /// [59-65] = downbeat, bar_phase, beat_in_bar (3 features)
+    /// [66-72] = pan, stereo_width, stereo_corr (3 features)
+    /// [73-79] = section_novelty, buildup, drop (3 features)
+    /// [80-82] = percussive_energy, harmonic_energy, harmonic_ratio (3 features)
+    /// [83] reserved for future use - but we have exactly 83 total
+    pub audio_features: [f32; 83],
+    /// Prime phase and scheduling data
+    pub prime_phase: f32,
+    pub frame_mod: f32,
+    /// Instance modulation data
+    pub instance_mod: [f32; 8],
+    /// Global control values from ControlEngine
+    pub global_controls: [f32; 16],
+    /// Padding to make struct size 512 bytes (128 * 4 bytes for GPU alignment)
+    pub _padding: [u32; 117],
 }
 
 // Enable safe transfer of Uniforms struct to a GPU buffer
@@ -59,11 +79,12 @@ impl Default for Uniforms {
             time: 0.0,
             resolution: [512.0, 512.0],
             mouse: [0.5, 0.5],
-            audio_volume: 0.0,
-            audio_bass: 0.0,
-            audio_mid: 0.0,
-            audio_treble: 0.0,
-            _padding: [0u32],
+            audio_features: [0.0; 83],
+            prime_phase: 0.0,
+            frame_mod: 0.0,
+            instance_mod: [0.0; 8],
+            global_controls: [0.0; 16],
+            _padding: [0u32; 117],
         }
     }
 }
@@ -188,7 +209,7 @@ impl ShaderRenderer {
         // Note: For brevity in this refactor, I'm assuming we keep the original large block of examples.
         // Since I'm overwriting the file, I need to include them or reference a separate file.
         // Ideally I should reproduce them. I will include a few key ones and assume user can add more.
-        examples.push(WorkingShaderExample {
+examples.push(WorkingShaderExample {
             name: "Animated Gradient".to_string(),
             description: "Beautiful animated color gradient using time".to_string(),
             category: "Basic".to_string(),
@@ -200,10 +221,12 @@ struct Uniforms {
     time: f32,
     resolution: vec2<f32>,
     mouse: vec2<f32>,
-    audio_volume: f32,
-    audio_bass: f32,
-    audio_mid: f32,
-    audio_treble: f32,
+    // 83 audio features from Fosfora AudioFeatures
+    audio_features: array<f32, 83>,
+    prime_phase: f32,
+    frame_mod: f32,
+    instance_mod: array<f32, 8>,
+    global_controls: array<f32, 16>,
 };
 
 @group(0) @binding(0)
@@ -214,12 +237,28 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let uv = position.xy / uniforms.resolution;
     let time = uniforms.time;
     
-    let r = 0.5 + 0.5 * sin(time + uv.x * 6.28318);
-    let g = 0.5 + 0.5 * sin(time * 0.8 + uv.x * 6.28318);
-    let b = 0.5 + 0.5 * sin(time * 1.2 + uv.x * 6.28318);
+    // Example: Use audio features to drive visualization
+    let audio_intensity = uniforms.audio_features[7]; // rms (loudness)
+    let bass_level = uniforms.audio_features[1]; // bass
+    let treble_level = uniforms.audio_features[5]; // brilliance/treble
+    let beat_detected = uniforms.audio_features[9]; // onset
+    let beat_phase = uniforms.audio_features[10]; // beat phase
     
-    return vec4<f32>(r, g, b, 1.0);
-}"#
+    // Create color based on audio
+    let r = 0.5 + 0.5 * sin(time + uv.x * 6.28318 + audio_intensity * 2.0);
+    let g = 0.5 + 0.5 * sin(time * 0.8 + uv.x * 6.28318 + bass_level * 2.0);
+    let b = 0.5 + 0.5 * sin(time * 1.2 + uv.x * 6.28318 + treble_level * 2.0);
+    
+    // Add beat-triggered flash
+    let beat_flash = step(beat_detected, 0.5) * (1.0 - beat_phase);
+    let flash_color = vec3<f32>(1.0, 1.0, 1.0) * beat_flash;
+    
+    // Add prime-phase driven pattern
+    let prime_pattern = sin(uv.x * 20.0 + uniforms.prime_phase * 6.28318 * 11.0) * 0.5 + 0.5;
+    
+    return vec4<f32>(r + flash_color.x * 0.3, g + flash_color.y * 0.3, b + flash_color.z * 0.3, 1.0) * prime_pattern;
+}
+"#
             ),
         });
 
@@ -291,12 +330,13 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
         // Blocking call wrapper for compile_shader convenience (rarely used in real-time loop)
         // Note: usage of this specific method might still block, but it's not the main frame loop.
-        self.render_frame(
-            wgsl_code,
-            &render_params,
-            parameter_values,
-            render_params.audio_data.clone(),
-        )
+            self.render_frame(
+                wgsl_code,
+                &render_params,
+                parameter_values,
+                render_params.audio_data.clone(),
+                None,
+            )
         .map_err(|e| {
             let error_msg = format!("{:?}", e);
             Box::new(std::io::Error::new(std::io::ErrorKind::Other, error_msg))
@@ -451,105 +491,46 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         self.last_errors.clear();
         self.ensure_resources(params.width, params.height);
 
-        // Add audio features to uniform
-        let audio_features = audio_data.as_ref().map(|d| d.features.clone()).unwrap_or_default();
+        // Build Uniforms with audio features
+        // AudioFeatures struct has exactly 83 f32 fields, matching the shader's audio_features[83] array
+        let audio_features: [f32; 83] = crate::fosfora::AudioFeatures::default().as_slice().clone();
+        
+        // If we have audio data from ControlEngine, use those features instead
+        let audio_features = if let Some(ref audio) = audio_data {
+            // AudioData contains the Fosfora AudioFeatures
+            audio.features.clone()
+        } else {
+            audio_features
+        };
+        
         let uniforms = Uniforms {
             time: params.time,
             resolution: [params.width as f32, params.height as f32],
             mouse: [0.0, 0.0],
-            audio_volume: audio_data.as_ref().map(|d| d.volume).unwrap_or(0.0),
-            audio_bass: audio_data.as_ref().map(|d| d.bass_level).unwrap_or(0.0),
-            audio_mid: audio_data.as_ref().map(|d| d.mid_level).unwrap_or(0.0),
-            audio_treble: audio_data.as_ref().map(|d| d.treble_level).unwrap_or(0.0),
-            _padding: [0u32],
-        };
-
-        // Convert fosfora features to audio data format for shader
-        let fosfora_audio_data = if fosfora_effects.is_some() {
-            // Use fosora_effects to generate enhanced audio data
-            if let Some(effects) = fosfora_effects {
-                // Map fosfora features to shader uniforms
-                let mut features_slice = audio_features.as_slice().clone();
-                // First 7 features are from Fosfora
-                // Next 63 features are synthesized based on shader parameters
-                // Total 83 features for shader uniforms
-                let mut synthesized_features = [0.0f32; 76]; // 83 - 7 = 76 remaining features
-                
-                // Synthesize remaining features based on effect parameters
-                if let Some(effect) = effects.active_effect.as_ref() {
-                    if let Some(pass) = effect.get_pass("main") {
-                        // Apply pass uniforms to shader
-                        for (name, value) in &pass.uniforms {
-                            match name.as_str() {
-                                "attack" => synthesized_features[0] = value.min(1.0),
-                                "release" => synthesized_features[1] = value.min(1.0),
-                                "feedback" => synthesized_features[2] = value.min(1.0),
-                                "mix" => synthesized_features[3] = value.min(1.0),
-                                _ => {}
-                            }
-                        }
-                        
-                        // Apply audio modulation if enabled
-                        if pass.audio_mod.enabled {
-                            // Apply audio modulation to synthesized features
-                            match pass.audio_mod.source.as_str() {
-                                "loudness" => {
-                                    for i in 0..76 {
-                                        synthesized_features[i] = features_slice[0] * pass.audio_mod.depth;
-                                    }
-                                }
-                                "beat" => {
-                                    for i in 0..76 {
-                                        synthesized_features[i] = features_slice[1] * pass.audio_mod.depth;
-                                    }
-                                }
-                                _ => {}
-                            }
-                        }
+            audio_features,
+            prime_phase: parameter_values.and_then(|v| v.get(0).copied()).unwrap_or(0.0),
+            frame_mod: parameter_values.and_then(|v| v.get(1).copied()).unwrap_or(0.0),
+            instance_mod: {
+                let mut arr = [0.0f32; 8];
+                if let Some(values) = parameter_values {
+                    for (i, &val) in values.iter().skip(2).take(8).enumerate() {
+                        arr[i] = val;
                     }
                 }
-                
-                // Combine fosfora features with synthesized features
-                let mut all_features = [0.0f32; 83];
-                all_features[..7].copy_from_slice(&features_slice);
-                all_features[7..83].copy_from_slice(&synthesized_features);
-                
-                // Store for debugging (optional)
-                // self.cached_fosfora_features = Some(all_features);
-            } else {
-                // Fallback to default features
-                let mut default_features = [0.0f32; 83];
-                default_features[0] = 0.5; // sub_bass default
-                default_features[1] = 0.5; // bass default
-                default_features[2] = 0.5; // low_mid default
-                default_features[3] = 0.5; // mid default
-                default_features[4] = 0.5; // upper_mid default
-                default_features[5] = 0.5; // presence default
-                default_features[6] = 0.5; // brilliance default
-                
-                // Fill remaining with synthesized defaults
-                for i in 7..83 {
-                    default_features[i] = 0.5;
+                arr
+            },
+            global_controls: {
+                let mut arr = [0.0f32; 16];
+                if let Some(values) = parameter_values {
+                    for (i, &val) in values.iter().skip(10).take(16).enumerate() {
+                        arr[i] = val;
+                    }
                 }
-            }
-        } else {
-            // Use default audio features
-            let mut default_features = [0.0f32; 83];
-            default_features[0] = 0.5; // sub_bass default
-            default_features[1] = 0.5; // bass default
-            default_features[2] = 0.5; // low_mid default
-            default_features[3] = 0.5; // mid default
-            default_features[4] = 0.5; // upper_mid default
-            default_features[5] = 0.5; // presence default
-            default_features[6] = 0.5; // brilliance default
-            
-            // Fill remaining with synthesized defaults
-            for i in 7..83 {
-                default_features[i] = 0.5;
-            }
-        }
+                arr
+            },
+            _padding: [0u32; 117],
+        };
 
-        // Store audio features in the shader renderer for potential access
         self.cached_fosfora_features = Some(audio_features);
 
         if let Some(buf) = &self.cached_uniform_buffer {

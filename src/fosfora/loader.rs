@@ -1,173 +1,307 @@
 // Fosfora effect loader
 // Handles .pfx (Pyroformer) effect file parsing and parameter extraction
+// Implements parsing of the proper JSON-based Fosfora .pfx format
+// Using the same format as reference_repos/fosfora/crates/fosfora-app/src/effect/format.rs
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
+use log;
 
-/// Fosfora .pfx effect format structure
-#[derive(Debug, Clone)]
-pub struct PfxEffect {
-    /// Effect name from the .pfx file
-    pub name: String,
-    /// Number of channels in the effect
-    pub num_channels: u32,
-    /// Sample rate of the audio
-    pub sample_rate: u32,
-    /// Number of audio samples per channel
-    pub num_samples: u32,
-    /// Effect type/classification
-    pub effect_type: String,
-    /// Duration in seconds
-    pub duration_secs: f32,
-    /// Parameter definitions with default values
-    pub parameters: HashMap<String, f32>,
-    /// Effect pass structure with parameters per pass
-    pub passes: Vec<PfxPass>,
+// Import the ParamDef from the params module
+use crate::fosfora::params::ParamDef;
+
+/// Visual classification of an effect for the UI.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum EffectType {
+    /// Fragment shader only, no particles.
+    Shader,
+    /// Compute particles + background shader.
+    Particle,
+    /// Particles + accumulated-state feedback (trails, RD, N-body, etc.).
+    Feedback,}
+
+/// Loop-export contract (overlay initiative): how an effect's motion relates to time.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum LoopMode {
+    /// Ordinary effect: free-running time, feedback and history allowed.
+    #[default]
+    Free,
+    /// Pure function of the uniform block; all motion phase-derived.
+    PhaseLocked,
 }
 
-/// Individual pass within a .pfx effect
-#[derive(Debug, Clone)]
-pub struct PfxPass {
-    /// Pass name
+/// A render pass definition within a multi-pass effect.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PassDef {
     pub name: String,
-    /// Blend mode (additive, multiply, etc.)
-    pub blend_mode: String,
-    /// Uniform parameters for this pass
-    pub uniforms: HashMap<String, f32>,
-    /// Shader code associated with this pass
-    pub shader_code: String,
-    /// Audio modulation parameters for this pass
-    pub audio_mod: PfxAudioMod,
+    pub shader: String,
+    #[serde(default = "default_scale")]
+    pub scale: f32,
+    /// Names of earlier passes whose current-frame outputs this pass samples as
+    /// `input0..` (in declared order). Forward/unknown references are a hard error.
+    #[serde(default)]
+    pub inputs: Vec<String>,
+    /// Names of feedback passes whose previous-frame outputs this pass samples,
+    /// appended after `inputs` in the `input0..` numbering.
+    #[serde(default)]
+    pub prev_inputs: Vec<String>,
+    /// Number of times to run this pass per frame, ping-ponging its own target between
+    /// runs (Jacobi/relaxation loops). Only meaningful for `feedback: true` passes;
+    /// defaults to 1 (single draw, legacy behavior).
+    #[serde(default = "default_one")]
+    pub iterations: u32,
+    /// Whether this pass reads its own previous frame (ping-pong feedback).
+    /// Defaults to true (matches legacy single-shader behavior); set false to disable.
+    #[serde(default = "default_true")]
+    pub feedback: bool,
+}
+fn default_scale() -> f32 {
+    1.0
+}
+fn default_one() -> u32 {
+    1
 }
 
-/// Audio modulation parameters for a pass
-#[derive(Debug, Clone)]
-pub struct PfxAudioMod {
-    /// Enable audio-driven modulation
+/// Per-effect post-processing overrides.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PostProcessDef {
+    #[serde(default = "default_true")]
     pub enabled: bool,
-    /// Modulation source (loudness, beat, etc.)
-    pub source: String,
-    /// Modulation depth (0.0-1.0)
-    pub depth: f32,
-    /// Modulation rate in Hz
-    pub rate: f32,
-    /// Attack time in seconds
-    pub attack: f32,
-    /// Release time in seconds
-    pub release: f32,
-    /// Target parameter to modulate
-    pub target_param: String,
-    /// Target value range [min, max]
-    pub target_range: (f32, f32),
+    #[serde(default = "default_bloom_threshold")]
+    pub bloom_threshold: f32,
+    #[serde(default = "default_bloom_intensity")]
+    pub bloom_intensity: f32,
+    #[serde(default = "default_vignette")]
+    pub vignette: f32,
+    #[serde(default = "default_half")]
+    pub ca_intensity: f32,
+    #[serde(default = "default_half")]
+    pub grain_intensity: f32,
+    /// Film-grain updates per second. The grain deliberately runs slower than
+    /// the display so a repeated frame does not freeze a boiling noise field
+    /// into a visible flash (#1983). 0 = update every frame (pre-1.26 look).
+    #[serde(default = "default_grain_rate")]
+    pub grain_rate: f32,
+    #[serde(default = "default_true")]
+    pub bloom_enabled: bool,
+    #[serde(default = "default_true")]
+    pub ca_enabled: bool,
+    #[serde(default = "default_true")]
+    pub vignette_enabled: bool,
+    #[serde(default = "default_true")]
+    pub grain_enabled: bool,
+    /// Tonemap operator: "aces" (default, Phosphor house look) or "linear"
+    /// (raw passthrough clamp, matching SuperSplat for the Splat effect).
+    #[serde(default = "default_tonemap")]
+    pub tonemap: String,
+}
+fn default_true() -> bool {
+    true
+}
+fn default_bloom_threshold() -> f32 {
+    0.8
+}
+fn default_bloom_intensity() -> f32 {
+    0.35
+}
+fn default_vignette() -> f32 {
+    0.3
+}
+fn default_half() -> f32 {
+    0.5
+}
+fn default_grain_rate() -> f32 {
+    24.0
+}
+impl Default for PostProcessDef {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            bloom_threshold: 0.8,
+            bloom_intensity: 0.35,
+            vignette: 0.3,
+            ca_intensity: 0.5,
+            grain_intensity: 0.5,
+            grain_rate: 24.0,
+            bloom_enabled: true,
+            ca_enabled: true,
+            vignette_enabled: true,
+            grain_enabled: true,
+            tonemap: "aces".to_string(),
+        }
+    }
 }
 
+/// Describes which audio feature drives which visual aspect of an effect.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct AudioMapping {
+    pub feature: String,
+    pub target: String,
+}
+
+/// A .pfx effect definition (JSON format).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PfxEffect {
+    pub name: String,
+    #[serde(default)]
+    pub author: String,
+    #[serde(default)]
+    pub description: String,
+    /// Single-pass shader (backward compatible). Ignored if `passes` is non-empty.
+    #[serde(default)]
+    pub shader: String,
+    /// Inputs (parameters) for the effect.
+    #[serde(default)]
+    pub inputs: Vec<ParamDef>,
+    /// Multi-pass pipeline definition. If empty, `shader` field is used as a single pass.
+    #[serde(default)]
+    pub passes: Vec<PassDef>,
+    /// Per-effect post-processing overrides.
+    #[serde(default)]
+    pub postprocess: Option<PostProcessDef>,
+    /// GPU particle system definition.
+    #[serde(default)]
+    pub particles: Option<ParticleDef>,
+    /// Audio feature → visual target mappings (read-only display in UI).
+    #[serde(default)]
+    pub audio_mappings: Vec<AudioMapping>,
+    /// If true, effect is hidden from UI (not shown in effects panel or next/prev cycling).
+    #[serde(default)]
+    pub hidden: bool,
+    /// Browser grouping bucket: `"effect"` (default) lists normally, `"overlay"` groups
+    /// under the Overlay section.
+    #[serde(
+        default = "default_category",
+        skip_serializing_if = "is_default_category"
+    )]
+    pub category: String,
+    /// The effect emits a meaningful alpha channel.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub alpha: bool,
+    /// Spelled `loop` in the JSON (`loop` is a Rust keyword).
+    #[serde(rename = "loop", default, skip_serializing_if = "LoopMode::is_free")]
+    pub loop_mode: LoopMode,
+    /// Explicit effect type override (shader/particle/feedback).
+    /// If absent, auto-detected: no particles → Shader, particles → Particle.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effect_type: Option<EffectType>,
+    /// Path to the .pfx file on disk (not serialized).
+    #[serde(skip)]
+    pub source_path: Option<PathBuf>,
+}
+
+/// Describes what changed between two versions of a PfxEffect.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PfxDiff {
+    pub metadata_changed: bool,
+    pub inputs_changed: bool,
+    pub postprocess_changed: bool,
+    pub passes_changed: bool,
+    pub particles_changed: bool,
+}
+impl PfxDiff {
+    pub fn is_empty(&self) -> bool {
+        !self.metadata_changed
+            && !self.inputs_changed
+            && !self.postprocess_changed
+            && !self.passes_changed
+            && !self.particles_changed
+    }
+    pub fn needs_rebuild(&self) -> bool {
+        self.passes_changed || self.particles_changed
+    }
+}
+fn default_category() -> String {
+    "effect".to_string()
+}
+fn is_default_category(c: &str) -> bool {
+    c == "effect"
+}
 impl PfxEffect {
+    /// Returns the effect type: explicit if set, otherwise auto-detected.
+    pub fn effect_type(&self) -> EffectType {
+        if let Some(et) = self.effect_type {
+            return et;
+        }
+        if self.particles.is_some() {
+            EffectType::Particle
+        } else {
+            EffectType::Shader
+        }
+    }
+
+    /// Normalize: if `passes` is empty but `shader` is set, create a single-pass definition.
+    /// Single-pass effects get feedback enabled by default (matches legacy behavior).
+    pub fn normalized_passes(&self) -> Vec<PassDef> {
+        if !self.passes.is_empty() {
+            return self.passes.clone();
+        }
+        if !self.shader.is_empty() {
+            vec![PassDef {
+                name: "main".to_string(),
+                shader: self.shader.clone(),
+                scale: 1.0,
+                inputs: vec![],
+                prev_inputs: vec![],
+                iterations: 1,
+                feedback: true,
+            }]
+        } else {
+            vec![]
+        }
+    }
+
+    /// Compare two PfxEffect versions and identify what changed.
+    pub fn diff(&self, other: &PfxEffect) -> PfxDiff {
+        PfxDiff {
+            metadata_changed: self.name != other.name
+                || self.author != other.author
+                || self.description != other.description
+                || self.hidden != other.hidden
+                || self.audio_mappings != other.audio_mappings
+                || self.category != other.category
+                || self.alpha != other.alpha
+                || self.loop_mode != other.loop_mode,
+            inputs_changed: self.inputs != other.inputs,
+            postprocess_changed: self.postprocess != other.postprocess,
+            passes_changed: self.normalized_passes() != other.normalized_passes(),
+            particles_changed: self.particles != other.particles,
+        }
+    }
+
     /// Load a .pfx effect from a file path
-    pub fn load(path: &Path) -> anyhow::Result<Self> {
+    pub fn load(path: &Path) -> Result<Self> {
         let content = std::fs::read_to_string(path)?;
         Self::parse(&content)
     }
 
-    /// Parse .pfx effect from string content
-    pub fn parse(content: &str) -> anyhow::Result<Self> {
-        let mut lines = content.lines();
-        let mut effect = PfxEffect {
-            name: String::new(),
-            num_channels: 0,
-            sample_rate: 44100,
-            num_samples: 0,
-            effect_type: String::new(),
-            duration_secs: 0.0,
-            parameters: HashMap::new(),
-            passes: Vec::new(),
-        };
-
-        // Parse header: name, num_channels, sample_rate, num_samples, effect_type, duration
-        if let Some(line) = lines.next() {
-            if line.starts_with("#Pfx") {
-                // Valid .pfx header
-                for line in &mut lines {
-                    let trimmed = line.trim();
-                    if trimmed.is_empty() || trimmed.starts_with('#') {
-                        continue;
-                    }
-                    
-                    let mut parts = trimmed.splitn(2, ':');
-                    let key = parts.next().unwrap_or("").trim();
-                    let value = parts.next().unwrap_or("").trim();
-                    
-                    match key {
-                        "name" => effect.name = value.to_string(),
-                        "channels" => {
-                            effect.num_channels = value.parse().unwrap_or(0);
-                        }
-                        "rate" => {
-                            effect.sample_rate = value.parse().unwrap_or(44100);
-                        }
-                        "samples" => {
-                            effect.num_samples = value.parse().unwrap_or(0);
-                        }
-                        "type" => effect.effect_type = value.to_string(),
-                        "duration" => {
-                            effect.duration_secs = value.parse().unwrap_or(0.0);
-                        }
-                        "parameters" => {
-                            // Parse key=value pairs until empty line or next section
-                            for param_line in &mut lines {
-                                let param_trimmed = param_line.trim();
-                                if param_trimmed.is_empty() || param_trimmed.starts_with('#') {
-                                    break;
-                                }
-                                if let Some(param_parts) = param_trimmed.splitn(2, '=') {
-                                    let param_key = param_parts.next().unwrap().trim();
-                                    let param_val = param_parts.next().unwrap().trim();
-                                    if let Ok(fval) = param_val.parse::<f32>() {
-                                        effect.parameters.insert(param_key.to_string(), fval);
-                                    }
-                                }
-                            }
-                        }
-                        "effect_type" => effect.effect_type = value.to_string(),
-                        "duration_secs" => effect.duration_secs = value.parse().unwrap_or(0.0),
-                        "" => break, // Empty line ends header
-                        _ => {}
-                    }
-                }
-            }
-        }
-
-        // Parse passes (simplified)
-        // In full implementation, parse pass sections with uniforms and shader code
-        // For now, add a default pass if none found
-        if effect.passes.is_empty() {
-            effect.passes.push(PfxPass {
-                name: effect.name.clone() + "_pass",
-                blend_mode: "additive".to_string(),
-                uniforms: HashMap::new(),
-                shader_code: "// Default pass shader\nfn main() {\n    // shader code would go here\n}\n".to_string(),
-                audio_mod: PfxAudioMod {
-                    enabled: false,
-                    source: "loudness".to_string(),
-                    depth: 0.5,
-                    rate: 1.0,
-                    attack: 0.01,
-                    release: 0.1,
-                    target_param: "volume".to_string(),
-                    target_range: (0.0, 1.0),
-                },
-            });
-        }
-
-        Ok(effect)
+    /// Parse .pfx effect from JSON string content
+    pub fn parse(content: &str) -> Result<Self> {
+        serde_json::from_str(content)
+            .map_err(|e| anyhow::anyhow!("Failed to parse .pfx file: {}", e))
     }
 
-    /// Get a parameter value by name
+    /// Get a parameter (input) value by name
     pub fn get_parameter(&self, name: &str) -> Option<f32> {
-        self.parameters.get(name).copied()
+        for input in &self.inputs {
+            match input {
+                ParamDef::Float { name: n, .. } if n == name => {
+                    if let ParamDef::Float { default, .. } = input {
+                        return Some(*default);
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
     }
 
     /// Get pass by name
-    pub fn get_pass(&self, name: &str) -> Option<&PfxPass> {
+    pub fn get_pass(&self, name: &str) -> Option<&PassDef> {
         self.passes.iter().find(|pass| pass.name == name)
     }
 }
@@ -192,14 +326,14 @@ impl EffectLoader {
     }
 
     /// Load an effect from file path
-    pub fn load_effect(&mut self, path: &Path) -> anyhow::Result<()> {
+    pub fn load_effect(&mut self, path: &Path) -> Result<()> {
         let effect = PfxEffect::load(path)?;
         self.effects.insert(effect.name.clone(), effect);
         Ok(())
     }
 
     /// Load all .pfx effects from a directory
-    pub fn load_directory(&mut self, dir: &Path) -> anyhow::Result<()> {
+    pub fn load_directory(&mut self, dir: &Path) -> Result<()> {
         if !dir.exists() {
             return Ok(());
         }
@@ -220,7 +354,8 @@ impl EffectLoader {
 
     /// Get current effect's parameter value
     pub fn get_parameter_value(&self, effect_name: &str, param_name: &str) -> Option<f32> {
-        self.effects.get(effect_name).and_then(|eff| eff.get_parameter(param_name))
+        self.effects.get(effect_name)
+            .and_then(|eff| eff.get_parameter(param_name))
     }
 
     /// Apply UI parameter overrides
@@ -243,7 +378,7 @@ impl EffectLoader {
     /// Map Fosfora audio features to effect parameters
     pub fn map_audio_to_parameters(&mut self, audio_features: &crate::AudioFeatures) {
         // Map key Fosfora features to .pfx parameters
-        let mappings: [(&str, fn(&AudioFeatures) -> f32); 12] = [
+        let mappings: [(&str, fn(&crate::AudioFeatures) -> f32); 12] = [
             ("loudness", |f| f.loudness_m),
             ("key_root", |f| f.key_class),
             ("key_minor", |f| f.key_is_minor),
@@ -269,4 +404,29 @@ impl Default for EffectLoader {
     fn default() -> Self {
         Self::new()
     }
+}
+
+// Placeholder for ParticleDef - should be replaced with actual implementation
+// This allows the loader.rs to compile while particles are not yet integrated
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+pub struct ParticleDef {
+    pub max_count: u32,
+    #[serde(default)]
+    pub max_scaled_count: u32,
+    #[serde(default)]
+    pub render_mode: String,
+    #[serde(default)]
+    pub compute_shader: String,
+    #[serde(default)]
+    pub trail_length: u32,
+    #[serde(default)]
+    pub trail_width: f32,
+    #[serde(default)]
+    pub blend: String,
+    #[serde(default)]
+    pub interaction: bool,
+}
+
+fn is_free(loop_mode: &LoopMode) -> bool {
+    matches!(loop_mode, LoopMode::Free)
 }

@@ -102,6 +102,8 @@ pub struct ControlState {
     pub global_uniforms: Vec<f32>,
     /// Named parameter values for the node graph
     pub node_graph_params: HashMap<String, f32>,
+    /// Audio features (83 features from Fosfora AudioFeatures struct)
+    pub audio_features: [f32; 83],
 }
 
 impl ControlState {
@@ -115,6 +117,7 @@ impl ControlState {
             instance_mod: vec![0.0; config.instance_mod_size],
             global_uniforms: vec![0.0; 16],
             node_graph_params: HashMap::new(),
+            audio_features: [0.0; 83],
         }
     }
 }
@@ -185,11 +188,16 @@ impl ControlEngine {
     /// This is the main entry point, called once per frame.
     pub fn update(
         &mut self,
-        audio_inputs: Option<&[f32]>,
+        audio_features: Option<&crate::fosfora::AudioFeatures>,
         _external_inputs: Option<&[f32]>,
     ) -> &ControlState {
         self.frame += 1;
         self.state.frame = self.frame;
+
+        // Copy audio features if provided
+        if let Some(af) = audio_features {
+            self.state.audio_features = *af.as_slice();
+        }
 
         // 1. Update prime schedule
         if self.config.prime_scheduling_enabled {
@@ -213,11 +221,11 @@ impl ControlEngine {
             let raw = self.oscillator_bank.tick_all(dt);
 
             // Apply audio modulation if available
-            let modulated: Vec<f32> = if let Some(audio) = audio_inputs {
+            let modulated: Vec<f32> = if let Some(af) = audio_features {
                 raw.iter()
                     .enumerate()
                     .map(|(i, &v)| {
-                        let audio_mod = audio.get(i % audio.len()).copied().unwrap_or(0.0);
+                        let audio_mod = af.as_slice().get(i % 83).copied().unwrap_or(0.0);
                         v * (1.0 + audio_mod * 0.5)
                     })
                     .collect()
