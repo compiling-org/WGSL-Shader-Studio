@@ -263,9 +263,10 @@ pub fn editor_ui_system(
                 beat_detected: audio_data.beat_detected,
                 beat_intensity: audio_data.beat_intensity,
                 tempo: audio_data.tempo,
-                frequencies: audio_data.frequencies.clone(),
                 waveform: audio_data.waveform.clone(),
-            },
+                frequencies: audio_data.frequencies.clone(),
+                features: audio_data.features.clone(),
+            }
         );
     }
 

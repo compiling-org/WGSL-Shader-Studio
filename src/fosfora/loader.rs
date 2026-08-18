@@ -102,6 +102,11 @@ pub struct PostProcessDef {
 fn default_true() -> bool {
     true
 }
+
+fn default_tonemap() -> String {
+    "aces".to_string()
+}
+
 fn default_bloom_threshold() -> f32 {
     0.8
 }
@@ -376,9 +381,9 @@ impl EffectLoader {
     }
 
     /// Map Fosfora audio features to effect parameters
-    pub fn map_audio_to_parameters(&mut self, audio_features: &crate::AudioFeatures) {
+    pub fn map_audio_to_parameters(&mut self, audio_features: &crate::audio_system::AudioFeatures) {
         // Map key Fosfora features to .pfx parameters
-        let mappings: [(&str, fn(&crate::AudioFeatures) -> f32); 12] = [
+        let mappings: [(&str, fn(&crate::audio_system::AudioFeatures) -> f32); 12] = [
             ("loudness", |f| f.loudness_m),
             ("key_root", |f| f.key_class),
             ("key_minor", |f| f.key_is_minor),

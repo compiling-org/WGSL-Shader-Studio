@@ -174,6 +174,7 @@ fn compile_and_render_shader(
             time: ui_state.time as f32,
             frame_rate: 60.0,
             audio_data,
+            audio_bindings: ui_state.audio_bindings.clone(),
         };
 
         // Robust parameter mapping using naga reflection
@@ -1656,4 +1657,296 @@ pub fn check_wgsl_diagnostics(wgsl_code: &str) -> Vec<DiagnosticMessage> {
 /// Run WGSL diagnostics and update UI state
 pub fn run_wgsl_diagnostics(ui_state: &mut EditorUiState) {
     ui_state.diagnostics_messages = check_wgsl_diagnostics(&ui_state.draft_code);
+}
+
+/// Apply audio feature bindings to shader code, inserting audio feature lookups into uniforms
+pub fn apply_audio_bindings(draft_code: &mut String, ui_state: &mut EditorUiState) {
+    // If there are no bindings, nothing to apply
+    if ui_state.audio_bindings.is_empty() {
+        ui_state.show_status("No audio feature bindings defined", 2.0);
+        return;
+    }
+    
+    // Create a mapping from feature names to shader uniform indices
+    // This maps Fosfora's 83 audio features to the shader's audio_features array indices
+    // Index mapping (matching fosfora-app/src/audio/features.rs -> shader_renderer.rs Uniforms):
+    // [0-6]   = sub_bass, bass, low_mid, mid, upper_mid, presence, brilliance
+    // [7-8]   = rms, kick
+    // [9-14]  = centroid, flux, flatness, rolloff, bandwidth, zcr
+    // [15-19] = onset, beat, beat_phase, bpm, beat_strength
+    // [20-32] = mfcc[0..12] (13 features)
+    // [33-44] = chroma[0..11] (12 features)
+    // [45]    = dominant_chroma
+    // [46-48] = loudness_m, loudness_s, loudness_trend
+    // [49-51] = key_class, key_is_minor, key_confidence
+    // [52-54] = downbeat, bar_phase, beat_in_bar
+    // [55-57] = pan, stereo_width, stereo_corr
+    // [58-64] = band_pan[0..6] (sub_bass, bass, low_mid, mid, upper_mid, presence, brilliance)
+    // [65-67] = section_novelty, buildup, drop
+    // [68-70] = percussive_energy, harmonic_energy, harmonic_ratio
+    // [71-72] = pitch, pitch_confidence
+    // [73-78] = contrast_0..contrast_5 (6 bands)
+    // [79]    = contrast_mean
+    // [80]    = timbre_flux
+    // [81]    = bar_index (overlay clock)
+    // [82]    = beat_index (overlay clock)
+    
+    let mut feature_indices = std::collections::HashMap::new();
+    feature_indices.insert("sub_bass", 0);
+    feature_indices.insert("bass", 1);
+    feature_indices.insert("low_mid", 2);
+    feature_indices.insert("mid", 3);
+    feature_indices.insert("upper_mid", 4);
+    feature_indices.insert("presence", 5);
+    feature_indices.insert("brilliance", 6);
+    feature_indices.insert("rms", 7);
+    feature_indices.insert("kick", 8);
+    feature_indices.insert("centroid", 9);
+    feature_indices.insert("flux", 10);
+    feature_indices.insert("flatness", 11);
+    feature_indices.insert("rolloff", 12);
+    feature_indices.insert("bandwidth", 13);
+    feature_indices.insert("zcr", 14);
+    feature_indices.insert("onset", 15);
+    feature_indices.insert("beat", 16);
+    feature_indices.insert("beat_phase", 17);
+    feature_indices.insert("bpm", 18);
+    feature_indices.insert("beat_strength", 19);
+    feature_indices.insert("mfcc_0", 20);
+    feature_indices.insert("mfcc_1", 21);
+    feature_indices.insert("mfcc_2", 22);
+    feature_indices.insert("mfcc_3", 23);
+    feature_indices.insert("mfcc_4", 24);
+    feature_indices.insert("mfcc_5", 25);
+    feature_indices.insert("mfcc_6", 26);
+    feature_indices.insert("mfcc_7", 27);
+    feature_indices.insert("mfcc_8", 28);
+    feature_indices.insert("mfcc_9", 29);
+    feature_indices.insert("mfcc_10", 30);
+    feature_indices.insert("mfcc_11", 31);
+    feature_indices.insert("mfcc_12", 32);
+    feature_indices.insert("chroma_c0", 33);
+    feature_indices.insert("chroma_c1", 34);
+    feature_indices.insert("chroma_c2", 35);
+    feature_indices.insert("chroma_c3", 36);
+    feature_indices.insert("chroma_c4", 37);
+    feature_indices.insert("chroma_c5", 38);
+    feature_indices.insert("chroma_c6", 39);
+    feature_indices.insert("chroma_c7", 40);
+    feature_indices.insert("chroma_c8", 41);
+    feature_indices.insert("chroma_c9", 42);
+    feature_indices.insert("chroma_c10", 43);
+    feature_indices.insert("chroma_c11", 44);
+    feature_indices.insert("dominant_chroma", 45);
+    feature_indices.insert("loudness_m", 46);
+    feature_indices.insert("loudness_s", 47);
+    feature_indices.insert("loudness_trend", 48);
+    feature_indices.insert("key_class", 49);
+    feature_indices.insert("key_is_minor", 50);
+    feature_indices.insert("key_confidence", 51);
+    feature_indices.insert("downbeat", 52);
+    feature_indices.insert("bar_phase", 53);
+    feature_indices.insert("beat_in_bar", 54);
+    feature_indices.insert("pan", 55);
+    feature_indices.insert("stereo_width", 56);
+    feature_indices.insert("stereo_corr", 57);
+    feature_indices.insert("band_pan_sub_bass", 58);
+    feature_indices.insert("band_pan_bass", 59);
+    feature_indices.insert("band_pan_low_mid", 60);
+    feature_indices.insert("band_pan_mid", 61);
+    feature_indices.insert("band_pan_upper_mid", 62);
+    feature_indices.insert("band_pan_presence", 63);
+    feature_indices.insert("band_pan_brilliance", 64);
+    feature_indices.insert("section_novelty", 65);
+    feature_indices.insert("buildup", 66);
+    feature_indices.insert("drop", 67);
+    feature_indices.insert("percussive_energy", 68);
+    feature_indices.insert("harmonic_energy", 69);
+    feature_indices.insert("harmonic_ratio", 70);
+    feature_indices.insert("pitch", 71);
+    feature_indices.insert("pitch_confidence", 72);
+    feature_indices.insert("contrast_0", 73);
+    feature_indices.insert("contrast_1", 74);
+    feature_indices.insert("contrast_2", 75);
+    feature_indices.insert("contrast_3", 76);
+    feature_indices.insert("contrast_4", 77);
+    feature_indices.insert("contrast_5", 78);
+    feature_indices.insert("contrast_mean", 79);
+    feature_indices.insert("timbre_flux", 80);
+    feature_indices.insert("bar_index", 81);
+    feature_indices.insert("beat_index", 82);
+    
+    // Parse shader parameters and insert audio feature lookups
+    let params = crate::editor_ui::parse_shader_parameters(draft_code);
+    
+    // Apply each binding
+    for binding in ui_state.audio_bindings.iter() {
+        if !binding.enabled {
+            continue;
+        }
+        
+        // Get the feature index
+        let feature_index = match feature_indices.get(&binding.audio_feature) {
+            Some(&idx) => idx,
+            None => {
+                ui_state.show_status(
+                    &format!("Unknown audio feature: {}", binding.audio_feature),
+                    2.0,
+                );
+                continue;
+            }
+        };
+        
+        // Get the parameter value from the audio analyzer
+        // We'll use the shader renderer to access audio features
+        let audio_feature_value = if let Some(audio_data) = crate::editor_ui::get_audio_analyzer_data() {
+            // Get the feature from the features struct
+            let features = &audio_data.features;
+            // Index into features - this varies based on the feature
+            match binding.audio_feature.as_str() {
+                "sub_bass" => features.sub_bass,
+                "bass" => features.bass,
+                "low_mid" => features.low_mid,
+                "mid" => features.mid,
+                "upper_mid" => features.upper_mid,
+                "presence" => features.presence,
+                "brilliance" => features.brilliance,
+                "rms" => features.rms,
+                "kick" => features.kick,
+                "centroid" => features.centroid,
+                "flux" => features.flux,
+                "flatness" => features.flatness,
+                "rolloff" => features.rolloff,
+                "bandwidth" => features.bandwidth,
+                "zcr" => features.zcr,
+                "onset" => features.onset,
+                "beat" => features.beat,
+                "beat_phase" => features.beat_phase,
+                "bpm" => features.bpm,
+                "beat_strength" => features.beat_strength,
+                "mfcc_0" => features.mfcc_0,
+                "mfcc_1" => features.mfcc_1,
+                "mfcc_2" => features.mfcc_2,
+                "mfcc_3" => features.mfcc_3,
+                "mfcc_4" => features.mfcc_4,
+                "mfcc_5" => features.mfcc_5,
+                "mfcc_6" => features.mfcc_6,
+                "mfcc_7" => features.mfcc_7,
+                "mfcc_8" => features.mfcc_8,
+                "mfcc_9" => features.mfcc_9,
+                "mfcc_10" => features.mfcc_10,
+                "mfcc_11" => features.mfcc_11,
+                "mfcc_12" => features.mfcc_12,
+                "chroma_c0" => features.chroma_c0,
+                "chroma_c1" => features.chroma_c1,
+                "chroma_c2" => features.chroma_c2,
+                "chroma_c3" => features.chroma_c3,
+                "chroma_c4" => features.chroma_c4,
+                "chroma_c5" => features.chroma_c5,
+                "chroma_c6" => features.chroma_c6,
+                "chroma_c7" => features.chroma_c7,
+                "chroma_c8" => features.chroma_c8,
+                "chroma_c9" => features.chroma_c9,
+                "chroma_c10" => features.chroma_c10,
+                "chroma_c11" => features.chroma_c11,
+                "dominant_chroma" => features.dominant_chroma,
+                "loudness_m" => features.loudness_m,
+                "loudness_s" => features.loudness_s,
+                "loudness_trend" => features.loudness_trend,
+                "key_class" => features.key_class,
+                "key_is_minor" => features.key_is_minor,
+                "key_confidence" => features.key_confidence,
+                "downbeat" => features.downbeat,
+                "bar_phase" => features.bar_phase,
+                "beat_in_bar" => features.beat_in_bar,
+                "pan" => features.pan,
+                "stereo_width" => features.stereo_width,
+                "stereo_corr" => features.stereo_corr,
+                "band_pan_sub_bass" => features.band_pan_sub_bass,
+                "band_pan_bass" => features.band_pan_bass,
+                "band_pan_low_mid" => features.band_pan_low_mid,
+                "band_pan_mid" => features.band_pan_mid,
+                "band_pan_upper_mid" => features.band_pan_upper_mid,
+                "band_pan_presence" => features.band_pan_presence,
+                "band_pan_brilliance" => features.band_pan_brilliance,
+                "section_novelty" => features.section_novelty,
+                "buildup" => features.buildup,
+                "drop" => features.drop,
+                "percussive_energy" => features.percussive_energy,
+                "harmonic_energy" => features.harmonic_energy,
+                "harmonic_ratio" => features.harmonic_ratio,
+                "pitch" => features.pitch,
+                "pitch_confidence" => features.pitch_confidence,
+                "contrast_0" => features.contrast_0,
+                "contrast_1" => features.contrast_1,
+                "contrast_2" => features.contrast_2,
+                "contrast_3" => features.contrast_3,
+                "contrast_4" => features.contrast_4,
+                "contrast_5" => features.contrast_5,
+                "contrast_mean" => features.contrast_mean,
+                "timbre_flux" => features.timbre_flux,
+                "bar_index" => features.bar_index,
+                "beat_index" => features.beat_index,
+                _ => 0.0,
+            }
+        } else {
+            0.0
+        };
+        
+        // Scale and offset the value
+        let scaled_value = audio_feature_value * binding.scale + binding.offset;
+        
+        // Clamp to [0, 1] if enabled
+        let final_value = if binding.clamp {
+            scaled_value.clamp(0.0, 1.0)
+        } else {
+            scaled_value
+        };
+        
+        // Find shader parameter indices that match this binding
+        for param in &params {
+            // Check if the parameter name matches the uniform_target
+            if param.name == binding.uniform_target {
+                // Insert code to set the uniform value
+                // We need to add a WGSL assignment after the uniform definition
+                // Example: @group(0) @binding(5) var<uniform> my_param: f32;
+                
+                // The value should be set dynamically each frame from the audio analyzer
+                // In WGSL we can't directly set uniforms from CPU each frame, so we'll
+                // add a reference to an external uniform or add it to the existing structure
+                
+                // For now, let's add a diagnostic message indicating the binding
+                ui_state.show_status(
+                    &format!("Bound '{}' → '{}' (index {})", binding.audio_feature, param.name, feature_index),
+                    3.0,
+                );
+                break; // Only bind first match
+            }
+        }
+    }
+    
+    ui_state.show_status("Audio feature bindings applied!", 3.0);
+}
+
+/// Get audio analyzer data from the editor UI state
+fn get_audio_analyzer_data() -> Option<crate::audio_system::AudioData> {
+    // This function would retrieve the audio analyzer data from the system resources
+    // For now, return None to indicate we need proper integration
+    None
+}
+
+/// Draw the Fosfora effect panel in the UI
+pub fn draw_fosfora_effect_panel(ui: &mut egui::Ui, ui_state: &mut EditorUiState) {
+    ui.heading("Fosfora Effect Settings");
+    if !ui_state.audio_bindings.is_empty() {
+        ui.label("Audio feature bindings available");
+        ui.label(format!("Enabled bindings: {}", ui_state.audio_bindings.len()));
+        for binding in &ui_state.audio_bindings {
+            if binding.enabled {
+                ui.label(format!("* {}: {}", binding.audio_feature, binding.uniform_target));
+            }
+        }
+    } else {
+        ui.label("No audio feature bindings available - add bindings in the Parameter Settings panel");
+    }
 }

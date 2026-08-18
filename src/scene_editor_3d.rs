@@ -432,19 +432,20 @@ fn update_shader_preview_texture(
 ) {
     if let Ok(mut guard) = ui_state.global_renderer.renderer.lock() {
         if let Some(ref mut renderer) = *guard {
-            let params = crate::shader_renderer::RenderParameters {
+let params = crate::shader_renderer::RenderParameters {
                 width: preview_tex.width,
                 height: preview_tex.height,
                 time: ui_state.time as f32,
                 frame_rate: 60.0,
                 audio_data: Some(audio_analyzer.get_audio_data()),
+                audio_bindings: ui_state.audio_bindings.clone(),
             };
             if let Ok(pixels) = renderer.render_frame(
                 &ui_state.draft_code,
                 &params,
                 None,
                 params.audio_data.clone(),
-                None,
+                None, // fosfora_effects
             ) {
                 if let Some(img) = images.get_mut(&preview_tex.handle) {
                     let expected_len =

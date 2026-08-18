@@ -1,10 +1,12 @@
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 use wgpu::*;
+use serde::{Serialize, Deserialize};
 
 const VERBOSE_LOG: bool = true;
 
 use crate::audio_system::AudioData;
+use crate::ui::state::AudioUniformBinding;
 
 // --- Data Structures for External Use (e.g., passing from a GUI/Main loop) ---
 
@@ -16,11 +18,9 @@ pub struct RenderParameters {
     pub time: f32,
     pub frame_rate: f32,
     pub audio_data: Option<AudioData>,
+    /// Fosfora-style parameter bindings: audio feature name -> uniform target
+    pub audio_bindings: Vec<AudioUniformBinding>,
 }
-
-// Ensure RenderParameters implements necessary traits for multi-threading
-unsafe impl Send for RenderParameters {}
-unsafe impl Sync for RenderParameters {}
 
 impl Default for RenderParameters {
     fn default() -> Self {
@@ -30,35 +30,43 @@ impl Default for RenderParameters {
             time: 0.0,
             frame_rate: 60.0,
             audio_data: None,
-        }
+            audio_bindings: Vec::new(),
+}
     }
 }
 
 /// Parameters passed as a uniform buffer to the WGSL shader.
+/// Layout matches Fosfora's ShaderUniforms (83 audio features + control fields)
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct Uniforms {
     pub time: f32,
     pub resolution: [f32; 2],
     pub mouse: [f32; 2],
-    /// Audio features - 83 features from Fosfora AudioFeatures struct
-    /// Mapped from control_engine global_uniforms:
-    /// [0] = sub_bass, [1] = bass, [2] = low_mid, [3] = mid, [4] = upper_mid
-    /// [5] = presence, [6] = brilliance, [7] = rms, [8] = kick
-    /// [9-14] = centroid, flux, flatness, rolloff, bandwidth, zcr (6 features)
-    /// [15-19] = onset, beat, beat_phase, bpm, beat_strength (5 features)
-    /// [20-32] = mfcc[0..13] (13 features)
-    /// [33-44] = chroma[0..12] (12 features)
-    /// [45] = dominant_chroma
-    /// [46-56] = loudness_m, loudness_s, loudness_trend (3 features)
-    /// [57-58] = key_class, key_is_minor (2 features)
-    /// [59-65] = downbeat, bar_phase, beat_in_bar (3 features)
-    /// [66-72] = pan, stereo_width, stereo_corr (3 features)
-    /// [73-79] = section_novelty, buildup, drop (3 features)
-    /// [80-82] = percussive_energy, harmonic_energy, harmonic_ratio (3 features)
-    /// [83] reserved for future use - but we have exactly 83 total
+    /// Audio features - 83 features matching Fosfora AudioFeatures exactly
+    /// Index mapping (matching fosfora-app/src/audio/features.rs):
+    /// [0-6]   = sub_bass, bass, low_mid, mid, upper_mid, presence, brilliance
+    /// [7-8]   = rms, kick
+    /// [9-14]  = centroid, flux, flatness, rolloff, bandwidth, zcr
+    /// [15-19] = onset, beat, beat_phase, bpm, beat_strength
+    /// [20-32] = mfcc[0..12] (13 features)
+    /// [33-44] = chroma[0..11] (12 features)
+    /// [45]    = dominant_chroma
+    /// [46-48] = loudness_m, loudness_s, loudness_trend
+    /// [49-51] = key_class, key_is_minor, key_confidence
+    /// [52-54] = downbeat, bar_phase, beat_in_bar
+    /// [55-57] = pan, stereo_width, stereo_corr
+    /// [58-64] = band_pan[0..6] (sub_bass, bass, low_mid, mid, upper_mid, presence, brilliance)
+    /// [65-67] = section_novelty, buildup, drop
+    /// [68-70] = percussive_energy, harmonic_energy, harmonic_ratio
+    /// [71-72] = pitch, pitch_confidence
+    /// [73-78] = contrast_0..contrast_5 (6 bands)
+    /// [79]    = contrast_mean
+    /// [80]    = timbre_flux
+    /// [81]    = bar_index (overlay clock)
+    /// [82]    = beat_index (overlay clock)
     pub audio_features: [f32; 83],
-    /// Prime phase and scheduling data
+    /// Prime phase and scheduling data from ControlEngine
     pub prime_phase: f32,
     pub frame_mod: f32,
     /// Instance modulation data
@@ -67,6 +75,136 @@ pub struct Uniforms {
     pub global_controls: [f32; 16],
     /// Padding to make struct size 512 bytes (128 * 4 bytes for GPU alignment)
     pub _padding: [u32; 117],
+}
+
+impl Uniforms {
+    /// Convert AudioFeatures to our uniform array format
+    /// This maps the named fields in AudioFeatures to the correct indices in the array
+    pub fn from_audio_features(features: &crate::audio_system::AudioFeatures) -> [f32; 83] {
+        let mut arr = [0.0; 83];
+        
+        // Frequency bands (7) — multi-resolution FFT [0-6]
+        arr[0] = features.sub_bass;    // sub_bass
+        arr[1] = features.bass;        // bass
+        arr[2] = features.low_mid;     // low_mid
+        arr[3] = features.mid;         // mid
+        arr[4] = features.upper_mid;   // upper_mid
+        arr[5] = features.presence;    // presence
+        arr[6] = features.brilliance;  // brilliance
+        
+        // Aggregates (2) [7-8]
+        arr[7] = features.rms;         // rms
+        arr[8] = features.kick;        // kick
+        
+        // Spectral shape (6) [9-14]
+        arr[9] = features.centroid;    // centroid
+        arr[10] = features.flux;       // flux
+        arr[11] = features.flatness;   // flatness
+        arr[12] = features.rolloff;    // rolloff
+        arr[13] = features.bandwidth;  // bandwidth
+        arr[14] = features.zcr;        // zcr
+        
+        // Beat detection (5) [15-19]
+        arr[15] = features.onset;      // onset
+        arr[16] = features.beat;       // beat
+        arr[17] = features.beat_phase; // beat_phase
+        arr[18] = features.bpm;        // bpm
+        arr[19] = features.beat_strength; // beat_strength
+        
+        // MFCC features (13) [20-32]
+        arr[20] = features.mfcc_0;
+        arr[21] = features.mfcc_1;
+        arr[22] = features.mfcc_2;
+        arr[23] = features.mfcc_3;
+        arr[24] = features.mfcc_4;
+        arr[25] = features.mfcc_5;
+        arr[26] = features.mfcc_6;
+        arr[27] = features.mfcc_7;
+        arr[28] = features.mfcc_8;
+        arr[29] = features.mfcc_9;
+        arr[30] = features.mfcc_10;
+        arr[31] = features.mfcc_11;
+        arr[32] = features.mfcc_12;
+        
+        // Chroma (12) [33-44]
+        arr[33] = features.chroma_c0;
+        arr[34] = features.chroma_c1;
+        arr[35] = features.chroma_c2;
+        arr[36] = features.chroma_c3;
+        arr[37] = features.chroma_c4;
+        arr[38] = features.chroma_c5;
+        arr[39] = features.chroma_c6;
+        arr[40] = features.chroma_c7;
+        arr[41] = features.chroma_c8;
+        arr[42] = features.chroma_c9;
+        arr[43] = features.chroma_c10;
+        arr[44] = features.chroma_c11;
+        
+        // Derived: dominant pitch class [45]
+        arr[45] = features.dominant_chroma;
+        
+        // Batched ABI bump #1505 ("v2") [46-51]
+        arr[46] = features.loudness_m;    // loudness_m
+        arr[47] = features.loudness_s;    // loudness_s
+        arr[48] = features.loudness_trend; // loudness_trend
+        arr[49] = features.key_class;     // key_class
+        arr[50] = features.key_is_minor;  // key_is_minor
+        arr[51] = features.key_confidence; // key_confidence
+        
+        // Batched ABI bump #1505 continued [52-54]
+        arr[52] = features.downbeat;    // downbeat
+        arr[53] = features.bar_phase;   // bar_phase
+        arr[54] = features.beat_in_bar; // beat_in_bar
+        
+        // Batched ABI bump #1505 continued [55-57]
+        arr[55] = features.pan;         // pan (from stereo)
+        arr[56] = features.stereo_width; // stereo_width
+        arr[57] = features.stereo_corr;  // stereo_corr
+        
+        // Batched ABI bump #1505 continued [58-60]
+        arr[58] = features.section_novelty; // section_novelty
+        arr[59] = features.buildup;       // buildup
+        arr[60] = features.drop;          // drop
+        
+        // Batched ABI bump #1629 ("v3") [68-70]
+        arr[68] = features.percussive_energy; // percussive_energy
+        arr[69] = features.harmonic_energy;   // harmonic_energy
+        arr[70] = features.harmonic_ratio;    // harmonic_ratio
+        
+        // Batched ABI bump #1629 continued [71-72]
+        arr[71] = features.pitch;            // pitch
+        arr[72] = features.pitch_confidence; // pitch_confidence
+        
+        // Batched ABI bump #1629 continued [73-79]
+        arr[73] = features.contrast_0;   // contrast_0
+        arr[74] = features.contrast_1;   // contrast_1
+        arr[75] = features.contrast_2;   // contrast_2
+        arr[76] = features.contrast_3;   // contrast_3
+        arr[77] = features.contrast_4;   // contrast_4
+        arr[78] = features.contrast_5;   // contrast_5
+        arr[79] = features.contrast_mean; // contrast_mean
+        
+        // Batched ABI bump #1629 continued [80]
+        arr[80] = features.timbre_flux;   // timbre_flux
+        
+        // Overlay clock (v4 ABI bump) [81-82]
+        arr[81] = features.bar_index;    // bar_index
+        arr[82] = features.beat_index;   // beat_index
+        
+        // Note: Our AudioFeatures has some additional fields that aren't in the uniform array:
+        // - mode (not used in audio_features array)
+        // - left_right_pan (we use 'pan' instead)
+        // - stereo_energy (not in uniform array)
+        // - structure (not in uniform array - we have section_novelty/buildup/drop instead)
+        // - segment_confidence (not in uniform array)
+        // - harmonic_content (we have percussive_energy/harmonic_energy/harmonic_ratio instead)
+        // - pitch_octave (not used)
+        // - contrast_confidence (not used)
+        // - tick_index (not used)
+        // - band_pan_* fields (we have a band_pan array instead)
+        
+        arr
+    }
 }
 
 // Enable safe transfer of Uniforms struct to a GPU buffer
@@ -127,10 +265,12 @@ pub struct ShaderRenderer {
 
     // Pipeline Caching
     cached_shader_code: String,
-    cached_render_pipeline: Option<wgpu::RenderPipeline>,
-    cached_bind_group_layout: Option<wgpu::BindGroupLayout>,
-    cached_bind_group: Option<wgpu::BindGroup>,
-}
+            cached_render_pipeline: Option<wgpu::RenderPipeline>,
+            cached_bind_group_layout: Option<wgpu::BindGroupLayout>,
+            cached_bind_group: Option<wgpu::BindGroup>,
+            cached_fosfora_features: None,
+        }
+    }
 
 impl ShaderRenderer {
     /// Creates a new ShaderRenderer with a default size (512, 512).
@@ -326,6 +466,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             time: 0.0,
             frame_rate: 60.0,
             audio_data: None,
+            audio_bindings: Vec::new(),
         };
 
         // Blocking call wrapper for compile_shader convenience (rarely used in real-time loop)
@@ -493,15 +634,15 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
         // Build Uniforms with audio features
         // AudioFeatures struct has exactly 83 f32 fields, matching the shader's audio_features[83] array
-        let audio_features: [f32; 83] = crate::fosfora::AudioFeatures::default().as_slice().clone();
-        
-        // If we have audio data from ControlEngine, use those features instead
-        let audio_features = if let Some(ref audio) = audio_data {
-            // AudioData contains the Fosfora AudioFeatures
-            audio.features.clone()
-        } else {
-            audio_features
-        };
+        fn default_audio_features() -> [f32; 83] {
+        [0.0; 83]
+    }
+    
+    let audio_features = if let Some(ref audio) = audio_data {
+        Uniforms::from_audio_features(&audio.features)
+    } else {
+        default_audio_features()
+    };
         
         let uniforms = Uniforms {
             time: params.time,

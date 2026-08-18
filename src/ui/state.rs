@@ -4,10 +4,11 @@ use crate::shader_renderer::ShaderRenderer;
 use crate::timeline::TimelineAnimation;
 use bevy::prelude::*;
 use bevy_egui::egui;
+use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShaderParameter {
     pub name: String,
     pub wgsl_type: String,
@@ -112,6 +113,42 @@ pub struct DiagnosticMessage {
     pub line: Option<usize>,
     pub column: Option<usize>,
     pub severity: DiagnosticSeverity,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AudioUniformBinding {
+    /// Name of the audio feature (e.g., "bass", "beat", "loudness_m", "key_class")
+    pub audio_feature: String,
+    /// Target uniform field name in the shader
+    pub uniform_target: String,
+    /// Optional scaling factor
+    #[serde(default = "default_one")]
+    pub scale: f32,
+    /// Optional offset
+    #[serde(default)]
+    pub offset: f32,
+    /// Clamp to [0, 1]
+    #[serde(default = "default_true")]
+    pub clamp: bool,
+    /// Whether this binding is active
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+fn default_one() -> f32 { 1.0 }
+fn default_true() -> bool { true }
+
+impl Default for AudioUniformBinding {
+    fn default() -> Self {
+        Self {
+            audio_feature: String::new(),
+            uniform_target: String::new(),
+            scale: 1.0,
+            offset: 0.0,
+            clamp: true,
+            enabled: true,
+        }
+    }
 }
 
 /// Global shader renderer for preview functionality
@@ -252,6 +289,8 @@ pub struct EditorUiState {
     pub current_gesture_min: f32,
     pub current_gesture_max: f32,
     pub current_gesture_invert: bool,
+    // Fosfora audio feature bindings
+    pub audio_bindings: Vec<AudioUniformBinding>,
     // ... other state fields
     // Status Bar
     pub status_message: String,
@@ -371,6 +410,7 @@ impl Default for EditorUiState {
             status_message: "Ready".to_string(),
             status_message_timer: 0.0,
             show_status_bar: true,
+            audio_bindings: Vec::new(),
         }
     }
 }

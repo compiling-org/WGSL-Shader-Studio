@@ -154,6 +154,69 @@ pub fn draw_editor_side_panels(
                     let color = egui::Color32::from_rgb(80, (120 + (i as i32 % 80)) as u8, 220);
                     painter.rect_filled(egui::Rect::from_min_max(egui::pos2(x0, y0), egui::pos2(x1, y1)), egui::CornerRadius::same(2u8), color);
                 }
+                ui.separator();
+                
+                // Audio Feature Bindings (Fosfora-style)
+                ui.heading("Audio Feature Bindings");
+                ui.label("Map audio features to shader parameters");
+                ui.separator();
+                
+                let available_features = [
+                    "sub_bass", "bass", "low_mid", "mid", "upper_mid", "presence", "brilliance",
+                    "rms", "kick",
+                    "centroid", "flux", "flatness", "rolloff", "bandwidth", "zcr",
+                    "onset", "beat", "beat_phase", "bpm", "beat_strength",
+                    "mfcc_0", "mfcc_1", "mfcc_2", "mfcc_3", "mfcc_4", "mfcc_5", "mfcc_6",
+                    "mfcc_7", "mfcc_8", "mfcc_9", "mfcc_10", "mfcc_11", "mfcc_12",
+                    "chroma_c0", "chroma_c1", "chroma_c2", "chroma_c3", "chroma_c4", "chroma_c5",
+                    "chroma_c6", "chroma_c7", "chroma_c8", "chroma_c9", "chroma_c10", "chroma_c11",
+                    "dominant_chroma",
+                    "loudness_m", "loudness_s", "loudness_trend",
+                    "key_class", "key_is_minor", "key_confidence",
+                    "downbeat", "bar_phase", "beat_in_bar",
+                    "pan", "stereo_width", "stereo_corr",
+                    "section_novelty", "buildup", "drop",
+                    "percussive_energy", "harmonic_energy", "harmonic_ratio",
+                    "pitch", "pitch_confidence",
+                    "contrast_0", "contrast_1", "contrast_2", "contrast_3", "contrast_4", "contrast_5",
+                    "contrast_mean", "timbre_flux",
+                    "band_pan_sub_bass", "band_pan_bass", "band_pan_low_mid", "band_pan_mid",
+                    "band_pan_upper_mid", "band_pan_presence", "band_pan_brilliance",
+                    "bar_index", "beat_index",
+                ];
+                
+                let params = crate::editor_ui::parse_shader_parameters(&ui_state.draft_code);
+                let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
+                
+                if param_names.is_empty() {
+                    ui.label("No shader parameters found - add parameters to your shader");
+                } else {
+                    egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
+                        if ui.button("Add Binding").clicked() {
+                            ui_state.audio_bindings.push(crate::ui::state::AudioUniformBinding::default());
+                        }
+                        
+                        for binding in ui_state.audio_bindings.iter_mut() {
+                            ui.horizontal(|ui| {
+                                ui.label(&binding.audio_feature);
+                                ui.label("\u{2192}");
+                                ui.label(&binding.uniform_target);
+                                ui.label(format!("scale={:.2}", binding.scale));
+                                if ui.button("Remove").clicked() {
+                                    if let Some(pos) = ui_state.audio_bindings.iter().position(|b| b.audio_feature == binding.audio_feature && b.uniform_target == binding.uniform_target) {
+                                        ui_state.audio_bindings.remove(pos);
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
+                
+                ui.separator();
+                ui.heading("Apply Audio Features");
+                if ui.button("Map Selected").clicked() {
+                    crate::editor_ui::apply_audio_bindings(&ui_state.draft_code, &mut ui_state);
+                }
             }
             RightSidebarMode::Gestures => {
                 ui.heading("Gestures");

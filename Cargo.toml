@@ -48,7 +48,7 @@ petgraph = "0.6"
 bevy_egui = { version = "0.39", optional = true }
 image = "0.25"
 # Note: Leap Motion and MediaPipe would require platform-specific SDKs
-# midir = "0.10.3"  # MIDI support - temporarily disabled due to alsa conflict with cpal/fosfora-app
+midir = "0.10.3"  # MIDI support - re-enabled for now
 # Note: Simple substitute for gesture recognition until SDKs are added
 log = "0.4"
 parking_lot = "0.12"
@@ -116,6 +116,3 @@ opt-level = 1
 # This significantly slow down the initial build, removing for speed.
 # [profile.dev.package."*"]
 # opt-level = 3
-
-[patch.crates-io]
-alsa-sys = { version = "0.4.0" }

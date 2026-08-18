@@ -28,14 +28,20 @@ pub mod osc_control;
 pub mod particle_system_gpu;
 pub mod performance_overlay;
 pub mod scene_editor_3d;
+pub mod simple_ui_auditor;
 pub mod screenshot_video_export;
 pub mod shader_converter;
 pub mod shader_renderer;
 pub mod shader_transpiler;
 pub mod spout_syphon_output;
+pub mod timeline;
+pub mod timeline_animation;
+pub mod timeline_animation_system;
 pub mod utils;
 pub mod wgsl_analyzer;
 pub mod wgsl_ast_parser;
+
+pub mod fosfora;
 
 // UI panel modules - temporarily commented out due to compilation issues
 // pub mod parameter_panel;

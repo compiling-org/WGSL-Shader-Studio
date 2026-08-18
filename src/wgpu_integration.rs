@@ -208,6 +208,7 @@ pub fn live_preview_system(
             tempo: audio_info.tempo,
             waveform: audio_info.waveform.clone(),
             frequencies: audio_info.frequencies.clone(),
+            features: audio_info.features.clone(),
         })
     } else {
         None
@@ -302,6 +303,7 @@ pub fn shader_compilation_system(
             tempo: audio_info.tempo,
             waveform: audio_info.waveform.clone(),
             frequencies: audio_info.frequencies.clone(),
+            features: audio_info.features.clone(),
         })
     } else {
         None
