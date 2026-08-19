@@ -379,6 +379,12 @@ pub fn editor_ui_system(
                 crate::ui::state::CentralView::Timeline => {
                     auditor.record_panel("Timeline", true, None)
                 }
+                crate::ui::state::CentralView::Penumbra3D => {
+                    auditor.record_panel("Penumbra 3D", true, None)
+                }
+                crate::ui::state::CentralView::FosforaEffect => {
+                    auditor.record_panel("Fosfora Effect", true, None)
+                }
             }
         }
     }

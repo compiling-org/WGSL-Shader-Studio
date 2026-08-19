@@ -32,6 +32,15 @@ pub enum LoopMode {
     Free,
     /// Pure function of the uniform block; all motion phase-derived.
     PhaseLocked,
+    /// Explicitly disabled loop mode.
+    Disabled,
+}
+
+impl LoopMode {
+    /// Check if this is the default Free mode.
+    pub fn is_free(&self) -> bool {
+        matches!(self, LoopMode::Free)
+    }
 }
 
 /// A render pass definition within a multi-pass effect.

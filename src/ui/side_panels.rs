@@ -215,7 +215,9 @@ pub fn draw_editor_side_panels(
                 ui.separator();
                 ui.heading("Apply Audio Features");
                 if ui.button("Map Selected").clicked() {
-                    crate::editor_ui::apply_audio_bindings(&ui_state.draft_code, &mut ui_state);
+                    let mut draft_code = ui_state.draft_code.clone();
+                    crate::editor_ui::apply_audio_bindings(&mut draft_code, &mut ui_state);
+                    ui_state.draft_code = draft_code;
                 }
             }
             RightSidebarMode::Gestures => {
@@ -448,6 +450,12 @@ pub fn draw_editor_side_panels(
                     ui.label("FPS:");
                     ui.label(format!("{:.1}", ui_state.fps));
                 });
+            }
+            RightSidebarMode::PenumbraMaterials => {
+                ui.heading("Penumbra Materials");
+            }
+            RightSidebarMode::FosforaEffects => {
+                ui.heading("Fosfora Effects");
             }
         }
     });

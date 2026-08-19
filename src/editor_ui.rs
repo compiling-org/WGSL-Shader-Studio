@@ -1786,13 +1786,10 @@ pub fn apply_audio_bindings(draft_code: &mut String, ui_state: &mut EditorUiStat
         }
         
         // Get the feature index
-        let feature_index = match feature_indices.get(&binding.audio_feature) {
+        let feature_index = match feature_indices.get(&binding.audio_feature.to_string()) {
             Some(&idx) => idx,
             None => {
-                ui_state.show_status(
-                    &format!("Unknown audio feature: {}", binding.audio_feature),
-                    2.0,
-                );
+                ui_state.audio_bindings.remove(binding.clone());  // Remove invalid bindings
                 continue;
             }
         };

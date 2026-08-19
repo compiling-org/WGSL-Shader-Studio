@@ -560,7 +560,39 @@ The toolbar provides quick access to frequently used commands:
    - Frequency band mapping
    - Trigger events
 
-2. **Synchronization**
+2. **Fosfora Audio Features (83-feature array)**
+   - Full 83-feature buffer matching Fosfora v3.2 spec
+   - Frequency bands (7): sub_bass, bass, low_mid, mid, upper_mid, presence, brilliance
+   - Aggregates (2): rms, kick
+   - Spectral shape (6): centroid, flux, flatness, rolloff, bandwidth, zcr
+   - Beat detection (5): onset, beat, beat_phase, bpm, beat_strength
+   - MFCC (13): mfcc_0 through mfcc_12
+   - Chroma (12): chroma_c0 through chroma_c11
+   - Derived: dominant_chroma
+   - Loudness (3): loudness_m, loudness_s, loudness_trend
+   - Key detection (3): key_class, key_is_minor, key_confidence
+   - Downbeat detection (3): downbeat, bar_phase, beat_in_bar
+   - Stereo (3): pan, stereo_corr, stereo_width
+   - Structure (3): section_novelty, buildup, drop
+   - HPSS (3): percussive_energy, harmonic_energy, harmonic_ratio
+   - Spectral contrast (7): contrast_0 through contrast_mean, timbre_flux
+   - Per-band pan (7): band_pan_sub_bass through band_pan_brilliance
+   - Overlay clock (3): bar_index, beat_index, tick_index
+
+3. **Audio Uniform Binding**
+   - `AudioUniformBinding` struct maps audio feature names to shader uniform targets
+   - Live binding editor in UI for creating mappings
+   - Apply bindings to shader code for automatic feature injection
+
+4. **Fosfora Effect Loader**
+   - Full .pfx pass graph parsing
+   - Multi-pass pipeline support
+   - Post-process overrides (bloom, chromatic aberration, vignette, grain)
+   - GPU particle system definitions
+   - Audio feature → visual target mappings
+   - Loop mode support (Free, PhaseLocked, Disabled)
+
+5. **Synchronization**
    - BPM synchronization
    - Beat-matched transitions
    - Audio timeline

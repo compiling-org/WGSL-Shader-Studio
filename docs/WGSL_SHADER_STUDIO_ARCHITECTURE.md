@@ -680,18 +680,98 @@ pub struct Light {
 
 ## Audio Integration System
 
-### Audio Engine
+### Audio Features & Uniforms
 
-The audio system provides real-time processing:
+The audio system now supports full Fosfora v3.2 compatibility with 83 audio features mapped to WGSL uniforms:
 
 ```rust
-// Audio engine architecture
-pub struct AudioEngine {
-    device: cpal::Device,
-    stream: cpal::Stream,
-    audio_graph: AudioGraph,
-    processors: HashMap<ProcessorId, Box<dyn AudioProcessor>>,
+// 83 audio features matching Fosfora spec
+#[repr(C)]
+pub struct AudioFeatures {
+    // Frequency bands (7)
+    sub_bass: f32, bass: f32, low_mid: f32, mid: f32, upper_mid: f32, presence: f32, brilliance: f32,
+    // Aggregates (2)
+    rms: f32, kick: f32,
+    // Spectral shape (6)
+    centroid: f32, flux: f32, flatness: f32, rolloff: f32, bandwidth: f32, zcr: f32,
+    // Beat detection (5)
+    onset: f32, beat: f32, beat_phase: f32, bpm: f32, beat_strength: f32,
+    // Tempo-related (2)
+    tempo: f32, tempo_confidence: f32,
+    // Key/Mode detection (3)
+    key: f32, key_confidence: f32, mode: f32,
+    // Stereo imaging (3)
+    stereo_width: f32, left_right_pan: f32, stereo_energy: f32,
+    // Structural analysis (3)
+    structure: f32, section_change: f32, segment_confidence: f32,
+    // HPSS (2)
+    harmonic_content: f32, percussive_content: f32,
+    // Pitch detection (3)
+    pitch_confidence: f32, pitch: f32, pitch_octave: f32,
+    // Contrast (2)
+    contrast: f32, contrast_confidence: f32,
+    // MFCC features (13) - mpfc_0 through mpfc_12
+    // Chroma features (12) - chroma_c0 through chroma_c11
+    // Derived
+    dominant_chroma: f32,
+    // Loudness (3)
+    loudness_m: f32, loudness_s: f32, loudness_trend: f32,
+    // Key detection (3)
+    key_class: f32, key_is_minor: f32,
+    // Downbeat detection (3)
+    downbeat: f32, bar_phase: f32, beat_in_bar: f32,
+    // Stereo (3)
+    pan: f32, stereo_corr: f32,
+    // Structure (3)
+    section_novelty: f32, buildup: f32, drop: f32,
+    // HPSS (3)
+    percussive_energy: f32, harmonic_energy: f32, harmonic_ratio: f32,
+    // Spectral contrast (7)
+    contrast_0: f32, contrast_1: f32, contrast_2: f32, contrast_3: f32, contrast_4: f32, contrast_5: f32, contrast_mean: f32,
+    // Timbre flux
+    timbre_flux: f32,
+    // Per-band pan (7)
+    band_pan_sub_bass: f32, ..., band_pan_brilliance: f32,
+    // Overlay clock (3)
+    bar_index: f32, beat_index: f32, tick_index: f32,
 }
+
+impl AudioFeatures {
+    pub fn as_slice(&self) -> &[f32; 83] { /* Converts to array */ }
+}
+```
+
+### Shader Uniforms Integration
+
+The `Uniforms` struct embeds the 83-feature array for GPU binding:
+
+```rust
+pub struct Uniforms {
+    pub time: f32,
+    pub resolution: [f32; 2],
+    pub mouse: [f32; 2],
+    pub audio_features: [f32; 83],  // 83 audio features
+}
+
+impl ShaderRenderer {
+    cached_fosfora_features: Option<[f32; 83]>,  // Cached audio data
+}
+```
+
+### Audio Feature Mapping
+
+AudioUniformBinding maps feature names to shader uniforms:
+
+```rust
+pub struct AudioUniformBinding {
+    pub audio_feature: String,    // e.g., "bass", "kick", "mfcc_0"
+    pub uniform_target: String,   // e.g., "u_bass_level", "u_kick_trigger"
+    pub enabled: bool,
+}
+
+// Live editor UI allows creating/deleting bindings
+// Bindings are applied via apply_audio_bindings() function
+```
 
 pub trait AudioProcessor {
     fn process(&mut self, input: &AudioBuffer, output: &mut AudioBuffer);

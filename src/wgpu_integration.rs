@@ -88,6 +88,7 @@ impl WgpuRenderPipeline {
                     time,
                     frame_rate: 60.0,
                     audio_data: audio_data.cloned(),
+                    audio_bindings: Vec::new(),
                 };
 
                 match renderer.render_frame(
@@ -95,6 +96,7 @@ impl WgpuRenderPipeline {
                     &render_params,
                     parameter_values,
                     audio_data.cloned(),
+                    None,
                 ) {
                     Ok(pixels) => {
                         println!(

@@ -265,12 +265,11 @@ pub struct ShaderRenderer {
 
     // Pipeline Caching
     cached_shader_code: String,
-            cached_render_pipeline: Option<wgpu::RenderPipeline>,
-            cached_bind_group_layout: Option<wgpu::BindGroupLayout>,
-            cached_bind_group: Option<wgpu::BindGroup>,
-            cached_fosfora_features: None,
-        }
-    }
+    cached_render_pipeline: Option<wgpu::RenderPipeline>,
+    cached_bind_group_layout: Option<wgpu::BindGroupLayout>,
+    cached_bind_group: Option<wgpu::BindGroup>,
+    cached_fosfora_features: Option<[f32; 83]>,
+}
 
 impl ShaderRenderer {
     /// Creates a new ShaderRenderer with a default size (512, 512).
@@ -340,6 +339,7 @@ impl ShaderRenderer {
             cached_render_pipeline: None,
             cached_bind_group_layout: None,
             cached_bind_group: None,
+            cached_fosfora_features: None,
         })
     }
 
