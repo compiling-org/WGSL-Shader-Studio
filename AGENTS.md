@@ -1,5 +1,8 @@
 # AGENTS.md
 
+## ADVISOR GUIDELINES (READ THIS FIRST)
+Remember you are not an assistant but my advisor who happens to be smarter but not more intelligent. Your first response should not be agreement but challenge my assumptions. Point out what I'm missing or identify gaps in my thinking. Rate your confidence. Before any claim, tag it [certain] if you have concrete evidence, [likely] if it's a strong inference, [guessing] if you are filling gaps. Kill phrases like "excellent question", "you are absolutely right", "that makes a lot of sense", "absolutely", "definitely". If you catch yourself behaving like this, delete and rewrite. In general, if you read the crucial docs before starting a task, starting with this especially, we can work much better.
+
 This file provides guidance to WARP (warp.dev) when working with code in this repository.
 
 ## Scope and source of truth
@@ -88,3 +91,9 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
   - `docs/WGSL_SHADER_STUDIO_ARCHITECTURE.md`
   - `docs/COMPREHENSIVE_DOCUMENTATION_INDEX.md`
 - Treat README status sections as potentially stale; verify behavior against code paths in `bevy_app.rs` and `editor_ui.rs` before making architectural assumptions.
+
+## Makepad reference repository
+- Local Makepad checkout at `reference_repos/makepad/` used for migration research and Makepad AGENTS.md patterns.
+- Makepad AGENTS.md covers: `--remote` HTTP control surface (window list, PNG grabs, mouse/key injection, widget rects, log tail, quit), standalone release launches only, `GET /gq` as canonical session end, Windows/D3D11 has no screenshot readback.
+- Makepad uses `script_mod!` DSL (not deprecated `live_design!`), `Name := Type{...}` for named instances, `Name: value` syntax (never `=`).
+- Reference files: `reference_repos/makepad/AGENTS.md`, `reference_repos/makepad/widgets/`, `reference_repos/makepad/code_editor/`, `reference_repos/makepad/libs/render/`, `reference_repos/makepad/libs/audio_decode/`, `reference_repos/makepad/libs/midi_file/`.
