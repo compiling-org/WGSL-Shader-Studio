@@ -671,7 +671,7 @@ pub fn run_app() {
             }),
     );
 
-    println!("Adding Third-party Plugins...");
+println!("Adding Third-party Plugins...");
     app.add_plugins(EguiPlugin::default())
         .add_plugins(PerformanceOverlayPlugin)
         .add_plugins(AudioAnalysisPlugin)
@@ -689,6 +689,10 @@ pub fn run_app() {
         .add_plugins(NdiOutputPlugin)
         .add_plugins(SpoutSyphonOutputPlugin)
         .add_plugins(SimpleUiAuditorPlugin)
+        .add_plugins(EnhancedVisualNodeEditorPlugin)
+        // .add_plugins(FfglPlugin::new()) // Resolume FFGL crate fails to link on Windows
+        .add_plugins(SceneEditor3DPlugin)
+        .add_plugins(VisualNodeEditorPlugin)
         .insert_resource(SimpleUiAuditor::new())
         .add_plugins(ParticlePhysicsPlugin);
 

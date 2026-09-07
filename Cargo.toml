@@ -33,12 +33,12 @@ path = "src/bin/integration_test.rs"
 
 [lib]
 name = "resolume_isf_shaders_rust_ffgl"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["rlib"]  # Removed cdylib - causes linker errors with FFGL entry points
 
 [dependencies]
 # Basic dependencies for a simple graphics library
 anyhow = "1.0"
-ash = "0.38.0"
+ash = "0.37.0"
 console_log = "1.0.0"
 directories = "5.0"
 bevy = "0.18"

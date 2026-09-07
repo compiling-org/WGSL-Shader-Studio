@@ -309,6 +309,16 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         let safe_width = width.max(16);
         let safe_height = height.max(16);
 
+        // Recreate cached resources if size changed to prevent buffer/texture size mismatches
+        if self.size != (width, height) {
+            self.size = (width, height);
+            self.cached_texture = None;
+            self.cached_texture_view = None;
+            self.cached_output_buffer = None;
+            // Resize last successful frame to match new dimensions
+            self.last_successful_frame = vec![0u8; (width * height * 4) as usize];
+        }
+
         if self.cached_texture.is_none() {
             let texture_desc = wgpu::TextureDescriptor {
                 label: Some("Shader Output"),
@@ -594,7 +604,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                     .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                         label: Some("Params Buffer"),
                         contents: data,
-                        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
                     });
                 self.cached_params_buffer = Some(p_buf);
             } else {
@@ -617,7 +627,7 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                     .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                         label: Some("Params Buffer"),
                         contents: bytemuck::cast_slice(&dummy),
-                        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
                     });
                 self.cached_params_buffer = Some(p_buf);
             }

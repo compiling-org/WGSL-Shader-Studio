@@ -1,23 +1,23 @@
 {
-  "timestamp": 1772381252,
+  "timestamp": 1788769174,
   "panel_count": 5,
   "panels": {
-    "Preview": {
-      "has_real_content": true,
-      "widget_count": 0,
-      "placeholder_reasons": []
-    },
     "Code Editor": {
       "has_real_content": true,
       "widget_count": 0,
       "placeholder_reasons": []
     },
-    "Menu Bar": {
+    "Parameters": {
       "has_real_content": true,
       "widget_count": 0,
       "placeholder_reasons": []
     },
-    "Parameters": {
+    "Preview": {
+      "has_real_content": true,
+      "widget_count": 0,
+      "placeholder_reasons": []
+    },
+    "Menu Bar": {
       "has_real_content": true,
       "widget_count": 0,
       "placeholder_reasons": []
@@ -28,25 +28,18 @@
       "placeholder_reasons": []
     }
   },
-  "events": [
-    "[1246] Global Input: Left Click at Some([305.0 38.0])",
-    "[1246] Global Input: Left Click at Some([328.0 37.0])",
-    "[1247] Global Input: Left Click at Some([375.0 37.0])",
-    "[1248] Global Input: Left Click at Some([35.0 10.0])",
-    "[1248] Global Input: Left Click at Some([35.0 10.0])",
-    "[1250] Global Input: Left Click at Some([36.0 14.0])"
-  ],
+  "events": [],
   "input_stats": {
     "mouse_pos": [
-      1398.0,
-      34.0
+      435.0,
+      509.0
     ],
     "any_button_hovered": false,
-    "any_button_clicked": true,
+    "any_button_clicked": false,
     "primary_clicked": false,
     "secondary_clicked": false,
     "middle_clicked": false,
     "keys_pressed": [],
-    "interactions": 6
+    "interactions": 0
   }
 }
