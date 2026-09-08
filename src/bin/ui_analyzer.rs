@@ -1,5 +1,7 @@
+#[cfg(not(feature = "makepad_ui"))]
 use resolume_isf_shaders_rust_ffgl::ui_analyzer::UIAnalyzer;
 
+#[cfg(not(feature = "makepad_ui"))]
 fn main() {
     println!("🔍 WGSL Shader Studio - Comprehensive UI Analyzer");
     println!("==================================================\n");
@@ -62,4 +64,9 @@ fn main() {
     println!("5. Test all functionality");
 
     println!("\n📄 Full detailed report available in: UI_AUDIT_REPORT.md");
+}
+
+#[cfg(feature = "makepad_ui")]
+fn main() {
+    println!("ui-analyzer binary is not available in Makepad UI mode");
 }

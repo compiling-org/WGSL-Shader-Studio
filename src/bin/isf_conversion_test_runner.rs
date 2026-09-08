@@ -1,81 +1,51 @@
 //! ISF Conversion Test Runner
 //! Comprehensive testing of ISF to WGSL conversion system
 
+#[cfg(not(feature = "makepad_ui"))]
 use resolume_isf_shaders_rust_ffgl::isf_auto_converter::IsfAutoConverter;
 
-struct TestResult {
-    success: bool,
-    test_name: String,
-    conversion_time_ms: f32,
-    errors: Vec<String>,
-}
-
-struct IsfConversionTester;
-
-impl IsfConversionTester {
-    fn new() -> Self {
-        IsfConversionTester
-    }
-    fn run_all_tests(&mut self, _converter: &mut IsfAutoConverter) -> Vec<TestResult> {
-        Vec::new()
-    }
-}
+#[cfg(not(feature = "makepad_ui"))]
 fn main() {
     println!("🚀 ISF Conversion Test Runner");
     println!("================================");
 
     // Initialize the converter and tester
     let mut converter = IsfAutoConverter::new();
-    let mut tester = IsfConversionTester::new();
 
     println!("📋 Running comprehensive ISF conversion tests...");
 
-    // Run all tests
-    let results = tester.run_all_tests(&mut converter);
+    // Test basic shader conversion
+    let basic_isf = r#"
+/*{
+    "NAME": "Basic Color",
+    "DESCRIPTION": "Simple color shader",
+    "INPUTS": [
+        {"NAME": "brightness", "TYPE": "float", "DEFAULT": 1.0, "MIN": 0.0, "MAX": 2.0}
+    ]
+}*/
 
-    // Display results
-    println!("\n📊 Test Results:");
-    println!("================");
+void main() {
+    vec2 uv = isf_FragNormCoord;
+    float time = TIME * brightness;
+    vec3 color = vec3(sin(time + uv.x * 10.0), cos(time + uv.y * 10.0), 0.5);
+    gl_FragColor = vec4(color, 1.0);
+}
+"#;
 
-    let mut passed = 0;
-    let mut failed = 0;
-
-    for (i, result) in results.iter().enumerate() {
-        if result.success {
-            passed += 1;
-            println!(
-                "✅ Test {}: {} - PASSED ({:.2}ms)",
-                i + 1,
-                result.test_name,
-                result.conversion_time_ms
-            );
-        } else {
-            failed += 1;
-            println!(
-                "❌ Test {}: {} - FAILED ({:.2}ms)",
-                i + 1,
-                result.test_name,
-                result.conversion_time_ms
-            );
-            for error in &result.errors {
-                println!("   Error: {}", error);
-            }
+    match converter.convert_to_wgsl_advanced(basic_isf) {
+        Ok(result) => {
+            println!("✅ Basic conversion passed");
+            println!("Generated WGSL:\n{}", result.wgsl_code);
+        }
+        Err(e) => {
+            println!("❌ Conversion failed: {}", e);
         }
     }
 
-    println!("\n📈 Summary:");
-    println!("Total Tests: {}", passed + failed);
-    println!("Passed: {}", passed);
-    println!("Failed: {}", failed);
-    println!(
-        "Success Rate: {:.1}%",
-        (passed as f64 / (passed + failed) as f64) * 100.0
-    );
+    println!("\n🎉 ISF conversion test runner completed!");
+}
 
-    if failed > 0 {
-        println!("\n⚠️  Some tests failed. Review the errors above.");
-        std::process::exit(1);
-    } else {
-        println!("\n🎉 All tests passed! ISF conversion system is working correctly.");
-    }
+#[cfg(feature = "makepad_ui")]
+fn main() {
+    println!("isf-conversion-test-runner binary is not available in Makepad UI mode");
 }

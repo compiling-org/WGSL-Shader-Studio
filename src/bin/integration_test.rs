@@ -1,9 +1,13 @@
+#[cfg(not(feature = "makepad_ui"))]
 use resolume_isf_shaders_rust_ffgl::audio_system::AudioAnalyzer;
+#[cfg(not(feature = "makepad_ui"))]
 use resolume_isf_shaders_rust_ffgl::editor_ui::{
     check_wgsl_diagnostics, DiagnosticSeverity, EditorUiState,
 };
+#[cfg(not(feature = "makepad_ui"))]
 use resolume_isf_shaders_rust_ffgl::timeline::{InterpolationType, TimelineAnimation};
 
+#[cfg(not(feature = "makepad_ui"))]
 fn main() {
     println!("🧪 Testing WGSL Shader Studio Integrations");
     println!("==========================================");
@@ -31,6 +35,7 @@ fn main() {
     println!("\n✅ All integration tests completed!");
 }
 
+#[cfg(not(feature = "makepad_ui"))]
 fn test_wgsl_diagnostics() {
     // Test valid WGSL shader
     let valid_shader = r#"
@@ -104,6 +109,7 @@ fn vs_main(vertex_index: u32) -> vec4<f32> {
     }
 }
 
+#[cfg(not(feature = "makepad_ui"))]
 fn test_audio_integration() {
     // Create audio analyzer
     let audio_analyzer = AudioAnalyzer::default();
@@ -118,6 +124,7 @@ fn test_audio_integration() {
     println!("   Frequencies length: {}", audio_data.frequencies.len());
 }
 
+#[cfg(not(feature = "makepad_ui"))]
 fn test_timeline_integration() {
     // Create timeline animation
     let mut timeline = TimelineAnimation::default();
@@ -152,6 +159,7 @@ fn test_timeline_integration() {
     }
 }
 
+#[cfg(not(feature = "makepad_ui"))]
 fn test_editor_ui_state() {
     // Create editor UI state
     let mut ui_state = EditorUiState::default();
@@ -182,6 +190,7 @@ fn test_editor_ui_state() {
     );
 }
 
+#[cfg(not(feature = "makepad_ui"))]
 fn test_parameter_system() {
     // Test parameter parsing
     let test_shader = r#"
@@ -201,4 +210,9 @@ struct Uniforms {
     for param in parameters.iter() {
         println!("   Parameter: {} (type: {})", param.name, param.wgsl_type);
     }
+}
+
+#[cfg(feature = "makepad_ui")]
+fn main() {
+    println!("integration_test binary is not available in Makepad UI mode");
 }

@@ -1,5 +1,7 @@
+#[cfg(not(feature = "makepad_ui"))]
 use resolume_isf_shaders_rust_ffgl::compute_pass_integration::{ComputePassManager, TextureFormat};
 
+#[cfg(not(feature = "makepad_ui"))]
 fn main() {
     println!("Testing compute pass integration...");
 
@@ -35,4 +37,9 @@ fn main() {
     println!("  Active passes: {}", manager.active_compute_passes.len());
 
     println!("✅ All compute pass integration tests passed!");
+}
+
+#[cfg(feature = "makepad_ui")]
+fn main() {
+    println!("test_compute_pass binary is not available in Makepad UI mode");
 }
