@@ -21,6 +21,10 @@ pub struct AppState {
     pub tex_width: u32,
     pub tex_height: u32,
     pub render_requested: bool,
+    pub compilation_error: Option<String>,
+    pub status_message: String,
+    pub available_shaders: Vec<String>,
+    pub last_shader_scan: std::time::Instant,
 }
 
 impl Default for AppState {
@@ -37,6 +41,10 @@ impl Default for AppState {
             tex_width: 512,
             tex_height: 512,
             render_requested: true,
+            compilation_error: None,
+            status_message: String::new(),
+            available_shaders: Vec::new(),
+            last_shader_scan: std::time::Instant::now(),
         }
     }
 }
@@ -216,7 +224,7 @@ script_mod! {
                             }
                             shader_list := View{
                                 width: Fill
-                                height: Fill
+                                height: 200
                             }
                         }
 
@@ -276,6 +284,16 @@ script_mod! {
                             }
                         }
                     }
+                    status_bar := View{
+                        height: Fit
+                        width: Fill
+                        flow: Down
+                        padding: 4
+                        status_msg := Label{
+                            text: "Ready"
+                            draw_text: { color: #888 }
+                        }
+                    }
                 }
             }
         }
@@ -296,6 +314,50 @@ impl App {
         }
         
         App::from_script_mod(vm, self::script_mod)
+    }
+
+    fn trigger_render(&mut self, cx: &mut Cx) {
+        let shader_code = {
+            let code_editor = self.ui.widget(cx, ids![code_editor]);
+            let x = if let Some(editor) = code_editor.borrow_mut::<ShaderCodeEditor>() {
+                editor.text.as_ref().to_string()
+            } else {
+                String::new()
+            };
+            x
+        };
+        {
+            let mut state = self.state.lock().unwrap();
+            let (tex_width, tex_height, time) = (state.tex_width, state.tex_height, state.time);
+            if let Some(renderer) = state.renderer.as_mut() {
+                let params = RenderParameters {
+                    width: tex_width,
+                    height: tex_height,
+                    time,
+                    frame_rate: 60.0,
+                    audio_data: None,
+                };
+                match renderer.render_frame(&shader_code, &params, None) {
+                    Ok(pixels) => {
+                        state.last_frame = Some(pixels.clone());
+                        state.compilation_error = None;
+                        state.render_requested = true;
+                        state.status_message = String::from("Compiled OK");
+                        drop(state);
+                        self.ui.widget(cx, ids![preview_widget]).borrow_mut::<ShaderPreviewWidget>().map(|mut preview| {
+                            preview.last_frame = Some(pixels);
+                            preview.cached_texture = None;
+                        });
+                    }
+                    Err(e) => {
+                        let error_msg = e.to_string();
+                        state.compilation_error = Some(error_msg.clone());
+                        state.status_message = format!("Compile failed: {}", error_msg);
+                        eprintln!("Shader render error: {:?}", e);
+                    }
+                }
+            }
+        }
     }
 }
 
