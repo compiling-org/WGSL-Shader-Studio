@@ -342,8 +342,14 @@ impl MatchEvent for App {
                         None,
                     ) {
                         Ok(pixels) => {
-                            state.last_frame = Some(pixels);
+                            state.last_frame = Some(pixels.clone());
                             state.render_requested = true;
+                            
+                            // Update the ShaderPreviewWidget's last_frame field and clear cached texture
+                            self.ui.widget(cx, ids![preview_widget]).borrow_mut::<ShaderPreviewWidget>().map(|mut preview| {
+                                preview.last_frame = Some(pixels);
+                                preview.cached_texture = None;
+                            });
                         }
                         Err(e) => {
                             eprintln!("Shader render error: {:?}", e);
@@ -352,11 +358,19 @@ impl MatchEvent for App {
                 }
             } // state lock dropped here
         }
-
+        
         // Also handle slider actions to update params
         if let Some(val) = self.ui.slider(cx, ids![param_a_slider]).value() {
             let mut state = self.state.lock().unwrap();
             state.param_a = val as f32;
+            
+            // Update time for animation
+            state.time += 0.016; // ~60 FPS
+            
+            // Update ShaderPreviewWidget time field
+            self.ui.widget(cx, ids![preview_widget]).borrow_mut::<ShaderPreviewWidget>().map(|mut preview| {
+                preview.time = state.time;
+            });
         }
         if let Some(val) = self.ui.slider(cx, ids![param_b_slider]).value() {
             let mut state = self.state.lock().unwrap();
@@ -377,7 +391,6 @@ impl AppMain for App {
         script_mod(_vm)
     }
 }
-
 #[derive(Script, ScriptHook, Widget)]
 pub struct ShaderPreviewWidget {
     #[source]
@@ -391,12 +404,16 @@ pub struct ShaderPreviewWidget {
 
     #[rust]
     tex_width: u32,
+
     #[rust]
     tex_height: u32,
+
     #[rust]
     last_frame: Option<Vec<u8>>,
-}
 
+    #[rust]
+    cached_texture: Option<Texture>,
+}
 impl Widget for ShaderPreviewWidget {
     fn handle_event(&mut self, _cx: &mut Cx, _event: &Event, _scope: &mut Scope) {}
 
@@ -410,20 +427,26 @@ impl Widget for ShaderPreviewWidget {
                 // Get the turtle rect for our position
                 let rect = cx.peek_walk_turtle(walk);
 
-                // Create texture from frame data.
-                // shader_renderer.rs outputs RGBA8Unorm pixels.
-                // ImageBuffer::new converts to internal Makepad BGRA format automatically.
-                let img_buf = makepad_draw::image_cache::ImageBuffer::new(
-                    frame,
-                    self.tex_width as usize,
-                    self.tex_height as usize,
-                ).unwrap();
+                // Only recreate texture if frame data changed
+                let needs_new_texture = self.cached_texture.is_none();
+                if needs_new_texture {
+                    // Create texture from frame data.
+                    // shader_renderer.rs outputs RGBA8Unorm pixels.
+                    // ImageBuffer::new converts to internal Makepad BGRA format automatically.
+                    let img_buf = makepad_draw::image_cache::ImageBuffer::new(
+                        frame,
+                        self.tex_width as usize,
+                        self.tex_height as usize,
+                    ).unwrap();
 
-                let texture = img_buf.into_new_texture(cx);
+                    self.cached_texture = Some(img_buf.into_new_texture(cx));
+                }
 
-                // Set the texture and draw using the view's draw_bg (DrawQuad)
-                self.view.draw_bg.draw_vars.set_texture(0, &texture);
-                self.view.draw_bg.draw_abs(cx, rect);
+                if let Some(texture) = &self.cached_texture {
+                    // Set the texture and draw using the view's draw_bg (DrawQuad)
+                    self.view.draw_bg.draw_vars.set_texture(0, texture);
+                    self.view.draw_bg.draw_abs(cx, rect);
+                }
             }
         }
 
