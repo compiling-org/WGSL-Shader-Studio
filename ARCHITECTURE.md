@@ -1,53 +1,44 @@
 # WGSL Shader Studio - Architecture & Status
 
-## Current State (2026-09-06)
+## Current State (2026-09-08)
 
 ### Build Status
-- ✅ `cargo check` passes (263 warnings, no errors)
-- ✅ `ash` downgraded to 0.37.0 to fix Windows MSVC compilation failure
-- ✅ Bevy 0.18 + bevy_egui 0.39 integration compiles
+- ✅ `cargo check --features makepad_ui` passes (warnings only)
+- ✅ `cargo build --release --features makepad_ui` succeeds
+- ✅ App launches with `--remote` and HTTP control surface works
+- ✅ Makepad UI is the default (Bevy/Egui removed from Cargo.toml)
 
 ### Core Architecture
-The app uses **Bevy 0.18** as the game engine with **bevy_egui 0.39** for the UI layer.
+The app now uses **Makepad** as the UI framework with `script_mod!` DSL.
 
 **Key integration points:**
-- `src/bevy_app.rs` - App composition root, plugin registration, window/render setup
-- `src/editor_ui.rs` - Top-level egui UI orchestration (1,723 lines)
-- `src/ui/state.rs` - Central UI state model (`EditorUiState`)
-- `src/ui/central_panel.rs` - Workspace tab switching (Preview, Node Graph, 3D Editor, Timeline)
-- `src/ui/code_panel.rs` - Code editor panel
-- `src/ui/side_panels.rs` - Sidebar panels (shader browser, parameters, outputs)
-- `src/shader_renderer.rs` - WGPU shader rendering (standalone instance)
+- `src/main.rs` - Entry point with `app_main!(App)` macro
+- `src/makepad_main.rs` - Makepad app entry with Dock layout, ShaderCodeEditor, ShaderPreviewWidget
+- `src/shader_renderer.rs` - WGPU shader rendering (standalone, framework-agnostic)
+- `src/lib.rs` - Framework-agnostic modules gated behind `#[cfg(not(feature = "makepad_ui"))]` for legacy Bevy/Egui
+- `src/isf_loader.rs`, `src/isf_converter.rs` - ISF parsing/conversion
+- `src/converter/` - GLSL/HLSL→WGSL transpilation
+- `src/shader_transpiler.rs` - Multi-language transpiler
 
 ### Known Issues
-1. **Dual WGPU Instances**: `ShaderRenderer` creates its own `wgpu::Device/Queue` while Bevy has its own. This causes GPU→CPU→GPU round-trip in `editor_ui.rs:208-222` via `map_async()`.
-2. **Texture Format Mismatch**: `shader_renderer.rs` uses `Rgba8Unorm` while Bevy uses `Rgba8UnormSrgb` for preview textures.
-3. **Panic Hook**: Previously suppressed Bevy 0.18+bevy_egui 0.39 validation errors. Fixed to show actual error messages.
-4. **Dead Code**: Many unused functions/fields across modules (263 warnings).
+1. **Preview Texture Display**: `ShaderPreviewWidget::draw_walk` recreates texture every frame; needs caching.
+2. **Shader Library**: Left panel is a placeholder; no browsing functionality.
+3. **Audio/MIDI/OSC**: Not yet migrated to Makepad platform.
+4. **Node Graph**: Not yet migrated to Makepad Flow.
 
-### Integrated Features
-- ISF→WGSL conversion (`src/isf_loader.rs`, `src/isf_converter.rs`)
-- GLSL/HLSL→WGSL transpilation (`src/converter/`)
-- 3D scene editor (`src/scene_editor_3d.rs`)
-- Audio analysis (`src/audio_system.rs`)
-- MIDI control (`src/midi_system.rs`)
-- Timeline animation (`src/timeline.rs`)
-- Node graph editor (`src/bevy_node_graph_integration_enhanced.rs`)
-- FFGL export (`src/ffgl_plugin.rs`)
-- NDI/Spout/Syphon/OSC/DMX outputs
-- Gesture control (`src/gesture_control.rs`)
-- Particle physics (`src/particle_physics.rs`)
-- Performance overlay (`src/performance_overlay.rs`)
+### Integrated Features (Makepad)
+- Dock layout with 3 panels (Shader Library, CodeEditor+Preview, Properties)
+- ShaderCodeEditor widget wrapping makepad-code-editor
+- ShaderPreviewWidget with ImageBuffer texture upload
+- Synchronous `renderer.render_frame()` from Apply button
+- Parameter sliders wired to state updates
+- `--remote` HTTP control surface
 
-### Reference Repositories & Crate Integrations
-
-The `reference_repos/` directory contains 20+ integrated reference repositories. Full crate-level analysis in `MIGRATION_TO_MAKEPAD.md`.
-
-**Active Reference Repos:**
-- **makepad** - GPU-first UI framework; replaces Bevy/Egui entirely
-  - `platform/` - Window, events, audio, MIDI, network, OS abstraction
-  - `draw/` - 2D GPU drawing with MPSL shader language
-  - `widgets/` - Full widget library (View, Dock, CodeEditor, etc.)
+### Makepad Migration Notes
+- Bevy and Egui dependencies removed from Cargo.toml
+- All Bevy-dependent modules gated behind `#[cfg(not(feature = "makepad_ui"))]`
+- `shader_renderer.rs` unchanged; framework-agnostic
+- Makepad docs: `docs/WGSL_SHADER_STUDIO_ARCHITECTURE.md#ui-framework`
   - `code_editor/` - Text editor with syntax highlighting, LSP
   - `libs/render/` - 3D rendering with glTF, PBR
   - `libs/midi_file/` - MIDI file parsing

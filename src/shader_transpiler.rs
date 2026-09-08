@@ -3,6 +3,7 @@ use std::fmt;
 use std::sync::Arc;
 use thiserror::Error;
 
+#[cfg(all(feature = "naga_integration", not(feature = "makepad_ui")))]
 use crate::shader_module_system::{ModuleId, ShaderModule};
 use crate::wgsl_ast_parser::{AstNode, AstVisitor};
 

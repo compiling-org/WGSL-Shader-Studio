@@ -42,7 +42,7 @@ Our comprehensive documentation suite includes:
 - Node graph UI and compilation modules exist; editor wiring needs activation.
 - Timeline modules and export system exist; integration requires verification.
 
-### What’s Broken/Missing
+### What's Broken/Missing
  - Preview panel frequently blank; renderer initialization/resize handling under repair
  - External WGSL shader validation too strict; binding rules being relaxed
  - Node editor is not fully wired/exposed in the UI
@@ -60,6 +60,25 @@ Our comprehensive documentation suite includes:
 - Refresh analyzer scripts and documentation to reflect current reality
 
 A shader development environment built with Bevy 0.17 and bevy_egui 0.38, featuring WGSL shader compilation, ISF support modules, and visual editing capabilities under active repair.
+
+## Makepad Migration (2026-09)
+
+The project is being migrated from Bevy/Egui to Makepad. The Makepad UI is now the default (no feature flag needed).
+
+### Status
+- **Framework**: Makepad (widgets + code_editor + draw + platform)
+- **Build Status**: `cargo build --release --features makepad_ui` succeeds
+- **UI**: Dock layout with three panels — left (Shader Library), center (CodeEditor + Preview), right (Properties with sliders + Apply)
+- **Rendering**: `ShaderPreviewWidget` displays rendered frames via `ImageBuffer::new` + `into_new_texture(cx)`
+- **Interaction**: Apply button triggers `renderer.render_frame()` synchronously; sliders update `param_a`/`param_b`
+- **Remote Control**: `--remote` enables HTTP control surface on localhost
+
+### What Still Needs Work
+- Preview texture display in `ShaderPreviewWidget::draw_walk` needs proper caching (currently recreated every frame)
+- Shader library panel is a placeholder; no browsing functionality yet
+- Audio/MIDI/OSC integration not yet migrated to Makepad
+- Node graph editor not yet migrated to Makepad Flow
+- Menu bar and status bar not yet implemented in Makepad
 
 ## Current Reality
 

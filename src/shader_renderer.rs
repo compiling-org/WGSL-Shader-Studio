@@ -1,3 +1,4 @@
+#[cfg(not(feature = "makepad_ui"))]
 use crate::wgsl_reflect_integration::{BindingType, ShaderStage, WgslReflectAnalyzer};
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
@@ -5,6 +6,7 @@ use wgpu::*;
 
 const VERBOSE_LOG: bool = true;
 
+#[cfg(not(feature = "makepad_ui"))]
 use crate::audio_system::AudioData;
 
 // --- Data Structures for External Use (e.g., passing from a GUI/Main loop) ---
@@ -16,7 +18,10 @@ pub struct RenderParameters {
     pub height: u32,
     pub time: f32,
     pub frame_rate: f32,
+    #[cfg(not(feature = "makepad_ui"))]
     pub audio_data: Option<AudioData>,
+    #[cfg(feature = "makepad_ui")]
+    pub audio_data: Option<()>,
 }
 
 // Ensure RenderParameters implements necessary traits for multi-threading
@@ -296,7 +301,6 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             wgsl_code,
             &render_params,
             parameter_values,
-            render_params.audio_data.clone(),
         )
         .map_err(|e| {
             let error_msg = format!("{:?}", e);
@@ -379,7 +383,6 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         wgsl_code: &str,
         params: &RenderParameters,
         parameter_values: Option<&[f32]>,
-        audio_data: Option<AudioData>,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         if params.width == 0 || params.height == 0 {
             return Ok(self.last_successful_frame.clone());
@@ -466,10 +469,10 @@ fn fs_main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             time: params.time,
             resolution: [params.width as f32, params.height as f32],
             mouse: [0.0, 0.0],
-            audio_volume: audio_data.as_ref().map(|d| d.volume).unwrap_or(0.0),
-            audio_bass: audio_data.as_ref().map(|d| d.bass_level).unwrap_or(0.0),
-            audio_mid: audio_data.as_ref().map(|d| d.mid_level).unwrap_or(0.0),
-            audio_treble: audio_data.as_ref().map(|d| d.treble_level).unwrap_or(0.0),
+            audio_volume: 0.0,
+            audio_bass: 0.0,
+            audio_mid: 0.0,
+            audio_treble: 0.0,
             _padding: [0u32],
         };
 

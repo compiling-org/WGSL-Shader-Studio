@@ -148,10 +148,10 @@ Documentation for professional-grade features:
 This documentation suite is regularly updated to reflect the latest features and improvements in WGSL Shader Studio. For the most current information, always refer to the latest version of these documents in the `/docs` directory of the project repository.
 
 ### Last Updated
-December 22, 2025
+September 8, 2026
 
 ### Version Information
-WGSL Shader Studio v1.0 Documentation Suite
+WGSL Shader Studio v1.0 Documentation Suite — Makepad migration in progress
 
 ### Contributing
 To contribute to this documentation:

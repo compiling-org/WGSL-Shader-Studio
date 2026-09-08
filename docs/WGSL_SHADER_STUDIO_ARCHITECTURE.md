@@ -98,8 +98,8 @@ graph TD
 ### Technology Stack
 
 - **Primary Language**: Rust
-- **UI Framework**: Bevy Engine with EGUI
-- **Rendering Backend**: WebGPU (primary), with Vulkan/DirectX/Metal fallbacks
+- **UI Framework**: Makepad (script_mod! DSL, widgets + code_editor + draw crates)
+- **Rendering Backend**: WGPU (cross-platform)
 - **Shader Compilation**: Naga (WGSL), custom parsers for other languages
 - **Audio Processing**: CPAL/Cubeb
 - **Networking**: Quinn (QUIC), Socket2
@@ -395,9 +395,89 @@ pub enum StatementKind {
 
 ## UI Framework
 
-### EGUI Integration
+### Makepad Integration (Current - 2026-09)
 
-The UI system is built on EGUI with Bevy integration:
+The UI system is built on Makepad with script_mod! DSL:
+
+```rust
+// Makepad app entry
+app_main!(App);
+
+script_mod! {
+    use mod.prelude.widgets.*
+    use mod.widgets.*
+    
+    load_all_resources() do #(App::script_component(vm)){
+        ui: Root{
+            main_window := Window{
+                window.inner_size: vec2(1600, 900)
+                body +: {
+                    dock := Dock{
+                        root := DockTabs{
+                            tabs: [@left_panel @center_panel @right_panel]
+                        }
+                        left_panel := View{ /* Shader Library */ }
+                        center_panel := View{
+                            code_editor := ShaderCodeEditor{}
+                            preview := ShaderPreviewWidget{}
+                        }
+                        right_panel := View{
+                            param_section := View{
+                                param_a_slider := Slider{ value: instance(0.5) }
+                                param_b_slider := Slider{ value: instance(0.5) }
+                                apply_button := Button{ text: "Apply to Preview" }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl App {
+    fn run(vm: &mut ScriptVm) -> Self {
+        crate::makepad_widgets::script_mod(vm);
+        crate::makepad_code_editor::script_mod(vm);
+        crate::makepad_main::script_mod(vm);
+        App::from_script_mod(vm, self::script_mod)
+    }
+}
+
+#[derive(Script, ScriptHook, WidgetRef, WidgetSet, WidgetRegister)]
+pub struct ShaderCodeEditor {
+    #[uid] uid: WidgetUid,
+    #[source] source: ScriptObjectRef,
+    #[walk] walk: Walk,
+    #[layout] layout: Layout,
+    editor: CodeEditor,
+    #[rust] session: Option<CodeSession>,
+    #[live] text: ArcStringMut,
+}
+
+#[derive(Script, ScriptHook, Widget)]
+pub struct ShaderPreviewWidget {
+    #[source] source: ScriptObjectRef,
+    #[deref] view: View,
+    #[live] time: f32,
+    #[rust] tex_width: u32,
+    #[rust] tex_height: u32,
+    #[rust] last_frame: Option<Vec<u8>>,
+}
+```
+
+**Key Makepad patterns used:**
+- `script_mod!` DSL (replaces deprecated `live_design!`)
+- `Name := Type{...}` for named widget instances  
+- `Name: value` syntax (never `=`)
+- `+:` operator for property merging
+- `#[deref]` for widget composition (View as base)
+- `ImageBuffer::new()` + `into_new_texture(cx)` for RGBA→BGRA texture upload
+- `--remote` flag for HTTP control surface
+
+### EGUI Integration (Legacy - gated behind `#[cfg(not(feature = "makepad_ui"))]`)
+
+The previous UI system was built on EGUI with Bevy integration:
 
 ```rust
 // UI system architecture

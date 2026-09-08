@@ -2,6 +2,26 @@
 
 ## Version History and Development Progress
 
+### 2026-09-08 - Makepad UI Migration (Phase 1 Complete)
+**Framework Migration**
+- Removed Bevy and bevy_egui dependencies entirely from `Cargo.toml`.
+- Makepad UI is now the default UI framework; Bevy/Egui code is gated behind `#[cfg(not(feature = "makepad_ui"))]`.
+- Created `src/makepad_main.rs` with `App` struct, `script_mod!` DSL, and `app_main!(App)` macro entry point.
+- Implemented `ShaderCodeEditor` widget (wraps `makepad-code-editor`) with `CodeSession` and text change handling.
+- Implemented `ShaderPreviewWidget` using `#[derive(Script, ScriptHook, Widget)]` with `[deref] view: View` and `ImageBuffer::new` + `into_new_texture(cx)` for RGBA→BGRA conversion.
+- Dock layout with three panels: left (Shader Library), center (CodeEditor + Preview), right (Properties with sliders + Apply button).
+- `render_frame()` is called synchronously from the Apply button handler; result stored in `state.last_frame`.
+- Slider values update `state.param_a` and `state.param_b` in real time.
+
+**Build Status**
+- `cargo build --release --features makepad_ui` succeeds (warnings only).
+- App launches with `--remote` and HTTP control surface is functional.
+
+**Known Issues**
+- Preview widget does not yet display rendered shader output — texture display in `draw_walk` is incomplete.
+- Shader library panel is a placeholder; no shader browsing functionality.
+- Audio/MIDI/OSC integration not yet migrated to Makepad.
+
 ### 2026-03-06 - Documentation Reality Sync
 **Documentation Corrections**
 - Updated roadmap and architecture docs to reflect current implementation reality: core modules exist, wiring is incomplete.
