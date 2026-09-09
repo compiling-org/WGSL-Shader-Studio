@@ -1,4 +1,5 @@
 use makepad_widgets::*;
+use makepad_draw;
 use makepad_code_editor::{
     code_editor::{CodeEditor, CodeEditorAction, KeepCursorInView},
     decoration::DecorationSet,
@@ -6,9 +7,12 @@ use makepad_code_editor::{
     session::CodeSession,
 };
 use crate::shader_renderer::{ShaderRenderer, RenderParameters};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
 use pollster;
 use makepad_widgets::ArcStringMut;
+use std::fs;
+use std::path::Path;
+use makepad_platform::event::MouseButton; // Import MouseButton from event module
 
 /// Global app state shared between DSL and Rust code
 pub struct AppState {
@@ -47,6 +51,43 @@ impl Default for AppState {
             last_shader_scan: std::time::Instant::now(),
         }
     }
+}
+
+/// Scan the project's shader directories for WGSL files
+fn scan_shader_directories() -> Vec<String> {
+    let mut found_all = Vec::new();
+    let paths = [Path::new("./assets"), Path::new("./shaders")];
+    for path in paths.iter() {
+        if path.exists() {
+            collect_shader_files(path, &mut found_all);
+        }
+    }
+    found_all.sort();
+    found_all.dedup();
+    found_all
+}
+
+/// Recursively collect .wgsl files from a directory
+fn collect_shader_files(dir: &Path, out: &mut Vec<String>) {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                collect_shader_files(&p, out);
+            } else if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
+                if ext.eq_ignore_ascii_case("wgsl") {
+                    if let Some(s) = p.to_str() {
+                        out.push(s.to_string());
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Check if a WGSL file is compatible with the renderer (has vertex and fragment stages)
+fn is_wgsl_shader_compatible(src: &str) -> bool {
+    src.contains("@vertex") && src.contains("@fragment")
 }
 
 /// Custom widget ref for ShaderCodeEditor with action support
@@ -148,6 +189,28 @@ pub enum ShaderCodeEditorAction {
     TextDidChange,
 }
 
+#[derive(Clone, Default, Debug, PartialEq)]
+#[repr(u32)]
+pub enum ShaderListWidgetAction {
+    #[default]
+    None,
+    ShaderSelected(String),
+}
+
+impl ShaderListWidgetRef {
+    pub fn set_items(&mut self, items: &[String]) {
+        if let Some(mut inner) = self.borrow_mut() {
+            inner.set_items(items);
+        }
+    }
+    
+    pub fn rescan_shaders(&mut self) {
+        if let Some(mut inner) = self.borrow_mut() {
+            inner.rescan();
+        }
+    }
+}
+
 impl ShaderCodeEditorRef {
     pub fn set_text(&mut self, cx: &mut Cx, value: &str) {
         if let Some(mut inner) = self.borrow_mut() {
@@ -165,9 +228,7 @@ script_mod! {
     use mod.prelude.widgets.*
     use mod.widgets.*
 
-    mod.widgets.ShaderCodeEditorBase = #(ShaderCodeEditor::register_widget(vm))
-
-    mod.widgets.ShaderCodeEditor = set_type_default() do mod.widgets.ShaderCodeEditorBase {
+    let ShaderCodeEditor = #(ShaderCodeEditor::register_widget(vm)) {
         editor := CodeEditor {
             height: Fill
             width: Fill
@@ -197,6 +258,10 @@ script_mod! {
         }
     }
 
+    let ShaderPreviewWidget = #(ShaderPreviewWidget::register_widget(vm)) {}
+
+    let ShaderListWidget = #(ShaderListWidget::register_widget(vm)) {}
+
     startup() do #(App::script_component(vm)){
         ui: Root{
             main_window := Window{
@@ -209,26 +274,44 @@ script_mod! {
                         width: Fill
 
                         root := DockTabs{
-                            tabs: [@left_panel @center_panel @right_panel]
-                            selected: 0
+                            tabs: [@left_tab @center_tab @right_tab]
+                            selected: 1
+                            closable: false
                         }
 
-                        left_panel := View{
+                        left_tab := DockTab{
+                            name: "Shader Library"
+                            template: @PermanentTab
+                            kind: @LeftPanel
+                        }
+                        center_tab := DockTab{
+                            name: "Editor"
+                            template: @PermanentTab
+                            kind: @CenterPanel
+                        }
+                        right_tab := DockTab{
+                            name: "Properties"
+                            template: @PermanentTab
+                            kind: @RightPanel
+                        }
+
+                        LeftPanel := View{
                             width: Fill
                             height: Fill
                             flow: Down
                             padding: 10
                             label := Label{
                                 text: "Shader Library"
-                                draw_text: { color: #fff }
+                                draw_text +: { color: #xffffff }
                             }
-                            shader_list := View{
+                            shader_list := ShaderListWidget{
                                 width: Fill
                                 height: 200
+                                draw_bg +: { color: #xFF0000 }
                             }
                         }
 
-                        center_panel := View{
+                        CenterPanel := View{
                             width: Fill
                             height: Fill
                             flow: Down
@@ -246,14 +329,14 @@ script_mod! {
                             }
                         }
 
-                        right_panel := View{
+                        RightPanel := View{
                             width: Fill
                             height: Fill
                             flow: Down
                             padding: 10
                             label := Label{
                                 text: "Properties"
-                                draw_text: { color: #fff }
+                                draw_text +: { color: #xffffff }
                             }
 
                             param_section := View{
@@ -263,19 +346,23 @@ script_mod! {
                                 padding: 4
                                 param_a_label := Label{
                                     text: "Parameter A"
-                                    draw_text: { color: #fff }
+                                    draw_text +: { color: #xffffff }
                                 }
                                 param_a_slider := Slider{
                                     width: Fill
-                                    value: instance(0.5)
+                                    min: 0.0
+                                    max: 1.0
+                                    default: 0.5
                                 }
                                 param_b_label := Label{
                                     text: "Parameter B"
-                                    draw_text: { color: #fff }
+                                    draw_text +: { color: #xffffff }
                                 }
                                 param_b_slider := Slider{
                                     width: Fill
-                                    value: instance(0.5)
+                                    min: 0.0
+                                    max: 1.0
+                                    default: 0.5
                                 }
                             }
 
@@ -291,7 +378,7 @@ script_mod! {
                         padding: 4
                         status_msg := Label{
                             text: "Ready"
-                            draw_text: { color: #888 }
+                            draw_text +: { color: #xffffff }
                         }
                     }
                 }
@@ -302,15 +389,17 @@ script_mod! {
 
 impl App {
     fn run(vm: &mut ScriptVm) -> Self {
-        makepad_widgets::script_mod(vm);
-        makepad_code_editor::script_mod(vm);
-        crate::makepad_main::script_mod(vm);  // Register our custom widgets
+        // App::run is not called during normal startup; registrations happen in AppMain::script_mod
         let state = Arc::new(Mutex::new(AppState::default()));
         
         // Initialize shader renderer
         {
             let mut state = state.lock().unwrap();
             state.renderer = Some(pollster::block_on(ShaderRenderer::new()).expect("Init shader renderer"));
+            // Scan for shaders on startup
+            state.available_shaders = scan_shader_directories();
+            // Update status message
+            state.status_message = format!("Found {} shaders", state.available_shaders.len());
         }
         
         App::from_script_mod(vm, self::script_mod)
@@ -344,10 +433,12 @@ impl App {
                         state.render_requested = true;
                         state.status_message = String::from("Compiled OK");
                         drop(state);
-                        self.ui.widget(cx, ids![preview_widget]).borrow_mut::<ShaderPreviewWidget>().map(|mut preview| {
-                            preview.last_frame = Some(pixels);
-                            preview.cached_texture = None;
-                        });
+self.ui.widget(cx, ids![preview_widget]).borrow_mut::<ShaderPreviewWidget>().map(|mut preview| {
+                                preview.last_frame = Some(pixels);
+                                preview.tex_width = tex_width;
+                                preview.tex_height = tex_height;
+                                preview.cached_texture = None;
+                            });
                     }
                     Err(e) => {
                         let error_msg = e.to_string();
@@ -410,6 +501,8 @@ impl MatchEvent for App {
                             // Update the ShaderPreviewWidget's last_frame field and clear cached texture
                             self.ui.widget(cx, ids![preview_widget]).borrow_mut::<ShaderPreviewWidget>().map(|mut preview| {
                                 preview.last_frame = Some(pixels);
+                                preview.tex_width = tex_width;
+                                preview.tex_height = tex_height;
                                 preview.cached_texture = None;
                             });
                         }
@@ -419,6 +512,17 @@ impl MatchEvent for App {
                     }
                 }
             } // state lock dropped here
+        }
+        
+        // Handle shader selection from the shader list
+        for action in self.ui.widget(cx, ids![shader_list]).filter_actions(actions) {
+            if let ShaderListWidgetAction::ShaderSelected(path) = action.cast() {
+                if let Ok(content) = fs::read_to_string(path) {
+                    if let Some(mut editor) = self.ui.widget(cx, ids![code_editor]).borrow_mut::<ShaderCodeEditor>() {
+                        editor.set_text(cx, &content);
+                    }
+                }
+            }
         }
         
         // Also handle slider actions to update params
@@ -443,14 +547,20 @@ impl MatchEvent for App {
 
 impl AppMain for App {
     fn handle_event(&mut self, cx: &mut Cx, event: &Event) {
+        // Trigger initial render on startup so the preview shows the default shader
+        if matches!(event, Event::Startup) {
+            self.trigger_render(cx);
+        }
         self.match_event(cx, event);
         self.ui.handle_event(cx, event, &mut Scope::empty());
     }
     
     fn script_mod(_vm: &mut ScriptVm) -> ScriptValue {
-        // The macro expects script_mod to return a ScriptValue from the module-level function
-        // Let's call the module-level script_mod directly
-        script_mod(_vm)
+        // Order matters: widgets first, then our macro (which registers ShaderCodeEditor, ShaderPreviewWidget, etc.),
+        // then code_editor-specific types
+        makepad_widgets::script_mod(_vm);
+        makepad_code_editor::script_mod(_vm);
+        self::script_mod(_vm)
     }
 }
 #[derive(Script, ScriptHook, Widget)]
@@ -513,5 +623,140 @@ impl Widget for ShaderPreviewWidget {
         }
 
         DrawStep::done()
+    }
+}
+
+#[derive(Script, ScriptHook, WidgetRef, WidgetSet, WidgetRegister)]
+pub struct ShaderListWidget {
+    #[uid]
+    uid: WidgetUid,
+    #[source]
+    source: ScriptObjectRef,
+    #[deref]
+    view: View,
+    #[walk]
+    walk: Walk,
+    #[layout]
+    layout: Layout,
+    #[live]
+    draw_text: DrawText,
+    #[live]
+    items: ArcStringMut,
+    #[rust]
+    selected_index: Option<usize>,
+    #[rust]
+    hover_index: Option<usize>,
+}
+
+impl WidgetNode for ShaderListWidget {
+    fn widget_uid(&self) -> WidgetUid {
+        self.uid
+    }
+    fn walk(&mut self, _cx: &mut Cx) -> Walk {
+        self.walk
+    }
+    fn area(&self) -> Area {
+        self.view.area()
+    }
+    fn redraw(&mut self, cx: &mut Cx) {
+        self.view.redraw(cx)
+    }
+    fn find_widgets_from_point(&self, cx: &Cx, point: DVec2, found: &mut dyn FnMut(&WidgetRef)) {
+        self.view.find_widgets_from_point(cx, point, found)
+    }
+    fn visible(&self) -> bool {
+        self.view.visible()
+    }
+    fn set_visible(&mut self, cx: &mut Cx, visible: bool) {
+        self.view.set_visible(cx, visible)
+    }
+}
+
+impl ShaderListWidget {
+    fn init_shaders(&mut self) {
+        let shaders = scan_shader_directories();
+        self.set_items(&shaders);
+    }
+
+    fn set_items(&mut self, items: &[String]) {
+        let text = items.join("\n");
+        self.items.set(&text);
+    }
+
+    fn rescan(&mut self) {
+        let shaders = scan_shader_directories();
+        self.set_items(&shaders);
+    }
+
+    fn get_items(&self) -> Vec<String> {
+        self.items.as_ref().split('\n').map(|s| s.to_string()).collect()
+    }
+
+    fn select_and_load(&mut self, index: usize, cx: &mut Cx) {
+        let items = self.get_items();
+        if let Some(path) = items.get(index).cloned() {
+            self.selected_index = Some(index);
+            cx.widget_action(self.uid, ShaderListWidgetAction::ShaderSelected(path));
+        }
+    }
+}
+
+impl Widget for ShaderListWidget {
+    fn draw_walk(&mut self, cx: &mut Cx2d, scope: &mut Scope, walk: Walk) -> DrawStep {
+        if self.get_items().is_empty() {
+            self.init_shaders();
+        }
+
+        // Draw background
+        let _ = self.view.draw_walk(cx, scope, walk);
+
+        // Draw shader list items
+        let items = self.get_items();
+        if items.is_empty() {
+            return DrawStep::done();
+        }
+
+        let rect = cx.walk_turtle(walk);
+        let item_height = 24.0;
+        let max_visible = (rect.size.y / item_height) as usize;
+
+        for (i, name) in items.iter().enumerate().take(max_visible) {
+            let y = rect.pos.y + (i as f64 * item_height);
+            let item_rect = dvec2(rect.size.x, item_height);
+            
+            // Draw selection background
+            if self.selected_index == Some(i) {
+                let sel_rect = Rect { pos: dvec2(rect.pos.x, y), size: item_rect };
+                let bg = self.view.draw_bg.draw_abs(cx, sel_rect);
+                let _ = bg;
+            }
+
+            // Draw item text (just the filename, not full path)
+            let display_name = Path::new(name)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or(name);
+
+            let text = self.draw_text.draw_abs(cx, dvec2(rect.pos.x + 8.0, y + 4.0), display_name);
+
+            let _ = text;
+        }
+
+        DrawStep::done()
+    }
+
+    fn handle_event(&mut self, cx: &mut Cx, event: &Event, scope: &mut Scope) {
+        let _ = self.view.handle_event(cx, event, scope);
+
+        if let Event::MouseDown(mouse) = event {
+            if mouse.button.is_primary() {
+                let rect = self.view.area().rect(cx);
+                if rect.contains(mouse.abs) {
+                    let item_height = 24.0;
+                    let index = ((mouse.abs.y - rect.pos.y) / item_height) as usize;
+                    self.select_and_load(index, cx);
+                }
+            }
+        }
     }
 }
