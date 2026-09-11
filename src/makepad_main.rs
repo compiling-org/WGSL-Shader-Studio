@@ -11,6 +11,7 @@ use crate::isf_loader;
 use crate::isf_converter;
 use std::sync::{Arc, Mutex};
 use std::hash::{Hash, Hasher};
+use std::collections::HashMap;
 use pollster;
 use makepad_widgets::ArcStringMut;
 use std::fs;
@@ -33,6 +34,54 @@ pub struct AppState {
     pub available_shaders: Vec<String>,
     pub last_shader_scan: std::time::Instant,
     pub shader_labels: Vec<Label>,
+    pub current_shader_path: Option<String>,
+    pub shader_parameters: Vec<ShaderParameter>,
+    pub parameter_states: HashMap<String, f32>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ShaderParamType {
+    Float,
+    Bool,
+    Color,
+    Point2D,
+}
+
+#[derive(Debug, Clone)]
+pub struct ShaderParameter {
+    pub name: String,
+    pub input_type: ShaderParamType,
+    pub value: ShaderValue,
+    pub min: Option<f32>,
+    pub max: Option<f32>,
+    pub default: Option<f32>,
+}
+
+impl Default for ShaderParameter {
+    fn default() -> Self {
+        Self {
+            name: String::from("parameter"),
+            input_type: ShaderParamType::Float,
+            value: ShaderValue::Float(0.0),
+            min: None,
+            max: None,
+            default: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ShaderValue {
+    Float(f32),
+    Bool(bool),
+    Color([f32; 4]),
+    Point2D([f32; 2]),
+}
+
+impl Default for ShaderValue {
+    fn default() -> Self {
+        Self::Float(0.0)
+    }
 }
 
 impl Default for AppState {
@@ -54,6 +103,9 @@ impl Default for AppState {
             available_shaders: Vec::new(),
             last_shader_scan: std::time::Instant::now(),
             shader_labels: Vec::new(),
+            current_shader_path: None,
+            shader_parameters: Vec::new(),
+            parameter_states: HashMap::new(),
         }
     }
 }
@@ -407,30 +459,25 @@ script_mod! {
                                 draw_text +: { color: #xffffff }
                             }
 
-                            param_section := View{
+                            param_scroll := ScrollYView{
                                 width: Fill
-                                height: Fit
-                                flow: Down
-                                padding: 4
-                                param_a_label := Label{
-                                    text: "Parameter A"
-                                    draw_text +: { color: #xffffff }
-                                }
-                                param_a_slider := Slider{
+                                height: Fill
+                                padding: 0
+                                scroll_bars: ScrollBars{}
+                                content := View{
                                     width: Fill
-                                    min: 0.0
-                                    max: 1.0
-                                    default: 0.5
-                                }
-                                param_b_label := Label{
-                                    text: "Parameter B"
-                                    draw_text +: { color: #xffffff }
-                                }
-                                param_b_slider := Slider{
-                                    width: Fill
-                                    min: 0.0
-                                    max: 1.0
-                                    default: 0.5
+                                    height: Fit
+                                    flow: Down
+                                    spacing: 2
+                                    param_section := View{
+                                        width: Fill
+                                        height: Fit
+                                        flow: Down
+                                        spacing: 4
+                                        padding: 4
+                                        new_batch: true
+                                        draw_bg +: { color: #x2d2d2d }
+                                    }
                                 }
                             }
 
@@ -481,6 +528,17 @@ impl App {
             };
             x
         };
+        let param_values: Vec<f32> = {
+            let state = self.state.lock().unwrap();
+            state.shader_parameters.iter().map(|p| {
+                match &p.value {
+                    ShaderValue::Float(v) => *v,
+                    ShaderValue::Bool(b) => if *b { 1.0 } else { 0.0 },
+                    ShaderValue::Color(c) => c[0],
+                    ShaderValue::Point2D(p) => p[0],
+                }
+            }).collect()
+        };
         {
             let mut state = self.state.lock().unwrap();
             let (tex_width, tex_height, time) = (state.tex_width, state.tex_height, state.time);
@@ -492,7 +550,7 @@ impl App {
                     frame_rate: 60.0,
                     audio_data: None,
                 };
-                match renderer.render_frame(&shader_code, &params, None) {
+                match renderer.render_frame(&shader_code, &params, Some(&param_values)) {
                     Ok(pixels) => {
                         state.last_frame = Some(pixels.clone());
                         state.compilation_error = None;
@@ -517,6 +575,115 @@ impl App {
         }
     }
 
+    fn load_isf_parameters(&mut self, path: &str) -> Vec<ShaderParameter> {
+        if let Ok(content) = fs::read_to_string(path) {
+            if path.to_lowercase().ends_with(".fs") {
+                match isf_loader::IsfShader::parse(path, &content) {
+                    Ok(isf_shader) => {
+                        let mut parameters = Vec::new();
+                        
+                        for input in isf_shader.inputs {
+                            let (input_type, value, min, max, default) = match input.input_type {
+                                isf_loader::InputType::Float => {
+                                    let val = match input.value {
+                                        isf_loader::ShaderValue::Float(v) => v,
+                                        _ => 0.0,
+                                    };
+                                    (
+                                        ShaderParamType::Float,
+                                        ShaderValue::Float(val),
+                                        input.min,
+                                        input.max,
+                                        input.default,
+                                    )
+                                }
+                                isf_loader::InputType::Bool => {
+                                    let val = match input.value {
+                                        isf_loader::ShaderValue::Bool(v) => v,
+                                        _ => false,
+                                    };
+                                    (
+                                        ShaderParamType::Bool,
+                                        ShaderValue::Bool(val),
+                                        None,
+                                        None,
+                                        input.default,
+                                    )
+                                }
+                                isf_loader::InputType::Color => {
+                                    let color = match input.value {
+                                        isf_loader::ShaderValue::Color(c) => c,
+                                        _ => [1.0, 1.0, 1.0, 1.0],
+                                    };
+                                    (
+                                        ShaderParamType::Color,
+                                        ShaderValue::Color(color),
+                                        None,
+                                        None,
+                                        None,
+                                    )
+                                }
+                                isf_loader::InputType::Point2D => {
+                                    let point = match input.value {
+                                        isf_loader::ShaderValue::Point2D(p) => p,
+                                        _ => [0.0, 0.0],
+                                    };
+                                    (
+                                        ShaderParamType::Point2D,
+                                        ShaderValue::Point2D(point),
+                                        None,
+                                        None,
+                                        None,
+                                    )
+                                }
+                                _ => (
+                                    ShaderParamType::Float,
+                                    ShaderValue::Float(0.0),
+                                    None,
+                                    None,
+                                    None,
+                                ),
+                            };
+                            
+                            parameters.push(ShaderParameter {
+                                name: input.name,
+                                input_type,
+                                value,
+                                min,
+                                max,
+                                default,
+                            });
+                        }
+                        
+                        return parameters;
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to parse ISF shader: {}", e);
+                    }
+                }
+            }
+        }
+        Vec::new()
+    }
+
+    fn update_properties_panel(&self, _cx: &Cx) {
+        let parameters = {
+            let state = self.state.lock().unwrap();
+            state.shader_parameters.clone()
+        };
+        
+        // Store parameter values in state for the renderer
+        let mut state = self.state.lock().unwrap();
+        for param in &parameters {
+            let val = match &param.value {
+                ShaderValue::Float(v) => *v,
+                ShaderValue::Bool(b) => if *b { 1.0 } else { 0.0 },
+                ShaderValue::Color(c) => c[0],
+                ShaderValue::Point2D(p) => p[0],
+            };
+            state.parameter_states.insert(param.name.clone(), val);
+        }
+    }
 }
 
 #[derive(Script, ScriptHook)]
@@ -529,58 +696,6 @@ pub struct App {
 
 impl MatchEvent for App {
     fn handle_actions(&mut self, cx: &mut Cx, actions: &Actions) {
-        // Handle the Apply button press
-        if self.ui.button(cx, ids![apply_button]).clicked(actions) {
-            // Get shader code from CodeEditor
-            let shader_code = {
-                let code_editor = self.ui.widget(cx, ids![code_editor]);
-                let x = if let Some(editor) = code_editor.borrow_mut::<ShaderCodeEditor>() {
-                    editor.text.as_ref().to_string()
-                } else {
-                    String::new()
-                };
-                x
-            }; // code_editor dropped here
-
-            // Render the shader
-            {
-                let mut state = self.state.lock().unwrap();
-                let (tex_width, tex_height, time) = (state.tex_width, state.tex_height, state.time);
-                if let Some(renderer) = state.renderer.as_mut() {
-                    let params = RenderParameters {
-                        width: tex_width,
-                        height: tex_height,
-                        time,
-                        frame_rate: 60.0,
-                        audio_data: None,
-                    };
-
-                    // Render the shader frame
-                    match renderer.render_frame(
-                        &shader_code,
-                        &params,
-                        None,
-                    ) {
-                        Ok(pixels) => {
-                            state.last_frame = Some(pixels.clone());
-                            state.render_requested = true;
-                            
-                            // Update the ShaderPreviewWidget's last_frame field and clear cached texture
-                            self.ui.widget(cx, ids![preview_widget]).borrow_mut::<ShaderPreviewWidget>().map(|mut preview| {
-                                preview.last_frame = Some(pixels);
-                                preview.tex_width = tex_width;
-                                preview.tex_height = tex_height;
-                                preview.cached_texture = None;
-                            });
-                        }
-                        Err(e) => {
-                            eprintln!("Shader render error: {:?}", e);
-                        }
-                    }
-                }
-            } // state lock dropped here
-        }
-        
         // Handle rescan shaders button
         if self.ui.button(cx, ids![rescan_button]).clicked(actions) {
             self.ui.widget(cx, ids![shader_list_widget]).borrow_mut::<ShaderListWidget>().map(|mut list| {
@@ -619,26 +734,19 @@ impl MatchEvent for App {
                             editor.set_text(cx, &code);
                         }
                     }
+
+                    // Load ISF parameters and update Properties panel
+                    let parameters = self.load_isf_parameters(&path_for_ext);
+                    {
+                        let mut state = self.state.lock().unwrap();
+                        state.current_shader_path = Some(path_for_ext.clone());
+                        state.shader_parameters = parameters;
+                        state.status_message = format!("Loaded parameters for {}", path_for_ext);
+                    }
+                    self.update_properties_panel(cx);
+                    self.trigger_render(cx);
                 }
             }
-        }
-        
-        // Also handle slider actions to update params
-        if let Some(val) = self.ui.slider(cx, ids![param_a_slider]).value() {
-            let mut state = self.state.lock().unwrap();
-            state.param_a = val as f32;
-            
-            // Update time for animation
-            state.time += 0.016; // ~60 FPS
-            
-            // Update ShaderPreviewWidget time field
-            self.ui.widget(cx, ids![preview_widget]).borrow_mut::<ShaderPreviewWidget>().map(|mut preview| {
-                preview.time = state.time;
-            });
-        }
-        if let Some(val) = self.ui.slider(cx, ids![param_b_slider]).value() {
-            let mut state = self.state.lock().unwrap();
-            state.param_b = val as f32;
         }
 
         // Update status bar labels
