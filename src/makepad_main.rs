@@ -7,7 +7,10 @@ use makepad_code_editor::{
     session::CodeSession,
 };
 use crate::shader_renderer::{ShaderRenderer, RenderParameters};
-use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
+use crate::isf_loader;
+use crate::isf_converter;
+use std::sync::{Arc, Mutex};
+use std::hash::{Hash, Hasher};
 use pollster;
 use makepad_widgets::ArcStringMut;
 use std::fs;
@@ -29,6 +32,7 @@ pub struct AppState {
     pub status_message: String,
     pub available_shaders: Vec<String>,
     pub last_shader_scan: std::time::Instant,
+    pub shader_labels: Vec<Label>,
 }
 
 impl Default for AppState {
@@ -49,17 +53,22 @@ impl Default for AppState {
             status_message: String::new(),
             available_shaders: Vec::new(),
             last_shader_scan: std::time::Instant::now(),
+            shader_labels: Vec::new(),
         }
     }
 }
 
-/// Scan the project's shader directories for WGSL files
+/// Scan the project's shader directories for ISF (.fs) shaders
 fn scan_shader_directories() -> Vec<String> {
     let mut found_all = Vec::new();
-    let paths = [Path::new("./assets"), Path::new("./shaders")];
+    let paths = [
+        Path::new("./assets"),
+        Path::new("./shaders"),
+        Path::new("./isf-shaders"),
+    ];
     for path in paths.iter() {
         if path.exists() {
-            collect_shader_files(path, &mut found_all);
+            collect_isf_files(path, &mut found_all);
         }
     }
     found_all.sort();
@@ -67,15 +76,15 @@ fn scan_shader_directories() -> Vec<String> {
     found_all
 }
 
-/// Recursively collect .wgsl files from a directory
-fn collect_shader_files(dir: &Path, out: &mut Vec<String>) {
+/// Recursively collect .fs files from a directory
+fn collect_isf_files(dir: &Path, out: &mut Vec<String>) {
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
             let p = entry.path();
             if p.is_dir() {
-                collect_shader_files(&p, out);
+                collect_isf_files(&p, out);
             } else if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
-                if ext.eq_ignore_ascii_case("wgsl") {
+                if ext.eq_ignore_ascii_case("fs") {
                     if let Some(s) = p.to_str() {
                         out.push(s.to_string());
                     }
@@ -86,6 +95,7 @@ fn collect_shader_files(dir: &Path, out: &mut Vec<String>) {
 }
 
 /// Check if a WGSL file is compatible with the renderer (has vertex and fragment stages)
+#[allow(dead_code)]
 fn is_wgsl_shader_compatible(src: &str) -> bool {
     src.contains("@vertex") && src.contains("@fragment")
 }
@@ -235,7 +245,7 @@ script_mod! {
             margin: 0
             pad_left_top: vec2(10.0, 10.0)
             scroll_bars: mod.widgets.ScrollBars {}
-            draw_bg +: { color: #1e1e1e }
+            draw_bg +: { color: #x1e1e1e }
             draw_gutter +: {
                 text_style: theme.font_code
                 color: theme.color_label_outer
@@ -258,11 +268,25 @@ script_mod! {
         }
     }
 
-    let ShaderPreviewWidget = #(ShaderPreviewWidget::register_widget(vm)) {}
+    let ShaderPreviewWidget = #(ShaderPreviewWidget::register_widget(vm)) {
+        width: Fill
+        height: Fill
+    }
 
-    let ShaderListWidget = #(ShaderListWidget::register_widget(vm)) {}
+    let ShaderListWidget = #(ShaderListWidget::register_widget(vm)) {
+        height: Fit
+        width: Fill
+    }
 
-    startup() do #(App::script_component(vm)){
+    let ShaderLibraryItem = ButtonFlat{
+        width: Fill
+        height: Fit
+        padding: Inset{left: 8.0, right: 8.0, top: 4.0, bottom: 4.0}
+        draw_text +: { color: #xffffff text_style: theme.font_regular }
+        draw_bg +: { color: #x2d2d2d color_hover: #x3a3a3a color_active: #x404040 }
+    }
+
+    load_all_resources() do #(App::script_component(vm)){
         ui: Root{
             main_window := Window{
                 window.inner_size: vec2(1600, 900)
@@ -273,9 +297,16 @@ script_mod! {
                         height: Fill
                         width: Fill
 
-                        root := DockTabs{
-                            tabs: [@left_tab @center_tab @right_tab]
-                            selected: 1
+                        root := DockSplitter{
+                            axis: SplitterAxis.Horizontal
+                            align: SplitterAlign.FromA(250.0)
+                            a: @left_tabs
+                            b: @center_right_split
+                        }
+
+                        left_tabs := DockTabs{
+                            tabs: [@left_tab]
+                            selected: 0
                             closable: false
                         }
 
@@ -284,11 +315,32 @@ script_mod! {
                             template: @PermanentTab
                             kind: @LeftPanel
                         }
+
+                        center_right_split := DockSplitter{
+                            axis: SplitterAxis.Horizontal
+                            align: SplitterAlign.FromB(300.0)
+                            a: @center_tabs
+                            b: @right_tabs
+                        }
+
+                        center_tabs := DockTabs{
+                            tabs: [@center_tab]
+                            selected: 0
+                            closable: false
+                        }
+
                         center_tab := DockTab{
                             name: "Editor"
                             template: @PermanentTab
                             kind: @CenterPanel
                         }
+
+                        right_tabs := DockTabs{
+                            tabs: [@right_tab]
+                            selected: 0
+                            closable: false
+                        }
+
                         right_tab := DockTab{
                             name: "Properties"
                             template: @PermanentTab
@@ -304,10 +356,26 @@ script_mod! {
                                 text: "Shader Library"
                                 draw_text +: { color: #xffffff }
                             }
-                            shader_list := ShaderListWidget{
+                            rescan_button := Button{
+                                text: "Rescan Shaders"
                                 width: Fill
-                                height: 200
-                                draw_bg +: { color: #xFF0000 }
+                                height: Fit
+                            }
+                            shader_list_scroll := ScrollYView{
+                                width: Fill
+                                height: Fill
+                                padding: 0
+                                scroll_bars: ScrollBars{}
+                                content := View{
+                                    width: Fill
+                                    height: Fit
+                                    flow: Down
+                                    spacing: 2
+                                    shader_list_widget := ShaderListWidget{
+                                        width: Fill
+                                        height: Fit
+                                    }
+                                }
                             }
                         }
 
@@ -323,7 +391,7 @@ script_mod! {
                                 text: "@vertex\nfn vs_main(@builtin(vertex_index) vertex_index: u32) -> @builtin(position) vec4<f32> {\n    var pos = vec2<f32>(0.0, 0.0);\n    switch vertex_index {\n        case 0u: { pos = vec2<f32>(-1.0, -1.0); }\n        case 1u: { pos = vec2<f32>( 3.0, -1.0); }\n        case 2u: { pos = vec2<f32>(-1.0,  3.0); }\n        default: { pos = vec2<f32>(0.0, 0.0); }\n    }\n    return vec4<f32>(pos, 0.0, 1.0);\n}\n\n@fragment\nfn fs_main() -> @location(0) vec4<f32> {\n    return vec4<f32>(0.2, 0.2, 0.2, 1.0);\n}"
                             }
 
-                            preview := ShaderPreviewWidget{
+                            preview_widget := ShaderPreviewWidget{
                                 width: Fill
                                 height: Fill
                             }
@@ -374,11 +442,26 @@ script_mod! {
                     status_bar := View{
                         height: Fit
                         width: Fill
-                        flow: Down
-                        padding: 4
+                        padding: Inset{left: 10, right: 10, top: 4, bottom: 4}
+                        draw_bg +: { color: #x1a1a2e }
+                        flow: Right
+                        spacing: 10
+                        align: Align{y: 0.5}
                         status_msg := Label{
                             text: "Ready"
                             draw_text +: { color: #xffffff }
+                        }
+                        fps_label := Label{
+                            text: "FPS: --"
+                            draw_text +: { color: #x88cc88 }
+                        }
+                        gpu_label := Label{
+                            text: "GPU: --"
+                            draw_text +: { color: #x88aaff }
+                        }
+                        error_label := Label{
+                            text: ""
+                            draw_text +: { color: #xff5555 }
                         }
                     }
                 }
@@ -388,23 +471,6 @@ script_mod! {
 }
 
 impl App {
-    fn run(vm: &mut ScriptVm) -> Self {
-        // App::run is not called during normal startup; registrations happen in AppMain::script_mod
-        let state = Arc::new(Mutex::new(AppState::default()));
-        
-        // Initialize shader renderer
-        {
-            let mut state = state.lock().unwrap();
-            state.renderer = Some(pollster::block_on(ShaderRenderer::new()).expect("Init shader renderer"));
-            // Scan for shaders on startup
-            state.available_shaders = scan_shader_directories();
-            // Update status message
-            state.status_message = format!("Found {} shaders", state.available_shaders.len());
-        }
-        
-        App::from_script_mod(vm, self::script_mod)
-    }
-
     fn trigger_render(&mut self, cx: &mut Cx) {
         let shader_code = {
             let code_editor = self.ui.widget(cx, ids![code_editor]);
@@ -433,12 +499,12 @@ impl App {
                         state.render_requested = true;
                         state.status_message = String::from("Compiled OK");
                         drop(state);
-self.ui.widget(cx, ids![preview_widget]).borrow_mut::<ShaderPreviewWidget>().map(|mut preview| {
-                                preview.last_frame = Some(pixels);
-                                preview.tex_width = tex_width;
-                                preview.tex_height = tex_height;
-                                preview.cached_texture = None;
-                            });
+                        self.ui.widget(cx, ids![preview_widget]).borrow_mut::<ShaderPreviewWidget>().map(|mut preview| {
+                            preview.last_frame = Some(pixels);
+                            preview.tex_width = tex_width;
+                            preview.tex_height = tex_height;
+                            preview.cached_texture = None;
+                        });
                     }
                     Err(e) => {
                         let error_msg = e.to_string();
@@ -450,6 +516,7 @@ self.ui.widget(cx, ids![preview_widget]).borrow_mut::<ShaderPreviewWidget>().map
             }
         }
     }
+
 }
 
 #[derive(Script, ScriptHook)]
@@ -514,12 +581,43 @@ impl MatchEvent for App {
             } // state lock dropped here
         }
         
+        // Handle rescan shaders button
+        if self.ui.button(cx, ids![rescan_button]).clicked(actions) {
+            self.ui.widget(cx, ids![shader_list_widget]).borrow_mut::<ShaderListWidget>().map(|mut list| {
+                list.rescan();
+            });
+        }
+
         // Handle shader selection from the shader list
-        for action in self.ui.widget(cx, ids![shader_list]).filter_actions(actions) {
+        for action in self.ui.widget(cx, ids![shader_list_widget]).filter_actions(actions) {
             if let ShaderListWidgetAction::ShaderSelected(path) = action.cast() {
+                let path_for_ext = path.clone();
                 if let Ok(content) = fs::read_to_string(path) {
-                    if let Some(mut editor) = self.ui.widget(cx, ids![code_editor]).borrow_mut::<ShaderCodeEditor>() {
-                        editor.set_text(cx, &content);
+                    let wgsl_code = if path_for_ext.to_lowercase().ends_with(".fs") {
+                        match isf_loader::IsfShader::parse(&path_for_ext, &content) {
+                            Ok(isf_shader) => {
+                                let mut converter = isf_converter::IsfConverter::new();
+                                match converter.convert_to_wgsl(&isf_shader) {
+                                    Ok(wgsl) => Some(wgsl),
+                                    Err(e) => {
+                                        eprintln!("ISF conversion failed: {}", e);
+                                        Some(content)
+                                    }
+                                }
+                            },
+                            Err(e) => {
+                                eprintln!("ISF parse failed: {}", e);
+                                Some(content)
+                            }
+                        }
+                    } else {
+                        Some(content)
+                    };
+
+                    if let Some(code) = wgsl_code {
+                        if let Some(mut editor) = self.ui.widget(cx, ids![code_editor]).borrow_mut::<ShaderCodeEditor>() {
+                            editor.set_text(cx, &code);
+                        }
                     }
                 }
             }
@@ -542,6 +640,13 @@ impl MatchEvent for App {
             let mut state = self.state.lock().unwrap();
             state.param_b = val as f32;
         }
+
+        // Update status bar labels
+        let state = self.state.lock().unwrap();
+        self.ui.widget(cx, ids![status_msg]).set_text(cx, &state.status_message);
+        self.ui.widget(cx, ids![fps_label]).set_text(cx, &format!("FPS: {}", state.time as u32 % 60));
+        self.ui.widget(cx, ids![gpu_label]).set_text(cx, &format!("GPU: {:?}", state.renderer.is_some()));
+        self.ui.widget(cx, ids![error_label]).set_text(cx, state.compilation_error.as_deref().unwrap_or(""));
     }
 }
 
@@ -549,6 +654,22 @@ impl AppMain for App {
     fn handle_event(&mut self, cx: &mut Cx, event: &Event) {
         // Trigger initial render on startup so the preview shows the default shader
         if matches!(event, Event::Startup) {
+            // Initialize the WGPU renderer
+            match pollster::block_on(ShaderRenderer::new_with_size((512, 512))) {
+                Ok(renderer) => {
+                    self.state.lock().unwrap().renderer = Some(renderer);
+                }
+                Err(e) => {
+                    let mut state = self.state.lock().unwrap();
+                    state.renderer = None;
+                    state.compilation_error = Some(format!("Failed to initialize GPU renderer: {}", e));
+                    state.status_message = "GPU init failed".to_string();
+                }
+            }
+            // Scan shader directories and populate the shader list
+            let shaders = scan_shader_directories();
+            self.state.lock().unwrap().available_shaders = shaders;
+            // Trigger render after initialization
             self.trigger_render(cx);
         }
         self.match_event(cx, event);
@@ -585,41 +706,48 @@ pub struct ShaderPreviewWidget {
 
     #[rust]
     cached_texture: Option<Texture>,
+
+    #[rust]
+    cached_texture_hash: u64,
 }
 impl Widget for ShaderPreviewWidget {
     fn handle_event(&mut self, _cx: &mut Cx, _event: &Event, _scope: &mut Scope) {}
 
     fn draw_walk(&mut self, cx: &mut Cx2d, scope: &mut Scope, walk: Walk) -> DrawStep {
-        // Let the base View handle its own drawing (background, etc.)
-        let _ = self.view.draw_walk(cx, scope, walk);
+        let rect = cx.walk_turtle(walk);
 
-        // Render the shader preview if we have frame data
         if let Some(frame) = &self.last_frame {
             if frame.len() >= (self.tex_width * self.tex_height * 4) as usize {
-                // Get the turtle rect for our position
-                let rect = cx.peek_walk_turtle(walk);
+                // Compute a hash of the frame data so we only recreate the texture when it changes
+                let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                frame.hash(&mut hasher);
+                let frame_hash = hasher.finish();
 
-                // Only recreate texture if frame data changed
-                let needs_new_texture = self.cached_texture.is_none();
+                let needs_new_texture = self.cached_texture.is_none()
+                    || frame_hash != self.cached_texture_hash
+                    || self.tex_width == 0
+                    || self.tex_height == 0;
+
                 if needs_new_texture {
-                    // Create texture from frame data.
-                    // shader_renderer.rs outputs RGBA8Unorm pixels.
-                    // ImageBuffer::new converts to internal Makepad BGRA format automatically.
-                    let img_buf = makepad_draw::image_cache::ImageBuffer::new(
+                    if let Ok(img_buf) = makepad_draw::image_cache::ImageBuffer::new(
                         frame,
                         self.tex_width as usize,
                         self.tex_height as usize,
-                    ).unwrap();
-
-                    self.cached_texture = Some(img_buf.into_new_texture(cx));
+                    ) {
+                        self.cached_texture = Some(img_buf.into_new_texture(cx));
+                        self.cached_texture_hash = frame_hash;
+                    }
                 }
 
                 if let Some(texture) = &self.cached_texture {
-                    // Set the texture and draw using the view's draw_bg (DrawQuad)
                     self.view.draw_bg.draw_vars.set_texture(0, texture);
                     self.view.draw_bg.draw_abs(cx, rect);
                 }
             }
+        } else {
+            // No frame data — draw a dark placeholder
+            self.view.draw_bg.draw_vars.empty_texture(0);
+            self.view.draw_bg.draw_abs(cx, rect);
         }
 
         DrawStep::done()
@@ -644,8 +772,6 @@ pub struct ShaderListWidget {
     items: ArcStringMut,
     #[rust]
     selected_index: Option<usize>,
-    #[rust]
-    hover_index: Option<usize>,
 }
 
 impl WidgetNode for ShaderListWidget {
